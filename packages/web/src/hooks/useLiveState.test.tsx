@@ -132,18 +132,16 @@ describe("invalidateFor", () => {
     expect(invalidate).toHaveBeenCalledExactlyOnceWith({ queryKey: ["adapterCatalog", "list"] });
   });
 
-  it("`account.changed` recarrega as contas e o catálogo, que é por conta (`034`)", () => {
-    // Conectar, desconectar ou trocar a padrão muda a lista de contas **e** qual
-    // leitura do catálogo a pílula mostra primeiro.
+  it("`account.changed` recarrega o catálogo, que é por conta (`034`)", () => {
+    // Conectar, desconectar ou trocar a padrão muda qual leitura do catálogo a
+    // pílula mostra primeiro.
     const queryClient = new QueryClient();
     const invalidate = vi.spyOn(queryClient, "invalidateQueries");
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
     invalidateFor(queryClient, { type: "account.changed", adapterId: "claude" });
 
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["agentAccount"] });
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["adapterCatalog", "list"] });
-    expect(invalidate).not.toHaveBeenCalledWith();
+    expect(invalidate).toHaveBeenCalledExactlyOnceWith({ queryKey: ["adapterCatalog", "list"] });
     expect(warn).not.toHaveBeenCalled();
   });
 

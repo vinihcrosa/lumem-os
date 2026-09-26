@@ -342,7 +342,5 @@ export const PROJECT_DETAIL_PREFIX = ["project", "detail"] as const;
 export const TASK_DETAIL_PREFIX = ["task", "get"] as const;
 export const TASK_BOARD_PREFIX = ["task", "board"] as const;
 export const TASK_SETTINGS_PREFIX = ["task", "settings"] as const;
-/** As contas de agente (`034`). Nenhuma tela as lê ainda; a da Fase 2 lê sob este prefixo. */
-export const AGENT_ACCOUNT_PREFIX = ["agentAccount"] as const;
 /** O começo de `adapterCatalogKey`: o `catalog.changed` diz o ACP, não o projeto. */
 export const ADAPTER_CATALOG_PREFIX = ["adapterCatalog", "list"] as const;

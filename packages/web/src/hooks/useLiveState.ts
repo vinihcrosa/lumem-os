@@ -5,7 +5,6 @@ import { useEffect } from "react";
 import { trpc } from "../lib/trpc.js";
 import {
   ADAPTER_CATALOG_PREFIX,
-  AGENT_ACCOUNT_PREFIX,
   CHANGES_PREFIX,
   FILES_PREFIX,
   PR_PREFIX,
@@ -101,9 +100,13 @@ export function invalidateFor(queryClient: QueryClient, event: LumemEvent): void
       void queryClient.invalidateQueries({ queryKey: ADAPTER_CATALOG_PREFIX });
       return;
     case "account.changed":
-      // As contas, e o catálogo: ele é por conta (`034` T9), e trocar a padrão
-      // muda qual leitura a pílula mostra primeiro.
-      void queryClient.invalidateQueries({ queryKey: AGENT_ACCOUNT_PREFIX });
+      /*
+       * O catálogo: ele é por conta (`034` T9), e trocar a padrão muda qual
+       * leitura a pílula mostra primeiro. A lista de contas ainda não tem tela
+       * que a leia — a regra do `queryKeys.test.ts` recusa prefixo que só existe
+       * do lado de quem invalida —, e a seção da Fase 2 traz a chave e esta
+       * linha juntas.
+       */
       void queryClient.invalidateQueries({ queryKey: ADAPTER_CATALOG_PREFIX });
       return;
     default: {
