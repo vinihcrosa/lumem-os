@@ -30,6 +30,14 @@ export interface SessionTabPanelProps {
   resumeError?: string | null;
   /** A fresh session was started from this record — open its tab. */
   onStarted: (sessionId: string) => void;
+  /** *Continuar em outra conta* desta conversa (`034` T15); a aba nova é de quem monta. */
+  onContinueIn?: (agentAccountId: string) => void;
+  /** True enquanto a continuação desta sessão sobe. */
+  continuing?: boolean;
+  /** A recusa do daemon à continuação desta sessão, ou null. */
+  continueError?: string | null;
+  /** O destino de uma linha de vínculo, ou null quando ela não é deste escopo. */
+  sessionLink?: (sessionId: string) => (() => void) | null;
 }
 
 /**
@@ -58,6 +66,10 @@ export function SessionTabPanel({
   resuming = false,
   resumeError = null,
   onStarted,
+  onContinueIn,
+  continuing = false,
+  continueError = null,
+  sessionLink,
 }: SessionTabPanelProps) {
   const agent = tab.kind === "agent";
   const conversation = tab.transport === "acp";
@@ -114,6 +126,19 @@ export function SessionTabPanel({
             sessionId={tab.sessionId}
             // O mesmo nome que a aba mostra, da mesma fonte: a `agent_config`.
             agentName={tab.label}
+            // Só quando o agente tem mais de uma conta — o daemon decide.
+            accountLabel={tab.accountLabel}
+            {...(onContinueIn
+              ? {
+                  continueIn: {
+                    currentAccountId: tab.accountId,
+                    onContinue: onContinueIn,
+                    pending: continuing,
+                    error: continueError,
+                  },
+                }
+              : {})}
+            {...(sessionLink ? { sessionLink } : {})}
             // A finished conversation opens in read mode: the transcript comes off the
             // daemon's disk and no adapter is launched (D13).
             live={tab.state === "running"}

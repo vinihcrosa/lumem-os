@@ -45,6 +45,8 @@ function tab(overrides: Partial<SessionTab> = {}): SessionTab {
     exitCode: null,
     command: "claude-agent-acp",
     transport: "acp",
+    accountId: null,
+    accountLabel: null,
     ...overrides,
   };
 }

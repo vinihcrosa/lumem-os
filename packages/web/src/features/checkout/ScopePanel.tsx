@@ -83,6 +83,10 @@ export function ScopePanel({
     select,
     close,
     reopen,
+    continueIn,
+    continuing,
+    continueError,
+    linkTo,
     resume,
     resuming,
     resumeError,
@@ -355,6 +359,12 @@ export function ScopePanel({
           {...(resumeError?.sessionId === tab.sessionId
             ? { resumeError: resumeError.message }
             : {})}
+          {...(tab.transport === "acp"
+            ? { onContinueIn: (accountId: string) => continueIn(tab.sessionId, accountId) }
+            : {})}
+          continuing={continuing === tab.sessionId}
+          {...(continueError?.sessionId === tab.sessionId ? { continueError: continueError.message } : {})}
+          sessionLink={linkTo}
         />
       ))}
 

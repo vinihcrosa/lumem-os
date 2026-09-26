@@ -24,6 +24,13 @@ export interface SessionTab {
   transport: "pty" | "acp";
   /** Only the second and later homonyms carry one. */
   ordinal?: number;
+  /** Em que conta a conversa roda (`034`); `null` para um shell. */
+  accountId: string | null;
+  /**
+   * O rótulo da conta, só quando o agente tem mais de uma (`multiAccount` do
+   * daemon): com uma conta só, o nome dela no cabeçalho é ruído.
+   */
+  accountLabel: string | null;
 }
 
 /**
@@ -88,6 +95,20 @@ export interface WorktreeTabs {
    */
   addDraft(initialText?: string): void;
   /**
+   * Continua uma conversa noutra conta (`034` T15, Q3): a sessão nova é a aba
+   * que abre, e a de origem continua onde estava.
+   */
+  continueIn(sessionId: string, agentAccountId: string): void;
+  /** A sessão de origem de um *continuar* em voo, ou null. */
+  continuing: string | null;
+  /** A recusa do daemon, na sessão que pediu. */
+  continueError: { sessionId: string; message: string } | null;
+  /**
+   * O que a linha de vínculo faz ao ser clicada: abrir a aba da outra sessão,
+   * se ela é deste escopo. `null` quando não é — a linha fica texto.
+   */
+  linkTo(sessionId: string): (() => void) | null;
+  /**
    * Descarta um rascunho — pura troca de estado do cliente, nada sai para o
    * daemon (Q1). Fechar o rascunho ativo devolve a seleção para o checkout.
    */
@@ -141,6 +162,8 @@ export function useWorktreeTabs(scope: Scope): WorktreeTabs {
         command: session.command,
         transport: session.transport === "acp" ? "acp" : "pty",
         ...(nth > 1 ? { ordinal: nth } : {}),
+        accountId: session.agentAccountId ?? null,
+        accountLabel: session.multiAccount ? session.agentAccountLabel : null,
       };
     });
   }, [list, reopened, dismissed]);
@@ -251,6 +274,27 @@ export function useWorktreeTabs(scope: Scope): WorktreeTabs {
     [resumption],
   );
 
+  /* Pelo mesmo motivo do `resume`: a aba nova só é selecionada depois de a lista saber dela. */
+  const continuation = useMutation({
+    mutationFn: (input: { sessionId: string; agentAccountId: string }) => trpc.session.continueIn.mutate(input),
+    onSuccess: async (row) => {
+      await queryClient.invalidateQueries({
+        queryKey: sessionsKey(scope.scopeType, scope.scopeId),
+      });
+      setActiveId(row.id);
+    },
+  });
+
+  const continueIn = useCallback(
+    (sessionId: string, agentAccountId: string) => continuation.mutate({ sessionId, agentAccountId }),
+    [continuation],
+  );
+
+  const linkTo = useCallback(
+    (sessionId: string) => (list.some((session) => session.id === sessionId) ? () => reopen(sessionId) : null),
+    [list, reopen],
+  );
+
   return {
     tabs,
     drafts,
@@ -267,5 +311,12 @@ export function useWorktreeTabs(scope: Scope): WorktreeTabs {
     sessions,
     addDraft,
     closeDraft,
+    continueIn,
+    continuing: continuation.isPending ? (continuation.variables?.sessionId ?? null) : null,
+    continueError:
+      continuation.isError && continuation.variables !== undefined
+        ? { sessionId: continuation.variables.sessionId, message: continuation.error.message }
+        : null,
+    linkTo,
   };
 }

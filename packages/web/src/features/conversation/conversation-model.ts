@@ -16,7 +16,7 @@ import type {
   LumemModeDefault,
 } from "@lumem/shared";
 
-import { continuationText } from "./continuation-text.js";
+import { continuationBlock } from "./continuation-text.js";
 import { unavailableText } from "./unavailable-text.js";
 
 /**
@@ -102,7 +102,7 @@ export type Block =
    * ninguém reconheceu, `.meta` é a sessão se declarando. Juntar os dois faria a
    * injeção parecer um defeito.
    */
-  | { kind: "meta"; text: string };
+  | { kind: "meta"; text: string; link?: string };
 
 export interface Turn {
   /**
@@ -482,7 +482,7 @@ export function reduceConversation(
       // passagem é o daemon falando, e não o agente.
       return {
         ...state,
-        turns: [...state.turns, { role: "agent", blocks: [{ kind: "meta", text: continuationText(event) }], at }],
+        turns: [...state.turns, { role: "agent", blocks: [continuationBlock(event)], at }],
       };
 
     case "memory_core":

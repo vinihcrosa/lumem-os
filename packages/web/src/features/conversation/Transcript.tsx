@@ -23,9 +23,11 @@ export interface TranscriptProps {
   readOnly: boolean;
   /** Responde um pedido de permissão pendente, pelo id do bloco que o mostrou. */
   answer(requestId: string, optionId: string): void;
+  /** Abre a outra aba de uma linha de vínculo (`034` T15), ou `null` quando ela não é deste escopo. */
+  sessionLink?: (sessionId: string) => (() => void) | null;
 }
 
-export function Transcript({ conversation, session, failure, readOnly, answer }: TranscriptProps) {
+export function Transcript({ conversation, session, failure, readOnly, answer, sessionLink }: TranscriptProps) {
   const [openThoughts, setOpenThoughts] = useState<ReadonlySet<string>>(new Set());
   /**
    * The first permission on this machine gets an explanation (F5.4).
@@ -98,6 +100,7 @@ export function Transcript({ conversation, session, failure, readOnly, answer }:
                   answer(request.requestId, optionId);
                 }}
                 coach={coach}
+                sessionLink={sessionLink}
               />
             ))}
           </TurnFrame>
@@ -138,6 +141,7 @@ interface BlockViewProps {
   onRespond(optionId: string): void;
   /** The first-time explanation of `Auto`, if it is still owed. */
   coach: FirstPermissionCoach;
+  sessionLink: TranscriptProps["sessionLink"];
 }
 
 function BlockView({
@@ -148,6 +152,7 @@ function BlockView({
   onToggleThought,
   onRespond,
   coach,
+  sessionLink,
 }: BlockViewProps) {
   switch (block.kind) {
     case "message":
@@ -195,8 +200,21 @@ function BlockView({
       // não é um evento que ninguém reconheceu. Renomeado na T30: `.meta` já
       // existe em `ui/ui.css` como a grade de metadados (`dl`/`dt`/`dd`) — mesmo
       // nome, forma diferente.
-      return <div className="meta--conversation">{block.text}</div>;
+      return <MetaLine text={block.text} open={block.link === undefined ? null : (sessionLink?.(block.link) ?? null)} />;
   }
+}
+
+/**
+ * Uma linha do daemon. A de vínculo (`034` T15) leva à outra aba quando ela é
+ * deste escopo; fora dele, fica texto — um link que não abre nada mentiria.
+ */
+function MetaLine({ text, open }: { text: string; open: (() => void) | null }) {
+  if (open === null) return <div className="meta--conversation">{text}</div>;
+  return (
+    <button type="button" className="meta--conversation meta--link focus-ring" onClick={open}>
+      {text}
+    </button>
+  );
 }
 
 /**

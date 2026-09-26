@@ -16,3 +16,13 @@ export function continuationText(
     `~${String(event.approxTokens)} tokens`
   );
 }
+
+/**
+ * A linha como bloco da conversa, com a outra sessão como destino (`034` T15):
+ * é a tela que decide se ela vira link — só quando a outra aba é deste escopo.
+ */
+export function continuationBlock(
+  event: Extract<AcpEvent, { type: "continued_in" | "continued_from" }>,
+): { kind: "meta"; text: string; link: string } {
+  return { kind: "meta", text: continuationText(event), link: event.sessionId };
+}
