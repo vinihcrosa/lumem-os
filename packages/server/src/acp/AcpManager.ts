@@ -2024,6 +2024,17 @@ export class AcpManager {
            */
           ...(this.ptyManager ? { auth: { terminal: true } } : {}),
           /*
+           * E o pedido do **comando exato**, dentro de `clientCapabilities` —
+           * é onde o `claude-agent-acp` o lê
+           * (`request.clientCapabilities?._meta?.["terminal-auth"]`). Até
+           * 2026-09-26 ele ia no topo dos parâmetros, e o adaptador nunca o via:
+           * os dois logins voltavam sem `_meta`, com `command: null`, e a tela
+           * recusava os dois botões — medido contra o `0.75.1`, o mesmo
+           * `initialize` com a marca em cada lugar. É o login de toda conta
+           * nova do Claude (`034`) que passava por aqui.
+           */
+          ...(this.ptyManager ? { _meta: { "terminal-auth": true } } : {}),
+          /*
            * "Eu sei mostrar uma URL", declarado porque os dois métodos existem.
            *
            * Medido na fase 0 da `second-agent` (§4.2): sem isto, o `codex-acp`
@@ -2037,7 +2048,6 @@ export class AcpManager {
            */
           elicitation: { url: {} },
         },
-        ...(this.ptyManager ? { _meta: { "terminal-auth": true } } : {}),
         clientInfo: { name: "lumem", version: LUMEM_CLIENT_VERSION },
       }),
       "initialize",

@@ -34,6 +34,14 @@ Quatro achados, e dois deles derrubam premissas que este repositório já tinha 
 > continua de pé**: o `authMethods` responde o mesmo em `0.75.1`, com o mesmo `type: "terminal"`, os
 > mesmos dois métodos e a mesma ausência de `_meta["terminal-auth"]` — inclusive o `command: null`
 > que faz o Lumem recusar os dois botões.
+>
+> **Nota de 2026-09-26 — a ausência era do Lumem, não do adaptador.** O adaptador lê a marca em
+> `clientCapabilities._meta["terminal-auth"]`, e o `initialize` do daemon a mandava no **topo** dos
+> parâmetros, onde ninguém a lê. Medido contra o `0.75.1`, o mesmo `initialize` com a marca em cada
+> lugar: no topo, os dois métodos voltam sem `_meta`; dentro de `clientCapabilities`, voltam com o
+> comando exato do §2.2. A marca mudou de lugar, e os dois botões passam a rodar. Foi o e2e da
+> [`034`](../034-agent-accounts/tasks.md) (T17) que cobrou: conectar a segunda conta do Claude é
+> entrar por esse botão. O resto deste §2 continua de pé.
 
 ### 2.1 O adaptador não oferece login para quem não pede
 

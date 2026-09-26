@@ -1204,6 +1204,37 @@ describe("the terminal the agent asks for", () => {
     expect((withoutPty as { terminal?: unknown }).terminal).not.toBe(true);
   });
 
+  it("asks for the login command inside clientCapabilities, where the adapter reads it", async () => {
+    /*
+     * `claude-agent-acp@0.75.1` reads `request.clientCapabilities?._meta?.["terminal-auth"]`
+     * (dist/acp-agent.js). Declared at the top of the params instead, it was never
+     * seen: both login methods came back without `_meta`, `command: null`, and the
+     * screen refused both buttons — measured against the real adapter on
+     * 2026-09-26, the same `initialize` with the flag in each place.
+     */
+    let topLevel: unknown;
+    let capabilities: unknown;
+    await startWithPty({
+      initialize: (params) => {
+        topLevel = (params as { _meta?: unknown })._meta;
+        capabilities = params.clientCapabilities;
+        return {};
+      },
+    });
+    let withoutPty: unknown;
+    await start({
+      initialize: (params) => {
+        withoutPty = params.clientCapabilities;
+        return {};
+      },
+    });
+
+    expect(capabilities).toMatchObject({ auth: { terminal: true }, _meta: { "terminal-auth": true } });
+    expect(topLevel).toBeUndefined();
+    // The same gate as `auth.terminal`: a login command needs a terminal to run in.
+    expect((withoutPty as { _meta?: unknown })._meta).toBeUndefined();
+  });
+
   it("runs the command and tells the card which PTY to attach to", async () => {
     // D7: the event carries a PTY session id, so the embedded xterm uses the endpoint
     // that already exists and no second streaming path had to be built.
