@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AcpManager } from "../acp/AcpManager.js";
 import type { AcpProcess, AcpSpawnRequest } from "../acp/process.js";
-import { agentConfig, session } from "../db/schema.js";
+import { agentAccount, agentConfig, session } from "../db/schema.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
 import {
   FAKE_CONFIG_OPTIONS,
@@ -781,10 +781,15 @@ describe("session.resume", () => {
     await ctx.db
       .insert(agentConfig)
       .values({ id: "ac_old", name: "claude-code", command: "claude", retiredAt: new Date() });
+    // A conta que a `0035` dá também à configuração aposentada (`034` T4).
+    await ctx.db
+      .insert(agentAccount)
+      .values({ id: "acct_old", agentConfigId: "ac_old", label: "claude-code" });
     await ctx.db.insert(session).values({
       id: "s_old",
       kind: "agent",
       agentConfigId: "ac_old",
+      agentAccountId: "acct_old",
       scopeType: "worktree",
       scopeId: worktreeId,
       cwd: worktreePath,

@@ -84,6 +84,7 @@ export function trackSessionUsage({ db, acpManager, log }: RecordUsageOptions): 
           projectId: scope.projectId,
           worktreeId: scope.worktreeId,
           agentConfigId: scope.agentConfigId,
+          agentAccountId: scope.agentAccountId,
           tokens,
           turn: turnOf.get(sessionId) ?? 0,
           ...(cost === null ? {} : { cost: cost.amount, currency: cost.currency }),
@@ -116,7 +117,12 @@ export function trackSessionUsage({ db, acpManager, log }: RecordUsageOptions): 
 async function scopeOf(
   db: Db,
   sessionId: string,
-): Promise<{ projectId: string; worktreeId: string; agentConfigId: string | null } | null> {
+): Promise<{
+  projectId: string;
+  worktreeId: string;
+  agentConfigId: string | null;
+  agentAccountId: string | null;
+} | null> {
   const row = await createSessionRepository(db).findById(sessionId);
   if (row === undefined) return null;
 
@@ -124,12 +130,15 @@ async function scopeOf(
   // feita: uma segunda consulta para descobrir isso seria um join com outro
   // nome.
   const agentConfigId = row.agentConfigId ?? null;
+  // E qual conta (`034` T4), da mesma linha: a da sessão, e não a padrão de
+  // hoje — uma conversa da conta 2 não é cobrada da conta 1.
+  const agentAccountId = row.agentAccountId ?? null;
 
   if (row.scopeType === "project") {
-    return { projectId: row.scopeId, worktreeId: "", agentConfigId };
+    return { projectId: row.scopeId, worktreeId: "", agentConfigId, agentAccountId };
   }
 
   const worktree = await createWorktreeRepository(db).findById(row.scopeId);
   if (worktree === undefined) return null;
-  return { projectId: worktree.projectId, worktreeId: worktree.id, agentConfigId };
+  return { projectId: worktree.projectId, worktreeId: worktree.id, agentConfigId, agentAccountId };
 }

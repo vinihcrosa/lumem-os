@@ -18,6 +18,7 @@ import {
 } from "../memory/signals.js";
 import type { PtyManager } from "../pty/PtyManager.js";
 import type { AdapterConfigRef } from "../setup/adapter-command.js";
+import { createAgentAccountRepository } from "../repositories/agentAccount.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
 import { createProjectRepository } from "../repositories/project.js";
 import {
@@ -43,6 +44,8 @@ export interface StartSessionInput {
   /** Which script this is. Required for `kind: "script"` and refused otherwise. */
   scriptName?: ScriptPhase | null;
   agentConfigId?: string | null;
+  /** A conta da sessão de agente. Ausente, é a padrão do agente (`034` T4). */
+  agentAccountId?: string | null;
   scopeType: ScopeType;
   scopeId: string;
   cwd: string;
@@ -435,6 +438,23 @@ export function createSessionStore({
         // Explícito ganha do herdado, e só a esteira passa um.
         const born = input.lumemMode ?? inherited;
 
+        /*
+         * A conta, resolvida **antes** do `spawn` (`034` T4; a T5 a torna
+         * explícita em quem chama).
+         *
+         * Antes, e não entre o `spawn` e a linha: o Claude manda o
+         * `available_commands_update` colado no `session/new`, e o observador do
+         * catálogo procura a linha nesse instante — cada `await` a mais ali é o
+         * `/` da primeira conversa sumindo (o teste *"comandos que chegam junto
+         * com o handshake"* ficou vermelho exatamente assim). E um agente que
+         * não existe falha sem ter subido processo nenhum.
+         */
+        const agentAccountId =
+          input.agentAccountId ??
+          (agentConfigId === null
+            ? null
+            : (await createAgentAccountRepository(db).ensureDefault(agentConfigId)).id);
+
         // The agent first, so its id is the record's id — the same identity rule
         // the PTY path follows, for the same reason.
         const agent = await acpManager.spawn({
@@ -465,6 +485,7 @@ export function createSessionStore({
             id: agent.id,
             kind,
             agentConfigId,
+            agentAccountId,
             scopeType,
             scopeId,
             cwd,
@@ -647,6 +668,9 @@ export function createSessionStore({
           // `session_shell_transport` makes every ACP row an agent's.
           kind: "agent",
           agentConfigId: row.agentConfigId,
+          // A conta da linha morta, e não a padrão de hoje: a conversa do Claude
+          // mora em `<config>/projects/` **daquela** conta (`034` T4).
+          agentAccountId: row.agentAccountId,
           scopeType: row.scopeType as ScopeType,
           scopeId: row.scopeId,
           cwd: row.cwd,

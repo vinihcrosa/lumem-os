@@ -7,6 +7,7 @@ import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  agentAccount,
   agentConfig,
   project,
   session,
@@ -618,12 +619,17 @@ describe("a conversa do encaixe volta na postura em que nasceu (Parte 7 — T57)
         adapterVersion: "1.0.0",
       })
       .returning();
+    const [account] = await base.db
+      .insert(agentAccount)
+      .values({ id: newId(), agentConfigId: config!.id, label: config!.name })
+      .returning();
     const [row] = await base.db
       .insert(session)
       .values({
         id: newId(),
         kind: "agent",
         agentConfigId: config!.id,
+        agentAccountId: account!.id,
         scopeType: "worktree",
         scopeId: "wt-1",
         cwd: "/wt/1",

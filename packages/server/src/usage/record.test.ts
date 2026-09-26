@@ -6,6 +6,7 @@ import { AcpManager } from "../acp/AcpManager.js";
 import type { Db } from "../db/index.js";
 import { sessionUsage } from "../db/schema.js";
 import { openTestDb, type TestDb } from "../db/testing.js";
+import { createAgentAccountRepository } from "../repositories/agentAccount.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
 import { createProjectRepository } from "../repositories/project.js";
 import { createSessionRepository } from "../repositories/session.js";
@@ -30,7 +31,7 @@ type Windows = readonly { used: number; cost?: number }[];
 
 interface World {
   db: Db;
-  spawn(options?: { worktree?: boolean }): Promise<{ id: string; projectId: string; worktreeId: string }>;
+  spawn(options?: { worktree?: boolean; agentAccountId?: string }): Promise<{ id: string; projectId: string; worktreeId: string }>;
   /** Uma sessão ACP viva **sem** linha no banco — como as do próprio daemon. */
   spawnLoose(): Promise<string>;
   turn(sessionId: string, windows: Windows): Promise<void>;
@@ -38,6 +39,7 @@ interface World {
     projectId: string;
     worktreeId: string;
     agentConfigId: string | null;
+    agentAccountId: string | null;
     tokens: number;
     cost: number | null;
     /** Em que turno da sessão esta linha entrou. */
@@ -93,7 +95,7 @@ async function world(): Promise<World> {
 
   return {
     db,
-    async spawn({ worktree = false } = {}) {
+    async spawn({ worktree = false, agentAccountId } = {}) {
       const info = await acpManager.spawn({
         command: config.command,
         cwd: tmpdir(),
@@ -111,6 +113,7 @@ async function world(): Promise<World> {
         id: info.id,
         kind: "agent",
         agentConfigId: config.id,
+        ...(agentAccountId === undefined ? {} : { agentAccountId }),
         scopeType: scope === null ? "project" : "worktree",
         scopeId: scope === null ? project.id : scope.id,
         cwd: tmpdir(),
@@ -143,6 +146,7 @@ async function world(): Promise<World> {
           projectId: row.projectId,
           worktreeId: row.worktreeId,
           agentConfigId: row.agentConfigId,
+          agentAccountId: row.agentAccountId,
           tokens: row.tokens,
           cost: row.cost,
           turn: row.turn,
@@ -261,6 +265,23 @@ describe("trackSessionUsage", () => {
 
     await vi.waitFor(() => expect(app.rows()).toHaveLength(1));
     expect(app.rows()[0]?.agentConfigId).toBe(app.agentConfigId);
+  });
+
+  it("grava de qual conta foi o turno — a da sessão, e não a padrão do agente", async () => {
+    // `034` T4: a conta entra como o agente entra, resolvida na escrita. Uma
+    // sessão da conta 2 não pode ser cobrada da padrão, que é a conta 1.
+    const app = await world();
+    const second = await createAgentAccountRepository(app.db).create({
+      agentConfigId: app.agentConfigId,
+      label: "trabalho",
+      configDir: "/tmp/lumem-conta-2",
+    });
+    const session = await app.spawn({ agentAccountId: second.id });
+
+    await app.turn(session.id, [{ used: 7_000 }]);
+
+    await vi.waitFor(() => expect(app.rows()).toHaveLength(1));
+    expect(app.rows()[0]?.agentAccountId).toBe(second.id);
   });
 
 });

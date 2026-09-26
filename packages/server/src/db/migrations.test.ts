@@ -190,11 +190,15 @@ describe("0001 — transport", () => {
     // Asked of the handle that will actually be used, not of a second
     // connection: the pragma is per-connection, so only this one's answer means
     // anything. Insert a child pointing nowhere and see whether it is refused.
+    // A conta também aponta para lugar nenhum: sem ela, a CHECK
+    // `session_agent_config` recusaria antes, e o teste leria o motivo errado.
     let thrown: unknown;
     try {
       handle.db.run(
-        sql`INSERT INTO session (id, kind, agent_config_id, scope_type, scope_id, cwd, command)
-            VALUES ('se-3', 'agent', 'cfg-does-not-exist', 'project', 'pr-1', '/r', 'claude')`,
+        sql`INSERT INTO session (id, kind, agent_config_id, agent_account_id, scope_type,
+                                 scope_id, cwd, command)
+            VALUES ('se-3', 'agent', 'cfg-does-not-exist', 'acct-does-not-exist', 'project',
+                    'pr-1', '/r', 'claude')`,
       );
     } catch (error) {
       thrown = error;
@@ -211,12 +215,17 @@ describe("0001 — transport", () => {
     // The guard that makes turning enforcement off acceptable. Simulated by
     // orphaning a row before the upgrade runs, which is what a wrong rebuild
     // would leave behind.
+    //
+    // Uma worktree, e não mais uma sessão de agente: desde a `0035` a sessão
+    // órfã nem chega ao guarda — a recriação procura a conta pela configuração
+    // que não existe, e a CHECK recusa a cópia antes. O que este teste prova é
+    // o guarda, então a órfã é uma que atravessa todas as migrações.
     const path = databaseAtInitialRevision();
     const legacy = new Database(path);
     legacy.pragma("foreign_keys = OFF");
     legacy.exec(
-      `INSERT INTO session (id, kind, agent_config_id, scope_type, scope_id, cwd, command, state)
-       VALUES ('se-orphan', 'agent', 'cfg-gone', 'project', 'pr-1', '/r', 'claude', 'running')`,
+      `INSERT INTO worktree (id, project_id, name, branch, path)
+       VALUES ('wt-orphan', 'pr-gone', 'feat', 'feat', '/r/feat')`,
     );
     legacy.close();
 
@@ -1440,5 +1449,161 @@ describe("0033 — a configuração PTY se aposenta", () => {
     expect(columnsOf("session")).toEqual(
       expect.arrayContaining(["transport", "pending_prompt", "pending_reason"]),
     );
+  });
+});
+
+describe("0035 — a conta de agente", () => {
+  /*
+   * A migração que não pede relogin (`034` T4). Toda sessão `agent` passa a ter
+   * conta, e a conta que já existia é a que sobe **sem** a variável — o
+   * `config_dir` nulo do ADR de 2026-09-26.
+   */
+  function databaseBeforeAccounts(): string {
+    const dir = mkdtempSync(join(tmpdir(), "lumem-db-accounts-"));
+    dirs.push(dir);
+    const path = join(dir, "lumem.db");
+
+    const sqlite = new Database(path);
+    sqlite.pragma("foreign_keys = ON");
+    migrate(drizzle(sqlite), { migrationsFolder: migrationsUpTo(35) });
+    const run = (statement: string): void => {
+      sqlite.prepare(statement).run();
+    };
+    // Uma configuração viva, com duas conversas, e uma aposentada com a sessão
+    // PTY de ontem: a CHECK estendida vale para as duas.
+    run(`INSERT INTO agent_config (id, name, command, adapter_version)
+         VALUES ('cfg-acp', 'claude', 'claude-agent-acp', '0.75.1')`);
+    run(`INSERT INTO agent_config (id, name, command, adapter_version, retired_at)
+         VALUES ('cfg-pty', 'claude-code', 'claude', NULL, 1)`);
+    run(`INSERT INTO session (id, kind, agent_config_id, scope_type, scope_id, cwd, command,
+                              state, transport, acp_session_id)
+         VALUES ('se-acp-1', 'agent', 'cfg-acp', 'project', 'pr-1', '/r', 'claude-agent-acp',
+                 'running', 'acp', 'acp-1')`);
+    run(`INSERT INTO session (id, kind, agent_config_id, scope_type, scope_id, cwd, command,
+                              state, exit_code, transport, acp_session_id)
+         VALUES ('se-acp-2', 'agent', 'cfg-acp', 'project', 'pr-1', '/r', 'claude-agent-acp',
+                 'exited', 0, 'acp', 'acp-2')`);
+    run(`INSERT INTO session (id, kind, agent_config_id, scope_type, scope_id, cwd, command,
+                              state, exit_code, transport)
+         VALUES ('se-pty', 'agent', 'cfg-pty', 'project', 'pr-1', '/r', 'claude',
+                 'exited', 0, 'pty')`);
+    run(`INSERT INTO session (id, kind, scope_type, scope_id, cwd, command, state, exit_code)
+         VALUES ('se-shell', 'shell', 'project', 'pr-1', '/r', '/bin/zsh', 'exited', 0)`);
+    // Consumo de uma sessão que existe, e de uma que já foi apagada: consumo é
+    // histórico, e a segunda cai na conta da configuração.
+    run(`INSERT INTO session_usage (id, session_id, project_id, agent_config_id, tokens)
+         VALUES ('us-1', 'se-acp-1', 'pr-1', 'cfg-acp', 10)`);
+    run(`INSERT INTO session_usage (id, session_id, project_id, agent_config_id, tokens)
+         VALUES ('us-gone', 'se-apagada', 'pr-1', 'cfg-acp', 5)`);
+    run(`INSERT INTO session_usage (id, session_id, project_id, tokens)
+         VALUES ('us-shell', 'se-shell', 'pr-1', 3)`);
+    sqlite.close();
+
+    return path;
+  }
+
+  it("dá a cada configuração uma conta sem diretório, com o nome dela, e a marca padrão", async () => {
+    const handle = openDatabase({ path: databaseBeforeAccounts() });
+    open.push(handle);
+
+    const accounts = await handle.db.select().from(schema.agentAccount);
+    const byConfig = new Map(accounts.map((row) => [row.agentConfigId, row]));
+    expect(accounts).toHaveLength(2);
+    expect(byConfig.get("cfg-acp")).toMatchObject({
+      label: "claude",
+      kind: "subscription",
+      configDir: null,
+      state: "connected",
+      identity: null,
+      defaultModel: null,
+      defaultEffort: null,
+    });
+    // A aposentada ganha conta também: a sessão PTY dela precisa de uma para
+    // passar na CHECK, e a configuração não aparece para escolha de qualquer jeito.
+    expect(byConfig.get("cfg-pty")).toMatchObject({ label: "claude-code", configDir: null });
+
+    const configs = await handle.db.select().from(schema.agentConfig);
+    for (const config of configs) {
+      expect(config.defaultAccountId, config.id).toBe(byConfig.get(config.id)!.id);
+    }
+  });
+
+  it("amarra toda sessão de agente à conta da configuração dela, e nenhuma shell", async () => {
+    const handle = openDatabase({ path: databaseBeforeAccounts() });
+    open.push(handle);
+
+    const accounts = await handle.db.select().from(schema.agentAccount);
+    const accountOf = new Map(accounts.map((row) => [row.agentConfigId, row.id]));
+    const sessions = await handle.db.select().from(schema.session);
+    const byId = new Map(sessions.map((row) => [row.id, row]));
+
+    expect(byId.get("se-acp-1")?.agentAccountId).toBe(accountOf.get("cfg-acp"));
+    expect(byId.get("se-acp-2")?.agentAccountId).toBe(accountOf.get("cfg-acp"));
+    expect(byId.get("se-pty")?.agentAccountId).toBe(accountOf.get("cfg-pty"));
+    expect(byId.get("se-shell")?.agentAccountId).toBeNull();
+    // A recriação da tabela não pode perder o resto da linha.
+    expect(byId.get("se-acp-1")).toMatchObject({ acpSessionId: "acp-1", state: "running" });
+  });
+
+  it("amarra o consumo antigo à conta, inclusive o de uma sessão que já sumiu", async () => {
+    const handle = openDatabase({ path: databaseBeforeAccounts() });
+    open.push(handle);
+
+    const [account] = await handle.db
+      .select()
+      .from(schema.agentAccount)
+      .where(eq(schema.agentAccount.agentConfigId, "cfg-acp"));
+    const usage = await handle.db.select().from(schema.sessionUsage);
+    const byId = new Map(usage.map((row) => [row.id, row]));
+
+    expect(byId.get("us-1")?.agentAccountId).toBe(account!.id);
+    expect(byId.get("us-gone")?.agentAccountId).toBe(account!.id);
+    expect(byId.get("us-shell")?.agentAccountId).toBeNull();
+  });
+
+  it("recusa apagar a conta que uma sessão usa — a ação do estrangeiro sobreviveu", async () => {
+    // A `0014` é o precedente: o gerador perde o `ON DELETE` no caminho, e
+    // `NO ACTION` recusaria também — então o caso exerce a recusa **e** a
+    // declaração no disco.
+    const handle = openDatabase({ path: databaseBeforeAccounts() });
+    open.push(handle);
+
+    const keys = handle.db.all<{ table: string; on_delete: string }>(
+      sql`PRAGMA foreign_key_list(session)`,
+    );
+    expect(keys.find((key) => key.table === "agent_account")?.on_delete).toBe("RESTRICT");
+    const [account] = await handle.db
+      .select()
+      .from(schema.agentAccount)
+      .where(eq(schema.agentAccount.agentConfigId, "cfg-acp"));
+    await expect(
+      handle.db.delete(schema.agentAccount).where(eq(schema.agentAccount.id, account!.id)),
+    ).rejects.toThrow(/FOREIGN KEY/i);
+  });
+
+  it("recusa, depois da migração, sessão de agente sem conta", async () => {
+    const handle = openDatabase({ path: databaseBeforeAccounts() });
+    open.push(handle);
+
+    await expect(
+      handle.db.insert(schema.session).values({
+        id: "se-sem-conta",
+        kind: "agent",
+        agentConfigId: "cfg-acp",
+        scopeType: "project",
+        scopeId: "pr-1",
+        cwd: "/r",
+        command: "claude-agent-acp",
+        transport: "acp",
+        acpSessionId: "acp-3",
+      }),
+    ).rejects.toThrow(/session_agent_config/);
+  });
+
+  it("não deixa estrangeiro órfão", () => {
+    const handle = openDatabase({ path: databaseBeforeAccounts() });
+    open.push(handle);
+
+    expect(handle.db.all(sql`PRAGMA foreign_key_check`)).toEqual([]);
   });
 });

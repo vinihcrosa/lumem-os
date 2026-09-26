@@ -2,8 +2,9 @@ import { adapterById, newId } from "@lumem/shared";
 import { and, asc, eq, isNotNull, isNull } from "drizzle-orm";
 
 import type { Db } from "../db/index.js";
-import { agentConfig, type AgentConfigRow } from "../db/schema.js";
+import { agentAccount, agentConfig, type AgentConfigRow } from "../db/schema.js";
 import { DomainError } from "../errors.js";
+import { createAgentAccountRepository } from "./agentAccount.js";
 import { withConstraints, type ConstraintMap } from "./base.js";
 
 /**
@@ -85,6 +86,17 @@ export function createAgentConfigRepository(db: Db): AgentConfigRepository {
     return found;
   }
 
+  /*
+   * Todo agente nasce com a conta padrão (`034` T4): a que sobe sem a variável.
+   * Fora de uma transação, de propósito barato — o `ensureDefault` é
+   * idempotente e o `SessionStore` o chama de novo onde a sessão nasce, então
+   * um agente que ficasse sem conta ganha a dele na primeira sessão.
+   */
+  const withDefaultAccount = async (row: AgentConfigRow): Promise<AgentConfigRow> => {
+    const account = await createAgentAccountRepository(db).ensureDefault(row.id);
+    return { ...row, defaultAccountId: account.id };
+  };
+
   return {
     async create({ name, command, args = [], env = {}, adapterVersion }) {
       /*
@@ -106,7 +118,7 @@ export function createAgentConfigRepository(db: Db): AgentConfigRepository {
           .set({ command, args, env, adapterVersion, retiredAt: null, updatedAt: new Date() })
           .where(eq(agentConfig.id, retired.id))
           .returning();
-        return revived!;
+        return withDefaultAccount(revived!);
       }
 
       const [row] = await withConstraints(
@@ -117,7 +129,7 @@ export function createAgentConfigRepository(db: Db): AgentConfigRepository {
             .returning(),
         conflicts(name),
       );
-      return row!;
+      return withDefaultAccount(row!);
     },
 
     list() {
@@ -156,8 +168,17 @@ export function createAgentConfigRepository(db: Db): AgentConfigRepository {
       await require_(id);
       // A session still pointing here keeps it: the detail view has to be able
       // to say what the process was launched from, even after it exited.
+      //
+      // As contas vão junto, na mesma transação (`034` T4): elas são do agente,
+      // e sem isto todo agente seria recusado por causa da própria conta padrão.
+      // Uma sessão pendurada numa delas continua recusando — o `RESTRICT` da
+      // `session.agent_account_id` desfaz tudo.
       await withConstraints(
-        () => db.delete(agentConfig).where(eq(agentConfig.id, id)).returning(),
+        async () =>
+          db.transaction((tx) => {
+            tx.delete(agentAccount).where(eq(agentAccount.agentConfigId, id)).run();
+            tx.delete(agentConfig).where(eq(agentConfig.id, id)).run();
+          }),
         conflicts(""),
       );
     },

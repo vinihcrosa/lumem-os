@@ -173,11 +173,19 @@ test("sessão legada de agente PTY aparece no histórico sem ações", async ({ 
       `INSERT INTO agent_config (id, name, command, args, env, adapter_version, retired_at, created_at, updated_at)
        VALUES (?, ?, ?, '[]', '{}', NULL, ?, ?, ?)`,
     ).run(legacyId, legacyName, "claude", now, now, now);
+    // A conta que a migração `0035` dá também à configuração aposentada: sem
+    // ela, a CHECK `session_agent_config` recusa a sessão (`034` T4).
+    const legacyAccountId = `${legacyId}-account`;
     db.prepare(
-      `INSERT INTO session (id, kind, agent_config_id, scope_type, scope_id, cwd, command, state,
-                            exit_code, transport, acp_session_id, created_at, updated_at)
-       VALUES (?, 'agent', ?, 'worktree', ?, ?, 'claude', 'exited', 0, 'pty', NULL, ?, ?)`,
-    ).run(sessionId, legacyId, worktree.id, worktree.path, now, now);
+      `INSERT INTO agent_account (id, agent_config_id, label, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?)`,
+    ).run(legacyAccountId, legacyId, legacyName, now, now);
+    db.prepare(
+      `INSERT INTO session (id, kind, agent_config_id, agent_account_id, scope_type, scope_id, cwd,
+                            command, state, exit_code, transport, acp_session_id, created_at,
+                            updated_at)
+       VALUES (?, 'agent', ?, ?, 'worktree', ?, ?, 'claude', 'exited', 0, 'pty', NULL, ?, ?)`,
+    ).run(sessionId, legacyId, legacyAccountId, worktree.id, worktree.path, now, now);
   } finally {
     db.close();
   }

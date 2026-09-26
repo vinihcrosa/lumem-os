@@ -129,6 +129,7 @@ describe("crud", () => {
         id: "s1",
         kind: "agent",
         agentConfigId: created.id,
+        agentAccountId: created.defaultAccountId,
         scopeType: "worktree",
         scopeId: "wt1",
         cwd: "/w",

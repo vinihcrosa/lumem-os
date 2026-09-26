@@ -5,6 +5,7 @@ import type { LumemMode } from "@lumem/shared";
 import type { Db } from "../db/index.js";
 import { session, type SessionRow } from "../db/schema.js";
 import { DomainError } from "../errors.js";
+import { createAgentAccountRepository } from "./agentAccount.js";
 import { withConstraints, type ConstraintMap } from "./base.js";
 
 /**
@@ -69,6 +70,14 @@ interface CreateSessionFields {
   /** Required for `kind: "script"`, forbidden for the others — the CHECK agrees. */
   scriptName?: ScriptPhase | null;
   agentConfigId?: string | null;
+  /**
+   * Em que conta a sessão de agente roda (`034` T4).
+   *
+   * Ausente numa sessão de agente, é a **padrão** do agente — criada se faltar.
+   * A T5 torna a escolha explícita em quem abre a conversa; a retomada já passa
+   * a da linha morta, porque a conversa mora no diretório **dela**.
+   */
+  agentAccountId?: string | null;
   scopeType: ScopeType;
   scopeId: string;
   cwd: string;
@@ -153,7 +162,8 @@ const CONSTRAINTS: ConstraintMap = {
   foreignKey: { code: "NOT_FOUND", message: "a configuração de agente informada não existe" },
   "check:session_agent_config": {
     code: "INVALID_ARGUMENT",
-    message: "sessão de agente exige uma configuração, e sessão de shell não pode ter uma",
+    message:
+      "sessão de agente exige uma configuração e uma conta, e sessão de shell não pode ter nenhuma",
   },
   "check:session_kind": { code: "INVALID_ARGUMENT", message: "tipo de sessão inválido" },
   "check:session_scope_type": { code: "INVALID_ARGUMENT", message: "escopo de sessão inválido" },
@@ -175,12 +185,17 @@ const CONSTRAINTS: ConstraintMap = {
 
 export function createSessionRepository(db: Db): SessionRepository {
   return {
-    async create({ agentConfigId = null, scriptName = null, ...input }) {
+    async create({ agentConfigId = null, agentAccountId, scriptName = null, ...input }) {
+      const account =
+        agentAccountId ??
+        (input.kind === "agent" && agentConfigId !== null
+          ? (await createAgentAccountRepository(db).ensureDefault(agentConfigId)).id
+          : null);
       const [row] = await withConstraints(
         () =>
           db
             .insert(session)
-            .values({ ...input, agentConfigId, scriptName })
+            .values({ ...input, agentConfigId, agentAccountId: account, scriptName })
             .returning(),
         CONSTRAINTS,
       );

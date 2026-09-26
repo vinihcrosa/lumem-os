@@ -19,6 +19,7 @@ import {
 import { eq } from "drizzle-orm";
 
 import * as schema from "../db/schema.js";
+import { createAgentAccountRepository } from "../repositories/agentAccount.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
 import { createProjectRepository } from "../repositories/project.js";
 import { createWorkspaceRepository } from "../repositories/workspace.js";
@@ -142,6 +143,25 @@ describe("start", () => {
     );
 
     expect(row).toMatchObject({ kind: "agent", agentConfigId: config.id });
+  });
+
+  it("records an agent session against its configuration's default account", async () => {
+    // `034` T4: sem conta pedida, a sessão nasce na padrão do agente — que, num
+    // banco de antes, é a conta que sobe sem a variável. A T5 torna explícito.
+    const { store, db } = setup();
+    const config = await createAgentConfigRepository(db).create({
+      name: "fixture",
+      command: "sh",
+      adapterVersion: "1.0.0",
+    });
+    const account = await createAgentAccountRepository(db).defaultFor(config.id);
+
+    const row = await store.start(
+      shell({ kind: "agent", agentConfigId: config.id, scopeType: "worktree", scopeId: "wt1" }),
+    );
+
+    expect(account).toBeDefined();
+    expect(row.agentAccountId).toBe(account!.id);
   });
 
   it("kills the process when the record cannot be written", async () => {
@@ -398,11 +418,26 @@ describe("transport", () => {
   it("kills the agent it could not write down", async () => {
     // A conversation the daemon cannot describe is one nobody can find or stop
     // from the UI.
+    //
+    // Uma conta fantasma, e não mais uma configuração fantasma: desde a `034`
+    // T4 a configuração que não existe falha **antes** do `spawn`, ao resolver
+    // a conta padrão — e a lista vazia passaria no `every` sem provar nada.
+    const { store, db, acpManager } = setup();
+    const input = await acpAgent(db, { agentAccountId: "conta-que-nao-existe" });
+
+    await expect(store.start(input)).rejects.toThrow();
+    expect(acpManager.list()).toHaveLength(1);
+    expect(acpManager.list().every((info) => info.state === "exited")).toBe(true);
+  });
+
+  it("refuses an agent whose configuration does not exist, before spawning anything", async () => {
+    // `034` T4: a conta padrão é resolvida antes do `spawn`, e resolver a de
+    // uma configuração que não existe é a recusa — sem processo para matar.
     const { store, db, acpManager } = setup();
     const input = await acpAgent(db, { agentConfigId: "nao-existe" });
 
-    await expect(store.start(input)).rejects.toThrow();
-    expect(acpManager.list().every((info) => info.state === "exited")).toBe(true);
+    await expect(store.start(input)).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(acpManager.list()).toEqual([]);
   });
 
   it("closes an ACP session through the manager the row names", async () => {
@@ -593,6 +628,24 @@ describe("resuming", () => {
       agentConfigId: old.agentConfigId,
       transport: "acp",
     });
+  });
+
+  it("carries the account of the session that died, not today's default", async () => {
+    // A conversa do Claude mora no diretório da conta (`<config>/projects/`), e
+    // retomar em outra conta é carregar uma conversa que não está lá.
+    const { store, db, acpManager } = setup();
+    const input = await acpAgent(db);
+    const second = await createAgentAccountRepository(db).create({
+      agentConfigId: input.agentConfigId,
+      label: "trabalho",
+      configDir: "/tmp/lumem-conta-2",
+    });
+    const old = await ended(db, store, acpManager, { agentAccountId: second.id });
+
+    const resumed = await store.resume(old.id);
+
+    expect(old.agentAccountId).toBe(second.id);
+    expect(resumed.agentAccountId).toBe(second.id);
   });
 
   it("a conversa da esteira volta liberada — e a linha diz isso", async () => {

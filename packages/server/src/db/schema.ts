@@ -228,6 +228,15 @@ export const agentConfig = sqliteTable(
      * **se aposenta**: não aparece mais para escolha e não sobe nada.
      */
     retiredAt: integer("retired_at", { mode: "timestamp_ms" }),
+    /**
+     * A conta em que uma sessão nova deste agente nasce (`034` Q1, emenda).
+     *
+     * **Sem estrangeiro**, de propósito: a `agent_account` já aponta para cá, e
+     * a volta fecharia um ciclo — criar o agente exigiria a conta, e a conta
+     * exigiria o agente. Quem garante que o ponteiro é de uma conta **deste**
+     * agente é o `defaultFor` do repositório, que ignora um que não seja.
+     */
+    defaultAccountId: text("default_account_id"),
     ...timestamps,
   },
   (table) => [
@@ -237,6 +246,64 @@ export const agentConfig = sqliteTable(
       "agent_config_adapter_version",
       sql`${table.retiredAt} IS NOT NULL OR ${table.adapterVersion} IS NOT NULL`,
     ),
+  ],
+);
+
+/** O que a última conferência de identidade leu (`034` T6). */
+export interface AgentAccountIdentity {
+  email?: string | null;
+  plan?: string | null;
+  /** Milissegundos desde a época, como todo `timestamp_ms` deste schema. */
+  checkedAt: number;
+}
+
+/**
+ * Uma conta de agente — o dono da credencial (`034`, e o
+ * [ADR de 2026-09-26](../../../../docs/adr/2026-09-26-0148-an-account-is-a-whole-agent-config-dir.md)).
+ *
+ * A credencial saiu do agente e foi para **(agente, conta)**: a conta é um
+ * diretório de config inteiro daquele CLI, passado no `spawn` pela variável da
+ * `AdapterSpec` (`accountEnv`). O Lumem é dono do diretório; o conteúdo é do CLI,
+ * e nada aqui o lê.
+ *
+ * `config_dir` **nulo** é a conta que sobe **sem** a variável — o login que já
+ * existia antes desta tabela. Não é o caminho padrão escrito: medido, escrever
+ * `CLAUDE_CONFIG_DIR=~/.claude` faz o Claude procurar outra entrada do Keychain
+ * e a conta de hoje aparecer deslogada. É isso que deixa a migração não pedir
+ * relogin a ninguém.
+ */
+export const agentAccount = sqliteTable(
+  "agent_account",
+  {
+    id: text("id").primaryKey(),
+    agentConfigId: text("agent_config_id")
+      .notNull()
+      .references(() => agentConfig.id, { onDelete: "restrict" }),
+    label: text("label").notNull(),
+    /** `subscription` é login do CLI, no diretório; `api_key` é o cofre. */
+    kind: text("kind").notNull().default("subscription"),
+    configDir: text("config_dir"),
+    identity: text("identity", { mode: "json" }).$type<AgentAccountIdentity>(),
+    defaultModel: text("default_model"),
+    defaultEffort: text("default_effort"),
+    /**
+     * `disconnected` guarda o diretório (Q8): o `session/load` do Claude lê a
+     * conversa de `<config>/projects/`, e o diretório vive tanto quanto elas.
+     */
+    state: text("state").notNull().default("connected"),
+    ...timestamps,
+  },
+  (table) => [
+    check("agent_account_kind", sql`${table.kind} IN ('subscription', 'api_key')`),
+    check("agent_account_state", sql`${table.state} IN ('connected', 'disconnected')`),
+    unique("agent_account_label_per_agent").on(table.agentConfigId, table.label),
+    // Duas contas no mesmo diretório são a mesma credencial com dois nomes, e
+    // duas sem diretório no mesmo agente são o mesmo login. `UNIQUE` não compara
+    // `NULL`, então o segundo caso precisa do índice parcial.
+    uniqueIndex("agent_account_config_dir").on(table.configDir),
+    uniqueIndex("agent_account_one_bare_per_agent")
+      .on(table.agentConfigId)
+      .where(sql`config_dir IS NULL`),
   ],
 );
 
@@ -255,6 +322,16 @@ export const session = sqliteTable(
      */
     scriptName: text("script_name"),
     agentConfigId: text("agent_config_id").references(() => agentConfig.id, {
+      onDelete: "restrict",
+    }),
+    /**
+     * Em que conta esta sessão roda (`034` T4), decidida no nascimento e nunca
+     * trocada (Q3): continuar em outra conta abre outra sessão.
+     *
+     * `RESTRICT` porque a conversa mora no diretório da conta — apagar a conta
+     * com a sessão pendurada é o que o *apagar de vez* da Q8 cobra por extenso.
+     */
+    agentAccountId: text("agent_account_id").references(() => agentAccount.id, {
       onDelete: "restrict",
     }),
     scopeType: text("scope_type").notNull(),
@@ -372,10 +449,14 @@ export const session = sqliteTable(
     check("session_state", sql`${table.state} IN ('running', 'exited')`),
     // Both directions: an agent session without a config cannot be relaunched
     // or explained, and a shell pointing at one is a lie about what it runs.
+    // A conta entra no mesmo par (`034` T4): sem ela, o `resume` não sabe em
+    // que diretório a conversa mora.
     check(
       "session_agent_config",
-      sql`(${table.kind} = 'agent' AND ${table.agentConfigId} IS NOT NULL)
-        OR (${table.kind} <> 'agent' AND ${table.agentConfigId} IS NULL)`,
+      sql`(${table.kind} = 'agent' AND ${table.agentConfigId} IS NOT NULL
+          AND ${table.agentAccountId} IS NOT NULL)
+        OR (${table.kind} <> 'agent' AND ${table.agentConfigId} IS NULL
+          AND ${table.agentAccountId} IS NULL)`,
     ),
     // Os dois sentidos, como o `session_agent_config`: script sem nome de fase é
     // sessão que o rodapé não sabe em qual aba mostrar, e nome de fase numa shell
@@ -764,6 +845,11 @@ export const sessionUsage = sqliteTable(
      * de ontem não pode apagar o que ela gastou.
      */
     agentConfigId: text("agent_config_id"),
+    /**
+     * Qual conta gastou (`034` T4), resolvida na escrita como o agente acima, e
+     * sem estrangeiro pelo mesmo motivo: consumo é histórico.
+     */
+    agentAccountId: text("agent_account_id"),
     /** A variação da janela de contexto neste turno. Nunca negativa. */
     tokens: integer("tokens").notNull().default(0),
     /**
@@ -1527,6 +1613,7 @@ export const schema = {
   project,
   worktree,
   agentConfig,
+  agentAccount,
   session,
   memoryEntry,
   memoryDecision,
@@ -1549,6 +1636,7 @@ export type WorkspaceRow = typeof workspace.$inferSelect;
 export type ProjectRow = typeof project.$inferSelect;
 export type WorktreeRow = typeof worktree.$inferSelect;
 export type AgentConfigRow = typeof agentConfig.$inferSelect;
+export type AgentAccountRow = typeof agentAccount.$inferSelect;
 export type SessionRow = typeof session.$inferSelect;
 export type MemoryEntryRow = typeof memoryEntry.$inferSelect;
 export type PlaybookRow = typeof playbook.$inferSelect;
