@@ -293,6 +293,36 @@ describe("agentAccount.purge", () => {
   });
 });
 
+describe("o aviso para a tela (`account.changed`)", () => {
+  it("cada gesto avisa, com o agente, para outra aba recarregar", async () => {
+    const { ctx } = harness();
+    const emit = vi.spyOn(ctx.events, "emit");
+    const expected = { type: "account.changed", adapterId: "claude" };
+
+    const { account } = await ctx.api.agentAccount.connect({
+      adapterId: "claude",
+      label: "trabalho",
+      kind: "subscription",
+    });
+    expect(emit).toHaveBeenLastCalledWith(expected);
+
+    emit.mockClear();
+    await ctx.api.setup.probe({ accountId: account.id });
+    expect(emit).toHaveBeenCalledWith(expected);
+
+    for (const gesture of [
+      () => ctx.api.agentAccount.setDefault({ accountId: account.id }),
+      () => ctx.api.agentAccount.setDefaults({ accountId: account.id, model: "sonnet", effort: null }),
+      () => ctx.api.agentAccount.disconnect({ accountId: account.id }),
+      () => ctx.api.agentAccount.purge({ accountId: account.id, sessionCount: 0 }),
+    ]) {
+      emit.mockClear();
+      await gesture();
+      expect(emit).toHaveBeenCalledWith(expected);
+    }
+  });
+});
+
 describe("agentAccount.list", () => {
   it("diz, por conta, o estado, a identidade, se é a padrão, se é a sem diretório, e quantas conversas", async () => {
     const { ctx } = harness();

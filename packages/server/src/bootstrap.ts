@@ -675,6 +675,7 @@ export async function bootstrap({
     secrets,
     stateDir: config.stateDir,
     log: app.log,
+    onAccountChecked: (adapterId) => events.emit({ type: "account.changed", adapterId }),
   });
   return app;
 }
@@ -715,6 +716,7 @@ function warmAdapterCatalog({
   secrets,
   stateDir,
   log,
+  onAccountChecked,
 }: {
   catalog: AdapterCatalog;
   acpManager: AcpManager;
@@ -722,6 +724,8 @@ function warmAdapterCatalog({
   secrets: { read(id: string): string | null };
   stateDir: string;
   log: Pick<FastifyBaseLogger, "warn">;
+  /** Uma conta conferida logada: a identidade e o estado dela podem ter mudado. */
+  onAccountChecked: (adapterId: string) => void;
 }): () => void {
   const readings = catalog.view();
   /*
@@ -806,6 +810,7 @@ function warmAdapterCatalog({
         );
         if (stopped) return;
         await recordProbedIdentity(db, account, report);
+        if (account !== null && report.loggedIn) onAccountChecked(spec.id);
         if (isDefault && catalogDue) {
           await catalog.recordOptions(spec.id, report.configOptions, {
             authRequired: report.authRequired,

@@ -356,6 +356,11 @@ export const setupRouter = router({
           { identity: launch.spec?.identity ?? null },
         );
         await recordProbedIdentity(ctx.db, launch.account, report);
+        // Uma conferência que leu o login pode ter conectado a conta e trocado
+        // a padrão (`034` T8): a lista de contas de outra aba ficou velha.
+        if (launch.account !== null && report.loggedIn && launch.spec !== null) {
+          ctx.events.emit({ type: "account.changed", adapterId: launch.spec.id });
+        }
 
         /*
          * O que este probe descobriu vai para o catálogo, e é o que tira a

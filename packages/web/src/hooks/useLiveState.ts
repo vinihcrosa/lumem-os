@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { trpc } from "../lib/trpc.js";
 import {
   ADAPTER_CATALOG_PREFIX,
+  AGENT_ACCOUNT_PREFIX,
   CHANGES_PREFIX,
   FILES_PREFIX,
   PR_PREFIX,
@@ -97,6 +98,12 @@ export function invalidateFor(queryClient: QueryClient, event: LumemEvent): void
        * não diz de qual chave ele é. Sem este `case`, cada probe de aquecimento
        * do boot cairia no `default` e recarregaria todas as consultas.
        */
+      void queryClient.invalidateQueries({ queryKey: ADAPTER_CATALOG_PREFIX });
+      return;
+    case "account.changed":
+      // As contas, e o catálogo: ele é por conta (`034` T9), e trocar a padrão
+      // muda qual leitura a pílula mostra primeiro.
+      void queryClient.invalidateQueries({ queryKey: AGENT_ACCOUNT_PREFIX });
       void queryClient.invalidateQueries({ queryKey: ADAPTER_CATALOG_PREFIX });
       return;
     default: {

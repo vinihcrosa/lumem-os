@@ -8,7 +8,7 @@ import { createAgentAccountRepository } from "../repositories/agentAccount.js";
 import { configForAdapter, createAgentConfigRepository } from "../repositories/agentConfig.js";
 import { accountDirFor, inheritInto, isInsideAgentsDir } from "../setup/account-connect.js";
 import { agentAccountSecretId } from "../setup/adapter-command.js";
-import { domainSafeAsync, publicProcedure, router } from "../trpc.js";
+import { domainSafeAsync, publicProcedure, router, type Context } from "../trpc.js";
 
 /**
  * As contas de cada agente (`034` T8): conectar, desconectar, apagar de vez, e
@@ -35,6 +35,25 @@ function specOf(adapterId: string): AdapterSpec {
 }
 
 const accountIdInput = z.object({ accountId: z.string().trim().min(1) });
+
+/**
+ * Avisa a tela que as contas deste agente mudaram (`account.changed`). O agente
+ * sai da configuração da conta — lido **antes** do gesto quando o gesto a apaga.
+ */
+async function adapterIdOfAccount(ctx: Context, accountId: string): Promise<string | null> {
+  const account = await createAgentAccountRepository(ctx.db).get(accountId);
+  if (!account) return null;
+  const config = await createAgentConfigRepository(ctx.db).findById(account.agentConfigId);
+  return config === undefined ? null : (adapterById(config.name)?.id ?? config.name);
+}
+
+/** Roda o gesto e avisa; o aviso sai só se o gesto não lançou. */
+async function andTell<T>(ctx: Context, accountId: string, gesture: () => Promise<T>): Promise<T> {
+  const adapterId = await adapterIdOfAccount(ctx, accountId);
+  const result = await gesture();
+  if (adapterId !== null) ctx.events.emit({ type: "account.changed", adapterId });
+  return result;
+}
 
 export const agentAccountRouter = router({
   /** As contas por agente, com o que a tela de configuração desenha. */
@@ -125,6 +144,7 @@ export const agentAccountRouter = router({
         }
 
         const account = (await accounts.get(id)) ?? created;
+        ctx.events.emit({ type: "account.changed", adapterId: spec.id });
         return { account, ...inherited };
       }),
     ),
@@ -133,7 +153,11 @@ export const agentAccountRouter = router({
   disconnect: publicProcedure
     .input(accountIdInput)
     .mutation(({ ctx, input }) =>
-      domainSafeAsync(() => createAgentAccountRepository(ctx.db).disconnect(input.accountId)),
+      domainSafeAsync(() =>
+        andTell(ctx, input.accountId, () =>
+          createAgentAccountRepository(ctx.db).disconnect(input.accountId),
+        ),
+      ),
     ),
 
   /**
@@ -145,7 +169,7 @@ export const agentAccountRouter = router({
   purge: publicProcedure
     .input(accountIdInput.extend({ sessionCount: z.number().int().min(0) }))
     .mutation(({ ctx, input }) =>
-      domainSafeAsync(async () => {
+      domainSafeAsync(() => andTell(ctx, input.accountId, async () => {
         const accounts = createAgentAccountRepository(ctx.db);
         const account = await accounts.get(input.accountId);
         if (!account) throw new DomainError("NOT_FOUND", `conta ${input.accountId} não existe`);
@@ -179,13 +203,17 @@ export const agentAccountRouter = router({
         rmSync(account.configDir, { recursive: true, force: true });
         // Valor vazio apaga (o contrato do cofre).
         ctx.secrets.write(agentAccountSecretId(account.id), "");
-      }),
+      })),
     ),
 
   setDefault: publicProcedure
     .input(accountIdInput)
     .mutation(({ ctx, input }) =>
-      domainSafeAsync(() => createAgentAccountRepository(ctx.db).setDefault(input.accountId)),
+      domainSafeAsync(() =>
+        andTell(ctx, input.accountId, () =>
+          createAgentAccountRepository(ctx.db).setDefault(input.accountId),
+        ),
+      ),
     ),
 
   /** O modelo e o effort em que uma conversa nova desta conta nasce (T9 aplica). */
@@ -198,10 +226,12 @@ export const agentAccountRouter = router({
     )
     .mutation(({ ctx, input }) =>
       domainSafeAsync(() =>
-        createAgentAccountRepository(ctx.db).setDefaults(input.accountId, {
-          model: input.model,
-          effort: input.effort,
-        }),
+        andTell(ctx, input.accountId, () =>
+          createAgentAccountRepository(ctx.db).setDefaults(input.accountId, {
+            model: input.model,
+            effort: input.effort,
+          }),
+        ),
       ),
     ),
 });
