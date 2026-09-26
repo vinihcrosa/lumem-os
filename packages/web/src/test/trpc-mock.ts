@@ -253,6 +253,9 @@ function createTrpcMock() {
       // quem quer asserir sobre a divisão diz qual é a divisão.
       byProjectAndAgent: { query: vi.fn().mockResolvedValue([]) },
       byWorktreeAndAgent: { query: vi.fn().mockResolvedValue([]) },
+      // E por conta (`034` T12), embaixo do agente. Vazio por default.
+      byProjectAndAccount: { query: vi.fn().mockResolvedValue([]) },
+      byWorktreeAndAccount: { query: vi.fn().mockResolvedValue([]) },
       // O custo por tarefa (`022` F5). Vazio por default, como os outros.
       byTask: { query: vi.fn().mockResolvedValue([]) },
       byWorktree: {
