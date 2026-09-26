@@ -174,7 +174,7 @@ propriedade de **(agente, conta)**.
 **De onde veio:** [pty-vs-acp A2](pty-vs-acp.md) · **Volta quando:** você precisar rodar trabalho e
 pessoal na mesma máquina sem trocar login na mão.
 
-**Virou PRD em 2026-09-25:** [agent-accounts](../features/030-agent-accounts/prd.md), ainda proposta.
+**Virou PRD em 2026-09-25:** [agent-accounts](../features/034-agent-accounts/prd.md), em execução desde 2026-09-26.
 
 ### O rodapé diz `conectado` para um Claude sem login — `S`
 
@@ -185,7 +185,7 @@ Desde o pino `0.75.1`, o `session/new` do `claude-agent-acp` **fecha sem credenc
 responde `loggedIn` em ~0,6 s sem gastar token.
 
 **De onde veio:** a [fase 0 da agent-accounts](agent-accounts-measurements.md), §6 · **Volta quando:**
-a primeira task da [030](../features/030-agent-accounts/prd.md) que fizer a conferência de conta — ela
+a primeira task da [034](../features/034-agent-accounts/prd.md) que fizer a conferência de conta — ela
 conserta isto de graça — ou antes, se alguém instalar o Lumem numa máquina sem login do Claude.
 
 ### Terceiro CLI de agente — `M`

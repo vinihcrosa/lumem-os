@@ -2,20 +2,20 @@
 title: Uma conta de agente é um diretório de configuração inteiro, e a primeira é a ausência dele
 date: 2026-09-26
 area: security
-summary: Cada conta de agente é um diretório de config próprio, passado ao adaptador no `spawn` por `CLAUDE_CONFIG_DIR` ou `CODEX_HOME`. A primeira conta é a variável **ausente**, e não o caminho padrão escrito. A fase 0 da `030` mediu que a variável escolhida na Q6 não colide no Keychain. Mediu também que ela não é "cirúrgica", como a PRD dizia: ela leva a configuração inteira do agente. A forma que isola só a credencial existe e perde, porque compartilha a identidade que a conferência lê. Conferir a conta passa a ser uma leitura de identidade própria de cada agente, e não o `session/new`.
-feature: 030-agent-accounts
+summary: Cada conta de agente é um diretório de config próprio, passado ao adaptador no `spawn` por `CLAUDE_CONFIG_DIR` ou `CODEX_HOME`. A primeira conta é a variável **ausente**, e não o caminho padrão escrito. A fase 0 da `034` mediu que a variável escolhida na Q6 não colide no Keychain. Mediu também que ela não é "cirúrgica", como a PRD dizia: ela leva a configuração inteira do agente. A forma que isola só a credencial existe e perde, porque compartilha a identidade que a conferência lê. Conferir a conta passa a ser uma leitura de identidade própria de cada agente, e não o `session/new`.
+feature: 034-agent-accounts
 ---
 
 ## Contexto
 
-A [`030-agent-accounts`](../features/030-agent-accounts/prd.md) tira a credencial do agente e a dá a
-**(agente, conta)**. A [Q6](../features/030-agent-accounts/open-questions.md) escolheu o mecanismo
+A [`034-agent-accounts`](../features/034-agent-accounts/prd.md) tira a credencial do agente e a dá a
+**(agente, conta)**. A [Q6](../features/034-agent-accounts/open-questions.md) escolheu o mecanismo
 antes de medir, com o motivo por extenso: isolar pela variável do próprio CLI, e não reescrever
 `HOME`, porque a variável *"muda só onde o CLI procura o login"*, e o agente continua commitando com o
 seu nome, dando `push` com a sua chave SSH e rodando o `node` do seu nvm. A resposta deixou uma
 condição escrita: se o Keychain do macOS colidisse, a pergunta **voltava**.
 
-A [Q7](../features/030-agent-accounts/open-questions.md), *"isso vira ADR?"*, foi adiada até a
+A [Q7](../features/034-agent-accounts/open-questions.md), *"isso vira ADR?"*, foi adiada até a
 medição, com o critério *"ADR só se a fase 0 mudar o mecanismo"*.
 
 A [medição](../project/agent-accounts-measurements.md) rodou em 2026-09-26, sem gastar token, contra
@@ -51,7 +51,7 @@ passar no teste de *trade-off real*.
   config, e a conta de hoje aparece deslogada. É assim que a conta que já existe vira a primeira sem
   ninguém relogar, como o §5 da PRD pede;
 - **o diretório vive tanto quanto as conversas dele.** O `session/load` do Claude lê o transcript de
-  `<config>/projects/`. *Desconectar* uma conta ([Q8](../features/030-agent-accounts/open-questions.md))
+  `<config>/projects/`. *Desconectar* uma conta ([Q8](../features/034-agent-accounts/open-questions.md))
   deixa o diretório no disco; só *apagar de vez* o remove;
 - **conferir a conta é ler a identidade dela, e não abrir sessão.** Claude:
   `claude-agent-acp --cli auth status`, o `--cli` do próprio adaptador, com e-mail e plano em JSON e
@@ -79,7 +79,7 @@ e é a alternativa que mais tenta. Perde por três achados do §2.4 do estudo:
    enquanto gasta o token da conta 1. A conferência, que é metade desta decisão, mentiria;
 2. a lista de modelos vem de caches no mesmo arquivo. Medido: sem login, ela listou o Fable, que só
    existe no cache da conta de hoje. A lista por conta da
-   [Q9](../features/030-agent-accounts/open-questions.md) mentiria do mesmo jeito;
+   [Q9](../features/034-agent-accounts/open-questions.md) mentiria do mesmo jeito;
 3. não está documentada: aparece só na lista do que o Claude Code repassa a um processo filho.
 
 **Um diretório só, trocando a credencial antes de cada `spawn`**, copiando o segredo para dentro e
@@ -87,7 +87,7 @@ para fora da entrada padrão. Mantém toda a configuração e dispensa variável
 credencial é **do processo vivo**: o Claude Code relê e **renova** o token durante a sessão. Duas
 conversas em contas diferentes ao mesmo tempo, que é o critério de sucesso da PRD, disputariam a
 mesma entrada. A última a renovar venceria, e a outra passaria a gastar na conta errada sem nada na
-tela dizer isso — o problema que a `030` existe para resolver.
+tela dizer isso — o problema que a `034` existe para resolver.
 
 **Só chave de API por conta** (`ANTHROPIC_API_KEY` vindo do cofre, sem diretório). Não tem
 estado de CLI nenhum, e não resolve o pedido: o pedido é de **assinaturas**, e assinatura é login
@@ -98,7 +98,7 @@ OAuth.
 - **A segunda conta nasce limpa.** Sem os seus plugins, skills, subagentes, `CLAUDE.md` de usuário,
   MCPs de usuário e permissões — no Claude e no Codex. É o custo desta decisão, e ele fica nomeado
   aqui. O que a conta nova pode **herdar** da configuração de hoje é a
-  [Q10](../features/030-agent-accounts/open-questions.md). Nenhuma resposta dela muda esta decisão:
+  [Q10](../features/034-agent-accounts/open-questions.md). Nenhuma resposta dela muda esta decisão:
   herança é cópia ou link **para dentro** do diretório da conta, e a identidade (a credencial, o
   `.claude.json`, o `auth.json`) nunca é compartilhada;
 - **o que a conta não leva continua sendo seu**, e é a razão da Q6: `.gitconfig`, `~/.ssh`, nvm,

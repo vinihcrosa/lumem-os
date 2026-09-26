@@ -87,6 +87,12 @@ digitado ao conectar a conta, e o produto não o deriva de nada que o provedor m
 cobre o nome; a segunda linha com e-mail/plano **não foi confirmada nem recusada**, e não entra no
 desenho até ser.
 
+**Nota (2026-09-26), decidida na implementação com autonomia delegada:** **entra**, e só em
+`/settings`. A fase 0 fez o e-mail deixar de ser enfeite: ele é **o que a conferência lê**
+([ADR](../../adr/2026-09-26-0148-an-account-is-a-whole-agent-config-dir.md)), e mostrá-lo é o que
+deixa você ver que a conta `trabalho` é mesmo a do trabalho. Na pílula da conversa nova ele não
+aparece: lá cabe o rótulo, e o rótulo é seu.
+
 ---
 
 ### [x] Q3 — Dá para trocar a conta de uma conversa já aberta?
@@ -135,6 +141,10 @@ longa de ferramenta — arquivo lido, saída de teste, diff — vira uma linha (
 linhas, omitido]`). Na conta de exemplo, ~300 mil tokens viram ~20 mil. Nada se perde de verdade: os
 arquivos estão na worktree, e o agente novo relê o que precisar. O limiar de *"longa"* é do desenho.
 
+**Nota (2026-09-26), o limiar:** saída de ferramenta com mais de **2 000 caracteres** vira uma linha
+— `[<título da ferramenta> — N linhas, omitido]`. É por volta de 50 linhas de código, o tamanho acima
+do qual reler o arquivo na worktree sai mais barato que carregar a cópia.
+
 ---
 
 ### [x] Q3b — A sessão de origem fica como?
@@ -149,6 +159,10 @@ com uma linha no começo apontando para a origem. Nada é travado; o vínculo é
 novo agente."* A origem não muda em nada; o gesto abre **uma aba nova** na worktree, com a sessão da
 conta escolhida — que pode ser de outro agente. As linhas de vínculo da proposta não foram
 confirmadas e ficam como detalhe do desenho.
+
+**Nota (2026-09-26), as linhas de vínculo:** entram as duas. A origem ganha, no fim da conversa, uma
+linha `continuada em <agente · conta> →`, e a nova começa com `continuação de <agente · conta> —
+levou N mensagens, ~T tokens`. As duas são navegação: clicar leva à outra aba, e nada é travado.
 
 ---
 
@@ -280,6 +294,11 @@ o `resume` pede para reconectar. Apagar de vez é um segundo gesto, com a contag
 frase.
 
 **R (2026-09-25): como proposto.**
+
+**Nota (2026-09-26), a conta padrão desconectada** (a lacuna que a Q5 deixou para o desenho): a
+padrão passa para a conta conectada **mais antiga** daquele agente. Sem nenhuma, o agente fica sem
+padrão, e a conversa nova pede para conectar. É a mesma regra do nascimento (*a primeira conectada*)
+lida de novo, e não uma regra nova.
 
 ---
 

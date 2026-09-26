@@ -22,8 +22,8 @@
 > leitura do código fecha esse buraco para o Claude, e o §3.2 mostra que no Codex a escrita foi
 > exercitada de verdade.
 >
-> Motivo: o §4 da [PRD 030](../features/030-agent-accounts/prd.md), e a
-> [Q7](../features/030-agent-accounts/open-questions.md), adiada até esta medição.
+> Motivo: o §4 da [PRD 034](../features/034-agent-accounts/prd.md), e a
+> [Q7](../features/034-agent-accounts/open-questions.md), adiada até esta medição.
 
 ## 1. As respostas, antes do caminho
 
@@ -115,7 +115,7 @@ a config onde está. A medição mostra por que ela não serve:
   *teammate*, e em nenhum lugar que um usuário leia.
 
 Ou seja: ela isola o segredo e compartilha a **identidade** — que é justamente o que a conferência
-(§4) e a lista de modelos por conta ([Q9](../features/030-agent-accounts/open-questions.md)) leem.
+(§4) e a lista de modelos por conta ([Q9](../features/034-agent-accounts/open-questions.md)) leem.
 
 ### 2.5 O que `CLAUDE_CONFIG_DIR` leva junto
 
@@ -137,12 +137,12 @@ fixa. Com `CLAUDE_CONFIG_DIR=a`, o seletor `agent` **some**, e modelo e effort v
 
 A última linha da tabela é a que pesa na implementação: o `session/load` de uma conversa do Claude lê
 o transcript de `<config>/projects/`, então **o diretório da conta tem de viver tanto quanto as
-conversas dela** — o que a [Q8](../features/030-agent-accounts/open-questions.md) já decidiu
+conversas dela** — o que a [Q8](../features/034-agent-accounts/open-questions.md) já decidiu
 (*desconectar* não apaga) ganha aqui o motivo técnico.
 
 O que ela **não** leva, e é por isso que ela ganha de reescrever `HOME`: `.gitconfig`, `~/.ssh`,
 `nvm`, `gh`. O agente numa conta nova continua commitando com o seu nome e dando `push` com a sua
-chave — a razão da [Q6](../features/030-agent-accounts/open-questions.md) continua de pé.
+chave — a razão da [Q6](../features/034-agent-accounts/open-questions.md) continua de pé.
 
 ### 2.6 A credencial é do processo vivo
 
@@ -195,7 +195,7 @@ Duas coisas daqui:
   conta, e guardá-la por agente estaria errado;
 - **o `session/new` do Codex confere presença, não validade**: a chave falsa passou. E o turno com
   ela terminou em **`end_turn`**, com o `401 Unauthorized` chegando como `agent_message_chunk` — o
-  erro vira texto da conversa. Não é da `030`, mas é o mesmo tipo do §6.
+  erro vira texto da conversa. Não é da `034`, mas é o mesmo tipo do §6.
 
 `CODEX_HOME` leva junto o que o Codex guarda lá: o `config.toml` (modelo, perfis, os
 `[mcp_servers]`), o `AGENTS.md` global e o histórico. Medido: na conta de hoje o modelo corrente é
@@ -239,5 +239,5 @@ login é o primeiro prompt morrer. A [`027`](../features/027-adapter-provenance/
 sintoma pelo lado do turno (*"com só `node`, `session/prompt` responde `Authentication required`"*) e
 não chegou ao probe.
 
-A conferência do §4 conserta os dois ao mesmo tempo, e é por isso que ela entra na `030` e não num
+A conferência do §4 conserta os dois ao mesmo tempo, e é por isso que ela entra na `034` e não num
 remendo separado: com contas, **qual** conta é a pergunta, e *se há* uma é o caso particular.

@@ -9,6 +9,11 @@
 > Keychain não colide, a variável do CLI se sustenta e **não é cirúrgica**, e a Q7 virou o
 > [ADR de 2026-09-26](../../adr/2026-09-26-0148-an-account-is-a-whole-agent-config-dir.md). As notas
 > estão no §4, no §5 e no §8
+> v0.3 — **renumerada de `030` para `034` em 2026-09-26**: colidiu com a
+> [`030-settings`](../030-settings/prd.md), que mergeou antes. Pela regra 1 da
+> [`025`](../025-docs-contract/prd.md), renumera a que mergeia depois. Junto veio o que o `main` mudou por baixo dela:
+> o desenho passou a morar no código, o login de agentes saiu do rodapé para `/settings`, e agente
+> passou a ser sempre ACP. As notas estão no cabeçalho, no §6 e nas tasks
 > **Perguntas:** [open-questions.md](open-questions.md) — 13 perguntas, **todas respondidas**
 > (2026-09-25 e 2026-09-26), **3 contra a proposta** e **2 emendadas**. A Q10 nasceu da fase 0
 > **Depende de:** a [`009-agent-login`](../009-agent-login/prd.md) (o login pela tela, que esta PRD
@@ -17,9 +22,12 @@
 > invocação resolvida da spec a cada `spawn` — é onde a conta entra) e o
 > [ADR do cofre](../../adr/2026-09-13-1730-lumem-owns-the-keys-of-what-it-depends-on.md), que já disse
 > que **agentes entram numa feature posterior**. Esta pode ser ela
-> **Tasks:** [tasks.md](tasks.md) — 22 tasks em 5 fases. A fase 0 (a medição) está entregue
-> **Desenho:** ainda não existe. Vem do Open Design **antes** do React —
-> [regra de 2026-08-19](../../adr/2026-08-19-2247-design-is-made-in-open-design.md)
+> **Tasks:** [tasks.md](tasks.md) — 20 tasks em 4 fases. A fase 0 (a medição) está entregue
+> **Desenho:** ~~vem do Open Design **antes** do React~~ — a regra de 2026-08-19 foi superada pelo
+> [ADR de 2026-09-20](../../adr/2026-09-20-2246-design-lives-in-the-code.md): o desenho mora no
+> código, e a galeria é o Storybook. Pelo gatilho dele (*"se o desenho estiver errado, o que se joga
+> fora?"*), os componentes novos desta feature são **código**, então os estados deles nascem como
+> stories antes da fiação
 
 ---
 
@@ -177,24 +185,35 @@ credencial: ela aponta para o diretório padrão do CLI. Ninguém precisa reloga
 
 ## 6. A tela
 
-- **Rodapé de agentes** (o da `021`, uma linha por agente): cada agente abre em **uma sub-linha por
-  conta** — rótulo, estado de login, e o `＋` para conectar outra conta. Mesma regra que o consumo do
-  workspace já usa: sub-linha, não coluna.
-- **Abrir conversa:** a escolha de conta aparece **só quando o agente tem mais de uma** — com uma
-  conta, o produto fica pixel a pixel como hoje. Ela vem pré-selecionada com o trio padrão (Q1).
-- **Configuração:** o trio padrão das sessões e o de cada encaixe da esteira. A lista de modelos e
-  de effort vem do adaptador, e é gravada por conta **no handshake ~~que confere o login~~ que
-  segue a conferência** (a nota de 2026-09-26 da [Q9](open-questions.md#x-q9--de-onde-a-configuração-tira-a-lista-de-modelos-e-de-effort):
-  o `session/new` não confere, e quem confere é outra leitura) — ela
-  existe desde que a conta existe, e se atualiza a cada sessão aberta. Modelo padrão que sumiu abre
-  no que o adaptador escolher, com uma linha na conversa, e o trio aparece *indisponível* na
-  configuração ([Q9](open-questions.md#x-q9--de-onde-a-configuração-tira-a-lista-de-modelos-e-de-effort)).
-- **Continuar em outra conta:** um gesto na conversa aberta. A sessão nova mostra o que foi levado
-  da origem, e cada uma aponta para a outra — o formato está na
+> **Nota (2026-09-26), do rebase no `main`:** a primeira versão desta seção punha as contas no
+> **rodapé de agentes** da sidebar. A [`030-settings`](../030-settings/prd.md) decidiu depois, na Q6
+> dela, que esse rodapé **some inteiro** e que o login de agentes vai para `/settings` (LUM-57). Pôr
+> contas no rodapé seria construir no lugar que já tem data para sair. O que continua de pé: sub-linha
+> e não coluna, a escolha de conta só com duas ou mais, e o cabeçalho com agente e conta.
+
+- **`/settings` → Agentes** passa a ser onde as contas moram. Hoje a seção é só leitura (label,
+  pino, versão instalada). Cada agente ganha **uma sub-linha por conta**: rótulo, a identidade
+  conferida (e-mail e plano, quando o agente conta), estado, e as ações `entrar`, `padrão`,
+  `desconectar`. Um `＋ conectar conta` por agente. A configuração do trio padrão da conta (modelo e
+  effort) mora na mesma sub-linha. A lista de modelos e de effort vem do adaptador, e é gravada por
+  conta **no handshake ~~que confere o login~~ que segue a conferência** (a nota de 2026-09-26 da
+  [Q9](open-questions.md#x-q9--de-onde-a-configuração-tira-a-lista-de-modelos-e-de-effort): o
+  `session/new` não confere, e quem confere é outra leitura). Ela existe desde que a conta existe, e
+  se atualiza a cada sessão aberta. Modelo padrão que sumiu abre no que o adaptador escolher, com uma
+  linha na conversa, e o trio aparece *indisponível*.
+- **O rodapé da sidebar** fica como está até a LUM-57 removê-lo. Ele passa a falar da **conta
+  padrão** de cada agente, que é o que ele sempre mostrou sem saber.
+- **Abrir conversa:** a pílula de agente e modelo do rascunho (`AgentModelPill`, da
+  [`033`](../033-acp-only-agents/prd.md)) ganha a escolha de conta **só quando o agente tem mais de
+  uma**. Com uma conta, o produto fica pixel a pixel como hoje. Ela vem pré-selecionada com o trio
+  padrão (Q1).
+- **Esteira:** o trio de cada encaixe, na seção Esteira de `/settings`, que já existe.
+- **Continuar em outra conta:** um gesto no cabeçalho da conversa aberta. A sessão nova mostra o que
+  foi levado da origem, e cada uma aponta para a outra — o formato está na
   [Q3a](open-questions.md#x-q3a--o-que-é-copiar-o-contexto) e na
   [Q3b](open-questions.md#x-q3b--a-sessão-de-origem-fica-como).
-- **Conversa aberta:** o cabeçalho diz agente **e conta** (a `021` já pagou o defeito da string
-  `claude` escrita à mão; com contas, é o mesmo defeito uma camada abaixo).
+- **Conversa aberta:** o cabeçalho diz agente **e conta** quando o agente tem mais de uma (a `021` já
+  pagou o defeito da string `claude` escrita à mão; com contas, é o mesmo defeito uma camada abaixo).
 - **Consumo do workspace:** abre por conta, embaixo do agente — é dado somável, não limite.
 
 ## 7. Fora do escopo
@@ -220,6 +239,8 @@ credencial: ela aponta para o diretório padrão do CLI. Ninguém precisa reloga
   e o formato do `auth status` são do CLI embutido, e não estão em nenhum protocolo. Um pino novo que
   mude um deles quebra contas sem nada falhar alto. A conferência do pino passa a medir isso também.
 - **Termos de uso.** Usar duas assinaturas para somar limite (UC2) pode ferir os termos do provedor.
-  O Lumem não decide isso por você, mas também não deve vender o UC2 como recurso sem dizer isso.
+  O Lumem não decide isso por você, mas também não deve vender o UC2 como recurso sem dizer isso. **Decidido (2026-09-26):** o painel de conectar conta diz isso numa
+  linha quando o agente **já tem** uma conta — que é o único momento em que a frase é sobre o que
+  você está fazendo.
 - **Sessões antigas.** Toda conversa em disco aponta para `agent_config`; a migração as amarra à
   primeira conta, e o `resume` de uma delas precisa subir com a credencial de onde ela nasceu.
