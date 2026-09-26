@@ -2,8 +2,10 @@
 
 **PRD:** [prd.md](prd.md)
 
-**Estado:** 12 perguntas · **11 respondidas** (2026-09-25 e 2026-09-26) · 1 aberta — a
-[Q7](#--q7--isso-vira-adr), **adiada de propósito** até a fase 0.
+**Estado:** 13 perguntas · **13 respondidas** (2026-09-25 e 2026-09-26). A
+[Q7](#x-q7--isso-vira-adr) foi respondida pela fase 0 (**vira ADR**), e a
+[Q10](#x-q10--o-que-uma-conta-nova-herda-da-sua-configuração-de-hoje), que nasceu dela, foi aceita
+como proposta.
 
 A Q1 e a Q5 foram **emendadas no mesmo dia** — a interpretação delas estava errada, e a emenda está
 dentro de cada resposta, com a versão anterior riscada.
@@ -225,9 +227,19 @@ entrada que não varia com `CLAUDE_CONFIG_DIR`, a forma escolhida não separa as
 medição da fase 0, e se ela der errado a pergunta **volta** — não se resolve trocando para `HOME` em
 silêncio.
 
+**Medido (2026-09-26), e a resposta fica de pé:** o Keychain **não colide**. O Claude Code nomeia a
+entrada `Claude Code-credentials-<sha256(dir)[0:8]>` sempre que `CLAUDE_CONFIG_DIR` existe, e o
+Codex guarda em arquivo dentro do `CODEX_HOME`
+([estudo](../../project/agent-accounts-measurements.md), §2.1 e §3.2). O que **caiu** foi a
+explicação que acompanhou a resposta: ~~a variável muda **só onde o CLI procura o login**~~. Ela muda
+onde mora a **configuração inteira do agente** (plugins, `CLAUDE.md` de usuário, MCPs, permissões,
+transcripts). Continua de pé o motivo que decidiu: `.gitconfig`, chave SSH e nvm não mudam. A
+consequência virou a [Q10](#x-q10--o-que-uma-conta-nova-herda-da-sua-configuração-de-hoje), e a
+decisão virou o ADR da [Q7](#x-q7--isso-vira-adr).
+
 ---
 
-### [ ] Q7 — Isso vira ADR?
+### [x] Q7 — Isso vira ADR?
 
 Passa nos três testes? *Difícil de reverter:* sim — a sessão passa a apontar para conta, e toda
 conversa em disco é migrada. *Surpreendente sem contexto:* talvez — "por que a credencial não está
@@ -238,6 +250,24 @@ reescrito). Se `CLAUDE_CONFIG_DIR` bastar, é nota nesta PRD.
 
 **Adiada (2026-09-25):** *"isso decide depois."* Fica aberta até a fase 0 medir o mecanismo — é a
 medição que diz se há trade-off para registrar.
+
+**R (2026-09-26): vira ADR** —
+[*uma conta de agente é um diretório de configuração inteiro, e a primeira é a ausência
+dele*](../../adr/2026-09-26-0148-an-account-is-a-whole-agent-config-dir.md). O critério da proposta,
+lido ao pé da letra, diria que não: a fase 0 **não** mudou o mecanismo, e a variável do CLI se
+sustentou. Mas o critério era um atalho para *"há trade-off real?"*, e a
+[medição](../../project/agent-accounts-measurements.md) achou um onde a PRD achava que não havia. A
+variável não é cirúrgica: ela leva a configuração inteira do agente. A forma que isola só a
+credencial (`CLAUDE_SECURESTORAGE_CONFIG_DIR`) existe e perde, porque deixa a identidade
+compartilhada. Os três testes:
+
+- *difícil de reverter:* sim — os transcripts do Claude passam a morar no diretório da conta, e o
+  `session/load` depende dele para sempre;
+- *surpreendente sem contexto:* sim, e em dois pontos. *"Por que a minha segunda conta não vê meus
+  plugins?"* E *"por que a primeira conta sobe **sem** a variável, e as outras com?"* — medido:
+  escrever o caminho padrão faz a conta de hoje aparecer deslogada;
+- *trade-off real:* sim, e o ADR nomeia quatro alternativas. A que mais tenta é a variável
+  cirúrgica, que faria a conta 1 se apresentar com o e-mail da conta 2.
 
 ---
 
@@ -286,3 +316,54 @@ experiência do usuário."* Decidido por experiência, e não por mecanismo:
   quem não mudou nada;
 - **effort some quando o modelo não tem.** O terceiro item do trio só aparece se o `configOptions`
   daquele modelo oferece `effort`.
+
+**Nota (2026-09-26), da fase 0:** ~~um `session/new` que confere o login~~ — o `session/new` do
+Claude `0.75.1` **fecha sem credencial nenhuma**, e o do Codex aceita uma chave de API falsa
+([estudo](../../project/agent-accounts-measurements.md), §2.2 e §3.3). Quem confere é outra leitura,
+decidida no [ADR](../../adr/2026-09-26-0148-an-account-is-a-whole-agent-config-dir.md):
+`claude-agent-acp --cli auth status` e o `_auth/status_update` do Codex. O que fica de pé na
+resposta: a lista de modelos continua vindo do `configOptions` do `session/new`, gravada por conta. A
+medição confirmou que ela **é** por conta: no Codex, a conta ChatGPT e a chave de API oferecem listas
+e escalas de effort diferentes. Uma ressalva: no Claude, uma conta recém-conectada tem cache de
+modelos vazio (o Fable só aparece depois que o cache enche), então a primeira lista pode ser mais
+curta que a de verdade. Isso vale como critério de aceite, não como pergunta.
+
+---
+
+### [x] Q10 — O que uma conta nova herda da sua configuração de hoje?
+
+Nasceu da fase 0. O [ADR de 2026-09-26](../../adr/2026-09-26-0148-an-account-is-a-whole-agent-config-dir.md)
+faz cada conta ser um diretório de configuração inteiro, e a
+[medição](../../project/agent-accounts-measurements.md) (§2.5) mostra o que isso custa: a segunda
+conta do Claude nasce **sem** os seus plugins, skills, subagentes, `CLAUDE.md` de usuário, MCPs de
+usuário e permissões do `settings.json`. A do Codex nasce sem o `config.toml` (modelo, perfis,
+`[mcp_servers]`) e sem o `AGENTS.md` global. Medido: o seletor de subagentes some do `session/new`, e
+modelo e effort voltam ao padrão do adaptador.
+
+A identidade nunca é herdada (credencial, `.claude.json`, `auth.json`): isso está no ADR, e é o que
+separa as contas. A pergunta é sobre **o resto**, e ela tem três respostas com custos diferentes:
+
+1. **nada** — a conta nova é um Claude Code recém-instalado. Honesto e simples. Quem tem plugins
+   percebe a diferença na primeira conversa e não entende por quê;
+2. **link para os itens de comportamento** (`settings.json`, `CLAUDE.md`, `rules/`, `skills/`,
+   `plugins/`; `config.toml` e `AGENTS.md` no Codex), apontando para os de hoje. Mudar um plugin muda
+   em todas as contas. Não medido: se os plugins aguentam ser lidos por link (eles guardam caminho
+   absoluto), e se o `config.toml` do Codex compartilhado arrasta junto um `cli_auth_credentials_store`
+   que quebre o isolamento;
+3. **cópia no momento de conectar** — a conta nasce igual à de hoje e diverge depois. Não tem as
+   surpresas do link, e tem as da cópia: o plugin instalado amanhã não chega na conta de ontem.
+
+Os **MCPs do usuário** são o caso difícil, porque no Claude eles moram no mesmo `.claude.json` da
+identidade: nenhum link os traz sem trazer também o `oauthAccount`.
+
+**Proposta pra reagir:** **link (2) para o que é comportamento, com uma linha na tela de conectar
+dizendo o que foi ligado**, e os MCPs de usuário do Claude **fora**, ditos em voz alta nessa mesma
+linha. A medição que falta — plugin por link, e `config.toml` compartilhado — é critério de aceite
+da task que fizer isso, e se ela falhar a resposta cai para (3).
+
+**R (2026-09-26): como proposto.** A conta nova recebe **link** para o que é comportamento
+(`settings.json`, `CLAUDE.md`, `rules/`, `skills/`, `plugins/` no Claude; `config.toml` e `AGENTS.md`
+no Codex), e a tela de conectar diz numa linha o que foi ligado. Os MCPs de usuário do Claude ficam
+**fora**, e essa mesma linha diz isso. A medição que falta (plugin lido por link, e `config.toml`
+compartilhado sem arrastar um `cli_auth_credentials_store`) é critério de aceite da task. Se ela
+falhar, a resposta cai para a **cópia no momento de conectar** (3), sem pergunta nova.

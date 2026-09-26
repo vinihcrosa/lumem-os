@@ -5,8 +5,12 @@
 > mais contas do Claude conectadas, e poder selecionar o Opus 5 na conta 1 para uma coisa e a conta 2
 > com Fable para outra"*. Ela tira do [backlog](../../project/backlog.md) o item *Múltiplas contas
 > para o mesmo agente*, que estava lá desde a [pty-vs-acp A2](../../project/pty-vs-acp.md)
-> **Perguntas:** [open-questions.md](open-questions.md) — 12 perguntas, **11 respondidas**
-> (2026-09-25 e 2026-09-26), **3 contra a proposta**, **2 emendadas**, e **1 aberta** (a Q7, adiada)
+> v0.2 — **fase 0 medida em 2026-09-26** ([estudo](../../project/agent-accounts-measurements.md)): o
+> Keychain não colide, a variável do CLI se sustenta e **não é cirúrgica**, e a Q7 virou o
+> [ADR de 2026-09-26](../../adr/2026-09-26-0148-an-account-is-a-whole-agent-config-dir.md). As notas
+> estão no §4, no §5 e no §8
+> **Perguntas:** [open-questions.md](open-questions.md) — 13 perguntas, **todas respondidas**
+> (2026-09-25 e 2026-09-26), **3 contra a proposta** e **2 emendadas**. A Q10 nasceu da fase 0
 > **Depende de:** a [`009-agent-login`](../009-agent-login/prd.md) (o login pela tela, que esta PRD
 > multiplica), a [`021-second-agent`](../021-second-agent/prd.md) (o catálogo `ADAPTERS` e o rodapé
 > com uma linha por agente), a [`027-adapter-provenance`](../027-adapter-provenance/prd.md) (a
@@ -109,7 +113,15 @@ o diretório de credencial do subprocesso**. Duas formas; **a escolhida é a 1**
 ela se sustenta:
 
 1. **Variável do próprio CLI** — `CLAUDE_CONFIG_DIR` para o Claude Code, `CODEX_HOME` para o Codex.
-   Cirúrgica: só a credencial muda, o resto do ambiente (nvm, `gh`, `git config`) continua o seu.
+   ~~Cirúrgica: só a credencial muda~~, o resto do ambiente (nvm, `gh`, `git config`) continua o seu.
+
+   > **Nota (2026-09-26), da fase 0:** *cirúrgica* estava errado. A variável leva a **configuração
+   > inteira do agente** — plugins, skills, `CLAUDE.md` de usuário, MCPs, permissões e transcripts
+   > ([estudo](../../project/agent-accounts-measurements.md), §2.5). A forma que muda só a credencial
+   > existe (`CLAUDE_SECURESTORAGE_CONFIG_DIR`) e perde, porque deixa a identidade compartilhada (§2.4).
+   > Continua de pé o que decidiu a Q6: nvm, `gh` e `git config` não mudam. A decisão está no
+   > [ADR de 2026-09-26](../../adr/2026-09-26-0148-an-account-is-a-whole-agent-config-dir.md), e o custo
+   > para você é a [Q10](open-questions.md#x-q10--o-que-uma-conta-nova-herda-da-sua-configuração-de-hoje).
 2. **Reescrever `HOME` e `XDG_*`** (o *provider home isolation* do Compozy). Genérica, funciona para
    qualquer CLI — e cobra caro: o agente passa a rodar comandos num `$HOME` que não é o seu, sem
    `.gitconfig`, sem chave SSH, sem o nvm que a Parte 7 da `028` já pagou uma vez.
@@ -126,6 +138,20 @@ ela se sustenta:
 - o `_auth/status_update` do Codex (`{ email, plan }`, já anotado no backlog) e o que o Claude
   expuser servem para **conferir** que a sessão está na conta que o Lumem acha — em vez de acreditar.
 
+> **Medido (2026-09-26)** — [estudo](../../project/agent-accounts-measurements.md), zero token:
+>
+> - **Keychain:** não colide. A entrada é `Claude Code-credentials-<sha256(dir)[0:8]>` sempre que
+>   `CLAUDE_CONFIG_DIR` existe, e leitura e escrita usam o mesmo nome. **A primeira conta é a variável
+>   ausente**: com o caminho padrão escrito, a conta de hoje aparece deslogada;
+> - **`claude-agent-acp`:** respeita a variável no handshake, no `session/new` e no turno;
+> - **`codex-acp`:** respeita `CODEX_HOME`, e aqui a escrita foi exercitada. Um login num diretório
+>   descartável não tocou o `~/.codex`. O `chat-gpt-device-code` aparece, e não foi completado;
+> - **conferir:** sim, mas **não pelo `session/new`**. O do Claude fecha sem credencial, e o do Codex
+>   aceita chave falsa. Claude: `claude-agent-acp --cli auth status` (e-mail e plano, 0,57 s). Codex:
+>   `_auth/status_update`;
+> - **de brinde:** desde o pino `0.75.1`, uma máquina sem login do Claude aparece `conectado` no
+>   rodapé. O probe confia no `-32000` do `session/new` (estudo, §6).
+
 ## 5. Onde a credencial mora
 
 Duas famílias de login, e elas moram em lugares diferentes:
@@ -141,6 +167,13 @@ Duas famílias de login, e elas moram em lugares diferentes:
 A conta que já existe hoje — a do `$HOME` — vira a **primeira conta** de cada agente, sem migração de
 credencial: ela aponta para o diretório padrão do CLI. Ninguém precisa relogar para a feature chegar.
 
+> **Nota (2026-09-26):** *aponta para o diretório padrão* quer dizer **sobe sem a variável**, e não
+> com o caminho padrão escrito nela. No Claude as duas coisas são diferentes: a variável presente
+> muda o nome da entrada do Keychain e o arquivo de config
+> ([ADR](../../adr/2026-09-26-0148-an-account-is-a-whole-agent-config-dir.md)). E o diretório de uma
+> conta vive tanto quanto as conversas dela, porque o `session/load` do Claude lê o transcript de
+> dentro dele.
+
 ## 6. A tela
 
 - **Rodapé de agentes** (o da `021`, uma linha por agente): cada agente abre em **uma sub-linha por
@@ -149,7 +182,9 @@ credencial: ela aponta para o diretório padrão do CLI. Ninguém precisa reloga
 - **Abrir conversa:** a escolha de conta aparece **só quando o agente tem mais de uma** — com uma
   conta, o produto fica pixel a pixel como hoje. Ela vem pré-selecionada com o trio padrão (Q1).
 - **Configuração:** o trio padrão das sessões e o de cada encaixe da esteira. A lista de modelos e
-  de effort vem do adaptador, e é gravada por conta **no handshake que confere o login** — ela
+  de effort vem do adaptador, e é gravada por conta **no handshake ~~que confere o login~~ que
+  segue a conferência** (a nota de 2026-09-26 da [Q9](open-questions.md#x-q9--de-onde-a-configuração-tira-a-lista-de-modelos-e-de-effort):
+  o `session/new` não confere, e quem confere é outra leitura) — ela
   existe desde que a conta existe, e se atualiza a cada sessão aberta. Modelo padrão que sumiu abre
   no que o adaptador escolher, com uma linha na conversa, e o trio aparece *indisponível* na
   configuração ([Q9](open-questions.md#x-q9--de-onde-a-configuração-tira-a-lista-de-modelos-e-de-effort)).
@@ -174,8 +209,15 @@ credencial: ela aponta para o diretório padrão do CLI. Ninguém precisa reloga
 
 ## 8. Riscos
 
-- **Colisão no Keychain** (§4). Se confirmada, a forma cirúrgica não funciona no macOS e a feature
-  depende da forma cara — ou de o adaptador ganhar um jeito de apontar a credencial.
+- ~~**Colisão no Keychain** (§4). Se confirmada, a forma cirúrgica não funciona no macOS e a feature
+  depende da forma cara — ou de o adaptador ganhar um jeito de apontar a credencial.~~ **Medido em
+  2026-09-26: não colide** (§4). No lugar dele entram dois riscos:
+- **A segunda conta nasce limpa** — sem plugins, `CLAUDE.md` de usuário, MCPs e permissões. É o custo
+  do [ADR de 2026-09-26](../../adr/2026-09-26-0148-an-account-is-a-whole-agent-config-dir.md), e o que
+  fazer com ele é a [Q10](open-questions.md#x-q10--o-que-uma-conta-nova-herda-da-sua-configuração-de-hoje).
+- **O contrato com o adaptador é implícito.** O nome da variável, a derivação da entrada do Keychain
+  e o formato do `auth status` são do CLI embutido, e não estão em nenhum protocolo. Um pino novo que
+  mude um deles quebra contas sem nada falhar alto. A conferência do pino passa a medir isso também.
 - **Termos de uso.** Usar duas assinaturas para somar limite (UC2) pode ferir os termos do provedor.
   O Lumem não decide isso por você, mas também não deve vender o UC2 como recurso sem dizer isso.
 - **Sessões antigas.** Toda conversa em disco aponta para `agent_config`; a migração as amarra à

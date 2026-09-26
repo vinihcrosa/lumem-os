@@ -176,6 +176,18 @@ pessoal na mesma máquina sem trocar login na mão.
 
 **Virou PRD em 2026-09-25:** [agent-accounts](../features/030-agent-accounts/prd.md), ainda proposta.
 
+### O rodapé diz `conectado` para um Claude sem login — `S`
+
+Desde o pino `0.75.1`, o `session/new` do `claude-agent-acp` **fecha sem credencial nenhuma**, e o
+`-32000` só chega no primeiro `session/prompt`. O probe do `AcpManager` deriva `authRequired` do
+`session/new`, então a linha do Claude no rodapé fica verde numa máquina sem login, e o primeiro sinal
+é o primeiro prompt morrer. O conserto é conferir por `claude-agent-acp --cli auth status`, que
+responde `loggedIn` em ~0,6 s sem gastar token.
+
+**De onde veio:** a [fase 0 da agent-accounts](agent-accounts-measurements.md), §6 · **Volta quando:**
+a primeira task da [030](../features/030-agent-accounts/prd.md) que fizer a conferência de conta — ela
+conserta isto de graça — ou antes, se alguém instalar o Lumem numa máquina sem login do Claude.
+
 ### Terceiro CLI de agente — `M`
 
 O **segundo** virou PRD em 2026-09-05 e a **C1 respondeu Codex**:
