@@ -1,5 +1,5 @@
 import { newId } from "@lumem/shared";
-import { and, asc, count, eq, isNull, ne } from "drizzle-orm";
+import { and, asc, count, eq, isNull, ne, sql } from "drizzle-orm";
 
 import type { Db } from "../db/index.js";
 import {
@@ -20,6 +20,15 @@ import { withConstraints, type ConstraintMap } from "./base.js";
  * Este repositório guarda a linha e nada lê do diretório — criar o diretório, os
  * links da Q10 e conferir a identidade são das tasks seguintes.
  */
+
+/**
+ * O nome da conta que já existia — o login desta máquina, sem diretório.
+ *
+ * Não o nome do agente: com ele o cabeçalho lia `claude · claude`, e o nome
+ * vinha do produto em vez de vir de você (Q2). É um ponto de partida, e se
+ * renomeia em `/settings`.
+ */
+export const BARE_ACCOUNT_LABEL = "principal";
 
 export type AgentAccountKind = "subscription" | "api_key";
 export type AgentAccountState = "connected" | "disconnected";
@@ -47,7 +56,7 @@ export interface AgentAccountRepository {
    * A conta padrão — conectada, sempre.
    *
    * Sem uma, a conectada **mais antiga** assume (a nota da Q8); sem nenhuma
-   * conta, nasce a sem diretório, com o nome do agente (o primeiro acesso). E
+   * conta, nasce a sem diretório, chamada `principal` (o primeiro acesso). E
    * com contas, mas nenhuma conectada, a recusa é `BLOCKED`: a conversa nova
    * pede para conectar em vez de subir numa conta cujo login foi desfeito.
    */
@@ -66,6 +75,8 @@ export interface AgentAccountRepository {
   disconnect(id: string): Promise<void>;
   /** Recusa uma desconectada: a padrão é onde a conversa nova nasce. */
   setDefault(id: string): Promise<void>;
+  /** O nome é seu (Q2): repetido no mesmo agente é `DUPLICATE`. */
+  rename(id: string, label: string): Promise<void>;
   /** Modelo e effort padrão da conta — o trio da emenda da Q1. */
   setDefaults(id: string, defaults: { model: string | null; effort: string | null }): Promise<void>;
   /** Quantas sessões rodaram nesta conta — a contagem que o `purge` exige. */
@@ -82,6 +93,14 @@ export interface AgentAccountRepository {
   /** As contas conectadas de um agente — as que o aquecimento do boot confere. */
   listConnected(agentConfigId: string): Promise<AgentAccountRow[]>;
 }
+
+/**
+ * A ordem de chegada. `created_at` empata quando duas contas nascem no mesmo
+ * milissegundo, e aí o SQLite devolve na ordem do índice que usou — o de
+ * `(agent_config_id, label)`, ou seja, **alfabética**. O `rowid` é a ordem de
+ * inserção, e é ele que desempata.
+ */
+const BY_ARRIVAL = [asc(agentAccount.createdAt), asc(sql`rowid`)];
 
 function conflicts(label: string): ConstraintMap {
   return {
@@ -149,7 +168,7 @@ export function createAgentAccountRepository(db: Db): AgentAccountRepository {
         eq(agentAccount.state, "connected"),
         ...(except === undefined ? [] : [ne(agentAccount.id, except)]),
       ),
-      orderBy: asc(agentAccount.createdAt),
+      orderBy: BY_ARRIVAL,
     });
   }
 
@@ -171,7 +190,7 @@ export function createAgentAccountRepository(db: Db): AgentAccountRepository {
       if (config.defaultAccountId !== null) await pointDefault(agentConfigId, null);
       return null;
     }
-    const account = oldest ?? (await create({ agentConfigId, label: config.name }));
+    const account = oldest ?? (await create({ agentConfigId, label: BARE_ACCOUNT_LABEL }));
     await pointDefault(agentConfigId, account.id);
     return account;
   }
@@ -192,7 +211,7 @@ export function createAgentAccountRepository(db: Db): AgentAccountRepository {
         .select()
         .from(agentAccount)
         .where(eq(agentAccount.agentConfigId, agentConfigId))
-        .orderBy(asc(agentAccount.createdAt));
+        .orderBy(...BY_ARRIVAL);
     },
 
     get,
@@ -211,7 +230,7 @@ export function createAgentAccountRepository(db: Db): AgentAccountRepository {
         .select()
         .from(agentAccount)
         .where(and(eq(agentAccount.agentConfigId, agentConfigId), eq(agentAccount.state, "connected")))
-        .orderBy(asc(agentAccount.createdAt));
+        .orderBy(...BY_ARRIVAL);
     },
 
     resolveDefault,
@@ -256,6 +275,15 @@ export function createAgentAccountRepository(db: Db): AgentAccountRepository {
         throw new DomainError("BLOCKED", "conecte a conta antes de torná-la padrão");
       }
       await pointDefault(account.agentConfigId, id);
+    },
+
+    async rename(id, label) {
+      await require_(id);
+      await withConstraints(
+        () =>
+          db.update(agentAccount).set({ label, updatedAt: new Date() }).where(eq(agentAccount.id, id)),
+        conflicts(label),
+      );
     },
 
     async setDefaults(id, { model, effort }) {

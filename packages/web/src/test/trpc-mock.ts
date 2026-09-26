@@ -200,6 +200,7 @@ function createTrpcMock() {
       purge: { mutate: vi.fn() },
       setDefault: { mutate: vi.fn() },
       setDefaults: { mutate: vi.fn() },
+      rename: { mutate: vi.fn() },
     },
     files: {
       listDir: { query: vi.fn() },

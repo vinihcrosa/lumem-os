@@ -313,6 +313,7 @@ describe("o aviso para a tela (`account.changed`)", () => {
     for (const gesture of [
       () => ctx.api.agentAccount.setDefault({ accountId: account.id }),
       () => ctx.api.agentAccount.setDefaults({ accountId: account.id, model: "sonnet", effort: null }),
+      () => ctx.api.agentAccount.rename({ accountId: account.id, label: "trabalho novo" }),
       () => ctx.api.agentAccount.disconnect({ accountId: account.id }),
       () => ctx.api.agentAccount.purge({ accountId: account.id, sessionCount: 0 }),
     ]) {
@@ -330,7 +331,7 @@ describe("agentAccount.list", () => {
 
     const accounts = await ctx.api.agentAccount.list({ adapterId: "claude" });
 
-    expect(accounts.map((row) => row.label).sort()).toEqual(["claude", "trabalho"]);
+    expect(accounts.map((row) => row.label).sort()).toEqual(["principal", "trabalho"]);
     expect(accounts.find((row) => row.bare)).toMatchObject({
       adapterId: "claude",
       isDefault: true,
@@ -338,5 +339,38 @@ describe("agentAccount.list", () => {
       sessionCount: 0,
     });
     expect(await ctx.api.agentAccount.list({ adapterId: "codex" })).toEqual([]);
+  });
+});
+
+describe("agentAccount.rename", () => {
+  it("dá o nome que você digitou à conta que já existia — o nome é seu (Q2)", async () => {
+    const { ctx } = harness();
+    await ctx.api.agentAccount.connect({ adapterId: "claude", label: "trabalho", kind: "subscription" });
+    const bare = (await ctx.api.agentAccount.list({ adapterId: "claude" })).find((row) => row.bare)!;
+    expect(bare.label).toBe("principal");
+
+    await ctx.api.agentAccount.rename({ accountId: bare.id, label: "  pessoal  " });
+
+    const again = (await ctx.api.agentAccount.list({ adapterId: "claude" })).find((row) => row.bare);
+    expect(again?.label).toBe("pessoal");
+  });
+
+  it("recusa o nome de outra conta do mesmo agente, com a frase do daemon", async () => {
+    const { ctx } = harness();
+    await ctx.api.agentAccount.connect({ adapterId: "claude", label: "trabalho", kind: "subscription" });
+    const bare = (await ctx.api.agentAccount.list({ adapterId: "claude" })).find((row) => row.bare)!;
+
+    await expect(ctx.api.agentAccount.rename({ accountId: bare.id, label: "trabalho" })).rejects.toThrow(
+      /já existe uma conta chamada "trabalho"/,
+    );
+  });
+
+  it("recusa nome vazio", async () => {
+    const { ctx } = harness();
+    await ctx.api.agentAccount.connect({ adapterId: "claude", label: "trabalho", kind: "subscription" });
+    const bare = (await ctx.api.agentAccount.list({ adapterId: "claude" })).find((row) => row.bare)!;
+
+    await expect(ctx.api.agentAccount.rename({ accountId: bare.id, label: "   " })).rejects.toThrow();
+    expect((await createAgentAccountRepository(ctx.db).get(bare.id))?.label).toBe("principal");
   });
 });

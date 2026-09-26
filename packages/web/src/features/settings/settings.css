@@ -254,6 +254,31 @@
 /* A faixa do trio, da confirmação e da recusa ocupa a largura da linha, embaixo. */
 .set__row--sub { row-gap: var(--space-6); }
 
+/*
+ * O nome da conta, que se renomeia no lugar (Q2). Parece texto — é o rótulo da
+ * linha — e só o sublinhado pontilhado do `hover` diz que dá para mexer.
+ */
+.set__name {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: text;
+}
+.set__name:hover {
+  text-decoration: underline dotted var(--color-border-strong);
+  text-underline-offset: var(--space-4);
+}
+.set__rename {
+  width: calc(var(--space-64) * 3);
+  height: var(--size-control-md);
+  padding: 0 var(--space-8);
+  font: var(--text-label-md);
+}
+.set__rename__err { display: block; margin-top: var(--space-4); }
+
 /* `padrão` é texto com contorno, e não cor: marca é para CTA, não para estado. */
 .set__mark {
   margin-left: var(--space-6);

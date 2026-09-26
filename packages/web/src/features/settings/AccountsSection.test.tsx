@@ -39,7 +39,7 @@ beforeEach(() => {
   trpc.setup.agents.query.mockResolvedValue({ adapters: [] });
   trpc.adapterCatalog.list.query.mockResolvedValue([{ ...CLAUDE_VIEW, accountId: "acct_pessoal" }]);
   trpc.agentAccount.list.query.mockResolvedValue([accountRow()]);
-  for (const gesture of ["connect", "disconnect", "purge", "setDefault", "setDefaults"] as const) {
+  for (const gesture of ["connect", "disconnect", "purge", "setDefault", "setDefaults", "rename"] as const) {
     trpc.agentAccount[gesture].mutate.mockResolvedValue({});
   }
 });
@@ -73,6 +73,70 @@ describe("uma conta", () => {
     await user.click(within(await accountGroup("pessoal")).getByRole("button", { name: "desconectar" }));
 
     expect(trpc.agentAccount.disconnect.mutate).toHaveBeenCalledWith({ accountId: "acct_pessoal" });
+  });
+});
+
+describe("renomear", () => {
+  /*
+   * O nome é seu (Q2) — inclusive o da conta que já existia, que nasce
+   * `principal`. Clicar no nome vira campo; `Enter` grava, `Esc` desiste.
+   */
+  it("clicar no nome vira campo, e Enter manda o nome novo, aparado", async () => {
+    const user = userEvent.setup();
+    render();
+
+    const pessoal = await accountGroup("pessoal");
+    await user.click(within(pessoal).getByRole("button", { name: "renomear pessoal" }));
+    const field = within(pessoal).getByRole("textbox", { name: "nome da conta pessoal" });
+    expect(field).toHaveValue("pessoal");
+    expect(field).toHaveFocus();
+    await user.clear(field);
+    await user.type(field, "  casa  {Enter}");
+
+    expect(trpc.agentAccount.rename.mutate).toHaveBeenCalledWith({ accountId: "acct_pessoal", label: "casa" });
+    await waitFor(() => expect(within(pessoal).queryByRole("textbox")).toBeNull());
+  });
+
+  it("Esc desiste sem mandar nada", async () => {
+    const user = userEvent.setup();
+    render();
+
+    const pessoal = await accountGroup("pessoal");
+    await user.click(within(pessoal).getByRole("button", { name: "renomear pessoal" }));
+    await user.type(within(pessoal).getByRole("textbox", { name: "nome da conta pessoal" }), "xyz{Escape}");
+
+    expect(within(pessoal).queryByRole("textbox")).toBeNull();
+    expect(within(pessoal).getByRole("button", { name: "renomear pessoal" })).toHaveTextContent("pessoal");
+    expect(trpc.agentAccount.rename.mutate).not.toHaveBeenCalled();
+  });
+
+  it("vazio ou igual não vai ao daemon", async () => {
+    const user = userEvent.setup();
+    render();
+
+    const pessoal = await accountGroup("pessoal");
+    await user.click(within(pessoal).getByRole("button", { name: "renomear pessoal" }));
+    await user.keyboard("{Enter}");
+    await user.click(within(pessoal).getByRole("button", { name: "renomear pessoal" }));
+    await user.clear(within(pessoal).getByRole("textbox", { name: "nome da conta pessoal" }));
+    await user.keyboard("   {Enter}");
+
+    expect(trpc.agentAccount.rename.mutate).not.toHaveBeenCalled();
+  });
+
+  it("a recusa do daemon aparece na linha, e o campo fica para corrigir", async () => {
+    const user = userEvent.setup();
+    trpc.agentAccount.rename.mutate.mockRejectedValue(new Error('já existe uma conta chamada "trabalho" neste agente'));
+    render();
+
+    const pessoal = await accountGroup("pessoal");
+    await user.click(within(pessoal).getByRole("button", { name: "renomear pessoal" }));
+    const field = within(pessoal).getByRole("textbox", { name: "nome da conta pessoal" });
+    await user.clear(field);
+    await user.type(field, "trabalho{Enter}");
+
+    expect(await within(pessoal).findByRole("alert")).toHaveTextContent('já existe uma conta chamada "trabalho"');
+    expect(within(pessoal).getByRole("textbox", { name: "nome da conta pessoal" })).toHaveValue("trabalho");
   });
 });
 

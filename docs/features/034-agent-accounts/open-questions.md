@@ -93,6 +93,12 @@ desenho até ser.
 deixa você ver que a conta `trabalho` é mesmo a do trabalho. Na pílula da conversa nova ele não
 aparece: lá cabe o rótulo, e o rótulo é seu.
 
+**Nota (2026-09-26), do teste de design (T18):** a conta que **já existia** — o login desta máquina,
+sem diretório — nascia com o nome do agente como rótulo, e o cabeçalho lia `claude · claude`: o nome
+vinha do produto, contra a resposta acima. Ela passa a nascer **`principal`** (a `0038` renomeia a
+de quem já tinha, só se o rótulo ainda era o do agente), e **se renomeia** em `/settings` → Agentes,
+clicando no nome. `principal` é ponto de partida, não derivação do provedor: **o nome continua seu.**
+
 ---
 
 ### [x] Q3 — Dá para trocar a conta de uma conversa já aberta?

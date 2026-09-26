@@ -267,6 +267,13 @@
       "when": 1790432598934,
       "tag": "0037_continuacao_de_conta",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "6",
+      "when": 1790437877726,
+      "tag": "0038_conta_principal",
+      "breakpoints": true
     }
   ]
 }

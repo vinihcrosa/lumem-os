@@ -37,7 +37,7 @@ export function AccountRow({
     <div className="set__row set__row--sub" role="group" aria-label={`conta ${account.label}`}>
       <span className="set__what">
         <span className="set__lbl">
-          {account.label}
+          <AccountName account={account} />
           {account.isDefault && <span className="set__mark">padrão</span>}
         </span>
         {identity !== null && <span className="set__d">{identity}</span>}
@@ -122,4 +122,75 @@ export function AccountRow({
       </>
     );
   }
+}
+
+/**
+ * O nome da conta, que se renomeia no lugar (Q2: *"o nome é seu"*).
+ *
+ * Quieto de propósito: o nome é texto até alguém clicar nele — um botão
+ * `renomear` a mais em cada linha disputaria com os gestos da conta, que são o
+ * que a linha existe para oferecer. `Enter` grava, `Esc` e sair do campo
+ * desistem: um nome gravado sem `Enter` seria um nome que você não confirmou.
+ * Vazio ou igual não chega ao daemon; a recusa dele fica embaixo, com o campo
+ * aberto para corrigir.
+ */
+function AccountName({ account }: { account: AgentAccountView }) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const { rename } = useAgentAccountMutations();
+
+  if (draft === null) {
+    return (
+      <button
+        type="button"
+        className="set__name focus-ring"
+        aria-label={`renomear ${account.label}`}
+        title="renomear"
+        onClick={() => setDraft(account.label)}
+      >
+        {account.label}
+      </button>
+    );
+  }
+
+  const stop = () => {
+    rename.reset();
+    setDraft(null);
+  };
+  const save = () => {
+    const label = draft.trim();
+    if (label === "" || label === account.label) return stop();
+    rename.mutate({ accountId: account.id, label }, { onSuccess: () => setDraft(null) });
+  };
+
+  return (
+    <>
+      <input
+        className={`input set__rename${rename.error === null ? "" : " input--error"}`}
+        aria-label={`nome da conta ${account.label}`}
+        aria-invalid={rename.error === null ? undefined : true}
+        value={draft}
+        maxLength={80}
+        autoFocus
+        // `readOnly`, e não `disabled`: desabilitar tira o foco, e a recusa
+        // voltaria com o campo sem cursor.
+        readOnly={rename.isPending}
+        onChange={(event) => {
+          setDraft(event.target.value);
+          rename.reset();
+        }}
+        onBlur={() => {
+          if (!rename.isPending) stop();
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") save();
+          if (event.key === "Escape") stop();
+        }}
+      />
+      {rename.error !== null && (
+        <span className="set__err set__rename__err" role="alert">
+          {rename.error.message}
+        </span>
+      )}
+    </>
+  );
 }

@@ -15,7 +15,7 @@ async function bareConfig(db: Db, name = "claude"): Promise<string> {
 }
 
 describe("ensureDefault", () => {
-  it("cria a conta que sobe sem a variável, com o nome do agente, e a marca padrão", async () => {
+  it("cria a conta que sobe sem a variável, chamada principal, e a marca padrão", async () => {
     // ADR de 2026-09-26: a primeira conta é a variável **ausente** — o login
     // que já existe vira a primeira conta sem ninguém relogar.
     await withTestDb(async (db) => {
@@ -26,7 +26,9 @@ describe("ensureDefault", () => {
 
       expect(account).toMatchObject({
         agentConfigId: configId,
-        label: "claude",
+        // Não o nome do agente: `claude · claude` no cabeçalho é o produto
+        // dando nome no lugar de quem é dono dele (Q2).
+        label: "principal",
         kind: "subscription",
         configDir: null,
         state: "connected",
@@ -188,7 +190,7 @@ describe("a configuração nasce com a conta padrão", () => {
       });
 
       const account = await createAgentAccountRepository(db).defaultFor(config.id);
-      expect(account).toMatchObject({ label: "claude", configDir: null });
+      expect(account).toMatchObject({ label: "principal", configDir: null });
     });
   });
 
@@ -197,7 +199,7 @@ describe("a configuração nasce com a conta padrão", () => {
       const configId = await configForAdapter(db, "codex");
 
       const account = await createAgentAccountRepository(db).defaultFor(configId);
-      expect(account).toMatchObject({ label: "codex", configDir: null });
+      expect(account).toMatchObject({ label: "principal", configDir: null });
     });
   });
 
@@ -213,6 +215,39 @@ describe("a configuração nasce com a conta padrão", () => {
       await configs.remove(config.id);
 
       expect(await db.select().from(agentAccount)).toEqual([]);
+    });
+  });
+});
+
+describe("rename", () => {
+  it("troca o rótulo da conta", async () => {
+    await withTestDb(async (db) => {
+      const accounts = createAgentAccountRepository(db);
+      const account = await accounts.ensureDefault(await bareConfig(db));
+
+      await accounts.rename(account.id, "pessoal");
+
+      expect((await accounts.get(account.id))?.label).toBe("pessoal");
+    });
+  });
+
+  it("recusa um rótulo que outra conta do mesmo agente já tem", async () => {
+    await withTestDb(async (db) => {
+      const claude = await bareConfig(db);
+      const accounts = createAgentAccountRepository(db);
+      const bare = await accounts.ensureDefault(claude);
+      await accounts.create({ agentConfigId: claude, label: "trabalho", configDir: "/t" });
+
+      await expect(accounts.rename(bare.id, "trabalho")).rejects.toMatchObject({ code: "DUPLICATE" });
+      expect((await accounts.get(bare.id))?.label).toBe("principal");
+    });
+  });
+
+  it("recusa uma conta que não existe", async () => {
+    await withTestDb(async (db) => {
+      await expect(createAgentAccountRepository(db).rename("acct-nada", "x")).rejects.toMatchObject({
+        code: "NOT_FOUND",
+      });
     });
   });
 });

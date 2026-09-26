@@ -1502,15 +1502,16 @@ describe("0035 — a conta de agente", () => {
     return path;
   }
 
-  it("dá a cada configuração uma conta sem diretório, com o nome dela, e a marca padrão", async () => {
+  it("dá a cada configuração uma conta sem diretório, e a marca padrão", async () => {
     const handle = openDatabase({ path: databaseBeforeAccounts() });
     open.push(handle);
 
     const accounts = await handle.db.select().from(schema.agentAccount);
     const byConfig = new Map(accounts.map((row) => [row.agentConfigId, row]));
     expect(accounts).toHaveLength(2);
+    // Nasce com o nome do agente, e a `0038` a renomeia para `principal`.
     expect(byConfig.get("cfg-acp")).toMatchObject({
-      label: "claude",
+      label: "principal",
       kind: "subscription",
       configDir: null,
       state: "connected",
@@ -1520,7 +1521,7 @@ describe("0035 — a conta de agente", () => {
     });
     // A aposentada ganha conta também: a sessão PTY dela precisa de uma para
     // passar na CHECK, e a configuração não aparece para escolha de qualquer jeito.
-    expect(byConfig.get("cfg-pty")).toMatchObject({ label: "claude-code", configDir: null });
+    expect(byConfig.get("cfg-pty")).toMatchObject({ label: "principal", configDir: null });
 
     const configs = await handle.db.select().from(schema.agentConfig);
     for (const config of configs) {
@@ -1701,5 +1702,66 @@ describe("0037 — a continuação noutra conta", () => {
 
     const [nova] = await handle.db.select().from(schema.session);
     expect(nova).toMatchObject({ id: "nova", continuedFromId: null });
+  });
+});
+
+describe("0038 — a conta principal", () => {
+  /*
+   * A conta que já existia nascia com o nome do agente, e o cabeçalho lia
+   * `claude · claude` — contra a Q2 (*"o nome é seu"*). A migração dá a ela um
+   * nome que não é derivado do provedor, e só a ela: rótulo que alguém escolheu
+   * não se toca.
+   */
+  function databaseBeforePrincipal(): string {
+    const dir = mkdtempSync(join(tmpdir(), "lumem-db-principal-"));
+    dirs.push(dir);
+    const path = join(dir, "lumem.db");
+    const sqlite = new Database(path);
+    sqlite.pragma("foreign_keys = ON");
+    migrate(drizzle(sqlite), { migrationsFolder: migrationsUpTo(38) });
+    const run = (statement: string): void => {
+      sqlite.prepare(statement).run();
+    };
+    // Sem diretório e com o nome do agente: a que a `0035` criou.
+    run(`INSERT INTO agent_config (id, name, command, adapter_version)
+         VALUES ('cfg-claude', 'claude', 'claude-agent-acp', '0.75.1')`);
+    run(`INSERT INTO agent_account (id, agent_config_id, label) VALUES ('acct-bare', 'cfg-claude', 'claude')`);
+    // Com diretório, e por acaso com o nome do agente: foi digitado, fica.
+    run(`INSERT INTO agent_account (id, agent_config_id, label, config_dir)
+         VALUES ('acct-dir', 'cfg-claude', 'codex', '/contas/1')`);
+    // Sem diretório, mas já renomeada: fica.
+    run(`INSERT INTO agent_config (id, name, command, adapter_version)
+         VALUES ('cfg-codex', 'codex', 'codex-acp', '1.10.0')`);
+    run(`INSERT INTO agent_account (id, agent_config_id, label) VALUES ('acct-pessoal', 'cfg-codex', 'pessoal')`);
+    // Sem diretório e com o nome do agente, mas `principal` já é de outra conta
+    // dele: renomear bateria no índice único, então fica.
+    run(`INSERT INTO agent_config (id, name, command, adapter_version, retired_at)
+         VALUES ('cfg-velho', 'velho', 'velho-acp', NULL, 1)`);
+    run(`INSERT INTO agent_account (id, agent_config_id, label) VALUES ('acct-velho', 'cfg-velho', 'velho')`);
+    run(`INSERT INTO agent_account (id, agent_config_id, label, config_dir)
+         VALUES ('acct-velho-2', 'cfg-velho', 'principal', '/contas/2')`);
+    sqlite.close();
+    return path;
+  }
+
+  it("a conta sem diretório com o nome do agente passa a se chamar principal", async () => {
+    const handle = openDatabase({ path: databaseBeforePrincipal() });
+    open.push(handle);
+
+    const rows = await handle.db.select().from(schema.agentAccount);
+    const labelOf = new Map(rows.map((row) => [row.id, row.label]));
+    expect(labelOf.get("acct-bare")).toBe("principal");
+  });
+
+  it("não toca rótulo que alguém escolheu, nem o que bateria no índice único", async () => {
+    const handle = openDatabase({ path: databaseBeforePrincipal() });
+    open.push(handle);
+
+    const rows = await handle.db.select().from(schema.agentAccount);
+    const labelOf = new Map(rows.map((row) => [row.id, row.label]));
+    expect(labelOf.get("acct-dir")).toBe("codex");
+    expect(labelOf.get("acct-pessoal")).toBe("pessoal");
+    expect(labelOf.get("acct-velho")).toBe("velho");
+    expect(labelOf.get("acct-velho-2")).toBe("principal");
   });
 });

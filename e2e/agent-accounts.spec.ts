@@ -21,10 +21,10 @@ import { E2E_FIXTURE_REPO_ACCOUNTS } from "./support/fixtures.js";
  * em que conta a sessão nasceu; só o processo diz com que conta ele subiu.
  *
  * A conta padrão é a que já existia — a do login desta máquina, sem diretório —,
- * então o nome dela é o do agente, e não `pessoal`: ela nasce assim na migração,
- * e a tela não tem como renomeá-la. O que o critério cobra dela é o outro lado
- * da mesma moeda: subir **sem** a variável, e não com o caminho padrão escrito
- * nela (ADR de 2026-09-26).
+ * e ela nasce `principal`, e não com o nome do agente (nota da Q2 de 2026-09-26:
+ * `claude · claude` era o produto dando nome no seu lugar). O que o critério
+ * cobra dela é o outro lado da mesma moeda: subir **sem** a variável, e não com
+ * o caminho padrão escrito nela (ADR de 2026-09-26).
  */
 
 const DAEMON = `http://127.0.0.1:${E2E_SERVER_PORT}`;
@@ -197,6 +197,7 @@ test("duas contas do Claude, lado a lado, cada uma gastando na sua", async ({ pa
   const work = accounts.find((account) => account.label === WORK);
   const bare = accounts.find((account) => account.bare);
   if (work === undefined || bare === undefined) throw new Error("as duas contas do Claude não existem");
+  expect(bare.label).toBe("principal");
   // O diretório é do Lumem, fora do git pela regra do `_system/`.
   expect(work.configDir).toBe(join(E2E_STATE_DIR, "_system", "agents", "claude", work.id));
   await expect(page.getByRole("group", { name: `conta ${bare.label}` })).toContainText("conectada");
@@ -226,7 +227,7 @@ test("duas contas do Claude, lado a lado, cada uma gastando na sua", async ({ pa
   await expect(tabs).toHaveCount(2);
   await expect(conversation(page).locator(".conv__who")).toHaveText(who(WORK));
   await tabs.nth(0).click();
-  await expect(conversation(page).locator(".conv__who")).toHaveText(who(bare.label));
+  await expect(conversation(page).locator(".conv__who")).toHaveText(who("principal"));
   // E a primeira continua sendo a da conta sem variável: a aba certa, não só o rótulo.
   await expect(conversation(page).getByText("conta: sem variável de conta")).toBeVisible();
 

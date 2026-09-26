@@ -230,6 +230,21 @@ export const agentAccountRouter = router({
       ),
     ),
 
+  /**
+   * O nome da conta (Q2: *"o nome é seu"*) — inclusive o da que já existia, que
+   * nasce `principal`. O mesmo limite do `connect`, e o repetido é recusado pelo
+   * índice único, com a frase dele.
+   */
+  rename: publicProcedure
+    .input(accountIdInput.extend({ label: z.string().trim().min(1).max(80) }))
+    .mutation(({ ctx, input }) =>
+      domainSafeAsync(() =>
+        andTell(ctx, input.accountId, () =>
+          createAgentAccountRepository(ctx.db).rename(input.accountId, input.label),
+        ),
+      ),
+    ),
+
   /** O modelo e o effort em que uma conversa nova desta conta nasce (T9 aplica). */
   setDefaults: publicProcedure
     .input(

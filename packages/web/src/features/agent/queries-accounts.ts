@@ -68,7 +68,7 @@ export function useAgentAccounts() {
 }
 
 /**
- * Os cinco gestos sobre contas, com a invalidação **dentro**.
+ * Os seis gestos sobre contas, com a invalidação **dentro**.
  *
  * O daemon também avisa (`account.changed`), e o aviso chega a outras abas; a
  * invalidação aqui é o que faz esta aba não depender da assinatura estar viva
@@ -110,7 +110,12 @@ export function useAgentAccountMutations() {
     onSuccess: settle,
   });
 
-  return { connect, disconnect, purge, setDefault, setDefaults };
+  const rename = useMutation({
+    mutationFn: (input: { accountId: string; label: string }) => trpc.agentAccount.rename.mutate(input),
+    onSuccess: settle,
+  });
+
+  return { connect, disconnect, purge, setDefault, setDefaults, rename };
 }
 
 /**
