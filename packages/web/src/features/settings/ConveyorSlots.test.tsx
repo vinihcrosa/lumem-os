@@ -57,6 +57,16 @@ describe("o trio de cada encaixe", () => {
     expect(within(revisor).getByRole("combobox", { name: "conta do revisor" })).toHaveValue("claude:");
   });
 
+  it("a opção de herdar diz `conta padrão`, e não `a padrão` solto", async () => {
+    render();
+
+    const revisor = await slot("revisor");
+    const conta = await within(revisor).findByRole("combobox", { name: "conta do revisor" });
+    const herdar = within(conta).getByRole("option", { name: "Claude Code · conta padrão" });
+    expect(herdar).toHaveValue("claude:");
+    expect(within(conta).queryByRole("option", { name: /· a padrão$/ })).toBeNull();
+  });
+
   it("configurado no workspace, diz de onde veio e o trio dele", async () => {
     trpc.workspace.slots.query.mockResolvedValue([
       { role: "implementador", from: "default", adapter: "claude", accountId: null, accountLabel: null, model: null, effort: null },

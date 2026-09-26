@@ -131,7 +131,7 @@ function SlotRow({
   );
 }
 
-/** `Claude Code · padrão`, e cada conta conectada — por agente, na ordem em que foram conectadas. */
+/** `Claude Code · conta padrão`, e cada conta conectada — por agente, na ordem em que foram conectadas. */
 function accountOptions(accounts: readonly AgentAccountView[], slot: ConveyorSlot) {
   const adapters = [...new Set([slot.adapter, ...accounts.map((account) => account.adapterId)])];
   return adapters.flatMap((adapterId) => {
@@ -141,7 +141,7 @@ function accountOptions(accounts: readonly AgentAccountView[], slot: ConveyorSlo
     );
     return [
       <option key={`${adapterId}:`} value={`${adapterId}:`}>
-        {label} · a padrão
+        {label} · conta padrão
       </option>,
       ...mine.map((account) => (
         <option key={account.id} value={`${adapterId}:${account.id}`}>
