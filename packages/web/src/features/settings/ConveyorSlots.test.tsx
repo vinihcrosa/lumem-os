@@ -49,6 +49,26 @@ async function slot(role: string) {
 }
 
 describe("o trio de cada encaixe", () => {
+  // A consulta dos encaixes chega segundos depois da tela, e a legenda sozinha
+  // lia como uma seção quebrada.
+  it("não mostra a legenda do grupo enquanto os encaixes não chegam", async () => {
+    trpc.workspace.slots.query.mockReturnValue(new Promise(() => {}));
+    render();
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(screen.queryByText("Quem faz cada papel")).not.toBeInTheDocument();
+  });
+
+  it("põe os seletores numa linha abaixo do nome, com a legenda de cada um", async () => {
+    render();
+
+    const revisor = await slot("revisor");
+    const trio = revisor.querySelector(".set__trio");
+    expect(trio).not.toBeNull();
+    expect(within(trio as HTMLElement).getByText("conta")).toBeInTheDocument();
+    expect(within(trio as HTMLElement).getByRole("combobox", { name: "conta do revisor" })).toBeInTheDocument();
+  });
+
   it("sem nada configurado, diz o default e o que ele herda da conta padrão", async () => {
     render();
 

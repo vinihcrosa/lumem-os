@@ -5,7 +5,6 @@ import { adapterById, type AdapterCatalogView } from "@lumem/shared";
 import { useAdapterCatalog, useAgentAccounts, type AgentAccountView } from "../agent/index.js";
 import { useConveyorSlots, useWorkspaceMutations, type ConveyorSlot } from "../workspace/index.js";
 import { effortChoicesOf, modelChoicesOf, readingFor } from "./account-words.js";
-import { SettingRow } from "./SettingsPanel.js";
 
 const NO_ACCOUNTS: readonly AgentAccountView[] = [];
 const NO_CATALOG: readonly AdapterCatalogView[] = [];
@@ -38,6 +37,9 @@ export function ConveyorSlots({ workspaceId }: { workspaceId: string }) {
   const catalog = useAdapterCatalog(null).data ?? NO_CATALOG;
   const { setSlot } = useWorkspaceMutations(workspaceId);
   const headId = useId();
+
+  // Nada até a consulta chegar: a legenda sozinha lia como seção quebrada.
+  if (slots.length === 0) return null;
 
   return (
     <div className="set__rows" role="group" aria-labelledby={headId}>
@@ -85,9 +87,22 @@ function SlotRow({
   const effort = effortChoicesOf(reading, slot.model ?? account?.defaultModel ?? null);
   const current = { adapter: slot.adapter, accountId: slot.accountId, model: slot.model, effort: slot.effort };
 
+  /*
+   * O trio numa segunda linha, e não na coluna do controle: três seletores com
+   * legenda espremiam a descrição em ~40px — "padrão / do / produto", uma
+   * palavra por linha. É o mesmo desenho da linha da conta, que já tinha pago
+   * isso com a sua "conversa nova".
+   */
   return (
-    <div role="group" aria-label={`encaixe ${role}`}>
-      <SettingRow label={ROLE_LABEL[role]} description={describe(slot, account)} owner="workspace">
+    <div className="set__row set__row--sub" role="group" aria-label={`encaixe ${role}`}>
+      <span className="set__what">
+        <span className="set__lbl">{ROLE_LABEL[role]}</span>
+        <span className="set__d">{describe(slot, account)}</span>
+      </span>
+      <span className="set__ctl" />
+      <span className="own">workspace</span>
+      <span className="set__trio">
+        <span className="set__trio__k">conta</span>
         <select
           className="input set__sel"
           aria-label={`conta do ${role}`}
@@ -137,7 +152,7 @@ function SlotRow({
             ))}
           </select>
         )}
-      </SettingRow>
+      </span>
     </div>
   );
 }
