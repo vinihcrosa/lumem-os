@@ -91,6 +91,8 @@ function SlotRow({
         >
           {accountOptions(accounts, slot)}
         </select>
+        {/* Legenda à vista: dois `▾` com *"padrão da conta"* dentro não dizem qual é qual. */}
+        {models !== null && <span className="set__trio__k">modelo</span>}
         {models !== null && (
           <select
             className="input set__sel"
@@ -103,7 +105,7 @@ function SlotRow({
               onSave({ ...current, model, effort: keeps ? slot.effort : null });
             }}
           >
-            <option value="">o da conta</option>
+            <option value="">padrão da conta</option>
             {models.choices.map((choice) => (
               <option key={choice.value} value={choice.value}>
                 {choice.name}
@@ -111,6 +113,7 @@ function SlotRow({
             ))}
           </select>
         )}
+        {effort !== null && <span className="set__trio__k">effort</span>}
         {effort !== null && (
           <select
             className="input set__sel"
@@ -118,7 +121,7 @@ function SlotRow({
             value={slot.effort ?? ""}
             onChange={(event) => onSave({ ...current, effort: event.target.value === "" ? null : event.target.value })}
           >
-            <option value="">o da conta</option>
+            <option value="">padrão da conta</option>
             {effort.choices.map((choice) => (
               <option key={choice.value} value={choice.value}>
                 {choice.name}

@@ -81,6 +81,25 @@ describe("o trio de cada encaixe", () => {
   });
 });
 
+describe("as legendas", () => {
+  it("modelo e effort têm legenda à vista, e herdar diz `padrão da conta`", async () => {
+    trpc.workspace.slots.query.mockResolvedValue([
+      { role: "implementador", from: "workspace", adapter: "claude", accountId: "acct_pessoal", accountLabel: "pessoal", model: "sonnet", effort: null },
+      { role: "revisor", from: "default", adapter: "claude", accountId: null, accountLabel: null, model: null, effort: null },
+      { role: "testador", from: "default", adapter: "claude", accountId: null, accountLabel: null, model: null, effort: null },
+    ]);
+    render();
+
+    const implementador = await slot("implementador");
+    const modelo = await within(implementador).findByRole("combobox", { name: "modelo do implementador" });
+    const effort = within(implementador).getByRole("combobox", { name: "effort do implementador" });
+    expect(modelo.previousElementSibling).toHaveTextContent(/^modelo$/);
+    expect(effort.previousElementSibling).toHaveTextContent(/^effort$/);
+    expect(within(modelo).getByRole("option", { name: "padrão da conta" })).toHaveValue("");
+    expect(within(effort).getByRole("option", { name: "padrão da conta" })).toHaveValue("");
+  });
+});
+
 describe("trocar um encaixe", () => {
   it("trocar a conta grava só aquele encaixe, e modelo e effort voltam a herdar da conta nova", async () => {
     const user = userEvent.setup();

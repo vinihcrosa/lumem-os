@@ -287,6 +287,19 @@ describe("a conta que pede login", () => {
 });
 
 describe("o trio padrão", () => {
+  it("cada seletor tem legenda, e herdar diz de quem é o padrão", async () => {
+    trpc.agentAccount.list.query.mockResolvedValue([accountRow({ defaultModel: "sonnet" })]);
+    render();
+
+    const modelo = await screen.findByRole("combobox", { name: "modelo padrão de pessoal" });
+    const effort = screen.getByRole("combobox", { name: "effort padrão de pessoal" });
+    // A legenda é o irmão logo antes, à vista — não só o `aria-label`.
+    expect(modelo.previousElementSibling).toHaveTextContent(/^modelo$/);
+    expect(effort.previousElementSibling).toHaveTextContent(/^effort$/);
+    expect(within(modelo).getByRole("option", { name: "padrão do adaptador" })).toHaveValue("");
+    expect(within(effort).getByRole("option", { name: "padrão do modelo" })).toHaveValue("");
+  });
+
   it("escolher o modelo grava na conta, e o effort que o modelo novo não tem cai", async () => {
     const user = userEvent.setup();
     trpc.agentAccount.list.query.mockResolvedValue([accountRow({ defaultModel: "opus[1m]", defaultEffort: "high" })]);

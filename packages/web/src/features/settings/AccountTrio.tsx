@@ -11,8 +11,11 @@ import { SaveMark, type SaveState } from "./SaveMark.js";
  * emenda da Q1, sem a conta, que é a própria linha.
  *
  * A lista é a que **esta conta** viu (Q9): ela é por conta, e muda com o plano.
- * Vazio é *o do adaptador* — o `null` do banco, e não um quarto valor. O effort
- * só aparece quando o modelo o oferece, e nunca com valor inventado.
+ * Vazio é *padrão do adaptador* — o `null` do banco, e não um quarto valor. O
+ * effort só aparece quando o modelo o oferece, e nunca com valor inventado.
+ *
+ * Cada seletor tem legenda à vista (`modelo`, `effort`): dois `▾` lado a lado
+ * com *"padrão do …"* dentro não dizem qual é qual.
  */
 export function AccountTrio({
   account,
@@ -53,6 +56,7 @@ export function AccountTrio({
   return (
     <span className="set__trio">
       <span className="set__trio__k">conversa nova</span>
+      <span className="set__trio__k">modelo</span>
       <select
         className="input set__sel"
         aria-label={`modelo padrão de ${account.label}`}
@@ -65,7 +69,7 @@ export function AccountTrio({
           void save({ model: nextModel, effort: keeps ? account.defaultEffort : null });
         }}
       >
-        <option value="">o do adaptador</option>
+        <option value="">padrão do adaptador</option>
         {models.choices.map((choice) => (
           <option key={choice.value} value={choice.value}>
             {choice.name}
@@ -74,6 +78,7 @@ export function AccountTrio({
         {/* O guardado que saiu da lista continua sendo o valor, e diz que saiu. */}
         {!known && model !== null && <option value={model}>{model} (fora da lista)</option>}
       </select>
+      {effort !== null && <span className="set__trio__k">effort</span>}
       {effort !== null && (
         <select
           className="input set__sel"
@@ -83,7 +88,7 @@ export function AccountTrio({
             void save({ model, effort: event.target.value === "" ? null : event.target.value })
           }
         >
-          <option value="">o do modelo</option>
+          <option value="">padrão do modelo</option>
           {effort.choices.map((choice) => (
             <option key={choice.value} value={choice.value}>
               {choice.name}
