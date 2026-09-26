@@ -21,8 +21,8 @@ o Hermes **é** o loop: ele fala com o LLM, executa as tools, mantém o contexto
 
 > **Nota, 2026-08-17 — este parágrafo descreve o desenho anterior do Lumem-OS.** A
 > [Q1 fechou em ACP](../project/pty-vs-acp.md): o Lumem passa a dirigir CLIs por **conversa
-> estruturada**, não por bytes de terminal. O PTY continua existindo para shell e como caminho
-> alternativo. O estudo abaixo foi escrito antes disso, e é justamente ele que forçou a decisão — vale
+> estruturada**, não por bytes de terminal. O PTY continua existindo para o terminal integrado; agente
+> é sempre ACP ([ADR de 2026-09-24](../adr/2026-09-24-1620-agent-is-always-acp.md)). O estudo abaixo foi escrito antes disso, e é justamente ele que forçou a decisão — vale
 > ler com essa lente: o que o §9 chama de "custa caro para quem não é dono do loop" ficou **mais
 > barato** depois do ACP.
 

@@ -119,18 +119,17 @@ describe("0001 — transport", () => {
   });
 
   it("leaves every existing configuration on the transport it already used", async () => {
-    // A11: migrating is not a behaviour change. Nothing here was ever ACP.
+    // A11: migrating is not a behaviour change. Nothing here was ever ACP —
+    // and so, since `0033`, the row survives as a retired PTY configuration
+    // rather than being silently re-pointed at an adapter it never ran.
     const path = databaseAtInitialRevision();
     const handle = openDatabase({ path });
     open.push(handle);
 
     const [config] = await handle.db.select().from(schema.agentConfig);
 
-    expect(config).toMatchObject({
-      name: "claude-code",
-      transport: "pty",
-      adapterVersion: null,
-    });
+    expect(config).toMatchObject({ name: "claude-code", adapterVersion: null });
+    expect(config?.retiredAt).toBeInstanceOf(Date);
   });
 
   it("leaves every existing session on PTY, with no conversation attached", async () => {
@@ -1302,5 +1301,144 @@ describe("0027 e 0028 — a issue como identidade, e os marcos", () => {
     });
 
     expect(await handle.db.select().from(schema.task)).toHaveLength(2);
+  });
+});
+
+/**
+ * `0033` — agente é sempre ACP (`033` F1.1, ADR de 2026-09-24).
+ *
+ * A coluna `agent_config.transport` sai, e ela não pode sair levando junto a
+ * única informação que distingue uma configuração PTY de uma ACP: a recriação
+ * da tabela copia com `INSERT … SELECT`, e o `retired_at` da linha nova sai de
+ * um `CASE` sobre o `transport` da velha — escrito à mão, porque o gerador não
+ * tem como saber. O `session.transport` **fica**: é histórico, e a sessão PTY
+ * de ontem continua legível.
+ */
+describe("0033 — a configuração PTY se aposenta", () => {
+  function databaseBeforeAcpOnly(): string {
+    const dir = mkdtempSync(join(tmpdir(), "lumem-db-acp-only-"));
+    dirs.push(dir);
+    const path = join(dir, "lumem.db");
+
+    const sqlite = new Database(path);
+    sqlite.pragma("foreign_keys = ON");
+    migrate(drizzle(sqlite), { migrationsFolder: migrationsUpTo(33) });
+    // (a) a configuração de fábrica de antes da `021`, em PTY, com uma sessão.
+    sqlite
+      .prepare(
+        `INSERT INTO agent_config (id, name, command, args, env, transport, adapter_version)
+         VALUES ('cfg-pty', 'claude-code', 'claude', '[]', '{}', 'pty', NULL)`,
+      )
+      .run();
+    sqlite
+      .prepare(
+        `INSERT INTO session (id, kind, agent_config_id, scope_type, scope_id, cwd, command,
+                              state, exit_code, transport)
+         VALUES ('se-pty', 'agent', 'cfg-pty', 'project', 'pr-1', '/repos/lorebase', 'claude',
+                 'exited', 0, 'pty')`,
+      )
+      .run();
+    // (b) uma configuração ACP de hoje, com uma sessão.
+    sqlite
+      .prepare(
+        `INSERT INTO agent_config (id, name, command, args, env, transport, adapter_version)
+         VALUES ('cfg-acp', 'claude', 'claude-agent-acp', '[]', '{}', 'acp', '0.75.1')`,
+      )
+      .run();
+    sqlite
+      .prepare(
+        `INSERT INTO session (id, kind, agent_config_id, scope_type, scope_id, cwd, command,
+                              state, transport, acp_session_id, model)
+         VALUES ('se-acp', 'agent', 'cfg-acp', 'project', 'pr-1', '/repos/lorebase',
+                 'claude-agent-acp', 'running', 'acp', 'acp-1', 'opus[1m]')`,
+      )
+      .run();
+    sqlite.close();
+
+    return path;
+  }
+
+  it("aposenta só a configuração que era PTY, com a hora da migração", async () => {
+    const path = databaseBeforeAcpOnly();
+    const before = Date.now();
+    const handle = openDatabase({ path });
+    open.push(handle);
+    const after = Date.now();
+
+    const configs = await handle.db.select().from(schema.agentConfig);
+    const byId = new Map(configs.map((row) => [row.id, row]));
+
+    // Em milissegundos, como todo `timestamp_ms` do schema: um `unixepoch()`
+    // sem o `* 1000` daria uma data de 1970 e passaria em `not.toBeNull()`.
+    const retiredAt = byId.get("cfg-pty")?.retiredAt;
+    expect(retiredAt).toBeInstanceOf(Date);
+    expect(retiredAt!.getTime()).toBeGreaterThanOrEqual(before - 1_000);
+    expect(retiredAt!.getTime()).toBeLessThanOrEqual(after + 1_000);
+    expect(byId.get("cfg-pty")).toMatchObject({ name: "claude-code", adapterVersion: null });
+
+    expect(byId.get("cfg-acp")).toMatchObject({
+      name: "claude",
+      adapterVersion: "0.75.1",
+      retiredAt: null,
+    });
+  });
+
+  it("deixa a sessão PTY de ontem intacta, apontando para a configuração aposentada", async () => {
+    const handle = openDatabase({ path: databaseBeforeAcpOnly() });
+    open.push(handle);
+
+    const sessions = await handle.db.select().from(schema.session);
+    const byId = new Map(sessions.map((row) => [row.id, row]));
+
+    expect(byId.get("se-pty")).toMatchObject({
+      kind: "agent",
+      agentConfigId: "cfg-pty",
+      transport: "pty",
+      acpSessionId: null,
+      state: "exited",
+      exitCode: 0,
+      pendingPrompt: null,
+      pendingReason: null,
+    });
+    expect(byId.get("se-acp")).toMatchObject({
+      agentConfigId: "cfg-acp",
+      transport: "acp",
+      acpSessionId: "acp-1",
+      model: "opus[1m]",
+      state: "running",
+    });
+  });
+
+  it("continua recusando apagar a configuração que uma sessão ainda usa", async () => {
+    // O `ON DELETE RESTRICT` sobrevive à recriação das duas tabelas. A `0014`
+    // é o precedente de o gerador perder a ação do estrangeiro no caminho.
+    const handle = openDatabase({ path: databaseBeforeAcpOnly() });
+    open.push(handle);
+
+    await expect(
+      handle.db.delete(schema.agentConfig).where(eq(schema.agentConfig.id, "cfg-pty")),
+    ).rejects.toThrow(/FOREIGN KEY/i);
+  });
+
+  it("não deixa estrangeiro órfão", () => {
+    const handle = openDatabase({ path: databaseBeforeAcpOnly() });
+    open.push(handle);
+
+    expect(handle.db.all(sql`PRAGMA foreign_key_check`)).toEqual([]);
+  });
+
+  it("tira a coluna da configuração e deixa a da sessão", () => {
+    const handle = openDatabase({ path: databaseBeforeAcpOnly() });
+    open.push(handle);
+
+    const columnsOf = (table: string) =>
+      handle.db
+        .all<{ name: string }>(sql.raw(`PRAGMA table_info(${table})`))
+        .map((column) => column.name);
+
+    expect(columnsOf("agent_config")).not.toContain("transport");
+    expect(columnsOf("session")).toEqual(
+      expect.arrayContaining(["transport", "pending_prompt", "pending_reason"]),
+    );
   });
 });

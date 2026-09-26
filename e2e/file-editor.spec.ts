@@ -4,8 +4,14 @@ import { join } from "node:path";
 
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-import { E2E_FIXTURE_AGENT, E2E_FIXTURE_REPO_EDITOR } from "./support/fixtures.js";
-import { createAgentConfig, ensureProject, ensureWorkspace, openProject } from "./support/app.js";
+import { E2E_FAKE_ACP_AGENT, E2E_FIXTURE_REPO_EDITOR } from "./support/fixtures.js";
+import {
+  createAgentConfig,
+  ensureProject,
+  ensureWorkspace,
+  openConfiguredAgent,
+  openProject,
+} from "./support/app.js";
 import { E2E_SERVER_PORT } from "../ports.js";
 
 /**
@@ -13,8 +19,8 @@ import { E2E_SERVER_PORT } from "../ports.js";
  *
  * *With an agent running in the tab, you fix one line of the file open beside
  * it, and the correction shows up in `Mudanças` without you having touched
- * another tool.* Everything here is real — a real repository, a real PTY, a
- * real daemon writing to a real disk — and every claim about what landed is
+ * another tool.* Everything here is real — a real repository, an ACP session,
+ * a real daemon writing to a real disk — and every claim about what landed is
  * checked **outside the browser**, with `readFileSync`. The screen saying
  * "salvo há 1 s" is the client's opinion; the file is the fact.
  *
@@ -25,7 +31,7 @@ import { E2E_SERVER_PORT } from "../ports.js";
 
 const DAEMON = `http://127.0.0.1:${E2E_SERVER_PORT}`;
 const PROJECT = "repo-editor";
-const AGENT = "eco";
+const AGENT = "eco-file-editor";
 
 const NOTES = "src/notes.ts";
 const WRONG = 'export const RESPOSTA = "quarenta e um";';
@@ -66,8 +72,12 @@ async function typeLine(page: Page, line: string): Promise<void> {
 }
 
 async function newSession(page: Page, name: string): Promise<void> {
+  if (name !== "shell") {
+    await openConfiguredAgent(page, `http://127.0.0.1:${E2E_SERVER_PORT}`, name);
+    return;
+  }
   await page.getByRole("button", { name: /nova sessão/ }).click();
-  await page.getByRole("menuitem", { name: new RegExp(`^${name}\\b`) }).click();
+  await page.getByRole("menuitem", { name: "terminal" }).click();
 }
 
 async function openColumn(page: Page): Promise<void> {
@@ -126,7 +136,12 @@ test.beforeEach(async ({ page, request }) => {
   git("reset", "--hard", "--quiet");
   git("clean", "-fdq");
 
-  await createAgentConfig(request, DAEMON, { name: AGENT, command: E2E_FIXTURE_AGENT });
+  await createAgentConfig(request, DAEMON, {
+    name: AGENT,
+    command: process.execPath,
+    args: [E2E_FAKE_ACP_AGENT],
+    adapterVersion: "0.0.0-fake",
+  });
   await page.goto("/");
   await ensureWorkspace(page);
   await ensureProject(page, E2E_FIXTURE_REPO_EDITOR, PROJECT);
@@ -136,9 +151,10 @@ test.beforeEach(async ({ page, request }) => {
 
 test("fixes a line while the agent runs beside it, and the diff notices", async ({ page }) => {
   await newSession(page, AGENT);
-  await expect(visiblePanel(page).locator(".xterm-rows")).toContainText("fake-agent pronto", {
-    timeout: 20_000,
-  });
+  // The shared helper may reload to reconcile an API-created session after a
+  // missed live event; that resets the column's open state.
+  await openColumn(page);
+  await expect(visiblePanel(page).locator(".conv")).toContainText("sessão aberta, nada pedido ainda");
 
   await openFile(page, NOTES);
   await expect(editor(page)).toContainText(WRONG, { timeout: 20_000 });
@@ -157,7 +173,7 @@ test("fixes a line while the agent runs beside it, and the diff notices", async 
 
   // Still there — the whole argument of §2 is that fixing this line did not
   // cost the context, and the agent leaving the screen would be that cost.
-  await expect(visiblePanel(page).locator(".xterm-rows")).toBeVisible();
+  await expect(visiblePanel(page).locator(".conv")).toBeVisible();
 
   await page.getByRole("tab", { name: /Mudanças/ }).click();
   const column = page.getByLabel("arquivos do checkout");

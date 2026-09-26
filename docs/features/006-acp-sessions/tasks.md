@@ -445,6 +445,9 @@ permissão — e só (D6).
 - [x] Sessão de shell nunca monta conversa
 - [x] Gate: `pnpm gate:quick`
 - [x] Test count: ao menos 4 — cada transporte, shell, montada-e-escondida
+> **Nota, 2026-09-24 —** o formulário não cria mais sessões PTY de agente; o transporte PTY desta
+> rota fica para shell e histórico ([ADR de 2026-09-24](../../adr/2026-09-24-1620-agent-is-always-acp.md);
+> [`033`](../033-acp-only-agents/prd.md), F1.1 e F1.4).
 
 **Tests**: componente · **Gate**: quick
 **Commit**: `feat(web): pick conversation or terminal by session transport`
@@ -954,6 +957,8 @@ Se a fase virar uma tela de preferências — a A16 —, aí sim: protótipo pri
 - [x] Gate: `pnpm gate:quick` — 1.568 testes verdes
 - [x] Test count: **13** (R1 + R2 juntas) — envia os dois campos que nenhuma tela escrevia, cria PTY sem versão, esconde a versão em pty, recusa envio de acp sem versão, parte os argumentos, erro do daemon, lista invalidada, formulário limpo, chip por transporte com a versão pinada na tela, fora do PATH, lista vazia, remove em dois cliques, recusa de config em uso
 - [x] **Variáveis de ambiente ficaram de fora** — controle de chave/valor é outro componente. Foi para o [backlog](../../project/backlog.md)
+> **Nota, 2026-09-24 —** o formulário de configuração não tem mais campo de transporte; toda
+> configuração nova é ACP ([`033`](../033-acp-only-agents/prd.md), F1.1).
 
 **Tests**: componente · **Gate**: quick
 **Commit**: `feat(web): add an agent configuration without leaving the app`

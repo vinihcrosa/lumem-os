@@ -6,7 +6,7 @@ import { z } from "zod";
 
 import { DomainError } from "../errors.js";
 import { detectAgents } from "../setup/agents.js";
-import { adapterCommandFor, adaptersDir } from "../setup/adapter-command.js";
+import { adapterCommandFor, adaptersDir, catalogedAdapterAt } from "../setup/adapter-command.js";
 import {
   adapterBinaryPath,
   adapterDir,
@@ -274,11 +274,35 @@ export const setupRouter = router({
           );
         }
 
-        return ctx.acpManager.probe({
+        const report = await ctx.acpManager.probe({
           command,
           ...(input?.args === undefined ? {} : { args: input.args }),
           cwd,
         });
+
+        /*
+         * O que este probe descobriu vai para o catálogo, e é o que tira a
+         * pílula de `sem login` depois de alguém entrar na conta.
+         *
+         * Até aqui, só uma sessão aberta gravava `authRequired: false` — e a
+         * sessão não abre, porque a pílula diz que não dá. "Verificar de novo"
+         * depois do login é este probe, então é aqui que a resposta nova tem
+         * que ficar. Só para o binário gerenciado de uma spec e sem argumento:
+         * qualquer outro comando é um programa que o catálogo não descreve.
+         *
+         * Sem `optionsByModel`, que o catálogo preserva: este probe não percorre
+         * modelo. E nunca derruba a resposta — o catálogo é cache.
+         */
+        const spec =
+          input?.command === undefined
+            ? specOf(input?.adapterId)
+            : catalogedAdapterAt(input.command, ctx.config.stateDir);
+        if (spec !== null && (input?.args ?? []).length === 0) {
+          await ctx.adapterCatalog
+            .recordOptions(spec.id, report.configOptions, { authRequired: report.authRequired })
+            .catch(() => undefined);
+        }
+        return report;
       }),
     ),
 });

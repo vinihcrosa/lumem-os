@@ -457,6 +457,24 @@ export function reduceConversation(
         ],
       };
 
+    case "model_unavailable":
+      /*
+       * Turno próprio e `meta`, como o teto e o núcleo da memória: é o daemon
+       * dizendo o que não conseguiu fazer por conta própria, e colar no bloco
+       * do agente faria parecer que ele trocou de modelo sozinho (`033` F6.2).
+       */
+      return {
+        ...state,
+        turns: [
+          ...state.turns,
+          {
+            role: "agent",
+            blocks: [{ kind: "meta", text: modelUnavailableText(event.model, event.current) }],
+            at,
+          },
+        ],
+      };
+
     case "memory_core":
       /*
        * Turno próprio, e antes da mensagem da pessoa.
@@ -569,6 +587,13 @@ function withoutTally(state: ConversationState): ConversationState {
       block.kind === "meta" && block.text.startsWith(TALLY_MARK) ? null : block,
     ),
   };
+}
+
+/** Qual modelo sumiu e em qual a conversa seguiu — as duas metades da F6.2. */
+function modelUnavailableText(model: string, current: string): string {
+  // Um agente que não relata modelo deixaria "continuou em " sem nada depois.
+  const where = current === "" ? "no modelo padrão dele" : `em ${current}`;
+  return `o modelo ${model} não existe mais neste agente — a conversa continuou ${where}`;
 }
 
 /**

@@ -1,12 +1,13 @@
 import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
 import { delimiter, join } from "node:path";
 
+import { CLAUDE_ADAPTER } from "@lumem/shared";
 import { describe, expect, it } from "vitest";
 
 import { withTestDb } from "../db/testing.js";
-import { session } from "../db/schema.js";
+import { agentConfig, session } from "../db/schema.js";
 import { isCommandAvailable } from "../agents/availability.js";
-import { createAgentConfigRepository } from "./agentConfig.js";
+import { configForAdapter, createAgentConfigRepository } from "./agentConfig.js";
 import { tempDir } from "../testing/git-fixtures.js";
 
 /** A directory holding one executable, as a PATH entry. */
@@ -41,7 +42,11 @@ describe("a fresh database", () => {
     // continua com ela, e é isso que faz a mudança ser segura de embarcar.
     await withTestDb(async (db) => {
       const repository = createAgentConfigRepository(db);
-      const mine = await repository.create({ name: "claude-code", command: "claude" });
+      const mine = await repository.create({
+        name: "claude-code",
+        command: "claude",
+        adapterVersion: "1.0.0",
+      });
 
       expect((await repository.list()).map((row) => row.id)).toEqual([mine.id]);
     });
@@ -58,6 +63,7 @@ describe("crud", () => {
         command: "agent",
         args: ["--model", "opus"],
         env: { AGENT_LOG: "debug" },
+        adapterVersion: "1.0.0",
       });
 
       expect(created.args).toEqual(["--model", "opus"]);
@@ -68,10 +74,10 @@ describe("crud", () => {
   it("refuses a duplicate name", async () => {
     await withTestDb(async (db) => {
       const repository = createAgentConfigRepository(db);
-      await repository.create({ name: "claude-code", command: "claude" });
+      await repository.create({ name: "claude-code", command: "claude", adapterVersion: "1.0.0" });
 
       await expect(
-        repository.create({ name: "claude-code", command: "outro" }),
+        repository.create({ name: "claude-code", command: "outro", adapterVersion: "1.0.0" }),
       ).rejects.toMatchObject({ code: "DUPLICATE" });
     });
   });
@@ -79,7 +85,11 @@ describe("crud", () => {
   it("updates the command", async () => {
     await withTestDb(async (db) => {
       const repository = createAgentConfigRepository(db);
-      const created = await repository.create({ name: "x", command: "old" });
+      const created = await repository.create({
+        name: "x",
+        command: "old",
+        adapterVersion: "1.0.0",
+      });
 
       expect(await repository.update(created.id, { command: "new" })).toMatchObject({
         command: "new",
@@ -101,7 +111,7 @@ describe("crud", () => {
   it("removes an unused configuration", async () => {
     await withTestDb(async (db) => {
       const repository = createAgentConfigRepository(db);
-      const created = await repository.create({ name: "x", command: "y" });
+      const created = await repository.create({ name: "x", command: "y", adapterVersion: "1.0.0" });
 
       await repository.remove(created.id);
 
@@ -114,7 +124,7 @@ describe("crud", () => {
     // after it exited.
     await withTestDb(async (db) => {
       const repository = createAgentConfigRepository(db);
-      const created = await repository.create({ name: "x", command: "y" });
+      const created = await repository.create({ name: "x", command: "y", adapterVersion: "1.0.0" });
       await db.insert(session).values({
         id: "s1",
         kind: "agent",
@@ -132,7 +142,7 @@ describe("crud", () => {
   it("finds by name", async () => {
     await withTestDb(async (db) => {
       const repository = createAgentConfigRepository(db);
-      await repository.create({ name: "claude-code", command: "claude" });
+      await repository.create({ name: "claude-code", command: "claude", adapterVersion: "1.0.0" });
 
       expect(await repository.findByName("claude-code")).toBeDefined();
       expect(await repository.findByName("ausente")).toBeUndefined();
@@ -190,70 +200,119 @@ describe("isCommandAvailable", () => {
   });
 });
 
-describe("transport", () => {
-  it("creates a PTY configuration when nothing asks otherwise", async () => {
-    // A11 again, one layer up: a caller written before transport existed keeps
-    // producing exactly the row it used to.
-    await withTestDb(async (db) => {
-      const repo = createAgentConfigRepository(db);
-
-      const row = await repo.create({ name: "zsh-agent", command: "claude" });
-
-      expect(row).toMatchObject({ transport: "pty", adapterVersion: null });
-    });
-  });
-
-  it("creates an ACP configuration with its adapter pinned", async () => {
+describe("adapter version", () => {
+  it("creates a configuration with its adapter pinned and no transport at all", async () => {
+    // `033` F1.1: agente é sempre ACP, e a coluna que escolhia saiu. Uma linha
+    // que ainda carregasse `transport` seria o banco afirmando uma escolha que
+    // não existe mais.
     await withTestDb(async (db) => {
       const repo = createAgentConfigRepository(db);
 
       const row = await repo.create({
         name: "claude-acp",
         command: "claude-agent-acp",
-        transport: "acp",
         adapterVersion: "0.69.0",
       });
 
-      expect(row).toMatchObject({ transport: "acp", adapterVersion: "0.69.0" });
+      expect(row).toMatchObject({ adapterVersion: "0.69.0", retiredAt: null });
+      expect(row).not.toHaveProperty("transport");
     });
   });
 
-  it("refuses an ACP configuration with a floating adapter, as a domain error", async () => {
+  it("refuses a configuration with a floating adapter, as a domain error", async () => {
     // The CHECK is the enforcement; this is about what the caller is told. A raw
     // SQLite message reads as a daemon defect rather than as a fixable mistake.
     await withTestDb(async (db) => {
       const repo = createAgentConfigRepository(db);
 
       await expect(
-        repo.create({ name: "claude-acp", command: "claude-agent-acp", transport: "acp" }),
+        // @ts-expect-error — the version is required, and this proves the type says so.
+        repo.create({ name: "claude-acp", command: "claude-agent-acp" }),
       ).rejects.toMatchObject({ code: "INVALID_ARGUMENT", message: /versão de adaptador fixa/ });
     });
   });
+});
 
-  it("refuses a PTY configuration that pins an adapter, as a domain error", async () => {
+describe("a retired configuration", () => {
+  /** What the `0033` migration leaves behind for a row that used to be PTY. */
+  async function retired(db: Parameters<typeof createAgentConfigRepository>[0]) {
+    const [row] = await db
+      .insert(agentConfig)
+      .values({ id: "ac_old", name: "claude-code", command: "claude", retiredAt: new Date() })
+      .returning();
+    return row!;
+  }
+
+  it("is not offered by list", async () => {
+    // F1.3: it cannot launch anything, so offering it is offering a dead end.
     await withTestDb(async (db) => {
       const repo = createAgentConfigRepository(db);
+      await retired(db);
+      const live = await repo.create({
+        name: "claude",
+        command: "claude-agent-acp",
+        adapterVersion: "0.75.1",
+      });
 
-      await expect(
-        repo.create({
-          name: "claude-code",
-          command: "claude",
-          transport: "pty",
-          adapterVersion: "0.69.0",
-        }),
-      ).rejects.toMatchObject({ code: "INVALID_ARGUMENT" });
+      expect((await repo.list()).map((row) => row.id)).toEqual([live.id]);
     });
   });
 
-  it("creates a PTY configuration with no adapter version", async () => {
-    // O caminho alternativo que a decisão do ACP preservou: `pty` continua
-    // criável, e uma configuração de PTY não tem adaptador para versionar.
+  it("is still found by id, because yesterday's session needs its name", async () => {
+    // F1.4: the legacy session reads as history, and history has a name.
     await withTestDb(async (db) => {
       const repo = createAgentConfigRepository(db);
+      await retired(db);
 
-      const created = await repo.create({ name: "claude-code", command: "claude" });
+      expect(await repo.findById("ac_old")).toMatchObject({ name: "claude-code" });
+    });
+  });
+  it("is not found by name, so nothing reaches it by the catalog id", async () => {
+    await withTestDb(async (db) => {
+      await db
+        .insert(agentConfig)
+        .values({ id: "ac_pty", name: "claude", command: "claude", retiredAt: new Date() });
 
-      expect(created).toMatchObject({ transport: "pty", adapterVersion: null });
+      expect(await createAgentConfigRepository(db).findByName("claude")).toBeUndefined();
+    });
+  });
+
+  it("gives its name back: creating it again revives the row as ACP", async () => {
+    // Without this the UNIQUE name kept the live `claude` from ever existing.
+    await withTestDb(async (db) => {
+      await db
+        .insert(agentConfig)
+        .values({ id: "ac_pty", name: "claude", command: "claude", retiredAt: new Date() });
+
+      const id = await configForAdapter(db, CLAUDE_ADAPTER.id);
+
+      expect(id).toBe("ac_pty");
+      expect(await createAgentConfigRepository(db).findById(id)).toMatchObject({
+        retiredAt: null,
+        command: CLAUDE_ADAPTER.command,
+        adapterVersion: CLAUDE_ADAPTER.pinnedVersion,
+      });
+    });
+  });
+});
+
+describe("configForAdapter", () => {
+  it("creates the adapter's configuration pinned to the catalog version, once", async () => {
+    await withTestDb(async (db) => {
+      const first = await configForAdapter(db, CLAUDE_ADAPTER.id);
+      const second = await configForAdapter(db, CLAUDE_ADAPTER.id);
+
+      expect(second).toBe(first);
+      expect(await createAgentConfigRepository(db).findById(first)).toMatchObject({
+        name: CLAUDE_ADAPTER.id,
+        adapterVersion: CLAUDE_ADAPTER.pinnedVersion,
+      });
+    });
+  });
+
+  it("refuses a named configuration that does not exist", async () => {
+    await withTestDb(async (db) => {
+      await expect(configForAdapter(db, CLAUDE_ADAPTER.id, "ausente")).rejects.toThrow(/ausente/);
     });
   });
 });

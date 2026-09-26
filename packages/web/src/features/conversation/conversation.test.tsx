@@ -1,10 +1,15 @@
+import { QueryClientProvider } from "@tanstack/react-query";
 import type { AcpConfigOption, AcpServerMessage, AcpTranscriptEntry } from "@lumem/shared";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AwaitingPermissionProvider } from "../../hooks/useAwaitingPermission.js";
+import { createQueryClient } from "../../lib/queryClient.js";
 import { arrive } from "../../lib/navigation.js";
+import { installTrpcDefaults, NO_SCRIPTS_STATUS, trpcMock } from "../../test/trpc-mock.js";
+import { RightPanelProvider } from "../checkout/index.js";
 import type { AcpClientMessage } from "@lumem/shared";
 import type { AcpConnect } from "./acp-socket.js";
 import { Conversation } from "./Conversation.js";
@@ -17,6 +22,37 @@ import { Conversation } from "./Conversation.js";
  * blocked, and that a launch failure reads as a sentence with a way out instead
  * of as an empty panel.
  */
+
+vi.mock("../../lib/trpc.js", async () => ({
+  trpc: (await import("../../test/trpc-mock.js")).trpcMock,
+}));
+
+/**
+ * `AwaitingPermissionProvider`, mais o `QueryClientProvider` que a `Conversation`
+ * passou a precisar na `033` T21 — `pendingPrompt`/`pendingReason` moram na
+ * linha, e a `useSessionDetail` os lê por `session.getDetail`.
+ *
+ * `useState(createQueryClient)` e não uma chamada direta: os testes que
+ * chamam `.rerender(...)` precisam do **mesmo** cliente na segunda passada, e
+ * uma chamada solta no corpo do componente criaria um novo a cada re-render.
+ */
+function TestProviders({ children }: { children: ReactNode }) {
+  const [queryClient] = useState(createQueryClient);
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AwaitingPermissionProvider>{children}</AwaitingPermissionProvider>
+    </QueryClientProvider>
+  );
+}
+
+/**
+ * O default de `session.getDetail`: sem prompt pendente, o caso comum de
+ * quase todo teste deste arquivo — quem quer a pendência sobrescreve por
+ * teste (ver "o prompt pendente" abaixo).
+ */
+beforeEach(() => {
+  installTrpcDefaults(trpcMock);
+});
 
 class FakeSocket {
   readonly sent: AcpClientMessage[] = [];
@@ -45,18 +81,18 @@ function mount(options: { active?: boolean } = {}): { socket: FakeSocket; rerend
   };
 
   const view = render(
-    <AwaitingPermissionProvider>
+    <TestProviders>
       <Conversation sessionId="s-1" connect={connect} active={active} />
-    </AwaitingPermissionProvider>,
+    </TestProviders>,
   );
 
   return {
     socket,
     rerender: () =>
       view.rerender(
-        <AwaitingPermissionProvider>
+        <TestProviders>
           <Conversation sessionId="s-1" connect={connect} active={active} />
-        </AwaitingPermissionProvider>,
+        </TestProviders>,
       ),
   };
 }
@@ -301,17 +337,17 @@ describe("a conversa que nasceu de um pedido", () => {
     };
 
     const view = render(
-      <AwaitingPermissionProvider>
+      <TestProviders>
         <Conversation sessionId="s-1" connect={connect} />
-      </AwaitingPermissionProvider>,
+      </TestProviders>,
     );
     return {
       socket,
       rerender: () =>
         view.rerender(
-          <AwaitingPermissionProvider>
+          <TestProviders>
             <Conversation sessionId="s-1" connect={connect} />
-          </AwaitingPermissionProvider>,
+          </TestProviders>,
         ),
     };
   }
@@ -346,7 +382,7 @@ describe("a conversa que nasceu de um pedido", () => {
     arrive({ sessionId: "s-1", text: "pergunta", send: true });
     const socket = new FakeSocket();
     const view = render(
-      <AwaitingPermissionProvider>
+      <TestProviders>
         <Conversation
           sessionId="s-1"
           connect={(_id, handlers) => {
@@ -354,7 +390,7 @@ describe("a conversa que nasceu de um pedido", () => {
             return socket;
           }}
         />
-      </AwaitingPermissionProvider>,
+      </TestProviders>,
     );
     socket.deliver(attached());
     await waitFor(() => expect(socket.sent).toHaveLength(1));
@@ -362,7 +398,7 @@ describe("a conversa que nasceu de um pedido", () => {
     // Um `connect` novo: o efeito de conexão reseta o estado, `attached` cai para
     // falso e volta com o próximo frame.
     view.rerender(
-      <AwaitingPermissionProvider>
+      <TestProviders>
         <Conversation
           sessionId="s-1"
           connect={(_id, handlers) => {
@@ -370,7 +406,7 @@ describe("a conversa que nasceu de um pedido", () => {
             return socket;
           }}
         />
-      </AwaitingPermissionProvider>,
+      </TestProviders>,
     );
     // `act` em vez de `waitFor`: o `waitFor` acerta na primeira checagem — quando
     // ainda é 1 — e passaria mesmo com o segundo envio saindo logo depois. Provado
@@ -398,14 +434,14 @@ describe("a conversa que nasceu de um pedido", () => {
     const socket = new FakeSocket();
     const connect = vi.fn(() => socket);
     render(
-      <AwaitingPermissionProvider>
+      <TestProviders>
         <Conversation
           sessionId="s-1"
           live={false}
           load={async () => ({ ...attached(), state: "exited" as const })}
           connect={connect}
         />
-      </AwaitingPermissionProvider>,
+      </TestProviders>,
     );
 
     // Espera o caminho de leitura terminar antes de afirmar sobre o socket: sem
@@ -474,9 +510,9 @@ describe("o rascunho que a chegada preenche", () => {
     const { connect, socket } = connectStub();
 
     render(
-      <AwaitingPermissionProvider>
+      <TestProviders>
         <Conversation sessionId="s-1" connect={connect} />
-      </AwaitingPermissionProvider>,
+      </TestProviders>,
     );
 
     expect(await screen.findByLabelText("mensagem para o agente")).toHaveValue(
@@ -499,9 +535,9 @@ describe("o rascunho que a chegada preenche", () => {
     const { connect } = connectStub();
 
     const first = render(
-      <AwaitingPermissionProvider>
+      <TestProviders>
         <Conversation sessionId="s-1" connect={connect} />
-      </AwaitingPermissionProvider>,
+      </TestProviders>,
     );
 
     const box = await screen.findByLabelText("mensagem para o agente");
@@ -514,9 +550,9 @@ describe("o rascunho que a chegada preenche", () => {
     // Reabre a mesma sessão, sem chegada nova: a que havia foi consumida na
     // primeira montagem, e não pode voltar a preencher o composer sozinha.
     render(
-      <AwaitingPermissionProvider>
+      <TestProviders>
         <Conversation sessionId="s-1" connect={connect} />
-      </AwaitingPermissionProvider>,
+      </TestProviders>,
     );
 
     expect(await screen.findByLabelText("mensagem para o agente")).toHaveValue("");
@@ -1065,7 +1101,7 @@ describe("a conversation that has ended", () => {
     };
 
     render(
-      <AwaitingPermissionProvider>
+      <TestProviders>
         <Conversation
           sessionId="s-1"
           live={false}
@@ -1075,7 +1111,7 @@ describe("a conversation that has ended", () => {
           resuming={options.resuming ?? false}
           {...(options.resumeError ? { resumeError: options.resumeError } : {})}
         />
-      </AwaitingPermissionProvider>,
+      </TestProviders>,
     );
 
     return { connects: connects.length, loads };
@@ -1151,14 +1187,14 @@ describe("a conversation that has ended", () => {
 
   it("reports a read that failed instead of showing an empty conversation", async () => {
     render(
-      <AwaitingPermissionProvider>
+      <TestProviders>
         <Conversation
           sessionId="s-1"
           live={false}
           connect={() => new FakeSocket()}
           load={() => Promise.reject(new Error("a transcrição não abriu"))}
         />
-      </AwaitingPermissionProvider>,
+      </TestProviders>,
     );
 
     expect(await screen.findByText("a transcrição não abriu")).toBeInTheDocument();
@@ -1202,6 +1238,24 @@ describe("the mark between two conversations", () => {
     await waitFor(() => expect(screen.getByText(/retomada/)).toBeInTheDocument());
     // Two agent frames, not one: the separator broke the run.
     expect(document.querySelectorAll(".turn--agent")).toHaveLength(2);
+  });
+
+  it("says which model did not come back, right after the mark (`033` F6.2)", async () => {
+    const { socket } = mount();
+
+    socket.deliver(
+      attached([
+        entry({ type: "message", messageId: "m-1", role: "agent", text: "de ontem" }),
+        entry({ type: "resumed", fromSessionId: "sessao-de-ontem" }),
+        entry({ type: "model_unavailable", model: "sonnet", current: "opus[1m]" }),
+      ]),
+    );
+
+    const line = await screen.findByText(
+      "o modelo sonnet não existe mais neste agente — a conversa continuou em opus[1m]",
+    );
+    // A sessão se declarando, e não um evento que ninguém reconheceu.
+    expect(line).toHaveClass("meta--conversation");
   });
 });
 
@@ -1392,13 +1446,13 @@ describe("quem está falando", () => {
     };
 
     render(
-      <AwaitingPermissionProvider>
+      <TestProviders>
         <Conversation
           sessionId="s-1"
           connect={connect}
           {...(agentName === undefined ? {} : { agentName })}
         />
-      </AwaitingPermissionProvider>,
+      </TestProviders>,
     );
     return socket;
   }
@@ -1519,5 +1573,194 @@ describe("acompanhar a conversa", () => {
     });
 
     await waitFor(() => expect(node.scrollTop).toBe(2_000));
+  });
+});
+
+describe("o prompt pendente na conversa", () => {
+  /**
+   * `pendingPrompt`/`pendingReason` moram na linha (`session.getDetail`), não
+   * no protocolo ACP — por isso estes testes configuram o mock do daemon em
+   * vez de mandar um frame pelo socket. `RightPanelProvider` porque o atalho
+   * "acompanhar"/"ver saída" lê `useRightPanel()`.
+   */
+  function renderPending(): { socket: FakeSocket } {
+    const socket = new FakeSocket();
+    const connect = (
+      _sessionId: string,
+      handlers: { onMessage(message: AcpServerMessage): void },
+    ) => {
+      socket.deliver = handlers.onMessage;
+      return socket;
+    };
+
+    render(
+      <RightPanelProvider>
+        <TestProviders>
+          <Conversation sessionId="s-1" connect={connect} />
+        </TestProviders>
+      </RightPanelProvider>,
+    );
+
+    return { socket };
+  }
+
+  describe("sem pendingReason: o setup está rodando", () => {
+    beforeEach(() => {
+      trpcMock.session.getDetail.query.mockResolvedValue({
+        pendingPrompt: "corrige o bug do login no Safari",
+        pendingReason: null,
+        scopeType: "worktree",
+        scopeId: "wt1",
+      });
+      trpcMock.scripts.status.query.mockResolvedValue({
+        ...NO_SCRIPTS_STATUS,
+        setup: {
+          command: "pnpm install",
+          last: {
+            sessionId: "sc1",
+            exitCode: null,
+            running: true,
+            startedAt: new Date(),
+            finishedAt: null,
+            command: "pnpm install",
+            outputAvailable: true,
+          },
+        },
+      });
+    });
+
+    it("mostra a linha de preparo com o texto do prompt esmaecido, e o compositor travado", async () => {
+      renderPending();
+
+      expect(await screen.findByText(/preparando worktree/)).toBeInTheDocument();
+      expect(screen.getByText("corrige o bug do login no Safari")).toBeInTheDocument();
+
+      const box = screen.getByLabelText("mensagem para o agente");
+      expect(box).toBeDisabled();
+      expect(box).toHaveAttribute("placeholder", "o primeiro prompt espera o setup");
+      // O `Composer` de verdade não monta enquanto isto dura — não há botão
+      // `enviar` nem pílula de modo para atrapalhar.
+      expect(screen.queryByRole("button", { name: /enviar/ })).not.toBeInTheDocument();
+    });
+
+    it("o atalho abre a coluna de arquivos quando ela está fechada", async () => {
+      const user = userEvent.setup();
+      renderPending();
+
+      await user.click(await screen.findByRole("button", { name: /acompanhar/ }));
+
+      // `useRightPanel` é a mesma leitura que o `App` usa para montar a coluna —
+      // aqui só se prova que o estado compartilhado abriu.
+      expect(JSON.parse(window.localStorage.getItem("lumem.rightPanel") ?? "{}")).toMatchObject({
+        open: true,
+      });
+    });
+  });
+
+  describe("pendingReason `setup_failed`", () => {
+    beforeEach(() => {
+      trpcMock.session.getDetail.query.mockResolvedValue({
+        pendingPrompt: "corrige o bug do login no Safari",
+        pendingReason: "setup_failed",
+        pendingDetail: "o setup saiu com 1",
+        scopeType: "worktree",
+        scopeId: "wt1",
+      });
+      // A última execução do `setup` diz outra coisa, de propósito: foi rerodado
+      // pela aba Setup e passou. Quem diz por que o prompt não saiu é o daemon.
+      trpcMock.scripts.status.query.mockResolvedValue({
+        ...NO_SCRIPTS_STATUS,
+        setup: {
+          command: "pnpm install",
+          last: {
+            sessionId: "sc1",
+            exitCode: 0,
+            running: false,
+            startedAt: new Date(),
+            finishedAt: new Date(),
+            command: "pnpm install",
+            outputAvailable: true,
+          },
+        },
+      });
+    });
+
+    it("mostra o motivo da falha que o daemon gravou, e não o da última execução", async () => {
+      renderPending();
+
+      expect(await screen.findByText(/o setup saiu com 1/)).toBeInTheDocument();
+      expect(screen.getByText(/o prompt não foi enviado/)).toBeInTheDocument();
+    });
+
+    it("`mandar assim mesmo` chama `session.sendPending`", async () => {
+      const user = userEvent.setup();
+      trpcMock.session.sendPending.mutate.mockResolvedValue({
+        pendingPrompt: "corrige o bug do login no Safari",
+        pendingReason: "setup_failed",
+        scopeType: "worktree",
+        scopeId: "wt1",
+      });
+      renderPending();
+
+      await user.click(await screen.findByRole("button", { name: "mandar assim mesmo" }));
+
+      expect(trpcMock.session.sendPending.mutate).toHaveBeenCalledWith({ id: "s-1" });
+    });
+
+    it("`editar` descarta a pendência, e o texto volta para o compositor", async () => {
+      const user = userEvent.setup();
+      trpcMock.session.discardPending.mutate.mockResolvedValue({
+        pendingPrompt: null,
+        pendingReason: null,
+        scopeType: "worktree",
+        scopeId: "wt1",
+      });
+      renderPending();
+
+      await user.click(await screen.findByRole("button", { name: "editar" }));
+
+      expect(trpcMock.session.discardPending.mutate).toHaveBeenCalledWith({ id: "s-1" });
+      // A pendência some, o `Composer` de verdade nasce, e nasce com o texto
+      // que estava preso — pelo mesmo `useArrival` que já leva rascunho para
+      // uma sessão que já existe.
+      await waitFor(() => {
+        expect(screen.getByLabelText("mensagem para o agente")).toHaveValue(
+          "corrige o bug do login no Safari",
+        );
+      });
+    });
+  });
+
+  describe("sessão morta com um prompt ainda pendente", () => {
+    it("mostra o texto com um jeito de copiar, sem mandar nem editar", async () => {
+      const user = userEvent.setup();
+      trpcMock.session.getDetail.query.mockResolvedValue({
+        pendingPrompt: "corrige o bug do login no Safari",
+        pendingReason: null,
+        scopeType: "worktree",
+        scopeId: "wt1",
+        state: "exited",
+      });
+      const load = (): Promise<AcpServerMessage> =>
+        Promise.resolve({ ...attached(), state: "exited" } as AcpServerMessage);
+
+      render(
+        <TestProviders>
+          <Conversation sessionId="s-1" live={false} load={load} />
+        </TestProviders>,
+      );
+
+      expect(
+        await screen.findByText("a sessão terminou antes de mandar este prompt"),
+      ).toBeInTheDocument();
+      expect(screen.getByText("corrige o bug do login no Safari")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "mandar assim mesmo" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "editar" })).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "copiar o prompt" }));
+
+      expect(await navigator.clipboard.readText()).toBe("corrige o bug do login no Safari");
+      expect(await screen.findByRole("button", { name: "copiado" })).toBeInTheDocument();
+    });
   });
 });

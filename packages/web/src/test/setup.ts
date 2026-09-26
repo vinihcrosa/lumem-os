@@ -5,6 +5,7 @@ import { afterEach } from "vitest";
 
 import { clearErrors } from "../lib/errorLog.js";
 import { resetNavigationForTests } from "../lib/navigation.js";
+import { resetComposerDraftsForTests } from "../features/workspace/composer-drafts.js";
 
 /**
  * What jsdom does not implement and xterm.js insists on.
@@ -66,4 +67,7 @@ afterEach(() => {
   // faz chamável de qualquer lugar sem contexto é exatamente o que o faz vazar
   // seleção e chegada de um teste para o próximo, dentro do mesmo arquivo.
   resetNavigationForTests();
+  // O mesmo motivo, para o rascunho por projeto do compositor de nova
+  // worktree (`033` T20, Q1) — outro estado de módulo, outra fuga entre `it`s.
+  resetComposerDraftsForTests();
 });

@@ -70,6 +70,22 @@ describe("invalidateFor", () => {
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["worktree"] });
   });
 
+  it("`session.changed` também relê os scripts do mesmo escopo, e só dele", () => {
+    /*
+     * `setup`, `run` e `test` são sessões: quando uma delas nasce ou sai, é este
+     * evento que chega. Sem esta linha o rodapé só descobria pelo polling de 2 s —
+     * e o polling só corre com uma fase já rodando, então o `setup` que acabou de
+     * começar ficava invisível até alguém olhar de novo (`033` §6, defeito 4).
+     */
+    const queryClient = new QueryClient();
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+
+    invalidateFor(queryClient, { type: "session.changed", scopeType: "worktree", scopeId: "wt1" });
+
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["scripts", "status", "worktree", "wt1"] });
+    expect(invalidate).not.toHaveBeenCalledWith({ queryKey: ["scripts"] });
+  });
+
   it("`task.changed` alcança o quadro e os interruptores, não só a lista", () => {
     /*
      * Nenhum dos dois está sob `["task", "listByWorkspace"]`, e o cliente tem
@@ -84,6 +100,36 @@ describe("invalidateFor", () => {
 
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["task", "board"] });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["task", "settings"] });
+  });
+
+  it("`catalog.changed` é uma variante conhecida: não cai no invalidar-tudo", () => {
+    /*
+     * O que este caso prova é que o evento **tem** `case`: sem ele, cada probe
+     * de aquecimento do boot recarregaria todas as consultas de todas as abas
+     * abertas, com um `warn` junto.
+     */
+    const queryClient = new QueryClient();
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    invalidateFor(queryClient, { type: "catalog.changed", adapterId: "claude" });
+
+    expect(invalidate).not.toHaveBeenCalledWith();
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("`catalog.changed` recarrega o catálogo de todo projeto, e só ele (`033` T16)", () => {
+    /*
+     * O evento diz o ACP, não o projeto — e os comandos do catálogo são por
+     * projeto. O prefixo alcança `adapterCatalogKey(p)` de todos os projetos
+     * abertos, e da leitura sem projeto também.
+     */
+    const queryClient = new QueryClient();
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+
+    invalidateFor(queryClient, { type: "catalog.changed", adapterId: "codex" });
+
+    expect(invalidate).toHaveBeenCalledExactlyOnceWith({ queryKey: ["adapterCatalog", "list"] });
   });
 
   it("um evento fora da união invalida tudo e avisa, em vez de matar a assinatura", () => {

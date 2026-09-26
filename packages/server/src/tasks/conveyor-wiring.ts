@@ -1,13 +1,11 @@
-import { adapterById } from "@lumem/shared";
 import { eq } from "drizzle-orm";
 
 import type { Db } from "../db/index.js";
 import type { GitService } from "../git/GitService.js";
-import { agentConfig, project, worktree } from "../db/schema.js";
+import { project, worktree } from "../db/schema.js";
 import type { PrCache } from "../pr/PrCache.js";
 import { remoteOf } from "../pr/remote.js";
 import { decide, type GhPullRequest } from "../pr/verdict.js";
-import { createAgentConfigRepository } from "../repositories/agentConfig.js";
 
 import type { PrLike } from "./conveyor-ports.js";
 
@@ -16,65 +14,10 @@ import type { PrLike } from "./conveyor-ports.js";
  * (`028` Parte 2, T26 e T28).
  *
  * Elas moram fora do `conveyor-ports.ts` porque as duas dependem de coisas que
- * a esteira não deveria conhecer — a tabela de configuração de agente e o cache
- * de PR —, e o arquivo de portas já é a fronteira. Aqui é a costura da costura.
+ * a esteira não deveria conhecer — o git e o cache de PR —, e o arquivo de
+ * portas já é a fronteira. Aqui é a costura da costura. A terceira, a
+ * configuração de agente por adaptador, foi para o repositório dela (`033` T4).
  */
-
-/**
- * A configuração de agente para este adaptador, criada na primeira vez.
- *
- * O catálogo do §5.1 fala em **adaptador** (`claude`, `codex`); o
- * `session.createAgent` pede uma `agent_config`, que é a linha que o rodapé da
- * sidebar mostra. A ponte é o nome: uma configuração por adaptador, com o nome
- * do adaptador.
- *
- * **Criada e não exigida** porque a esteira não pode depender de alguém ter
- * aberto uma conversa antes: um workspace novo com a autonomia ligada tem tarefa
- * e não tem configuração nenhuma, e recusar ali seria a esteira parando por
- * causa de uma linha que ela mesma sabe escrever.
- */
-export async function configForAdapter(
-  db: Db,
-  adapterId: string,
-  /** O `conveyorAgent` do `config`, quando alguém apontou um. */
-  preferred: string | null = null,
-): Promise<string> {
-  if (preferred !== null) {
-    const named = await db.query.agentConfig.findFirst({
-      where: eq(agentConfig.name, preferred),
-    });
-    /*
-     * Apontado e **não encontrado** é erro, não silêncio: quem escreveu
-     * `LUMEM_CONVEYOR_AGENT` disse qual agente quer, e cair no default seria a
-     * esteira abrindo o adaptador errado — que gasta — sem nada dizer.
-     */
-    if (!named) throw new Error(`a configuração de agente "${preferred}" não existe`);
-    return named.id;
-  }
-
-  const spec = adapterById(adapterId);
-  if (spec === null) throw new Error(`adaptador desconhecido: ${adapterId}`);
-
-  const existing = await db.query.agentConfig.findFirst({
-    where: eq(agentConfig.name, spec.id),
-  });
-  if (existing) return existing.id;
-
-  const created = await createAgentConfigRepository(db).create({
-    name: spec.id,
-    /*
-     * O comando é o da `spec`, e quem o resolve de verdade é o
-     * `adapterCommandForConfig` na hora do `spawn` — o
-     * [ADR de 2026-09-08](../../../../docs/adr/2026-09-08-0507-adapter-is-the-copy-the-daemon-owns.md)
-     * tirou essa decisão desta coluna justamente porque ela envelhece. O que
-     * fica aqui é o nome, não o caminho.
-     */
-    command: spec.command,
-    transport: "acp",
-    adapterVersion: spec.pinnedVersion,
-  });
-  return created.id;
-}
 
 /**
  * O veredito da PR **desta worktree**, ou `null`.

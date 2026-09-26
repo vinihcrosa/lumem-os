@@ -317,6 +317,11 @@
   --size-detail-max: 880px;
   --size-terminal-min: 420px;
   --size-dialog-width: 420px;
+  /* O compositor de nova worktree. MEDIDO, nao escolhido: um prompt real de
+     ~990 caracteres no `composer__in` (14px Inter) ocupa 12 linhas de 82
+     caracteres em media a 640px. A proposta era 720, e la as linhas chegam a
+     92 — passa da medida confortavel; 560 ja quebra em 69. */
+  --size-dialog-wide: 640px;
   --size-menu-width: 300px;
   /* Teto do menu suspenso: 9 linhas de 28px inteiras, e a decima pela
      metade. A meia-linha e o que diz que a lista continua. */

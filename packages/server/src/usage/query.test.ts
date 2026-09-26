@@ -80,8 +80,16 @@ async function world(): Promise<World> {
   });
 
   const configs = createAgentConfigRepository(db);
-  const claude = await configs.create({ name: "claude-code", command: "claude" });
-  const codex = await configs.create({ name: "codex", command: "codex-acp" });
+  const claude = await configs.create({
+    name: "claude-code",
+    command: "claude",
+    adapterVersion: "1.0.0",
+  });
+  const codex = await configs.create({
+    name: "codex",
+    command: "codex-acp",
+    adapterVersion: "1.0.0",
+  });
 
   return {
     db,

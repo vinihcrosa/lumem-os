@@ -232,6 +232,20 @@
       "when": 1789501762791,
       "tag": "0032_turno_do_consumo",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "6",
+      "when": 1790301530519,
+      "tag": "0033_agente_sempre_acp",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "6",
+      "when": 1790358212193,
+      "tag": "0034_motivo_do_pendente",
+      "breakpoints": true
     }
   ]
 }

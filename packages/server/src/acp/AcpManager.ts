@@ -256,6 +256,21 @@ export interface AcpProbeReport {
   acpSessionId: string;
   modes: readonly string[];
   currentMode: string | null;
+  /**
+   * The selectors `session/new` offered, normalised — the catalogue's first
+   * source (`033` §3.1). `currentValue` is the ACP default (Q8), and empty when
+   * `authRequired`.
+   */
+  configOptions: AcpConfigOption[];
+  /**
+   * The selectors after choosing each model, keyed by the model's value (M1a).
+   *
+   * Walked with `set_config_option`, which costs no tokens: *effort* depends on
+   * the model — `haiku` has none, `gpt-6-astra` goes up to `ultra` — and
+   * `session/new` only tells the default's. A model that refuses the switch is
+   * absent rather than guessed. Empty unless the caller asked for the walk.
+   */
+  optionsByModel: Record<string, AcpConfigOption[]>;
   /** Milliseconds, per stage. The screen reports them; nothing branches on them. */
   timings: { spawnMs: number; initializeMs: number; sessionMs: number };
 }
@@ -525,6 +540,14 @@ export class AcpManager {
   private readonly exitWatchers = new Set<AcpExitWatcher>();
   private readonly configWatchers = new Set<AcpConfigWatcher>();
   private readonly eventWatchers = new Set<AcpEventWatcher>();
+  /**
+   * Probes still running (`033` T8).
+   *
+   * A probe is not in `sessions` — it has no row and nothing may attach to it —,
+   * and until the boot warm-up it lived as long as one request. In the
+   * background it can outlive a shutdown, and `killAll` is what ends it.
+   */
+  private readonly probing = new Set<AcpProcess>();
   private readonly spawner: AcpProcessSpawner;
   private readonly handshakeTimeoutMs: number;
   private readonly isAvailable: (command: string) => boolean;
@@ -767,10 +790,21 @@ export class AcpManager {
     }
   }
 
-  async probe(options: AcpSpawnOptions): Promise<AcpProbeReport> {
+  /**
+   * `walkModels` is opt-in because it is the expensive half: one
+   * `set_config_option` per model, each up to the handshake timeout. Only the
+   * boot warmup reads `optionsByModel`; the login screen and `setup.probe` ask
+   * *does it start, and is there a credential*, and a slow model would make
+   * that answer wait for a question nobody asked.
+   */
+  async probe(
+    options: AcpSpawnOptions,
+    { walkModels = false }: { walkModels?: boolean } = {},
+  ): Promise<AcpProbeReport> {
     const startedAt = this.now();
     const { session, child } = this.launch(options, { probe: true });
     const spawnedAt = this.now();
+    this.probing.add(child);
 
     try {
       const initialize = await this.initialize(session);
@@ -809,6 +843,15 @@ export class AcpManager {
       }
       const createdAt = this.now();
 
+      // From the response, not from a notification: waiting for one would be
+      // waiting for something the adapter never promised to send.
+      const configOptions =
+        created === null ? [] : normaliseOptions(created.configOptions, created.modes);
+      const optionsByModel =
+        created === null || !walkModels
+          ? {}
+          : await this.optionsPerModel(session, created, configOptions);
+
       const capabilities = initialize.agentCapabilities ?? {};
       const declared: string[] = [];
       if (capabilities.loadSession === true) declared.push("loadSession");
@@ -836,6 +879,8 @@ export class AcpManager {
         acpSessionId: created?.sessionId ?? "",
         modes: created?.modes?.availableModes.map((mode) => mode.id) ?? [],
         currentMode: created?.modes?.currentModeId ?? null,
+        configOptions,
+        optionsByModel,
         timings: {
           spawnMs: spawnedAt - startedAt,
           initializeMs: initializedAt - spawnedAt,
@@ -855,8 +900,51 @@ export class AcpManager {
        * easiest to produce and hardest to notice: the screen shows a refusal, and
        * a stray Node process keeps running until the machine is rebooted.
        */
+      this.probing.delete(child);
       child.kill();
     }
+  }
+
+  /**
+   * Chooses each model in turn and keeps what the adapter offers with it (M1a).
+   *
+   * Straight on the connection, not through `setConfig`: that one writes the
+   * session's state and tells the config watchers, and a probe has neither a
+   * state anyone reads nor a row anyone could update.
+   *
+   * One model that refuses is logged and left out. The walk is a courtesy to the
+   * pill — the draft falls back to the default's options — and losing all of it
+   * to one unavailable model would trade four answers for none.
+   */
+  private async optionsPerModel(
+    session: Session,
+    created: NewSessionResponse,
+    options: readonly AcpConfigOption[],
+  ): Promise<Record<string, AcpConfigOption[]>> {
+    const model = options.find((option) => option.id === MODEL_OPTION);
+    if (model === undefined) return {};
+
+    const byModel: Record<string, AcpConfigOption[]> = {};
+    for (const choice of model.choices) {
+      try {
+        const switched = session.connection.agent.request("session/set_config_option", {
+          sessionId: created.sessionId,
+          configId: model.id,
+          value: choice.value,
+        });
+        const response = await this.withTimeout(switched, "session/set_config_option");
+        // Keyed by what was asked, not by what came back: the pill looks up the
+        // choice the person clicked, and an adapter that answers `sonnet` with
+        // `sonnet[1m]` is still answering for `sonnet`.
+        byModel[choice.value] = normaliseOptions(response.configOptions, created.modes);
+      } catch (error) {
+        this.log?.warn(
+          { command: session.info.command, model: choice.value, err: error },
+          "o probe não conseguiu escolher este modelo; o catálogo fica sem as opções dele",
+        );
+      }
+    }
+    return byModel;
   }
 
   /**
@@ -1272,6 +1360,20 @@ export class AcpManager {
   }
 
   /**
+   * The model a resume tried to bring back is gone (`033` F6.2).
+   *
+   * A verb of its own rather than a public `emit`: whoever decides the model did
+   * not come back is the store, but the line belongs in the conversation — on
+   * disk, for the replay, and live, for the tab already attached. Only this
+   * class writes both, and an open door to the stream would let anything forge a
+   * `turn_end`.
+   */
+  reportModelUnavailable(id: string, model: string): void {
+    const session = this.require(id);
+    this.emit(session, { type: "model_unavailable", model, current: session.info.model });
+  }
+
+  /**
    * Everything an attaching client needs to catch up, in one frame.
    *
    * Read from the store, not from memory: the array this replaced grew for the life
@@ -1382,20 +1484,22 @@ export class AcpManager {
 
   /** What shutdown calls, for the reason `PtyManager.killAll` exists. */
   async killAll(timeoutMs = 2_000): Promise<void> {
-    const running = [...this.sessions.values()].filter((s) => s.info.state === "running");
+    const running = [...this.sessions.values()]
+      .filter((s) => s.info.state === "running")
+      .map((s) => s.process);
 
     await Promise.all(
-      running.map(
-        (session) =>
+      [...running, ...this.probing].map(
+        (process) =>
           new Promise<void>((resolve) => {
             const timer = setTimeout(resolve, timeoutMs);
             timer.unref?.();
-            void session.process.exited.then(() => {
+            void process.exited.then(() => {
               clearTimeout(timer);
               resolve();
             });
             try {
-              session.process.kill();
+              process.kill();
             } catch {
               clearTimeout(timer);
               resolve();
@@ -1935,6 +2039,9 @@ export class AcpManager {
 
   /** The selectors as an event, so every attached client sees the same switch. */
   private emitConfig(session: Session): void {
+    // A probe has no row, so a watcher would look for an id it never wrote.
+    if (session.probe) return;
+
     this.emit(session, {
       type: "config",
       mode: session.info.mode,
@@ -1985,6 +2092,16 @@ export class AcpManager {
   }
 
   private emit(session: Session, event: AcpEvent): void {
+    /*
+     * A probe records nothing and tells nobody (`033` T8).
+     *
+     * Nothing can attach to it, and its transcript would be a file under an id no
+     * row has. The walk over the models keeps it alive long enough for the
+     * adapter's own `available_commands_update` to arrive, which is what made
+     * this reachable.
+     */
+    if (session.probe) return;
+
     if (event.type === "tool_call") {
       if (event.status === "pending" || event.status === "running") {
         session.openToolCalls.add(event.toolCallId);
@@ -2086,6 +2203,8 @@ export class AcpManager {
 
 /** The one option the protocol has a dedicated call for. */
 const MODE_OPTION = "mode";
+/** The selector the probe walks (M1a). */
+const MODEL_OPTION = "model";
 
 /**
  * The agent's selectors, in the shape the browser reads.

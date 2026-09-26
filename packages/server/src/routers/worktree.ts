@@ -2,13 +2,18 @@ import { existsSync, realpathSync } from "node:fs";
 
 import { z } from "zod";
 
-import type { WorktreeRow } from "../db/schema.js";
+import { worktreeNameFromPrompt } from "@lumem/shared";
+
+import type { ProjectRow, WorktreeRow } from "../db/schema.js";
 import { worktreeAddArgs, type AddWorktreeSource } from "../git/GitService.js";
 import { DomainError } from "../errors.js";
 import { tryRecordSignal } from "../memory/signals.js";
 import { createProjectRepository } from "../repositories/project.js";
+import { createSessionRepository } from "../repositories/session.js";
 import { createTaskRepository } from "../repositories/task.js";
 import { createWorktreeRepository } from "../repositories/worktree.js";
+import { deliverPending } from "../sessions/pending-prompt.js";
+import { startAgentSession } from "../sessions/start-agent-session.js";
 import { domainSafeAsync, publicProcedure, router, type Context } from "../trpc.js";
 import { releasePort } from "../scripts/ports.js";
 import { homeOfProject } from "./project.js";
@@ -280,6 +285,192 @@ async function requireProject(ctx: Context, projectId: string) {
   return project;
 }
 
+interface CreateWorktreeInput {
+  name: string;
+  from?: WorktreeFrom;
+  taskId?: string;
+}
+
+/**
+ * O corpo do `worktree.create`, para dois chamadores (`033` §3.3).
+ *
+ * `startSetup` é a única diferença entre eles, e é a que importa: o `create`
+ * dispara o `setup` e esquece; o `start` o **espera** antes do primeiro prompt,
+ * e dispará-lo aqui também seria o `setup` rodando duas vezes no mesmo
+ * checkout.
+ */
+async function createWorktreeCore(
+  ctx: Context,
+  project: ProjectRow,
+  input: CreateWorktreeInput,
+  { startSetup }: { startSetup: boolean },
+): Promise<WorktreeRow> {
+  // F6.13. Without a commit there is nothing to cut from: the branch
+  // exists as a name and not as a commit, and git answers "invalid
+  // reference", which explains nothing. The screen avoids it, the server
+  // forbids it — and a repository cloned empty is legitimate (Q19), so
+  // this is a state a project can simply be in for a while.
+  if (!(await ctx.git.hasCommits(project.path))) {
+    throw new DomainError(
+      "BLOCKED",
+      `o repositório ${project.name} ainda não tem nenhum commit — faça o primeiro para poder cortar worktrees`,
+    );
+  }
+
+  // The same tree for a cloned project and for one registered by path:
+  // `projectHome` is a function of (workspace, project) and never of
+  // `managed` (A16). The one without a clone simply has no `repo/`.
+  const path = worktreeDir(await homeOfProject(ctx, project), input.name);
+
+  // git first. If this throws — branch taken, target occupied, repository
+  // gone — nothing has been written, which is exactly what §8 requires.
+  // The branch comes from `default_branch` as recorded when the project
+  // was added, with no fetch: F4.3 says use what is on disk.
+  // A origem, resolvida antes de escrever. Sem `from` no pedido ela é a de
+  // sempre — `new-branch` a partir da default —, byte por byte o mesmo
+  // `argv` de antes da `026-worktree-from`.
+  const { source, branch } = await resolveSource(ctx, project, input.name, input.from);
+
+  await ctx.git.addWorktree({
+    repoPath: project.path,
+    branch,
+    targetPath: path,
+    source,
+  });
+
+  try {
+    const created = await createWorktreeRepository(ctx.db).create({
+      projectId: project.id,
+      name: input.name,
+      // Desde a Q9 estes dois podem divergir: cortar de uma branch que já
+      // existe mantém a branch e dá outro nome à worktree.
+      branch,
+      path,
+    });
+    ctx.events.emit({ type: "worktree.changed", projectId: project.id });
+
+    // A tarefa passa a apontar para o checkout. Depois do registro, e não
+    // antes: uma tarefa apontando para uma worktree que o banco ainda não
+    // tem é um ponteiro que o estrangeiro recusa.
+    if (input.taskId !== undefined) {
+      const linked = await createTaskRepository(ctx.db).attachWorktree(input.taskId, created.id);
+      ctx.events.emit({ type: "task.changed", workspaceId: linked.workspaceId });
+    }
+
+    // O setup do projeto, se houver (project-scripts S3).
+    //
+    // **Em segundo plano, e sem await**: criar worktree é uma operação de
+    // segundos e o `pnpm install` é de minutos. Esperar transformaria o
+    // gesto mais comum do produto numa barra de progresso, e a conversa
+    // com o agente ficaria bloqueada por uma preparação que ela não usa
+    // ainda. Quem acompanha é a aba `Setup` do rodapé.
+    //
+    // Falhar aqui **não desfaz nada** (S4): a worktree existe, funciona, e
+    // o que ela não tem é preparo — desfazer seria apagar diretório por
+    // causa de rede ruim.
+    if (startSetup) {
+      void ctx.scripts
+        .start({ scopeType: "worktree", scopeId: created.id }, "setup")
+        .catch(() => {
+          // Sem setup declarado, ou projeto ainda não confiado: os dois são
+          // estados legítimos, e nenhum deles é assunto de quem criou a
+          // worktree. O rodapé conta a história.
+        });
+    }
+
+    return created;
+  } catch (error) {
+    // The registry refused what git already did — a duplicate name that
+    // git had no opinion about. Leaving the checkout would produce a
+    // directory the daemon does not know about and cannot clean up.
+    await ctx.git.removeWorktree({ repoPath: project.path, path, force: true }).catch(() => {});
+    throw error;
+  }
+}
+
+/**
+ * O primeiro nome livre a partir do derivado do prompt: ele, depois `-2`, `-3`…
+ *
+ * Livre quer dizer as três coisas que recusariam a criação — um registro com
+ * esse nome, uma branch com esse nome (o `worktree add -b` diria *"já
+ * existe"*) e um diretório no lugar. Perguntar só ao banco deixaria passar a
+ * branch de uma worktree removida, que o `remove` não apaga (F4.7).
+ */
+async function freeNameFor(
+  ctx: Context,
+  project: ProjectRow,
+  base: string,
+): Promise<{ name: string; release: () => void }> {
+  const home = await homeOfProject(ctx, project);
+  const registered = new Set(
+    (await createWorktreeRepository(ctx.db).listByProject(project.id)).map((row) => row.name),
+  );
+  const reserved = reservedNamesOf(ctx, project.id);
+  const taken = async (name: string): Promise<boolean> =>
+    reserved.has(name) ||
+    registered.has(name) ||
+    existsSync(worktreeDir(home, name)) ||
+    (await ctx.git.branchExists(project.path, name));
+
+  let suffix = 1;
+  for (;;) {
+    const candidate = suffix === 1 ? base : `${base}-${String(suffix)}`;
+    suffix += 1;
+    // A reserva é conferida de novo **depois** do último `await`: é neste
+    // trecho síncrono que dois pedidos concorrentes deixam de ver o mesmo nome.
+    if ((await taken(candidate)) || reserved.has(candidate)) continue;
+    reserved.add(candidate);
+    return { name: candidate, release: () => reserved.delete(candidate) };
+  }
+}
+
+/**
+ * Os nomes que um `worktree.start` já escolheu e ainda não registrou, por projeto.
+ *
+ * Sem isto a escolha era TOCTOU: o nome era conferido livre antes de a worktree
+ * existir, e dois `start` com o mesmo prompt (duas abas, um clique duplo)
+ * derivavam os dois `corrigir-login` — e o segundo `git worktree add -b` falhava
+ * com *"branch already exists"* em vez de ganhar o `-2`. Em memória porque
+ * quem cria é um processo só; pelo `db` para dois daemons de teste no mesmo
+ * processo não dividirem a lista.
+ */
+const reservedNames = new WeakMap<object, Map<string, Set<string>>>();
+
+function reservedNamesOf(ctx: Context, projectId: string): Set<string> {
+  let byProject = reservedNames.get(ctx.db);
+  if (byProject === undefined) {
+    byProject = new Map();
+    reservedNames.set(ctx.db, byProject);
+  }
+  let names = byProject.get(projectId);
+  if (names === undefined) {
+    names = new Set();
+    byProject.set(projectId, names);
+  }
+  return names;
+}
+
+/**
+ * Desfaz uma worktree que acabou de nascer: checkout e registro.
+ *
+ * A branch fica, como no `remove` (F4.7) e como no caminho de erro do
+ * `create` — é o que o git faz com `worktree remove`, e apagar branch é um
+ * verbo que o daemon não tem.
+ */
+async function discardWorktree(
+  ctx: Context,
+  project: ProjectRow,
+  created: WorktreeRow,
+): Promise<void> {
+  await ctx.git
+    .removeWorktree({ repoPath: project.path, path: created.path, force: true })
+    .catch(() => {});
+  await createWorktreeRepository(ctx.db)
+    .remove(created.id)
+    .catch(() => {});
+  ctx.events.emit({ type: "worktree.changed", projectId: project.id });
+}
+
 
 export const worktreeRouter = router({
   listByProject: publicProcedure
@@ -510,91 +701,79 @@ export const worktreeRouter = router({
     .mutation(({ ctx, input }) =>
       domainSafeAsync(async () => {
         const project = await requireProject(ctx, input.projectId);
+        const created = await createWorktreeCore(ctx, project, input, { startSetup: true });
+        return withPresence(created);
+      }),
+    ),
 
-        // F6.13. Without a commit there is nothing to cut from: the branch
-        // exists as a name and not as a commit, and git answers "invalid
-        // reference", which explains nothing. The screen avoids it, the server
-        // forbids it — and a repository cloned empty is legitimate (Q19), so
-        // this is a state a project can simply be in for a while.
-        if (!(await ctx.git.hasCommits(project.path))) {
-          throw new DomainError(
-            "BLOCKED",
-            `o repositório ${project.name} ainda não tem nenhum commit — faça o primeiro para poder cortar worktrees`,
+  /**
+   * Criar worktree **é** abrir agente com prompt (`033` §3.3, F4).
+   *
+   * Síncrono até a sessão existir — worktree, agente no modelo pedido, prompt
+   * gravado — e devolve; o `setup` e o primeiro turno correm em segundo plano,
+   * porque um `pnpm install` é de minutos e a aba da conversa tem que abrir na
+   * frente, dizendo *"preparando worktree…"*. O encadeamento é do daemon, e não
+   * da tela, porque a espera pode durar mais que a aba (Q6).
+   */
+  start: publicProcedure
+    .input(
+      z.object({
+        projectId: z.string().min(1),
+        /** Ausente, sai do prompt — com sufixo se já estiver tomado. */
+        name: nameSchema.optional(),
+        from: fromSchema.optional(),
+        prompt: z.string().trim().min(1, "escreva no que você quer trabalhar"),
+        adapterId: z.string().min(1),
+        config: z.record(z.string().min(1), z.string()).optional(),
+      }),
+    )
+    .mutation(({ ctx, input }) =>
+      domainSafeAsync(async () => {
+        const project = await requireProject(ctx, input.projectId);
+        const derived =
+          input.name === undefined
+            ? await freeNameFor(ctx, project, worktreeNameFromPrompt(input.prompt))
+            : null;
+        const name = input.name ?? derived!.name;
+
+        // Sem o `setup` do caminho do `create`: quem o roda é a espera abaixo,
+        // e rodar pelos dois caminhos seria o `setup` duas vezes no mesmo
+        // checkout — o mesmo defeito que a esteira tem hoje.
+        let created;
+        try {
+          created = await createWorktreeCore(
+            ctx,
+            project,
+            { name, ...(input.from === undefined ? {} : { from: input.from }) },
+            { startSetup: false },
           );
+        } finally {
+          // Registrada ou recusada, a reserva acabou: daqui para a frente quem
+          // diz que o nome está tomado é o banco e o git.
+          derived?.release();
         }
 
-        // The same tree for a cloned project and for one registered by path:
-        // `projectHome` is a function of (workspace, project) and never of
-        // `managed` (A16). The one without a clone simply has no `repo/`.
-        const path = worktreeDir(await homeOfProject(ctx, project), input.name);
-
-        // git first. If this throws — branch taken, target occupied, repository
-        // gone — nothing has been written, which is exactly what §8 requires.
-        // The branch comes from `default_branch` as recorded when the project
-        // was added, with no fetch: F4.3 says use what is on disk.
-        // A origem, resolvida antes de escrever. Sem `from` no pedido ela é a de
-        // sempre — `new-branch` a partir da default —, byte por byte o mesmo
-        // `argv` de antes da `026-worktree-from`.
-        const { source, branch } = await resolveSource(ctx, project, input.name, input.from);
-
-        await ctx.git.addWorktree({
-          repoPath: project.path,
-          branch,
-          targetPath: path,
-          source,
-        });
-
+        let row;
         try {
-          const created = await createWorktreeRepository(ctx.db).create({
-            projectId: project.id,
-            name: input.name,
-            // Desde a Q9 estes dois podem divergir: cortar de uma branch que já
-            // existe mantém a branch e dá outro nome à worktree.
-            branch,
-            path,
+          row = await startAgentSession(ctx, {
+            scopeType: "worktree",
+            scopeId: created.id,
+            agent: { adapterId: input.adapterId },
+            ...(input.config === undefined ? {} : { config: input.config }),
           });
-          ctx.events.emit({ type: "worktree.changed", projectId: project.id });
-
-          // A tarefa passa a apontar para o checkout. Depois do registro, e não
-          // antes: uma tarefa apontando para uma worktree que o banco ainda não
-          // tem é um ponteiro que o estrangeiro recusa.
-          if (input.taskId !== undefined) {
-            const linked = await createTaskRepository(ctx.db).attachWorktree(
-              input.taskId,
-              created.id,
-            );
-            ctx.events.emit({ type: "task.changed", workspaceId: linked.workspaceId });
-          }
-
-          // O setup do projeto, se houver (project-scripts S3).
-          //
-          // **Em segundo plano, e sem await**: criar worktree é uma operação de
-          // segundos e o `pnpm install` é de minutos. Esperar transformaria o
-          // gesto mais comum do produto numa barra de progresso, e a conversa
-          // com o agente ficaria bloqueada por uma preparação que ela não usa
-          // ainda. Quem acompanha é a aba `Setup` do rodapé.
-          //
-          // Falhar aqui **não desfaz nada** (S4): a worktree existe, funciona, e
-          // o que ela não tem é preparo — desfazer seria apagar diretório por
-          // causa de rede ruim.
-          void ctx.scripts
-            .start({ scopeType: "worktree", scopeId: created.id }, "setup")
-            .catch(() => {
-              // Sem setup declarado, ou projeto ainda não confiado: os dois são
-              // estados legítimos, e nenhum deles é assunto de quem criou a
-              // worktree. O rodapé conta a história.
-            });
-
-          return withPresence(created);
         } catch (error) {
-          // The registry refused what git already did — a duplicate name that
-          // git had no opinion about. Leaving the checkout would produce a
-          // directory the daemon does not know about and cannot clean up.
-          await ctx.git
-            .removeWorktree({ repoPath: project.path, path, force: true })
-            .catch(() => {});
+          // F4.8: a worktree nasceu para esta conversa, e sem ela é uma
+          // worktree que ninguém pediu. O `startAgentSession` já não deixou
+          // processo vivo; aqui sai o checkout e o registro.
+          await discardWorktree(ctx, project, created);
           throw error;
         }
+
+        await createSessionRepository(ctx.db).setPendingPrompt(row.id, input.prompt);
+        ctx.events.emit({ type: "session.changed", scopeType: "worktree", scopeId: created.id });
+
+        void deliverPending(ctx, row.id);
+        return { worktreeId: created.id, sessionId: row.id };
       }),
     ),
 

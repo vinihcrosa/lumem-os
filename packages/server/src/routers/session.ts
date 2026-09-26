@@ -1,15 +1,15 @@
 import { z } from "zod";
 
-import { isCommandAvailable } from "../agents/availability.js";
-import { adapterCommandForConfig } from "../setup/adapter-command.js";
 import type { SessionRow } from "../db/schema.js";
 import { DomainError } from "../errors.js";
 import { asc, eq } from "drizzle-orm";
 
 import { session } from "../db/schema.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
-import { createTaskRepository } from "../repositories/task.js";
+import { createSessionRepository, type PendingReason } from "../repositories/session.js";
 import { resolveScope } from "../scope.js";
+import { deliverPending, sendPendingNow } from "../sessions/pending-prompt.js";
+import { startAgentSession } from "../sessions/start-agent-session.js";
 import { domainSafeAsync, publicProcedure, router, type Context } from "../trpc.js";
 
 /**
@@ -31,15 +31,34 @@ const sizeSchema = z.object({
   rows: z.number().int().min(1).max(5_000).optional(),
 });
 
-export interface SessionView extends SessionRow {
+export interface SessionView extends Omit<SessionRow, "pendingReason"> {
   /** Null for a shell, and for an agent whose configuration was removed. */
   agentName: string | null;
+  /**
+   * Por que o primeiro prompt (`pendingPrompt`, que vem da linha como está) não
+   * saiu sozinho — `null` enquanto ele ainda pode sair (`033` §3.3).
+   *
+   * Estreitado aqui porque a coluna é `text` e quem conhece a lista é o CHECK:
+   * a tela precisa de uma união para escrever um `switch` que o `tsc` cobra.
+   */
+  pendingReason: PendingReason | null;
 }
 
 async function toView(ctx: Context, row: SessionRow): Promise<SessionView> {
-  if (row.agentConfigId === null) return { ...row, agentName: null };
+  const pendingReason = row.pendingReason as PendingReason | null;
+  if (row.agentConfigId === null) return { ...row, pendingReason, agentName: null };
   const config = await createAgentConfigRepository(ctx.db).findById(row.agentConfigId);
-  return { ...row, agentName: config?.name ?? null };
+  return { ...row, pendingReason, agentName: config?.name ?? null };
+}
+
+/** A sessão, com o prompt esperando — ou a recusa que diz que não há nenhum. */
+async function requirePending(ctx: Context, id: string): Promise<SessionRow> {
+  const row = await ctx.sessionStore.findById(id);
+  if (!row) throw new DomainError("NOT_FOUND", `sessão ${id} não existe`);
+  if (row.pendingPrompt === null) {
+    throw new DomainError("BLOCKED", `não há prompt pendente na sessão ${id}`);
+  }
+  return row;
 }
 
 export const sessionRouter = router({
@@ -104,151 +123,87 @@ export const sessionRouter = router({
 
   createAgent: publicProcedure
     .input(
-      scopeSchema.merge(sizeSchema).extend({
-        agentConfigId: z.string().min(1),
-        /**
-         * Para qual tarefa esta conversa existe (`022` F2).
-         *
-         * Opcional: tarefa não é obrigatória para abrir uma sessão (T1), e o
-         * caminho `＋ nova sessão` continua sem nenhuma.
+      scopeSchema
+        .merge(sizeSchema)
+        .extend({
+          /**
+           * Quem sobe: uma configuração que já existe **ou** um adaptador do
+           * catálogo (`033` §3.2) — exatamente um dos dois, conferido abaixo.
+           *
+           * O adaptador é o caminho da tela nova, que escolhe agente e modelo
+           * antes de existir sessão; a configuração é o de sempre, e o da
+           * esteira.
+           */
+          agentConfigId: z.string().min(1).optional(),
+          adapterId: z.string().min(1).optional(),
+          /**
+           * `optionId → valor`, aplicado antes de devolver — `mode` primeiro.
+           *
+           * Um valor que o agente não oferece **recusa a criação** e fecha a
+           * sessão: nascer calada no modelo padrão seria gastar no que ninguém
+           * escolheu.
+           */
+          config: z.record(z.string().min(1), z.string()).optional(),
+          /**
+           * Para qual tarefa esta conversa existe (`022` F2).
+           *
+           * Opcional: tarefa não é obrigatória para abrir uma sessão (T1), e o
+           * caminho `＋ nova sessão` continua sem nenhuma.
+           */
+          taskId: z.string().min(1).optional(),
+          /**
+           * A sessão **nasce** sem ninguém para responder permissão (`028` Parte 2).
+           *
+           * É a esteira, e só ela: uma conversa que você abre tem você do outro
+           * lado, e é por isso que ninguém nasce liberado — a
+           * [`016`](../../../../docs/features/016-session-mode/prd.md) é explícita.
+           * Aqui não há lado de lá, e o daemon parado em `ask` pendura o turno
+           * para sempre.
+           *
+           * **Nascer, e não trocar**: o portão do `016` continua valendo inteiro
+           * para mudar o modo de uma sessão viva, que é o que ele protege.
+           *
+           * **E só o daemon liga**, o que é conferido no `startAgentSession` e
+           * não afirmado aqui: escrito como comentário, ele não impedia um
+           * `curl` na porta local de abrir uma conversa que auto-aprova toda
+           * ferramenta — contornando por fora o portão por sessão que a `016`
+           * existe para impor.
+           */
+          autonomous: z.boolean().default(false),
+          /**
+           * Qual encaixe da esteira esta sessão serve (`028` Parte 7 — T57).
+           *
+           * Ausente em tudo que não é a esteira, e é o que a deixa ser
+           * **reencontrada**: a segunda tentativa do implementador retoma a
+           * conversa dele. Só o daemon o preenche, pelo mesmo portão do
+           * `autonomous`.
+           */
+          taskRole: z.enum(["implementador", "revisor", "testador"]).optional(),
+        })
+        /*
+         * Os dois opcionais no tipo e exclusivos aqui: um `union` do zod
+         * descreveria o mesmo, mas responderia com o erro das duas variantes
+         * empilhado, e quem mandou os dois quer ouvir uma frase só.
          */
-        taskId: z.string().min(1).optional(),
-        /**
-         * A sessão **nasce** sem ninguém para responder permissão (`028` Parte 2).
-         *
-         * É a esteira, e só ela: uma conversa que você abre tem você do outro
-         * lado, e é por isso que ninguém nasce liberado — a
-         * [`016`](../../../../docs/features/016-session-mode/prd.md) é explícita.
-         * Aqui não há lado de lá, e o daemon parado em `ask` pendura o turno
-         * para sempre.
-         *
-         * **Nascer, e não trocar**: o portão do `016` continua valendo inteiro
-         * para mudar o modo de uma sessão viva, que é o que ele protege.
-         *
-         * **E só o daemon liga**, o que é conferido abaixo e não afirmado aqui:
-         * escrito como comentário, ele não impedia um `curl` na porta local de
-         * abrir uma conversa que auto-aprova toda ferramenta — contornando por
-         * fora o portão por sessão que a `016` existe para impor.
-         */
-        autonomous: z.boolean().default(false),
-        /**
-         * Qual encaixe da esteira esta sessão serve (`028` Parte 7 — T57).
-         *
-         * Ausente em tudo que não é a esteira, e é o que a deixa ser
-         * **reencontrada**: a segunda tentativa do implementador retoma a
-         * conversa dele. Só o daemon o preenche, pelo mesmo portão do
-         * `autonomous`.
-         */
-        taskRole: z.enum(["implementador", "revisor", "testador"]).optional(),
-      }),
+        .refine((input) => (input.agentConfigId === undefined) !== (input.adapterId === undefined), {
+          message: "informe exatamente um entre agentConfigId e adapterId",
+        }),
     )
     .mutation(({ ctx, input }) =>
       domainSafeAsync(async () => {
-        /*
-         * O `autonomous` é do daemon, e a conferência é aqui.
-         *
-         * Não é autenticação — o produto é local e toda procedure é pública —, e
-         * é o que separa a porta que a esteira usa da porta que a tela usa: a
-         * tela **nunca** abre uma conversa que nasce liberada, e agora isso é
-         * uma recusa em vez de uma convenção.
-         */
-        if ((input.autonomous || input.taskRole !== undefined) && ctx.internal !== true) {
-          throw new DomainError(
-            "BLOCKED",
-            "só a esteira abre uma sessão que nasce sem quem responda permissão",
-          );
-        }
-
-        const config = await createAgentConfigRepository(ctx.db).findById(input.agentConfigId);
-        if (!config) {
-          throw new DomainError("NOT_FOUND", `configuração ${input.agentConfigId} não existe`);
-        }
-
-        /*
-         * O que lançar, resolvido **agora** e não lido da coluna.
-         *
-         * A `agent_config.command` guarda o caminho absoluto que alguém resolveu no
-         * dia em que a linha nasceu, e o router não tem `update`: nesta máquina, uma
-         * linha de 2026-08-30 apontava para o `claude-agent-acp` global — `0.40.0` —
-         * enquanto o pino dizia `0.75.1`, e nenhuma instalação gerenciada correta
-         * teria desalojado ela. Para transporte ACP, quem decide é a spec; para PTY,
-         * o comando continua sendo o que a configuração diz, porque um shell não é
-         * adaptador. [ADR de
-         * 2026-09-08](../../../../docs/adr/2026-09-08-0507-adapter-is-the-copy-the-daemon-owns.md).
-         */
-        const command = adapterCommandForConfig(config, ctx.config.stateDir);
-
-        // F6.5: refused before the spawn. node-pty does not fail for a missing
-        // binary — it produces a terminal that exits 1 in silence, which the
-        // user reads as the agent crashing rather than as not being installed.
-        if (!isCommandAvailable(command)) {
-          throw new DomainError(
-            "BLOCKED",
-            // Duas frases porque são dois casos: um caminho absoluto que não é
-            // executável é um arquivo, e dizer "não está no PATH" sobre ele
-            // mandaria a pessoa procurar no lugar errado.
-            command.includes("/")
-              ? `"${command}" não é executável; a configuração "${config.name}" está indisponível`
-              : `"${command}" não está no PATH do servidor; a configuração "${config.name}" está indisponível`,
-          );
-        }
-
-        // Project scope is allowed on purpose (F5.2, decision WS-Q15): asking
-        // an agent about the repository does not need a branch.
-        const { cwd } = await resolveScope(ctx, input.scopeType, input.scopeId);
-
-        const row = await ctx.sessionStore.start({
-          kind: "agent",
-          agentConfigId: config.id,
+        const row = await startAgentSession(ctx, {
           scopeType: input.scopeType,
           scopeId: input.scopeId,
-          cwd,
-          command,
-          args: config.args,
-          // F5.5: the daemon's environment plus what the configuration declares.
-          env: config.env,
-          // Read from the configuration that was just validated, and passed on
-          // rather than re-read downstream: two reads could disagree if the
-          // configuration changed in between, and the session would then be one
-          // thing in the row and another in the manager.
-          transport: config.transport === "acp" ? "acp" : "pty",
-          adapterVersion: config.adapterVersion,
-          // Nasce liberada só quando quem chamou disse que não há ninguém do
-          // outro lado. O default é `false`, então toda conversa que a tela
-          // abre continua herdando o workspace — e nenhum workspace é `free`.
-          // Duas coisas, e são duas de propósito: a política com que ela nasce
-          // (não há ninguém para responder permissão) e **quem a empurra**, que
-          // é o que faz o teto do workspace parar em vez de avisar (Q45).
-          ...(input.autonomous
-            ? { lumemMode: "free" as const, driver: "conveyor" as const }
-            : {}),
+          agent:
+            input.agentConfigId === undefined
+              ? { adapterId: input.adapterId! }
+              : { agentConfigId: input.agentConfigId },
+          ...(input.config === undefined ? {} : { config: input.config }),
+          ...(input.taskId === undefined ? {} : { taskId: input.taskId }),
+          ...(input.taskRole === undefined ? {} : { taskRole: input.taskRole }),
+          autonomous: input.autonomous,
           ...(input.cols === undefined ? {} : { cols: input.cols }),
           ...(input.rows === undefined ? {} : { rows: input.rows }),
-        });
-        /*
-         * A ligação com a tarefa é escrita **depois** do spawn, e é de propósito.
-         *
-         * Uma linha com `task_id` de uma sessão que não chegou a existir seria a
-         * tarefa dizendo que alguém trabalhou nela quando ninguém trabalhou — e
-         * `in_progress` é derivado justamente daqui. O `start` é quem pode
-         * falhar; a coluna não.
-         */
-        if (input.taskId !== undefined) {
-          await ctx.db
-            .update(session)
-            .set({
-              taskId: input.taskId,
-              ...(input.taskRole === undefined ? {} : { taskRole: input.taskRole }),
-            })
-            .where(eq(session.id, row.id));
-          const linked = await createTaskRepository(ctx.db).get(input.taskId);
-          if (linked) ctx.events.emit({ type: "task.changed", workspaceId: linked.workspaceId });
-        }
-
-        ctx.events.emit({
-          type: "session.changed",
-          scopeType: input.scopeType,
-          scopeId: input.scopeId,
         });
         return toView(ctx, row);
       }),
@@ -280,9 +235,54 @@ export const sessionRouter = router({
         scopeType: row.scopeType as "project" | "worktree",
         scopeId: row.scopeId,
       });
+      /*
+       * A sessão cujo primeiro prompt o daemon perdeu no meio do `setup` (`033`
+       * M2a) volta para a mesma máquina: prepara o checkout e manda. Um
+       * `setup` que já tinha falhado continua esperando a pessoa — quem decide
+       * isso é o próprio `deliverPending`, que não roda nada quando há motivo.
+       */
+      if (row.pendingPrompt !== null) void deliverPending(ctx, row.id);
       return toView(ctx, row);
     }),
   ),
+
+  /**
+   * Manda o primeiro prompt que ficou esperando (`033` §3.3, F4.6).
+   *
+   * É o `mandar assim mesmo` depois de um `setup` que falhou: manda, e não
+   * tenta o `setup` de novo — quem quer outra rodada tem a aba Setup do rodapé.
+   * Devolve antes de o turno acabar; a pendência zera quando o turno entra na
+   * conversa, e o `session.changed` diz quando.
+   */
+  sendPending: publicProcedure.input(z.object({ id: z.string().min(1) })).mutation(({ ctx, input }) =>
+    domainSafeAsync(async () => {
+      const row = await requirePending(ctx, input.id);
+      sendPendingNow(ctx, row);
+      return toView(ctx, row);
+    }),
+  ),
+
+  /**
+   * Descarta o primeiro prompt sem mandar (`033` §3.3).
+   *
+   * O texto não se perde por isso: é o `editar` da tela, que o devolve ao
+   * compositor antes de chamar isto. Vale também durante o `setup` — o exit
+   * que chegar depois relê a linha e não manda nada.
+   */
+  discardPending: publicProcedure
+    .input(z.object({ id: z.string().min(1) }))
+    .mutation(({ ctx, input }) =>
+      domainSafeAsync(async () => {
+        const row = await requirePending(ctx, input.id);
+        await createSessionRepository(ctx.db).clearPending(row.id);
+        ctx.events.emit({
+          type: "session.changed",
+          scopeType: row.scopeType as "project" | "worktree",
+          scopeId: row.scopeId,
+        });
+        return toView(ctx, (await ctx.sessionStore.findById(row.id)) ?? row);
+      }),
+    ),
 
   close: publicProcedure.input(z.object({ id: z.string().min(1) })).mutation(({ ctx, input }) =>
     domainSafeAsync(async () => {

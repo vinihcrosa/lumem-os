@@ -3,6 +3,9 @@ import type { AcpServerMessage } from "@lumem/shared";
 import { Banner, Button, Glyph } from "../../ui/index.js";
 import { type AcpConnect } from "./acp-socket.js";
 import { Composer } from "./Composer.js";
+import { PendingConversation } from "./PendingConversation.js";
+import { PendingPrompt } from "./PendingPrompt.js";
+import { useSessionDetail } from "./queries.js";
 import { Transcript } from "./Transcript.js";
 import { useConversationSession } from "./useConversationSession.js";
 
@@ -82,6 +85,35 @@ export function Conversation({
   );
   const { conversation, session, failure } = state;
 
+  /*
+   * O primeiro prompt segurado pelo `setup` (`033` T21, §3.3).
+   *
+   * `pendingPrompt`/`pendingReason` moram na linha, não no protocolo ACP — a
+   * conversa nunca teve turno para carregá-los, então não há frame do
+   * adaptador que os traga. E "nunca teve turno" é lido do socket já anexado
+   * (`conversation.turns`), e não só da linha: o instante em que o primeiro
+   * turno chega — pelo mesmo prompt que acabou de sair, ou por uma retomada —
+   * a pendência deixa de importar, mesmo que esta leitura ainda não tenha
+   * alcançado a mudança.
+   */
+  const detail = useSessionDetail(sessionId);
+  const row = conversation.turns.length === 0 ? detail.data : undefined;
+
+  const composer = (
+    <Composer
+      sessionId={sessionId}
+      conversation={conversation}
+      session={session}
+      attached={attached}
+      readOnly={readOnly}
+      active={active}
+      send={send}
+      cancel={cancel}
+      setMode={setMode}
+      setConfig={setConfig}
+    />
+  );
+
   return (
     <div className="conv">
       <div className="conv__head">
@@ -117,20 +149,28 @@ export function Conversation({
         </div>
       )}
 
-      <Transcript conversation={conversation} session={session} failure={failure} readOnly={readOnly} answer={answer} />
-
-      <Composer
-        sessionId={sessionId}
-        conversation={conversation}
-        session={session}
-        attached={attached}
-        readOnly={readOnly}
-        active={active}
-        send={send}
-        cancel={cancel}
-        setMode={setMode}
-        setConfig={setConfig}
-      />
+      {row !== undefined && row.pendingPrompt !== null ? (
+        readOnly ? (
+          <>
+            <div className="conv__scroll">
+              <PendingPrompt prompt={row.pendingPrompt} reason={row.pendingReason} dead />
+            </div>
+            {composer}
+          </>
+        ) : (
+          <PendingConversation
+            sessionId={sessionId}
+            prompt={row.pendingPrompt}
+            reason={row.pendingReason}
+            detail={row.pendingDetail}
+          />
+        )
+      ) : (
+        <>
+          <Transcript conversation={conversation} session={session} failure={failure} readOnly={readOnly} answer={answer} />
+          {composer}
+        </>
+      )}
     </div>
   );
 }

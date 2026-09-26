@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNotNull } from "drizzle-orm";
 
 import type { LumemMode } from "@lumem/shared";
 
@@ -34,10 +34,38 @@ export type ScriptPhase = "setup" | "run" | "test" | "teardown";
 export type ScopeType = "project" | "worktree";
 export type SessionState = "running" | "exited";
 
-export interface CreateSessionInput {
+/**
+ * Por que o primeiro prompt não saiu sozinho (`033` §3.3) — a lista do CHECK
+ * `session_pending_reason`, e só ela.
+ *
+ * Um motivo só por enquanto, e união mesmo assim: é o que faz a tela escrever
+ * um `switch` que o `tsc` cobra quando o segundo chegar.
+ */
+export type PendingReason = "setup_failed";
+
+/**
+ * What a session is, decided at birth and never changed (D1) — and, since the
+ * [ADR de 2026-09-24](../../../../docs/adr/2026-09-24-1620-agent-is-always-acp.md),
+ * decided by the kind: an agent is ACP, a shell or a script is PTY.
+ *
+ * A union rather than a CHECK because the column cannot say it: the agent rows
+ * that ran on PTY before the ADR are history and stay readable, so the database
+ * has to keep accepting `agent` + `pty` in what it already holds. What must stop
+ * is writing a new one, and that is a thing only the type can refuse.
+ */
+export type CreateSessionInput = CreateSessionFields &
+  (
+    | { kind: "agent"; transport: "acp" }
+    /**
+     * Defaulted rather than required: every caller written before ACP existed
+     * meant `pty`, and the row it produces has to keep meaning that.
+     */
+    | { kind: Exclude<SessionKind, "agent">; transport?: "pty" }
+  );
+
+interface CreateSessionFields {
   /** The manager's own id. One identity for the process and its record. */
   id: string;
-  kind: SessionKind;
   /** Required for `kind: "script"`, forbidden for the others — the CHECK agrees. */
   scriptName?: ScriptPhase | null;
   agentConfigId?: string | null;
@@ -46,13 +74,6 @@ export interface CreateSessionInput {
   cwd: string;
   /** What was actually launched, so the detail view never has to guess. */
   command: string;
-  /**
-   * What this session is, decided at birth and never changed (D1).
-   *
-   * Defaulted rather than required: every caller written before ACP existed
-   * meant `pty`, and the row it produces has to keep meaning that.
-   */
-  transport?: "pty" | "acp";
   /** The adapter's own session id. Only an ACP session has one. */
   acpSessionId?: string | null;
   /** Mode and model as the protocol reported them at creation. */
@@ -70,6 +91,14 @@ export interface CreateSessionInput {
   lumemMode?: LumemMode;
   /** The session this one continues, when it was born by resuming (D12). */
   resumedFromId?: string | null;
+  /**
+   * O primeiro prompt que ainda não saiu, quando a linha nasce herdando um
+   * (`033` M2a): retomar a sessão cujo `setup` o daemon perdeu leva o texto
+   * junto, e o motivo, se já havia um.
+   */
+  pendingPrompt?: string | null;
+  pendingReason?: PendingReason | null;
+  pendingDetail?: string | null;
 }
 
 export interface SessionRepository {
@@ -102,6 +131,22 @@ export interface SessionRepository {
    */
   markAllRunningExited(): Promise<number>;
   remove(id: string): Promise<void>;
+  /**
+   * O primeiro prompt, gravado para esperar o `setup` (`033` §3.3).
+   *
+   * Sem escopo de `running`, ao contrário do `setConfig`, e as três de
+   * propósito: o texto é trabalho de alguém, e ele continua sendo depois de a
+   * sessão morrer — a linha morta é onde ele fica para ser copiado ou levado
+   * adiante pela retomada.
+   */
+  setPendingPrompt(id: string, prompt: string): Promise<void>;
+  /**
+   * O motivo, e só se ainda houver prompt: um descarte que chegou enquanto o
+   * `setup` rodava não pode ser desfeito pelo exit dele.
+   */
+  markPendingFailed(id: string, reason: PendingReason, detail: string): Promise<void>;
+  /** Zera tudo — o prompt saiu, ou foi descartado. */
+  clearPending(id: string): Promise<void>;
 }
 
 const CONSTRAINTS: ConstraintMap = {
@@ -219,6 +264,27 @@ export function createSessionRepository(db: Db): SessionRepository {
     async remove(id) {
       const removed = await db.delete(session).where(eq(session.id, id)).returning();
       if (removed.length === 0) throw new DomainError("NOT_FOUND", `sessão ${id} não existe`);
+    },
+
+    async setPendingPrompt(id, prompt) {
+      await db
+        .update(session)
+        .set({ pendingPrompt: prompt, pendingReason: null, pendingDetail: null, updatedAt: new Date() })
+        .where(eq(session.id, id));
+    },
+
+    async markPendingFailed(id, reason, detail) {
+      await db
+        .update(session)
+        .set({ pendingReason: reason, pendingDetail: detail, updatedAt: new Date() })
+        .where(and(eq(session.id, id), isNotNull(session.pendingPrompt)));
+    },
+
+    async clearPending(id) {
+      await db
+        .update(session)
+        .set({ pendingPrompt: null, pendingReason: null, pendingDetail: null, updatedAt: new Date() })
+        .where(eq(session.id, id));
     },
   };
 }

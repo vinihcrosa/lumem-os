@@ -60,6 +60,20 @@ export const NO_HOST_ORIGINS = {
   pulls: { items: [], failure: null, readAt: null },
 };
 
+/**
+ * A sessão sem prompt nenhum esperando — o estado normal de toda conversa.
+ *
+ * Default do mock pelo mesmo motivo dos outros: a `Conversation` consulta
+ * `session.getDetail` no `mount` desde a `033` T21 (`pendingPrompt` mora na
+ * linha, não no protocolo ACP), e um teste que fala de outra coisa não pode
+ * quebrar por causa disso.
+ */
+export const NO_PENDING_PROMPT = {
+  pendingPrompt: null,
+  pendingReason: null,
+  pendingDetail: null,
+};
+
 export const NO_SCRIPTS_STATUS = {
   scripts: { setup: null, run: null, test: null, teardown: null },
   file: "/repo/.lumem/project.toml",
@@ -154,12 +168,22 @@ function createTrpcMock() {
       branches: { query: vi.fn() },
       hostOrigins: { query: vi.fn() },
       create: { mutate: vi.fn() },
+      // Criar worktree é compor o primeiro prompt (`033` T20, F4).
+      start: { mutate: vi.fn() },
       remove: { mutate: vi.fn() },
     },
     agentConfig: {
       list: { query: vi.fn() },
       create: { mutate: vi.fn() },
       remove: { mutate: vi.fn() },
+    },
+    /**
+     * O catálogo de adaptador (`033` §3.1), lido pela aba rascunho antes de
+     * existir sessão. Faltava aqui pela mesma razão do comentário no topo do
+     * arquivo: nada o chamava até a T18 ligar o rascunho ao daemon.
+     */
+    adapterCatalog: {
+      list: { query: vi.fn() },
     },
     files: {
       listDir: { query: vi.fn() },
@@ -237,6 +261,9 @@ function createTrpcMock() {
       transcript: { query: vi.fn() },
       resume: { mutate: vi.fn() },
       close: { mutate: vi.fn() },
+      // O prompt pendente (`033` T21) — `mandar assim mesmo` e `editar`.
+      sendPending: { mutate: vi.fn() },
+      discardPending: { mutate: vi.fn() },
     },
     pr: {
       getByWorktree: { query: vi.fn().mockResolvedValue(NO_PULL_REQUEST) },
@@ -284,6 +311,7 @@ export const trpcMock: TrpcMock = createTrpcMock();
  * projeto quando uma tela nova passa a consultar o daemon no `mount`.
  */
 export function installTrpcDefaults(mock: TrpcMock = trpcMock): void {
+  mock.session.getDetail.query.mockResolvedValue(NO_PENDING_PROMPT);
   mock.usage.byProject.query.mockResolvedValue([]);
   mock.usage.byWorktree.query.mockResolvedValue({
     worktrees: [],

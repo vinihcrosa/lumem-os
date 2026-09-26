@@ -131,7 +131,6 @@ test.beforeEach(async ({ request }) => {
     name: AGENT,
     command: process.execPath,
     args: [E2E_FAKE_ACP_AGENT],
-    transport: "acp",
     adapterVersion: "0.0.0-fake",
   });
 });

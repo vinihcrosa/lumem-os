@@ -20,6 +20,7 @@ import {
   Menu,
   MenuItem,
   MetaGrid,
+  Modal,
   RawOutput,
   Row,
   SectionHead,
@@ -592,5 +593,63 @@ export const Menus: Story = {
         shell de login
       </MenuItem>
     </Menu>
+  ),
+};
+
+/**
+ * O prompt da story do modal largo: um pedido de verdade, do tamanho que um
+ * pedido de verdade tem. É ele que mede o token — `--size-dialog-wide` foi
+ * escolhido olhando estas linhas quebrarem, não por aritmética.
+ */
+const WIDE_PROMPT =
+  "O login quebra no Safari quando a sessão expira no meio de um formulário: o redirect para " +
+  "/login perde o parâmetro `next`, e quem volta cai na home em vez de voltar para onde estava. " +
+  "Reproduzir primeiro com o Safari 18 e o cookie de sessão encurtado para um minuto, e escrever o " +
+  "teste que falha antes de mexer em qualquer coisa.\n\n" +
+  "O que eu já sei: o middleware de autenticação monta a URL de volta a partir do `referer`, e o " +
+  "Safari não manda `referer` em navegação que atravessa um redirect 302 com política estrita. O " +
+  "Chrome manda, e é por isso que ninguém viu até agora. A correção provável é carregar o `next` " +
+  "num campo escondido do formulário em vez de confiar no cabeçalho.\n\n" +
+  "Não mexer no fluxo de OAuth — ele tem o próprio `state` e está fora disto. Se a mudança pedir " +
+  "migração de banco, pare e me pergunte antes. No fim, rode a suíte de autenticação inteira e " +
+  "me diga quais testes você acrescentou e o que cada um prova.";
+
+export const ModalWide: Story = {
+  name: "Modal largo",
+  render: () => (
+    <Modal
+      open
+      size="wide"
+      title="Nova worktree"
+      onClose={() => undefined}
+      header={
+        <div className="sg__inline">
+          <Button size="sm">
+            <Glyph tone="project">■</Glyph> lumem-os ▾
+          </Button>
+          <Button size="sm">…</Button>
+          <Button size="sm">
+            <Glyph tone="worktree">◇</Glyph> de main ▾
+          </Button>
+        </div>
+      }
+      footer={<Button variant="primary">Create ↵</Button>}
+    >
+      {/*
+        A caixa do composer da conversa, com as classes dela: é contra ela que
+        o porte se mede (§3.7), e uma caixa desenhada só para a story mediria
+        outra coisa.
+      */}
+      <div className="composer__box">
+        <textarea
+          className="composer__in"
+          aria-label="No que você quer trabalhar?"
+          placeholder="No que você quer trabalhar?"
+          rows={12}
+          defaultValue={WIDE_PROMPT}
+          data-modal-focus
+        />
+      </div>
+    </Modal>
   ),
 };

@@ -2,7 +2,15 @@ import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { routeOf } from "./route.js";
-import { arrive, clear, consumeArrival, select, useNavigation } from "./navigation.js";
+import {
+  arrive,
+  arriveDraft,
+  clear,
+  consumeArrival,
+  consumePendingDraft,
+  select,
+  useNavigation,
+} from "./navigation.js";
 
 /**
  * O store da navegação, e a regra que ele existe para não deixar discordar de
@@ -86,6 +94,58 @@ describe("clear", () => {
 
     expect(result.current.selection).toBeNull();
     expect(result.current.arrival).toBeNull();
+  });
+
+  it("zera o rascunho pendente junto — mesma regra do achado 10", () => {
+    const { result } = renderHook(() => useNavigation());
+    act(() => select({ projectId: "p-1", scope: { scopeType: "project", scopeId: "p-1" } }));
+    act(() => arriveDraft({ scopeType: "worktree", scopeId: "w-9" }, "não deixa vazar"));
+
+    act(() => clear());
+
+    expect(result.current.pendingDraft).toBeNull();
+  });
+});
+
+describe("arriveDraft e consumePendingDraft", () => {
+  it("guarda o rascunho pendente, lido pelo store", () => {
+    const { result } = renderHook(() => useNavigation());
+
+    act(() => arriveDraft({ scopeType: "worktree", scopeId: "w-9" }, "continuar dali"));
+
+    expect(result.current.pendingDraft).toEqual({
+      scope: { scopeType: "worktree", scopeId: "w-9" },
+      text: "continuar dali",
+    });
+  });
+
+  it("consome e devolve o texto, uma vez", () => {
+    act(() => arriveDraft({ scopeType: "worktree", scopeId: "w-9" }, "olha isso"));
+
+    const first = consumePendingDraft({ scopeType: "worktree", scopeId: "w-9" });
+    expect(first).toBe("olha isso");
+
+    // A segunda chamada, para o mesmo escopo, não vê mais nada.
+    expect(consumePendingDraft({ scopeType: "worktree", scopeId: "w-9" })).toBeNull();
+  });
+
+  it("devolve null para um escopo sem rascunho pendente", () => {
+    act(() => arriveDraft({ scopeType: "worktree", scopeId: "w-9" }, "olha isso"));
+
+    expect(consumePendingDraft({ scopeType: "worktree", scopeId: "w-10" })).toBeNull();
+    // E o de `w-9` continua lá — o de outro escopo não o consome por engano.
+    expect(consumePendingDraft({ scopeType: "worktree", scopeId: "w-9" })).toBe("olha isso");
+  });
+
+  it("limpa o store depois de consumido, para quem está inscrito", () => {
+    const { result } = renderHook(() => useNavigation());
+    act(() => arriveDraft({ scopeType: "worktree", scopeId: "w-9" }, "olha isso"));
+
+    act(() => {
+      consumePendingDraft({ scopeType: "worktree", scopeId: "w-9" });
+    });
+
+    expect(result.current.pendingDraft).toBeNull();
   });
 });
 

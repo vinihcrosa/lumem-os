@@ -4,6 +4,7 @@ import { useEffect } from "react";
 
 import { trpc } from "../lib/trpc.js";
 import {
+  ADAPTER_CATALOG_PREFIX,
   CHANGES_PREFIX,
   FILES_PREFIX,
   PR_PREFIX,
@@ -15,6 +16,7 @@ import {
   WORKSPACES_KEY,
   WORKTREE_PREFIX,
   projectsKey,
+  scriptsKey,
   sessionsKey,
   tasksKey,
   worktreesKey,
@@ -62,6 +64,12 @@ export function invalidateFor(queryClient: QueryClient, event: LumemEvent): void
         queryKey: sessionsKey(event.scopeType, event.scopeId),
       });
       void queryClient.invalidateQueries({ queryKey: SESSION_PREFIX });
+      // `setup`, `run` e `test` são sessões deste escopo: sem esta linha o rodapé
+      // só as via nascer pelo polling, que só corre com uma fase já rodando
+      // (`033` §6, defeito 4).
+      void queryClient.invalidateQueries({
+        queryKey: scriptsKey(event.scopeType, event.scopeId),
+      });
       return;
     case "task.changed":
       // Prefixo, e não a chave exata: a lista é filtrada por status e por
@@ -81,6 +89,15 @@ export function invalidateFor(queryClient: QueryClient, event: LumemEvent): void
        */
       void queryClient.invalidateQueries({ queryKey: TASK_BOARD_PREFIX });
       void queryClient.invalidateQueries({ queryKey: TASK_SETTINGS_PREFIX });
+      return;
+    case "catalog.changed":
+      /*
+       * Prefixo, e não `adapterCatalogKey(p)`: o evento diz o ACP, e os comandos
+       * do catálogo são por projeto — um `available_commands_update` num projeto
+       * não diz de qual chave ele é. Sem este `case`, cada probe de aquecimento
+       * do boot cairia no `default` e recarregaria todas as consultas.
+       */
+      void queryClient.invalidateQueries({ queryKey: ADAPTER_CATALOG_PREFIX });
       return;
     default: {
       /*

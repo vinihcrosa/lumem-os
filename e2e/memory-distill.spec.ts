@@ -86,7 +86,6 @@ test("uma sessão que termina vira proposta na inbox, e aprovar vira memória", 
       name: AGENT,
       command: process.execPath,
       args: [E2E_FAKE_ACP_AGENT],
-      transport: "acp",
       adapterVersion: "0.0.0-fake",
     });
     const workspace = (await call(daemon.url, "workspace.create", { name: "destilacao" })) as {

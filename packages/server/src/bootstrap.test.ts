@@ -1,22 +1,29 @@
 import { EventEmitter } from "node:events";
-import { existsSync, mkdtempSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { CLAUDE_ADAPTER } from "@lumem/shared";
 import { sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { AcpManager } from "./acp/AcpManager.js";
+import { ADAPTER_CATALOG_FILE } from "./acp/adapter-catalog.js";
 import { bootstrap } from "./bootstrap.js";
 import { loadConfig } from "./config.js";
 import { openTestDb, type TestDb } from "./db/testing.js";
+import * as eventsModule from "./events.js";
 import { MemoryService } from "./memory/MemoryService.js";
 import { ensureMemoryHome } from "./memory/home.js";
 import { removeFixtureTree } from "./testing/git-fixtures.js";
 import { PtyManager } from "./pty/PtyManager.js";
 import { createProjectRepository } from "./repositories/project.js";
 import * as sessionStoreModule from "./sessions/SessionStore.js";
+import { adaptersDir } from "./setup/adapter-command.js";
+import { adapterBinaryPath } from "./setup/install-adapter.js";
 import * as reconcileModule from "./setup/reconcile-adapters.js";
+import { fakeAgentProcess } from "./testing/acp-fake-agent.js";
 import { createWorkspaceRepository } from "./repositories/workspace.js";
 import { createWorktreeRepository } from "./repositories/worktree.js";
 import { SHUTDOWN_SIGNALS } from "./signals.js";
@@ -32,6 +39,7 @@ async function boot(
     port?: string;
     beforeClose?: () => Promise<void>;
     ptyManager?: PtyManager;
+    acpManager?: AcpManager;
     database?: TestDb;
     stateDir?: string;
   } = {},
@@ -58,6 +66,7 @@ async function boot(
     logger: false,
     database,
     ...(overrides.ptyManager ? { ptyManager: overrides.ptyManager } : {}),
+    ...(overrides.acpManager ? { acpManager: overrides.acpManager } : {}),
     ...(overrides.beforeClose ? { beforeClose: overrides.beforeClose } : {}),
   });
   started.push(app);
@@ -271,6 +280,164 @@ describe("bootstrap", () => {
     expect(spy.mock.calls[0]?.[0].dir).toContain("adapters");
     expect((await app.inject({ method: "GET", url: "/trpc/health" })).statusCode).toBe(200);
     spy.mockRestore();
+  });
+
+  describe("o aquecimento do catálogo de adaptador (033 T8)", () => {
+    /**
+     * Um state dir onde o Claude está instalado e o Codex não.
+     *
+     * O binário é um arquivo vazio: quem decide *instalado* é `adapterCommandFor`,
+     * que só pergunta se o arquivo existe. A conferência de pino é trocada por uma
+     * lista vazia — ela leria a versão do pacote e, sem ler, tentaria o `npm`.
+     */
+    function installedClaude(): string {
+      const stateDir = join(mkdtempSync(join(tmpdir(), "lumem-boot-")), ".lumem");
+      stateDirs.push(stateDir);
+      const binary = adapterBinaryPath(adaptersDir(stateDir), CLAUDE_ADAPTER);
+      mkdirSync(join(binary, ".."), { recursive: true });
+      writeFileSync(binary, "");
+      vi.spyOn(reconcileModule, "reconcileAdapters").mockResolvedValue([]);
+      return stateDir;
+    }
+
+    /** Um manager cujo probe só anda quando o teste mandar. */
+    function gatedManager() {
+      const manager = new AcpManager({
+        spawner: () => fakeAgentProcess().process,
+        isAvailable: () => true,
+      });
+      let release: () => void = () => {};
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const real = manager.probe.bind(manager);
+      const probe = vi.spyOn(manager, "probe").mockImplementation(async (options) => {
+        await gate;
+        return real(options);
+      });
+      return { manager, probe, release };
+    }
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("o boot não espera o probe, e o probe alimenta o catálogo depois", async () => {
+      const stateDir = installedClaude();
+      const { manager, probe, release } = gatedManager();
+      const createBus = eventsModule.createEventBus;
+      const buses: ReturnType<typeof createBus>[] = [];
+      vi.spyOn(eventsModule, "createEventBus").mockImplementation(() => {
+        const bus = createBus();
+        vi.spyOn(bus, "emit");
+        buses.push(bus);
+        return bus;
+      });
+      const catalogFile = join(stateDir, ADAPTER_CATALOG_FILE);
+
+      // O portão está fechado: se o boot esperasse o probe, isto nunca voltaria.
+      const { app } = await boot({ stateDir, acpManager: manager });
+
+      expect(app.server.listening).toBe(true);
+      // Só o instalado: o Codex não tem cópia gerenciada, e sondar o que não
+      // existe é o `NOT_FOUND` que o `adapterCommandFor` já diz.
+      expect(probe).toHaveBeenCalledTimes(1);
+      expect(probe.mock.calls[0]?.[0]).toMatchObject({
+        command: adapterBinaryPath(adaptersDir(stateDir), CLAUDE_ADAPTER),
+        cwd: join(stateDir, "probe"),
+      });
+      expect(existsSync(catalogFile)).toBe(false);
+
+      release();
+
+      await vi.waitFor(() => {
+        const saved = JSON.parse(readFileSync(catalogFile, "utf8")) as Record<
+          string,
+          { configOptions: unknown[]; authRequired: boolean | null; adapterVersion: string }
+        >;
+        expect(saved["claude"]?.authRequired).toBe(false);
+        expect(saved["claude"]?.configOptions).not.toEqual([]);
+        expect(saved["claude"]?.adapterVersion).toBe(CLAUDE_ADAPTER.pinnedVersion);
+      });
+      // E a tela fica sabendo pelo mesmo bus que as outras listas usam.
+      expect(buses[0]?.emit).toHaveBeenCalledWith({ type: "catalog.changed", adapterId: "claude" });
+    });
+
+    it("não sonda de novo o adaptador que o catálogo já conhece no pino", async () => {
+      const stateDir = installedClaude();
+      mkdirSync(join(stateDir, "_system"), { recursive: true });
+      writeFileSync(
+        join(stateDir, ADAPTER_CATALOG_FILE),
+        JSON.stringify({
+          claude: {
+            adapterId: "claude",
+            adapterVersion: CLAUDE_ADAPTER.pinnedVersion,
+            configOptions: [],
+            optionsByModel: {},
+            authRequired: false,
+            commandsByProject: {},
+            capturedAt: 1,
+          },
+        }),
+      );
+      const { manager, probe } = gatedManager();
+
+      await boot({ stateDir, acpManager: manager });
+
+      expect(probe).not.toHaveBeenCalled();
+    });
+
+    it("sonda de novo o adaptador gravado sem credencial: o login pode ter vindo de fora", async () => {
+      const stateDir = installedClaude();
+      mkdirSync(join(stateDir, "_system"), { recursive: true });
+      writeFileSync(
+        join(stateDir, ADAPTER_CATALOG_FILE),
+        JSON.stringify({
+          claude: {
+            adapterId: "claude",
+            adapterVersion: CLAUDE_ADAPTER.pinnedVersion,
+            configOptions: [],
+            optionsByModel: {},
+            authRequired: true,
+            commandsByProject: {},
+            capturedAt: 1,
+          },
+        }),
+      );
+      const { manager, probe } = gatedManager();
+
+      await boot({ stateDir, acpManager: manager });
+
+      expect(probe).toHaveBeenCalledTimes(1);
+      // O aquecimento é o único chamador que percorre os modelos.
+      expect(probe.mock.calls[0]?.[1]).toEqual({ walkModels: true });
+    });
+
+    it("sonda de novo quando a entrada gravada é de outro pino", async () => {
+      // Pino trocado é adaptador outro (Q5): o `load` descarta, e sobra o mesmo
+      // caso da entrada ausente.
+      const stateDir = installedClaude();
+      mkdirSync(join(stateDir, "_system"), { recursive: true });
+      writeFileSync(
+        join(stateDir, ADAPTER_CATALOG_FILE),
+        JSON.stringify({
+          claude: {
+            adapterId: "claude",
+            adapterVersion: "0.0.1",
+            configOptions: [],
+            optionsByModel: {},
+            authRequired: false,
+            commandsByProject: {},
+            capturedAt: 1,
+          },
+        }),
+      );
+      const { manager, probe } = gatedManager();
+
+      await boot({ stateDir, acpManager: manager });
+
+      expect(probe).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("exits non-zero when the port is already taken", async () => {

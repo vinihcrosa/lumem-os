@@ -256,7 +256,7 @@ describe("rodar e parar", () => {
 });
 
 describe("o projeto sem [scripts]", () => {
-  const acpAgent = { id: "cfg_1", name: "claude", transport: "acp" };
+  const acpAgent = { id: "cfg_1", name: "claude" };
 
   it("ensina o arquivo em vez de pedir desculpa", async () => {
     // O estado normal, não o excepcional: é a única superfície onde alguém
@@ -309,16 +309,6 @@ describe("o projeto sem [scripts]", () => {
 
     expect(await screen.findByRole("button", { name: "pedir para o agente criar" })).toBeDisabled();
     expect(screen.getByText(/conecte um agente/)).toBeInTheDocument();
-  });
-
-  it("agente por PTY não serve: o pedido é uma pergunta, não um terminal", async () => {
-    trpcMock.agentConfig.list.query.mockResolvedValue([
-      { id: "cfg_pty", name: "claude-code", transport: "pty" },
-    ]);
-
-    renderWithProviders(<RunDock scope={scope} dock={dock} onAskAgent={vi.fn()} />);
-
-    expect(await screen.findByRole("button", { name: "pedir para o agente criar" })).toBeDisabled();
   });
 
   it("copiar continua existindo, para quem prefere escrever à mão", async () => {

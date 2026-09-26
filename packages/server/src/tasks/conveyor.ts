@@ -360,6 +360,24 @@ export function createConveyor(
     }
 
     /*
+     * Preparo pode levar tempo. Se alguém parou o cartão ou mudou sua etapa
+     * enquanto a worktree era criada, a foto da fila que iniciou esta passada
+     * ficou velha: não abrir sessão nem gastar tentativa para um cartão que já
+     * saiu dela.
+     *
+     * O id **e o papel**: um cartão que saiu da implementação e voltou à fila
+     * como revisão continua com o mesmo id, e só o id abriria a sessão do
+     * implementador — com o agente e o prompt da foto velha — num cartão que já
+     * está em revisão.
+     */
+    const stillDue = ports
+      .queue(entry.task.workspaceId)
+      .entries.some(
+        (candidate) => candidate.task.id === entry.task.id && candidate.role === entry.role,
+      );
+    if (!stillDue) return;
+
+    /*
      * O que o revisor devolveu, e **só o implementador lê** (T58).
      *
      * É para ele que a tarefa voltou. O revisor recebendo os próprios achados de

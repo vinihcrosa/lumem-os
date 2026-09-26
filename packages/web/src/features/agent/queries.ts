@@ -3,6 +3,7 @@ import { useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
+  adapterCatalogKey,
   agentConfigsKey,
   agentProbeKey,
   authStateKey,
@@ -44,8 +45,7 @@ export function useAgentConfigMutations() {
       name: string;
       command: string;
       args: string[];
-      transport: "pty" | "acp";
-      adapterVersion?: string;
+      adapterVersion: string;
     }) => trpc.agentConfig.create.mutate(input),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: agentConfigsKey() });
@@ -184,7 +184,6 @@ export function useConnectAgent(
         name: spec.id,
         command,
         args: [],
-        transport: "acp",
         // A versão é **detectada**, nunca digitada: ela vem do handshake.
         adapterVersion: probe.agentInfo?.version ?? spec.pinnedVersion,
       });
@@ -214,19 +213,22 @@ export function useCreateHandshakeAgentConfig(
       args: readonly string[];
       agentInfo: { version: string } | null;
     }) => {
-      const already = existing?.find(
-        (config) => config.transport === "acp" && config.command === report.command,
-      );
+      const already = existing?.find((config) => config.command === report.command);
       if (already !== undefined) return already;
+
+      // O ponto todo (F3.5). Sem versão declarada pelo adaptador, recusa aqui e diz
+      // — melhor que escrever uma versão que ninguém mediu. O daemon recusaria
+      // também, mas com a frase do validador, que não diz de onde a versão viria.
+      const version = report.agentInfo?.version;
+      if (version === undefined) {
+        throw new Error("o adaptador não declarou a versão dele no handshake");
+      }
 
       return trpc.agentConfig.create.mutate({
         name: agentName,
         command: report.command,
         args: [...report.args],
-        transport: "acp",
-        // O ponto todo (F3.5). Nulo só se o adaptador não declarou versão, e aí o
-        // daemon recusa e diz — melhor que escrever uma versão que ninguém mediu.
-        adapterVersion: report.agentInfo?.version ?? null,
+        adapterVersion: version,
       });
     },
     onSuccess: async () => {
@@ -288,5 +290,21 @@ export function useCancelAuth() {
   return useMutation({
     mutationFn: (loginId: string): Promise<AgentAuthAttempt> =>
       trpc.setup.cancelAuth.mutate({ loginId }),
+  });
+}
+
+/**
+ * O catálogo de adaptador de um projeto (`033` §3.1): o que a pílula de agente e
+ * modelo e o menu `/` leem antes de existir sessão.
+ *
+ * Sem `staleTime` próprio: quem avisa que mudou é o `catalog.changed` do daemon
+ * (cada probe, cada `session/new`, cada `available_commands_update`), e o
+ * `useLiveState` invalida por ele — perguntar de novo por relógio seria pagar por
+ * uma resposta que o daemon já teria mandado.
+ */
+export function useAdapterCatalog(projectId: string | null) {
+  return useQuery({
+    queryKey: adapterCatalogKey(projectId),
+    queryFn: () => trpc.adapterCatalog.list.query(projectId === null ? undefined : { projectId }),
   });
 }

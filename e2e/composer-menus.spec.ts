@@ -5,6 +5,7 @@ import {
   createWorktree,
   ensureProject,
   ensureWorkspace,
+  openConfiguredAgent,
   openProject,
 } from "./support/app.js";
 import { E2E_FAKE_ACP_AGENT, E2E_FIXTURE_REPO_ACP } from "./support/fixtures.js";
@@ -45,12 +46,7 @@ function conversation(page: Page) {
 }
 
 async function openConversation(page: Page): Promise<void> {
-  await page.getByRole("button", { name: /nova sessão/ }).click();
-  await page.getByRole("menuitem", { name: new RegExp(`^${AGENT}\\b`) }).click();
-  await expect(conversation(page)).toBeVisible({ timeout: 20_000 });
-  await expect(conversation(page).getByText("sessão aberta, nada pedido ainda")).toBeVisible({
-    timeout: 20_000,
-  });
+  await openConfiguredAgent(page, DAEMON, AGENT);
 }
 
 async function arrive(page: Page, worktree: string): Promise<void> {
@@ -89,7 +85,6 @@ test.beforeEach(async ({ request }) => {
     name: AGENT,
     command: process.execPath,
     args: [E2E_FAKE_ACP_AGENT],
-    transport: "acp",
     adapterVersion: "0.0.0-fake",
     env: { LUMEM_FAKE_MANY_MODELS: "1" },
   });

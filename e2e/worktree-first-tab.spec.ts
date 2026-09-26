@@ -89,7 +89,7 @@ async function openOwnWorktree(page: Page): Promise<void> {
  */
 async function openShell(page: Page): Promise<void> {
   await page.getByRole("button", { name: /nova sessão/ }).click();
-  await page.getByRole("menuitem", { name: /^shell/ }).click();
+  await page.getByRole("menuitem", { name: "terminal" }).click();
   await page.getByRole("tab", { name: /^shell/ }).first().click();
   await expect(visiblePanel(page).locator(".xterm-rows")).toBeVisible({ timeout: 20_000 });
 }

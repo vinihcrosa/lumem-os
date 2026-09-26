@@ -91,7 +91,7 @@ test("walks the tree and reads a file beside the session", async ({ page }) => {
 
 test("the diff notices what the terminal wrote, in the view that owns it", async ({ page }) => {
   await page.getByRole("button", { name: /nova sessão/ }).click();
-  await page.getByRole("menuitem", { name: /^shell/ }).click();
+  await page.getByRole("menuitem", { name: "terminal" }).click();
   await expect(visiblePanel(page).locator(".xterm-rows")).toBeVisible({ timeout: 20_000 });
 
   await typeLine(page, announcing("printf 'escrito pelo terminal\\n' >> README.md", "ESCREVEU"));
@@ -128,7 +128,7 @@ test("the diff notices what the terminal wrote, in the view that owns it", async
 
 test("collapsing the column leaves the terminal with a size it can use", async ({ page }) => {
   await page.getByRole("button", { name: /nova sessão/ }).click();
-  await page.getByRole("menuitem", { name: /^shell/ }).click();
+  await page.getByRole("menuitem", { name: "terminal" }).click();
   const rows = visiblePanel(page).locator(".xterm-rows");
   await expect(rows).toBeVisible({ timeout: 20_000 });
 

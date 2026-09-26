@@ -212,15 +212,6 @@ export const agentConfig = sqliteTable(
     /** JSON object of extra environment variables. */
     env: text("env", { mode: "json" }).notNull().$type<Record<string, string>>().default({}),
     /**
-     * How the daemon talks to this agent.
-     *
-     * Defaults to `pty` so that migrating an existing row changes nothing about
-     * how it behaves (A11): every configuration that already worked was a PTY
-     * configuration, and a default of `acp` would silently re-point it at a
-     * transport it was never tested on.
-     */
-    transport: text("transport").notNull().default("pty"),
-    /**
      * The ACP adapter version, pinned.
      *
      * Never `@latest` (A12, F5.5). The adapter publishes almost daily, and one
@@ -228,17 +219,23 @@ export const agentConfig = sqliteTable(
      * invisible failure — so the version is data, and updating it is an act.
      */
     adapterVersion: text("adapter_version"),
+    /**
+     * Quando esta configuração parou de poder subir agente (`033` F1.1).
+     *
+     * Agente é sempre ACP (ADR de 2026-09-24), e a `0033` tirou o `transport`
+     * desta tabela. A linha que era PTY não é apagada — a sessão de ontem
+     * aponta para ela com `RESTRICT`, e precisa do nome para ser lida —, ela
+     * **se aposenta**: não aparece mais para escolha e não sobe nada.
+     */
+    retiredAt: integer("retired_at", { mode: "timestamp_ms" }),
     ...timestamps,
   },
   (table) => [
-    check("agent_config_transport", sql`${table.transport} IN ('pty', 'acp')`),
-    // Both directions. An ACP row with no version cannot be launched
-    // reproducibly; a PTY row with one makes a claim about something it never
-    // runs, and the next reader has no way to tell that it is noise.
+    // A live row with no version cannot be launched reproducibly. A retired one
+    // never had a version — it was a PTY row — and launches nothing.
     check(
       "agent_config_adapter_version",
-      sql`(${table.transport} = 'acp' AND ${table.adapterVersion} IS NOT NULL)
-        OR (${table.transport} = 'pty' AND ${table.adapterVersion} IS NULL)`,
+      sql`${table.retiredAt} IS NOT NULL OR ${table.adapterVersion} IS NOT NULL`,
     ),
   ],
 );
@@ -346,6 +343,27 @@ export const session = sqliteTable(
      * responderia errado sobre uma sessão de ontem.
      */
     taskRole: text("task_role"),
+    /**
+     * O primeiro prompt, esperando o `setup` da worktree terminar (`033` §3.3).
+     *
+     * Gravado, e não segurado em memória, porque a espera dura minutos e o
+     * texto é trabalho de alguém: um daemon que reinicia no meio não pode
+     * levá-lo junto. Nulo quando não há nada esperando.
+     */
+    pendingPrompt: text("pending_prompt"),
+    /** Por que o prompt acima não saiu sozinho. Nulo enquanto ele ainda pode sair. */
+    pendingReason: text("pending_reason"),
+    /**
+     * A frase do daemon sobre **esta** falha — `o setup saiu com 1`, o teto, a
+     * recusa de confiança —, gravada junto com o `pending_reason`.
+     *
+     * Existe porque a tela inferia o motivo de `scripts.setup.last`, que é a
+     * última execução do `setup` e não necessariamente esta: nula quando ele
+     * nem rodou (projeto clonado sem confiança), de outra rodada quando alguém
+     * rerodou pela aba Setup. Quem sabe por que o prompt não saiu é quem
+     * decidiu não mandá-lo. Sem CHECK: é texto para ler, e não vocabulário.
+     */
+    pendingDetail: text("pending_detail"),
     ...timestamps,
   },
   (table) => [
@@ -395,6 +413,12 @@ export const session = sqliteTable(
     // Os três valores da política, e o `free` entra aqui — o que o workspace não
     // pode é *herdar* liberado; uma sessão pode chegar lá pelo portão.
     check("session_lumem_mode", sql`${table.lumemMode} IN ('ask', 'auto', 'free')`),
+    // Conjunto fechado: um motivo que a tela não conhece é um botão que ela
+    // não sabe desenhar.
+    check(
+      "session_pending_reason",
+      sql`${table.pendingReason} IS NULL OR ${table.pendingReason} IN ('setup_failed')`,
+    ),
   ],
 );
 

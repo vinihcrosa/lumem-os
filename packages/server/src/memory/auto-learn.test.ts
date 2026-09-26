@@ -1,14 +1,20 @@
-import { join } from "node:path";
+import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 
+import { CLAUDE_ADAPTER } from "@lumem/shared";
+import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AcpManager } from "../acp/AcpManager.js";
 import type { Db } from "../db/index.js";
+import { agentConfig } from "../db/schema.js";
 import { openTestDb, type TestDb } from "../db/testing.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
 import { createProjectRepository } from "../repositories/project.js";
 import { createSessionRepository } from "../repositories/session.js";
 import { createWorkspaceRepository } from "../repositories/workspace.js";
+import { adaptersDir } from "../setup/adapter-command.js";
+import { adapterBinaryPath } from "../setup/install-adapter.js";
 import { fakeAgentProcess } from "../testing/acp-fake-agent.js";
 import { cleanupGitFixtures, tempDir } from "../testing/git-fixtures.js";
 
@@ -55,22 +61,38 @@ interface World {
   memory: MemoryService;
   sessionId: string;
   prompts: number;
+  /** O `command` de cada `spawn`, na ordem — é o que diz qual cópia subiu. */
+  spawned: readonly string[];
+  stateDir: string;
+  configId: string;
   db: Db;
 }
 
+/** A cópia que o daemon instalou: desde 2026-09-08, a única que ele lança. */
+function stageManagedAdapter(stateDir: string): string {
+  const managed = adapterBinaryPath(adaptersDir(stateDir), CLAUDE_ADAPTER);
+  mkdirSync(dirname(managed), { recursive: true });
+  writeFileSync(managed, "#!/bin/sh\ncat\n");
+  chmodSync(managed, 0o755);
+  return managed;
+}
+
 async function world(
-  options: { answer?: string; budget?: number; enabled?: boolean } = {},
+  options: { answer?: string; budget?: number; enabled?: boolean; staged?: boolean } = {},
 ): Promise<World> {
   const stateDir = join(tempDir("lumem-autolearn-"), ".lumem");
   await ensureMemoryHome({ stateDir });
+  if (options.staged ?? true) stageManagedAdapter(stateDir);
   const database = openTestDb();
   databases.push(database);
   const db = database.db;
 
   const state = { prompts: 0 };
+  const spawned: string[] = [];
   const acpManager = new AcpManager({
-    spawner: () =>
-      fakeAgentProcess({
+    spawner: ({ command }) => {
+      spawned.push(command);
+      return fakeAgentProcess({
         prompt: async (_text, turn) => {
           state.prompts += 1;
           await turn.update({
@@ -79,7 +101,8 @@ async function world(
           });
           return "end_turn";
         },
-      }).process,
+      }).process;
+    },
     isAvailable: () => true,
     handshakeTimeoutMs: 2_000,
   });
@@ -95,7 +118,6 @@ async function world(
   const config = await createAgentConfigRepository(db).create({
     name: "claude",
     command: "claude-agent-acp",
-    transport: "acp",
     adapterVersion: "0.40.0",
   });
   const session = await createSessionRepository(db).create({
@@ -123,6 +145,9 @@ async function world(
     get prompts() {
       return state.prompts;
     },
+    spawned,
+    stateDir,
+    configId: config.id,
     db,
   } as World;
 }
@@ -206,5 +231,57 @@ describe("createAutoLearn", () => {
 
     const [usage] = memory.usageSummary().filter((row) => row.kind === "research");
     expect(usage?.events).toBe(1);
+  });
+
+  it("sobe a cópia gerenciada do adaptador, e não o comando gravado na linha", async () => {
+    const world_ = await world();
+
+    await world_.learn("qual é o endpoint?", world_.sessionId);
+
+    // A linha diz `claude-agent-acp`, um nome que o PATH resolveria; o que sobe é
+    // o binário que o daemon instalou no pino (ADR de 2026-09-08).
+    expect(world_.spawned).toEqual([adapterBinaryPath(adaptersDir(world_.stateDir), CLAUDE_ADAPTER)]);
+  });
+
+  it("sem a cópia gerenciada, degrada em vez de cair no PATH", async () => {
+    const world_ = await world({ staged: false });
+
+    const result = await world_.learn("qual é o endpoint?", world_.sessionId);
+
+    expect(result).toMatchObject({ answer: null, skipped: "degraded" });
+    expect(world_.spawned).toEqual([]);
+  });
+
+  it("a configuração aposentada de quem perguntou não pesquisa — a primeira ativa pesquisa", async () => {
+    const world_ = await world();
+    const active = await createAgentConfigRepository(world_.db).create({
+      name: "claude-ativo",
+      command: "/opt/agentes/claude-ativo",
+      adapterVersion: "1.0.0",
+    });
+    // A linha de quem perguntou é a que a `0033` aposentou (era `pty`).
+    await world_.db
+      .update(agentConfig)
+      .set({ retiredAt: new Date() })
+      .where(eq(agentConfig.id, world_.configId));
+
+    await world_.learn("qual é o endpoint?", world_.sessionId);
+
+    expect(world_.spawned).toEqual([active.command]);
+  });
+
+  it("sem sessão, pula a config que não sobe e pesquisa com a que sobe", async () => {
+    const world_ = await world();
+    // `aider` vem antes de `claude` na ordem por nome, e o comando é um nome nu.
+    await createAgentConfigRepository(world_.db).create({
+      name: "aider",
+      command: "aider-acp",
+      adapterVersion: "1.0.0",
+    });
+
+    const result = await world_.learn("qual é o endpoint?", undefined);
+
+    expect(result.skipped).toBeNull();
+    expect(world_.spawned).toEqual([adapterBinaryPath(adaptersDir(world_.stateDir), CLAUDE_ADAPTER)]);
   });
 });

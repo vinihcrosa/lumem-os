@@ -87,6 +87,23 @@ worktree. É o sinal mais barato que existe e **nenhuma das quatro referências 
 > transporte mais a tela da conversa, com PRD escrito e spike rodado. O que ficou no backlog é o que a
 > decisão empurrou para depois **dela**.
 
+### A esteira abre sessão pelo caminho novo — `P`
+
+`bootstrap.openAgentSession` ainda chama `setConfig` depois de `createAgent`, tolerante a erro. A
+[`033`](../features/033-acp-only-agents/prd.md) passou o `config` ao `createAgent`, que aplica antes
+de devolver. Unificar exige decidir o que a esteira faz quando o modelo do agente nomeado sumiu.
+
+**De onde veio:** discovery *agente é sempre ACP* (2026-09-24) · **Volta quando:** um modelo de
+agente nomeado sair do adaptador.
+
+### Retomar reaplica o effort — `P`
+
+A [`033`](../features/033-acp-only-agents/prd.md) reaplica só `model`, porque `session` não grava
+*effort*.
+
+**De onde veio:** discovery *agente é sempre ACP* (2026-09-24) · **Volta quando:** a M1 disser que o
+Claude expõe *effort* e alguém notar a retomada voltando ao padrão.
+
 ### Política de permissão do lado do Lumem — `G`
 
 Quem pergunta "posso escrever neste arquivo?" hoje é o CLI. Com ACP quem pergunta é o Lumem — e aí
@@ -220,12 +237,67 @@ quando:** a marca d'água do núcleo passar do valor que você definir.
 `SessionEnd`, `PostToolUse` e afins do Claude Code eram o plano B para enxergar dentro da sessão sem
 trocar de transporte. **O ACP entrega os mesmos eventos, padronizados.**
 
-**De onde veio:** [pty-vs-acp.md §6.2](pty-vs-acp.md) · **Volta quando:** sobrar agente rodando em
-PTY que você queira que alimente memória — e só nesse caso.
+### ~~Hooks por CLI~~ — morto em 2026-09-24
+
+O único gatilho era sobrar agente em PTY; o [ADR de 2026-09-24](../adr/2026-09-24-1620-agent-is-always-acp.md)
+encerrou esse caminho.
+
+### Anexo no prompt — o `+` do compositor — `M`, **importante**
+
+O prompt que o Lumem manda ao agente é **só texto** (`{ type: "prompt", text }`,
+`acp-protocol.ts:522`). O `+` do compositor — nas duas telas novas de abrir agente, o modal de criar
+worktree e a conversa vazia — anexaria arquivo e imagem. O ACP tem o caminho: o `AcpManager` já lê
+`promptCapabilities.image` e `.embeddedContext` no handshake, e cada adaptador declara o que aceita —
+então o `+` é por adaptador, e some ou explica quando o escolhido não aceita. Ficou fora da v1 por
+tamanho, **não por dúvida**: o Vinicius marcou como bem importante.
+
+**De onde veio:** discovery *agente é sempre ACP* (2026-09-24), Q9 — [PRD `033`](../features/033-acp-only-agents/prd.md) · **Volta
+quando:** a v1 das duas telas estiver entregue. É o primeiro item depois dela.
+
+### Sugestões de contexto na conversa vazia — `M`, **importante**
+
+A conversa vazia de referência oferece *"Add chat transcripts"* e *"Add plans"* — contexto que se
+anexa ao primeiro prompt com um clique. O análogo no Lumem: conversas anteriores da mesma worktree,
+o plano/`tasks.md` em andamento, playbooks da memória. Depende do anexo acima (é o mesmo transporte:
+colocar conteúdo no prompt **visível**, nunca injetado — a regra da `022` T6) e de decidir de onde
+vem cada sugestão. Ficou fora da v1 junto com o `+`, e com a mesma marca.
+
+**De onde veio:** discovery *agente é sempre ACP* (2026-09-24), Q9 — [PRD `033`](../features/033-acp-only-agents/prd.md) · **Volta quando:** o anexo no
+prompt existir.
+
+### `configForAdapter` num beco sem saída quando o nome colide com uma config aposentada — `P`
+
+A `0033` aposentou toda `agent_config` com `transport = 'pty'` sem olhar o nome. Se uma delas se
+chamava `claude` ou `codex` — banco em que alguém criou a config à mão, com o nome de uma spec, antes
+da T4 tirar o `transport` do `agentConfig.create` — o `configForAdapter` (que acha a config **pelo
+nome**, e o nome é `UNIQUE`) devolve a aposentada; o `createAgent` a recusa; e o daemon não consegue
+criar outra `claude`, porque o nome está tomado. Não é o caso de produção hoje. A saída mais barata,
+se acontecer: `configForAdapter` renomeia na hora a aposentada que colide (ex. `claude (terminal)`) e
+cria a nova — mesmo efeito de uma migração, sem escrever uma.
+
+**De onde veio:** discovery *agente é sempre ACP* (2026-09-24), [Q12](../features/033-acp-only-agents/open-questions.md#x-q12--e-se-a-config-aposentada-tem-o-nome-de-um-adaptador)
+· **Volta quando:** alguém cair no beco sem saída de verdade.
 
 ---
 
 ## C. Tarefas e orquestração
+
+### A esteira roda o setup duas vezes numa worktree nova — `P`
+
+`worktree.create` dispara setup em segundo plano e `prepareCheckout` chama `runToCompletion`, cujo
+`start` fecha a primeira execução; além disso, o código de saída é descartado
+(`tasks/conveyor-ports.ts:297-305`). A [`033`](../features/033-acp-only-agents/prd.md) contorna isso
+no compositor com `createWorktreeCore({ startSetup: false })`.
+
+**De onde veio:** discovery *agente é sempre ACP* (2026-09-24) · **Volta quando:** um `setup` com
+efeito colateral (migração, seed) rodar pela metade numa passada.
+
+### Sessão da esteira retomada vira `human` para o orçamento — `P`
+
+`SessionStore.resume` não repassa `driver`.
+
+**De onde veio:** discovery *agente é sempre ACP* (2026-09-24) · **Volta quando:** uma retomada da
+esteira passar do teto avisando em vez de parar.
 
 ### ~~Tarefas de workspace atravessando projetos~~ — entregue em 2026-09-12
 
@@ -395,6 +467,19 @@ ou a saída de um terminal — e essa é a pergunta que faz disso uma feature e 
 **De onde veio:** o quadro 1 do `lumem-run-dock-open.html`, adiado em 2026-09-06 para o escopo da
 feature continuar sendo uma linha · **Volta quando:** o rodapé nascer aberto e o retângulo vazio for a
 primeira coisa que se vê na maioria das chegadas.
+
+### A aba do `RunDock` não se escolhe de fora — `P`
+
+O prompt pendente (`033` T21) quer um atalho de *"ver a saída do setup"* de dentro da conversa, na
+aba `Setup` do rodapé. `useRunDock` guarda `open`/`height`, e `RunDock.tsx` guarda qual das quatro
+abas está na frente (`useState<DockTab>` local, sem contexto acima) — o mesmo desenho que
+`useRightPanel` já tem para a coluna inteira, e que a aba de dentro dela ainda não tem. Sem isso, o
+atalho só consegue **abrir a coluna** (`useRightPanel().toggle()`), pousando em `Run` por default; a
+pessoa ainda clica em `Setup` uma vez.
+
+**De onde veio:** `033` T21, achado ao implementar o atalho do prompt pendente · **Volta quando:**
+outra tela pedir para abrir o rodapé numa aba específica — o prompt pendente sozinho não paga o
+contexto novo.
 
 ---
 

@@ -611,7 +611,12 @@ describe("a conversa do encaixe volta na postura em que nasceu (Parte 7 — T57)
     const base = await scene("in_progress");
     const [config] = await base.db
       .insert(agentConfig)
-      .values({ id: newId(), name: `claude-${newId()}`, command: "claude-agent-acp" })
+      .values({
+        id: newId(),
+        name: `claude-${newId()}`,
+        command: "claude-agent-acp",
+        adapterVersion: "1.0.0",
+      })
       .returning();
     const [row] = await base.db
       .insert(session)

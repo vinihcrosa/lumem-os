@@ -4,22 +4,29 @@ import { join } from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { E2E_FIXTURE_AGENT, E2E_FIXTURE_REPO } from "./support/fixtures.js";
-import { createAgentConfig, createWorktree, ensureProject, ensureWorkspace, openProject } from "./support/app.js";
+import { E2E_FAKE_ACP_AGENT, E2E_FIXTURE_REPO } from "./support/fixtures.js";
+import {
+  createAgentConfig,
+  createWorktree,
+  ensureProject,
+  ensureWorkspace,
+  openConfiguredAgent,
+  openProject,
+} from "./support/app.js";
 import { E2E_SERVER_PORT } from "../ports.js";
 
 /**
  * The PRD's acceptance list, §9, as one run.
  *
- * Everything here is real: a real git repository, a real `git worktree add`, a
- * real PTY. The only stand-in is the agent, which is a fixture command rather
- * than `claude` — otherwise the suite would depend on authentication, quota and
- * the network.
+ * Everything here is real: a real git repository, a real `git worktree add`,
+ * real PTY-backed shells, and ACP sessions. The agent adapter is the fixture
+ * fake rather than `claude`, so the suite does not depend on authentication,
+ * quota, or the network.
  */
 
 const DAEMON = `http://127.0.0.1:${E2E_SERVER_PORT}`;
 const WORKTREE = "teste-prd";
-const AGENT = "eco";
+const AGENT = "eco-happy-path";
 
 /**
  * The buffer of the tab that is open.
@@ -30,6 +37,19 @@ const AGENT = "eco";
  */
 function terminalText(page: Page) {
   return page.locator("[role=tabpanel]:not([hidden]) .xterm-rows");
+}
+
+function conversation(page: Page) {
+  return page.locator("[role=tabpanel]:not([hidden]) .conv");
+}
+
+async function sendAgentPrompt(page: Page, prompt: string): Promise<void> {
+  const conv = conversation(page);
+  await conv.getByLabel("mensagem para o agente").fill(prompt);
+  await conv.getByRole("button", { name: /enviar/ }).click();
+  await expect(conv.getByRole("button", { name: /permitir uma vez/ })).toBeVisible({ timeout: 20_000 });
+  await conv.getByRole("button", { name: /permitir uma vez/ }).click();
+  await expect(conv).toContainText("Vou separar o parser antes de consertar.", { timeout: 20_000 });
 }
 
 async function typeLine(page: Page, line: string): Promise<void> {
@@ -56,9 +76,12 @@ function announcing(command: string, word: string): string {
 
 /** Opens a session through the strip's own menu, where both kinds now live. */
 async function newSession(page: Page, name: string): Promise<void> {
+  if (name !== "shell") {
+    await openConfiguredAgent(page, DAEMON, name);
+    return;
+  }
   await page.getByRole("button", { name: /nova sessão/ }).click();
-  // The hint carries the command, so the name is anchored at the start only.
-  await page.getByRole("menuitem", { name: new RegExp(`^${name}\\b`) }).click();
+  await page.getByRole("menuitem", { name: "terminal" }).click();
 }
 
 /**
@@ -86,7 +109,12 @@ function gitIn(cwd: string, ...args: string[]): string {
 }
 
 test("the whole flow, from an empty install to a removed worktree", async ({ page, request }) => {
-  await createAgentConfig(request, DAEMON, { name: AGENT, command: E2E_FIXTURE_AGENT });
+  await createAgentConfig(request, DAEMON, {
+    name: AGENT,
+    command: process.execPath,
+    args: [E2E_FAKE_ACP_AGENT],
+    adapterVersion: "0.0.0-fake",
+  });
 
   await page.goto("/");
   await ensureWorkspace(page);
@@ -143,17 +171,16 @@ test("the whole flow, from an empty install to a removed worktree", async ({ pag
   // --- an agent in the worktree --------------------------------------------
   await page.getByRole("button", { name: new RegExp(`^${WORKTREE}`) }).first().click();
   await newSession(page, AGENT);
-  await expect(terminalText(page)).toContainText("fake-agent pronto", { timeout: 20_000 });
-  await expect(terminalText(page)).toContainText(WORKTREE, { timeout: 20_000 });
+  await sendAgentPrompt(page, WORKTREE);
+  await expect(conversation(page)).toContainText(WORKTREE);
 
   // --- an agent in the project itself, with no worktree (WS-Q15) -----------
   await openProject(page);
   await newSession(page, AGENT);
-  await expect(terminalText(page)).toContainText("fake-agent pronto", { timeout: 20_000 });
+  await expect(conversation(page)).toBeVisible();
 
   // --- navigate away and back ----------------------------------------------
-  await typeLine(page, "marca-antes-de-sair");
-  await expect(terminalText(page)).toContainText("marca-antes-de-sair", { timeout: 20_000 });
+  await sendAgentPrompt(page, "marca-antes-de-sair");
   await page.getByRole("button", { name: new RegExp(`^${WORKTREE}`) }).first().click();
   await expect(page.getByRole("heading", { name: WORKTREE })).toBeVisible();
   await openProject(page);
@@ -162,7 +189,7 @@ test("the whole flow, from an empty install to a removed worktree", async ({ pag
   await page.getByRole("tab", { name: new RegExp(`^${AGENT}`) }).last().click();
 
   // F5.6 and F5.7: it never stopped, and the buffer came back with it.
-  await expect(terminalText(page)).toContainText("marca-antes-de-sair", { timeout: 20_000 });
+  await expect(conversation(page)).toContainText("marca-antes-de-sair", { timeout: 20_000 });
 
   // --- close everything and remove the worktree ----------------------------
   // Tabs belong to the scope that is open, so the worktree has to be selected

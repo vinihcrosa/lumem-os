@@ -4,12 +4,13 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  useAdapterCatalog,
   useAgentConfigMutations,
   useAgentConfigs,
   useConnectAgent,
   useCreateHandshakeAgentConfig,
 } from "./queries.js";
-import { agentConfigsKey, setupAgentsKey } from "../../lib/queryKeys.js";
+import { adapterCatalogKey, agentConfigsKey, setupAgentsKey } from "../../lib/queryKeys.js";
 import { trpc } from "../../lib/trpc.js";
 
 vi.mock("../../lib/trpc.js", async () => ({
@@ -37,6 +38,29 @@ describe("useAgentConfigs", () => {
   });
 });
 
+describe("useAdapterCatalog", () => {
+  it("lê `adapterCatalog.list` do projeto, sob a chave dele", async () => {
+    vi.mocked(trpc.adapterCatalog.list.query).mockResolvedValue([]);
+    const queryClient = new QueryClient();
+
+    const { result } = renderHook(() => useAdapterCatalog("p1"), { wrapper: wrapperFor(queryClient) });
+
+    await waitFor(() => expect(result.current.data).toEqual([]));
+    expect(trpc.adapterCatalog.list.query).toHaveBeenCalledWith({ projectId: "p1" });
+    expect(queryClient.getQueryData(adapterCatalogKey("p1"))).toEqual([]);
+  });
+
+  it("sem projeto, não manda `projectId` — os comandos voltam vazios", async () => {
+    vi.mocked(trpc.adapterCatalog.list.query).mockResolvedValue([]);
+    const queryClient = new QueryClient();
+
+    const { result } = renderHook(() => useAdapterCatalog(null), { wrapper: wrapperFor(queryClient) });
+
+    await waitFor(() => expect(result.current.data).toEqual([]));
+    expect(trpc.adapterCatalog.list.query).toHaveBeenCalledWith(undefined);
+  });
+});
+
 describe("useAgentConfigMutations", () => {
   it("`create` invalida `agentConfigsKey()` uma vez", async () => {
     vi.mocked(trpc.agentConfig.create.mutate).mockResolvedValue({ id: "a1" } as never);
@@ -50,7 +74,6 @@ describe("useAgentConfigMutations", () => {
       name: "claude",
       command: "claude-agent-acp",
       args: [],
-      transport: "acp",
       adapterVersion: "1.0.0",
     });
 
@@ -165,7 +188,7 @@ describe("useCreateHandshakeAgentConfig", () => {
   const report = { command: "claude-agent-acp", args: [], agentInfo: { version: PINNED } };
 
   it("reusa a configuração já existente para o mesmo comando", async () => {
-    const already = { id: "a1", transport: "acp", command: "claude-agent-acp" };
+    const already = { id: "a1", command: "claude-agent-acp" };
     const queryClient = new QueryClient();
 
     const { result } = renderHook(
@@ -175,6 +198,21 @@ describe("useCreateHandshakeAgentConfig", () => {
     result.current.mutate(report);
 
     await waitFor(() => expect(result.current.data).toEqual(already));
+    expect(trpc.agentConfig.create.mutate).not.toHaveBeenCalled();
+  });
+
+  it("recusa sem criar quando o adaptador não declarou versão", async () => {
+    // Toda configuração exige a versão desde a `033`, e uma escrita à mão aqui
+    // seria uma versão que ninguém mediu.
+    const queryClient = new QueryClient();
+
+    const { result } = renderHook(() => useCreateHandshakeAgentConfig([], "claude"), {
+      wrapper: wrapperFor(queryClient),
+    });
+    result.current.mutate({ ...report, agentInfo: null });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.error?.message).toMatch(/não declarou a versão/);
     expect(trpc.agentConfig.create.mutate).not.toHaveBeenCalled();
   });
 

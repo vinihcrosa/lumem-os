@@ -4,7 +4,14 @@ import { join } from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { createAgentConfig, createWorktree, ensureProject, ensureWorkspace, openProject } from "./support/app.js";
+import {
+  createAgentConfig,
+  createWorktree,
+  ensureProject,
+  ensureWorkspace,
+  openConfiguredAgent,
+  openProject,
+} from "./support/app.js";
 import { call, query, startDaemon } from "./support/daemon.js";
 import {
   E2E_FAKE_ACP_AGENT,
@@ -101,7 +108,6 @@ test("a conversation survives the daemon that held it, and picks up where it sto
       name: AGENT,
       command: process.execPath,
       args: [E2E_FAKE_ACP_AGENT],
-      transport: "acp",
       adapterVersion: "0.0.0-fake",
     });
     const workspace = (await call(daemon.url, "workspace.create", { name: "retomada" })) as {
@@ -202,7 +208,6 @@ test("reopening a finished conversation reads it, and the button continues it", 
     name: AGENT,
     command: process.execPath,
     args: [E2E_FAKE_ACP_AGENT],
-    transport: "acp",
     adapterVersion: "0.0.0-fake",
   });
 
@@ -213,14 +218,7 @@ test("reopening a finished conversation reads it, and the button continues it", 
   await createWorktree(page, WORKTREE, "repo-acp");
   await expect(page.getByRole("heading", { name: WORKTREE })).toBeVisible({ timeout: 30_000 });
 
-  await page.getByRole("button", { name: /nova sessão/ }).click();
-  await page.getByRole("menuitem", { name: new RegExp(`^${AGENT}\\b`) }).click();
-  await expect(conversation(page)).toBeVisible({ timeout: 20_000 });
-  // Attached, not merely visible: the composer only accepts a message once the
-  // `attached` frame lands.
-  await expect(conversation(page).getByText("sessão aberta, nada pedido ainda")).toBeVisible({
-    timeout: 20_000,
-  });
+  await openConfiguredAgent(page, DAEMON, AGENT);
 
   // Something worth reading later.
   await composer(page).fill("arruma o frontmatter vazio");
@@ -237,7 +235,11 @@ test("reopening a finished conversation reads it, and the button continues it", 
 
   // Reopening reads it. No adapter is launched for this (D13); what proves it here is
   // that the composer is closed and says so — a live session's is not.
-  await page.getByRole("button", { name: "reabrir" }).first().click();
+  await page
+    .locator(".item")
+    .filter({ hasText: AGENT })
+    .getByRole("button", { name: "reabrir" })
+    .click();
   await expect(conversation(page)).toBeVisible();
   await expect(conversation(page)).toContainText("arruma o frontmatter vazio");
   await expect(conversation(page)).toContainText("conversa encerrada");

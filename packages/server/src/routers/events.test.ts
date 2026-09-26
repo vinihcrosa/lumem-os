@@ -2,7 +2,9 @@ import type { AddressInfo } from "node:net";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { AcpManager } from "../acp/AcpManager.js";
 import { createEventBus, type LumemEvent } from "../events.js";
+import { fakeAgentProcess } from "../testing/acp-fake-agent.js";
 import { createTestCaller, type TestCaller } from "../testing/caller.js";
 import { cleanupGitFixtures, createRepo, tempDir } from "../testing/git-fixtures.js";
 
@@ -217,7 +219,12 @@ describe("events.onChange", () => {
   it("fires when a process dies on its own", async () => {
     // F3.7's hardest case: nobody clicked anything. An agent that hits its
     // quota has to change the sidebar by itself.
-    context = createTestCaller({ LUMEM_STATE_DIR: tempDir("lumem-state-") });
+    //
+    // Um adaptador falso que morre sozinho depois de nascer: era um PTY com
+    // `exit 0`, e agente não é mais PTY (ADR de 2026-09-24).
+    const fake = fakeAgentProcess();
+    const acpManager = new AcpManager({ spawner: () => fake.process, isAvailable: () => true });
+    context = createTestCaller({ LUMEM_STATE_DIR: tempDir("lumem-state-") }, { acpManager });
     const workspace = await context.api.workspace.create({ name: "pessoal" });
     const project = await context.api.project.add({
       workspaceId: workspace.id,
@@ -227,7 +234,7 @@ describe("events.onChange", () => {
     const config = await context.api.agentConfig.create({
       name: "curto",
       command: "/bin/sh",
-      args: ["-c", "exit 0"],
+      adapterVersion: "1.0.0",
     });
     const stream = listen(context);
     await vi.waitFor(() => expect(context.events.listenerCount).toBe(1));
@@ -237,6 +244,7 @@ describe("events.onChange", () => {
       scopeId: project.id,
       agentConfigId: config.id,
     });
+    fake.process.kill();
 
     // Two: one for the launch, one for the death nobody asked for.
     await stream.waitFor((events) => events.filter((e) => e.type === "session.changed").length >= 2);

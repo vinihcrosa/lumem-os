@@ -13,6 +13,10 @@ import "../src/features/tasks/board.css";
 import "../src/features/memory/memory.css";
 import "../src/features/conversation/conversation.css";
 import "../src/features/checkout/right-panel.css";
+// As três telas da `033` T14: a pílula e o rascunho moram na folha de nova
+// sessão, o compositor de nova worktree na do diálogo que ele substitui.
+import "../src/features/conversation/new-session.css";
+import "../src/features/workspace/create-worktree.css";
 import "../src/ui/stories.css";
 
 import { mountAgentation } from "../src/lib/agentation.js";

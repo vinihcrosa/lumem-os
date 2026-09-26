@@ -16,20 +16,26 @@ import type { ZodError } from "zod";
 import { MAX_FILE_BYTES } from "../files/FileService.js";
 import { listSignals } from "../memory/signals.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
-import { createTestCaller, type TestCaller } from "../testing/caller.js";
+import { AcpManager } from "../acp/AcpManager.js";
+import { fakeAgentProcess } from "../testing/acp-fake-agent.js";
+import {
+  createTestCaller,
+  type TestCaller,
+  type TestCallerOverrides,
+} from "../testing/caller.js";
 import { cleanupGitFixtures, createRepo, tempDir } from "../testing/git-fixtures.js";
 
 let context: TestCaller;
 
 /** A project on a real repository, plus a worktree cut from it. */
-async function setup(): Promise<{
+async function setup(overrides: TestCallerOverrides = {}): Promise<{
   context: TestCaller;
   projectId: string;
   repo: string;
   worktreeId: string;
   worktreePath: string;
 }> {
-  context = createTestCaller({ LUMEM_STATE_DIR: tempDir("lumem-state-") });
+  context = createTestCaller({ LUMEM_STATE_DIR: tempDir("lumem-state-") }, overrides);
   const workspace = await context.api.workspace.create({ name: "pessoal" });
   const repo = await createRepo({ branch: "main" });
   mkdirSync(join(repo, "src", "lore"), { recursive: true });
@@ -474,7 +480,21 @@ describe("the write side's scope", () => {
 });
 
 describe("files.write e o sinal de ação (Q17)", () => {
-  /** Um executável qualquer, para a sessão de agente ser um processo de verdade. */
+  /**
+   * Um adaptador falso: todo agente é ACP (ADR de 2026-09-24), e o `cat` abaixo
+   * não responde handshake. O executável continua porque o `createAgent` confere
+   * que o arquivo existe antes de subir qualquer coisa.
+   */
+  function withFakeAcp(): TestCallerOverrides {
+    return {
+      acpManager: new AcpManager({
+        spawner: () => fakeAgentProcess().process,
+        isAvailable: () => true,
+      }),
+    };
+  }
+
+  /** Um executável qualquer, para a configuração apontar para um arquivo de verdade. */
   function fakeAgentBin(): string {
     const dir = tempDir("lumem-bin-");
     const file = join(dir, "fake-agent");
@@ -487,6 +507,7 @@ describe("files.write e o sinal de ação (Q17)", () => {
     const config = await createAgentConfigRepository(ctx.db).create({
       name: "fixture",
       command: fakeAgentBin(),
+      adapterVersion: "1.0.0",
     });
     await ctx.api.session.createAgent({
       scopeType: "worktree",
@@ -504,7 +525,7 @@ describe("files.write e o sinal de ação (Q17)", () => {
   }
 
   it("registra a edição quando há uma sessão de agente viva no mesmo checkout", async () => {
-    const { context: ctx, worktreeId, worktreePath } = await setup();
+    const { context: ctx, worktreeId, worktreePath } = await setup(withFakeAcp());
     writeFileSync(join(worktreePath, "notes.ts"), "const a = 1;\n");
     await startAgent(ctx, worktreeId);
 
@@ -529,7 +550,7 @@ describe("files.write e o sinal de ação (Q17)", () => {
   it("uma rajada de autosave é um sinal, não quatro", async () => {
     // O autosave grava a cada 800 ms de pausa. Sem a janela, o que a tabela
     // mediria é cadência de digitação.
-    const { context: ctx, worktreeId, worktreePath } = await setup();
+    const { context: ctx, worktreeId, worktreePath } = await setup(withFakeAcp());
     writeFileSync(join(worktreePath, "notes.ts"), "const a = 1;\n");
     await startAgent(ctx, worktreeId);
 

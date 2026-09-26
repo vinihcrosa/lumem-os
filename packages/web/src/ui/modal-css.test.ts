@@ -43,7 +43,10 @@ const screenSheets = ["create-worktree.css"]
 const consumers = ["Modal.tsx"]
   .map((name) => readFileSync(join(UI, name), "utf8"))
   .concat(
-    ["AddProjectDialog.tsx", "CreateWorktreeDialog.tsx", "CloneStatus.tsx"].map((name) =>
+    // `CreateWorktreeDialog.tsx` saiu (`033` T20): o `NewWorktreeComposer.tsx`
+    // e o `OriginPicker.tsx` que ele hospeda são quem desenha o bloco de
+    // origem agora.
+    ["AddProjectDialog.tsx", "NewWorktreeComposer.tsx", "OriginPicker.tsx", "CloneStatus.tsx"].map((name) =>
       readFileSync(join(WORKSPACE, name), "utf8"),
     ),
     // `CredentialDialog.tsx` entrou com o `modal__destructive` (ADR de 2026-09-13):
@@ -75,8 +78,19 @@ function requested(source: string): Set<string> {
   return names;
 }
 
-/** Montadas por ternário, então o nome nunca aparece num `className="…"`. */
-const INTERPOLATED = ["modal__esc", "modal__esc--held"];
+/**
+ * Montadas por ternário, então o nome nunca aparece num `className="…"`.
+ *
+ * `modal__card--wide` é o porte do compositor de nova worktree
+ * ([`033`](../../../../docs/features/033-acp-only-agents/prd.md), F4.1): nenhum
+ * diálogo do produto o pede ainda, e é exatamente por isso que ele tem de estar
+ * aqui — sem esta linha, o teste de órfãs abaixo reprovaria a regra que a T20
+ * vai usar, e o de ternário não conferiria que ela existe.
+ *
+ * `modal__t` entrou pelo mesmo caminho: com `header`, o título troca de classe
+ * para `sr-only`, e o nome deixou de estar num `className` literal.
+ */
+const INTERPOLATED = ["modal__esc", "modal__esc--held", "modal__card--wide", "modal__t"];
 
 /**
  * Desenhadas por outro componente, e alcançadas daqui por seletor descendente.
@@ -92,6 +106,9 @@ const BORROWED = new Set([
   // Primitivas compartilhadas, de `ui/ui.css`.
   "kbd",
   "glyph",
+  // De `styles/base.css`: com `header`, o título sai da tela e fica na árvore
+  // de acessibilidade, porque é ele que dá nome ao diálogo.
+  "sr-only",
   // O segmentado, que já existia na aba de mudanças e na tela do workspace. O
   // trilho de origem usa o mesmo, e é isso que faz "de onde cortar" parecer o
   // resto do produto em vez de um controle novo.
@@ -117,7 +134,13 @@ const BORROWED = new Set([
   "clone-outcome__git",
   "clone-outcome__actions",
   "clone-outcome__path",
-  "create-worktree__hint",
+  // A caixa do compositor, de `features/conversation/conversation.css`: o
+  // compositor de nova worktree (`033` T20) reusa as mesmas três classes do
+  // compositor da conversa de propósito — "escrever para um agente" é uma
+  // coisa só, e duas caixas desenhadas em dois lugares divergiriam.
+  "composer__box",
+  "composer__in",
+  "composer__bar",
 ]);
 
 describe("toda classe que o modal pede existe", () => {

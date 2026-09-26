@@ -88,7 +88,6 @@ async function world(): Promise<World> {
   const config = await createAgentConfigRepository(db).create({
     name: "claude",
     command: "claude-agent-acp",
-    transport: "acp",
     adapterVersion: "0.40.0",
   });
 

@@ -543,23 +543,26 @@ describe("projeto sem commit", () => {
     // F6.13. Clonar um repositório vazio é caso legítimo (Q19), e "invalid
     // reference" não explica isso a ninguém.
     const user = userEvent.setup();
+    trpc.adapterCatalog.list.query.mockResolvedValue([]);
     await openLocal(user, project({ hasCommits: false }));
 
-    // O `+` continua clicável: quem explica é o diálogo. Um `+` de 24px cinza
-    // numa linha de árvore seria um botão desabilitado com o motivo fora da
-    // tela — que é o que a versão antiga, num painel largo, podia evitar.
+    // O `+` continua clicável: quem explica é o compositor. Um `+` de 24px
+    // cinza numa linha de árvore seria um botão desabilitado com o motivo
+    // fora da tela — que é o que a versão antiga, num painel largo, podia
+    // evitar.
     await user.click(screen.getByRole("button", { name: /nova worktree/ }));
 
     expect(await screen.findByText(/nenhum commit/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "criar" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Create/ })).toBeDisabled();
   });
 
   it("deixa cortar assim que houver commit", async () => {
     const user = userEvent.setup();
+    trpc.adapterCatalog.list.query.mockResolvedValue([]);
     await openLocal(user, project({ hasCommits: true }));
     await user.click(screen.getByRole("button", { name: /nova worktree/ }));
 
     expect(screen.queryByText(/nenhum commit/)).toBeNull();
-    expect(await screen.findByText(/A branch tem o mesmo nome/)).toBeInTheDocument();
+    expect(await screen.findByLabelText("No que você quer trabalhar?")).toBeEnabled();
   });
 });

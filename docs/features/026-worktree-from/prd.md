@@ -174,6 +174,7 @@ formato** — não é o `gh` que decide a forma da resposta. Mesma regra da
 
 **F3.1** Um seletor de origem acima do campo de nome, com quatro abas: `default`, `branch`, `issue`,
 `PR`.
+> **Nota, 2026-09-24 —** a origem agora é escolhida no cabeçalho do compositor ([`033`](../033-acp-only-agents/prd.md), F4.1). As quatro origens e suas regras continuam valendo.
 
 **F3.2** Escolher uma issue ou uma PR **pré-preenche** o nome, que continua editável: a origem
 sugere, não decide. Issue ⇒ `<numero>-<slug-do-titulo>` ([Q1](open-questions.md)). PR ⇒ o
@@ -192,6 +193,7 @@ Não é erro ([Q5](open-questions.md)).
 **F3.5** O campo de nome está utilizável **no primeiro quadro**. A origem carrega depois de o modal
 abrir, e nenhuma leitura pode segurar o gesto — a [Q5a da 017-sidebar-actions](../017-sidebar-actions/open-questions.md)
 já pagou esse preço uma vez.
+> **Nota, 2026-09-24 —** o primeiro quadro agora mostra o prompt ([`033`](../033-acp-only-agents/prd.md), F4.1); o nome fica a um clique, no `…`.
 
 **F3.6** Sem remoto, sem `gh`, ou sem autenticação: as abas `issue` e `PR` **não aparecem**, e o
 modal é o de hoje mais a aba `branch` (que é local e sempre existe). Degradar, nunca travar.

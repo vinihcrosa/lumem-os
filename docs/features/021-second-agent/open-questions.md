@@ -147,6 +147,7 @@ lugar novo, no exato PR que tira as outras cinco.
 ela — não há migração que apague configuração de ninguém —, e o `AgentConfigDialog` continua criando
 `pty` para quem quiser. A task carrega o teste de que uma instalação nova nasce **sem** ela e o
 `NewSessionMenu` não fica vazio por causa disso.
+> **Nota, 2026-09-24 —** o `AgentConfigDialog` não cria mais configurações PTY ([ADR de 2026-09-24](../../adr/2026-09-24-1620-agent-is-always-acp.md); [`033`](../033-acp-only-agents/prd.md), F1.1).
 
 ---
 

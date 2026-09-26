@@ -88,6 +88,7 @@ preço está escrito lá e é real: a tela fica presa por minutos.
 **F1.2** O `+` do cabeçalho abre o diálogo de adicionar projeto, **centrado na tela**, sobre um véu.
 **F1.3** A linha de cada projeto ganha um `+` à direita, que abre o diálogo de criar worktree
 **já sabendo o projeto** — sem seletor de projeto dentro dele.
+> **Nota, 2026-09-24 —** o `+` abre o compositor da [`033`](../033-acp-only-agents/prd.md), F4.1. Continuam valendo a posição na linha do projeto, o modal centralizado, o véu e o foco preso.
 **F1.4** O `+` da linha do projeto **não** dispara a seleção nem o toggle de expandir: clicar nele é
 uma ação, não uma navegação.
 **F1.5** Criar uma worktree pelo `+` **expande** o projeto e **seleciona** a worktree nova — o mesmo

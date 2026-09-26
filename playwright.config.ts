@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 
 import { defineConfig, devices } from "@playwright/test";
 
-import { E2E_FIXTURE_BIN } from "./e2e/support/fixtures.js";
+import { createFixtures, E2E_FIXTURE_BIN } from "./e2e/support/fixtures.js";
 import {
   E2E_PRODUCTION_PORT,
   E2E_PRODUCTION_STATE_DIR,
@@ -46,6 +46,10 @@ const isListing = process.argv.includes("--list");
 if (!isWorker && !isListing) {
   rmSync(E2E_STATE_DIR, { recursive: true, force: true });
   rmSync(E2E_PRODUCTION_STATE_DIR, { recursive: true, force: true });
+  // Bootstrap probes the installed adapters as soon as each daemon listens.
+  // Install the shims first so the model catalog exists before the first page
+  // opens a worktree composer. Worker config reloads are guarded above.
+  createFixtures();
 }
 
 /** Specs that only make sense against the installed shape of the product. */
@@ -53,7 +57,6 @@ const PRODUCTION_SPECS = /production\.spec\.ts$/;
 
 export default defineConfig({
   testDir: "./e2e",
-  globalSetup: "./e2e/support/global-setup.ts",
   // E2E runs against a single daemon on a single port with shared state.
   // Parallelism here corrupts state instead of saving time.
   fullyParallel: false,

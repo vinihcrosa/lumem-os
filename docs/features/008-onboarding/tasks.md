@@ -114,9 +114,11 @@ achou a falta.
 ### D8 — Os passos 5, 6 e 7 reusam o que já existe
 
 `FirstRun`, [`AddProjectDialog`](../../../packages/web/src/features/workspace/AddProjectDialog.tsx) e
-[`CreateWorktreeDialog`](../../../packages/web/src/features/workspace/CreateWorktreeDialog.tsx) já têm o
-formulário, a validação e o erro-do-daemon de cada um desses três passos. A task **extrai** o miolo e o
-usa nos dois lugares; o que não der para reusar é nomeado na própria task, com o motivo.
+`CreateWorktreeDialog` (substituído pelo
+[`NewWorktreeComposerModal`](../../../packages/web/src/features/workspace/NewWorktreeComposerModal.tsx)
+na [`033`](../033-acp-only-agents/tasks.md) T20) já tinham o formulário, a validação e o
+erro-do-daemon de cada um desses três passos. A task **extrai** o miolo e o usa nos dois lugares; o
+que não der para reusar é nomeado na própria task, com o motivo.
 
 Recriar seria criar um segundo jeito de adicionar projeto — e o segundo jeito é o que sempre fica sem a
 correção que o primeiro recebeu.

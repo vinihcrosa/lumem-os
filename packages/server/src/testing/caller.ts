@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { AcpManager } from "../acp/AcpManager.js";
+import { AdapterCatalog } from "../acp/adapter-catalog.js";
 import { loadConfig, type ConfigEnv, type ServerConfig } from "../config.js";
 import { openTestDb, type TestDb } from "../db/testing.js";
 import type { Db } from "../db/index.js";
@@ -66,6 +67,15 @@ export interface TestCallerOverrides {
    * `docs/project/testing.md`.
    */
   prHost?: PrHost;
+  /**
+   * Um `ScriptRunner` de mentira (`033` T12).
+   *
+   * O `worktree.start` espera o `setup` antes de mandar o primeiro prompt, e a
+   * pergunta do teste é **a ordem** — o prompt só depois do exit, e o `setup`
+   * uma vez. Um `pnpm install` de verdade responde isso com tempo de máquina;
+   * um falso responde com o exit que o teste escolher, na hora que ele quiser.
+   */
+  scripts?: ScriptRunner;
 }
 
 export function createTestCaller(
@@ -125,14 +135,16 @@ export function createTestCaller(
   // Same wiring the daemon uses: without it a session that ends on its own
   // stays `running` and the removal rules read stale state.
   const stopTracking = sessionStore.trackExits();
-  const scripts = createScriptRunner({
-    db: database.db,
-    sessionStore,
-    ptyManager,
-    shell: config.shell,
-    portRange: config.runPortRange,
-    events,
-  });
+  const scripts =
+    overrides.scripts ??
+    createScriptRunner({
+      db: database.db,
+      sessionStore,
+      ptyManager,
+      shell: config.shell,
+      portRange: config.runPortRange,
+      events,
+    });
 
   /*
    * O adaptador padrão é o de verdade, e ele **não** é exercitado por acidente:
@@ -152,6 +164,8 @@ export function createTestCaller(
     db: database.db,
     ptyManager,
     acpManager,
+    // Sobre o `stateDir` descartável, e vazio: quem quer leitura grava pelo `ctx`.
+    adapterCatalog: new AdapterCatalog({ stateDir: config.stateDir }),
     sessionStore,
     scripts,
     // O cofre do daemon de teste: um diretório descartável, como o resto.

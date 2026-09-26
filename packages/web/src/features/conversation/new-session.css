@@ -28,3 +28,119 @@
   flex-basis: 100%;
   margin-top: var(--space-4);
 }
+
+/* ============================================================================
+   A sessão antes de existir (`033`) — a pílula de agente e modelo, e a aba
+   rascunho. A pílula e o menu são `.pill`/`.config`/`.slash` do
+   `conversation.css`; o que mora aqui é só o que eles não tinham: dois nomes
+   numa pílula, e grupos num menu.
+   ========================================================================= */
+
+/*
+ * Dois nomes, duas vozes: o ACP em rótulo, o modelo em mono — um id de modelo é
+ * literal lido caractere a caractere, como no `.pill--model` da sessão viva.
+ */
+.pill--agent { gap: var(--space-6); }
+.pill__who { color: var(--color-text-secondary); }
+.pill__model { font: var(--text-mono-sm); color: var(--color-text-code); }
+.pill[disabled] .pill__who,
+.pill[disabled] .pill__model { color: var(--color-text-disabled); }
+
+/*
+ * O menu agrupado por ACP.
+ *
+ * O teto e a rolagem são do `.slash` (`--size-menu-max-h`, `023`); o respiro do
+ * topo sai para o cabeçalho fixo poder encostar na borda — com o `padding` do
+ * `.slash`, a linha que rola por baixo apareceria numa fresta de 4px acima dele.
+ */
+.agent-menu { padding-top: 0; }
+/*
+ * A linha ocupa a largura do menu. `.slash__row` é um `button` flex, e botão
+ * encolhe até o conteúdo: o realce do modelo escolhido parava no fim do texto,
+ * e a descrição longa era cortada seca pela borda em vez de ganhar reticências.
+ */
+.agent-menu .slash__row { width: 100%; text-align: left; }
+.agent-menu__group + .agent-menu__group {
+  margin-top: var(--space-4);
+  border-top: 1px solid var(--color-border-subtle);
+}
+/*
+ * Fixo no topo enquanto o grupo rola: com vinte modelos, o nome do ACP é o que
+ * diz de quem é a linha do meio. Fundo próprio, senão as linhas passam por trás
+ * do texto.
+ */
+.agent-menu__head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  min-height: var(--size-row-compact);
+  padding: 0 var(--space-8);
+  background: var(--color-bg-raised);
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-label-xs);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+/* O motivo do grupo desabilitado, na mesma linha do nome (F3.4). Âmbar, e não
+   vermelho: sem login não é defeito, é um passo que falta. */
+.agent-menu__why {
+  margin-left: auto;
+  font: var(--text-caption);
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--color-text-warning);
+}
+.agent-menu__note {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin: 0;
+  padding: var(--space-4) var(--space-8) var(--space-8);
+  font: var(--text-body-sm);
+  color: var(--color-text-tertiary);
+}
+.agent-menu__act {
+  flex: none;
+  margin-left: auto;
+  padding: 0 var(--space-6);
+  border-radius: var(--radius-sm);
+  font: var(--text-label-xs);
+  color: var(--color-text-link);
+}
+.agent-menu__act:hover { background: var(--color-bg-hover); }
+
+/* ------------------------------------------------ a aba rascunho (`033` F5) */
+.draft__where { font: var(--text-mono-md); color: var(--color-text-code); }
+
+/*
+ * *"abrindo claude…"* — o lugar do turno enquanto o adaptador sobe.
+ *
+ * Alinhado na coluna de texto do turno, e não na medianiz: é o turno que ainda
+ * não começou, não um evento novo.
+ */
+.draft__opening {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin: 0;
+  padding-left: calc(var(--size-turn-gutter) + var(--space-10));
+  font: var(--text-body-sm);
+  color: var(--color-text-tertiary);
+}
+/*
+ * O ponto que diz *está vivo*. Da família do agente, porque é o agente que está
+ * subindo; e parado para quem pediu menos movimento — a frase ao lado já diz.
+ */
+.draft__pulse {
+  flex: none;
+  width: var(--space-6);
+  height: var(--space-6);
+  border-radius: var(--radius-full);
+  background: var(--color-turn-agent);
+  animation: draft-pulse 1.6s ease-in-out infinite;
+}
+@keyframes draft-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) { .draft__pulse { animation: none; } }

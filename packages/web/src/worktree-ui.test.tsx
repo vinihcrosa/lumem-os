@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App.js";
+import { CLAUDE_VIEW } from "./test/adapter-catalog-fixtures.js";
 import { renderWithProviders } from "./test/render.js";
 import { installTrpcDefaults, trpcMock as trpc } from "./test/trpc-mock.js";
 
@@ -77,6 +78,10 @@ beforeEach(() => {
   trpc.project.get.query.mockResolvedValue(project());
   trpc.worktree.listByProject.query.mockResolvedValue([]);
   trpc.worktree.getDetail.query.mockResolvedValue(detail());
+  // O compositor de nova worktree (`033` T20) lê o catálogo de agente ao
+  // montar — só as suítes que abrem o `+` o exercitam, mas o mock precisa
+  // existir para todas: `resetAllMocks` já apagou a implementação.
+  trpc.adapterCatalog.list.query.mockResolvedValue([CLAUDE_VIEW]);
 });
 
 describe("worktree tree", () => {
@@ -142,62 +147,76 @@ async function openCreateWorktree(user: ReturnType<typeof userEvent.setup>): Pro
   await user.click(await screen.findByRole("button", { name: "nova worktree em lorebase" }));
 }
 
+/**
+ * Criar worktree é compor o primeiro prompt (`033` T20, F4) — o diálogo de
+ * nome único virou o `NewWorktreeComposer`, com o campo *"No que você quer
+ * trabalhar?"* e `worktree.start` no lugar de `worktree.create`. O que este
+ * describe cobre pela árvore inteira (`App`) é o que muda com a **navegação**
+ * — F1.4 e o destino da criação —; o resto do compositor (as quatro origens,
+ * o rascunho por projeto) já tem cobertura própria em
+ * `features/workspace/NewWorktreeComposerModal.test.tsx` e
+ * `features/workspace/OriginPicker.test.tsx`.
+ */
 describe("create worktree", () => {
   it("creates one and selects it", async () => {
     const user = userEvent.setup();
-    trpc.worktree.create.mutate.mockImplementation(async () => {
+    trpc.worktree.start.mutate.mockImplementation(async () => {
       const created = worktree("wt1", "teste-prd");
       trpc.worktree.listByProject.query.mockResolvedValue([created]);
       trpc.worktree.getDetail.query.mockResolvedValue(detail(created));
-      return created;
+      return { worktreeId: created.id, sessionId: "s1" };
     });
 
     await selectProject(user);
     await openCreateWorktree(user);
-    await user.type(screen.getByLabelText("Nome da worktree"), "teste-prd");
-    await user.click(screen.getByRole("button", { name: "criar" }));
+    await user.type(screen.getByLabelText("No que você quer trabalhar?"), "corrigir o bug do login");
+    await user.click(screen.getByRole("button", { name: /Create/ }));
 
     await waitFor(() =>
-      expect(trpc.worktree.create.mutate).toHaveBeenCalledWith({
+      expect(trpc.worktree.start.mutate).toHaveBeenCalledWith({
         projectId: "p1",
-        name: "teste-prd",
+        prompt: "corrigir o bug do login",
+        adapterId: "claude",
+        config: {},
+        name: undefined,
+        from: undefined,
       }),
     );
     expect(await screen.findByRole("heading", { name: "teste-prd" })).toBeInTheDocument();
   });
 
-  it("says it is working while git copies the checkout", async () => {
-    // `git worktree add` is seconds on a large repository, and a button that
-    // looks idle invites a second click that fails on the branch the first made.
+  it("says it is working while the daemon creates the session", async () => {
+    // `worktree.start` já devolve rápido (a espera pelo `setup` é do daemon),
+    // mas ainda é uma viagem de rede — o botão trava para não convidar um
+    // segundo clique enquanto ela está em voo.
     const user = userEvent.setup();
-    trpc.worktree.create.mutate.mockReturnValue(new Promise(() => {}));
+    trpc.worktree.start.mutate.mockReturnValue(new Promise(() => {}));
 
     await selectProject(user);
     await openCreateWorktree(user);
-    await user.type(screen.getByLabelText("Nome da worktree"), "teste");
-    await user.click(screen.getByRole("button", { name: "criar" }));
+    await user.type(screen.getByLabelText("No que você quer trabalhar?"), "teste");
+    await user.click(screen.getByRole("button", { name: /Create/ }));
 
-    expect(await screen.findByText(/copiando o checkout/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "criando…" })).toBeDisabled();
+    expect(await screen.findByRole("button", { name: /criando…/ })).toBeDisabled();
   });
 
-  it("shows the daemon's refusal for a branch that already exists", async () => {
+  it("shows the daemon's refusal", async () => {
     const user = userEvent.setup();
-    trpc.worktree.create.mutate.mockRejectedValue(
+    trpc.worktree.start.mutate.mockRejectedValue(
       new Error('a branch "main" já existe; escolha outro nome'),
     );
 
     await selectProject(user);
     await openCreateWorktree(user);
-    await user.type(screen.getByLabelText("Nome da worktree"), "main");
-    await user.click(screen.getByRole("button", { name: "criar" }));
+    await user.type(screen.getByLabelText("No que você quer trabalhar?"), "teste");
+    await user.click(screen.getByRole("button", { name: /Create/ }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("escolha outro nome");
   });
 
   it("does not select or expand the project it was opened from (F1.4)", async () => {
     const user = userEvent.setup();
-    trpc.worktree.create.mutate.mockReturnValue(new Promise(() => {}));
+    trpc.worktree.start.mutate.mockReturnValue(new Promise(() => {}));
 
     renderWithProviders(<App />);
     // Nothing selected: the workspace screen is what is on.
@@ -217,7 +236,7 @@ describe("create worktree", () => {
     );
   });
 
-  it("leaves the selection where it was when cancelled", async () => {
+  it("leaves the selection where it was when closed", async () => {
     const user = userEvent.setup();
 
     await selectProject(user);
@@ -226,7 +245,7 @@ describe("create worktree", () => {
     expect(local).toHaveAttribute("aria-current", "true");
 
     await openCreateWorktree(user);
-    await user.click(screen.getByRole("button", { name: "cancelar" }));
+    await user.click(await screen.findByRole("button", { name: "fechar" }));
 
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(within(tree).getByRole("button", { name: /^local/ })).toHaveAttribute(
@@ -247,16 +266,66 @@ describe("create worktree", () => {
     expect(document.querySelector(".row__slot")).toBeInTheDocument();
   });
 
-  it("says which project it is about, instead of asking again", async () => {
+  it("starts on the project row that opened it, and the selector can change it (F4.1)", async () => {
     const user = userEvent.setup();
+    trpc.project.listByWorkspace.query.mockResolvedValue([project(), { ...project(), id: "p2", name: "outro" }]);
+
     await selectProject(user);
     await openCreateWorktree(user);
 
-    // The `+` came off the project's row, so the dialog has no project
-    // selector: the gesture already answered that, and the header repeats it.
-    const dialog = screen.getByRole("dialog");
-    expect(within(dialog).getByText("lorebase")).toBeInTheDocument();
-    expect(within(dialog).getAllByRole("textbox")).toHaveLength(1);
+    expect(await screen.findByRole("button", { name: "projeto: lorebase" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "projeto: lorebase" }));
+    await user.click(screen.getByRole("menuitem", { name: "outro" }));
+
+    // `key={projectId}` remonta o corpo do compositor (Q1: outro projeto tem
+    // outro rascunho) — o `dialog` de antes da troca fica para trás, e é por
+    // isso que a asserção relê pelo `screen`, e não por uma referência velha.
+    expect(await screen.findByRole("button", { name: "projeto: outro" })).toBeInTheDocument();
+  });
+});
+
+/**
+ * F4.7 fechado (`033` T20): a branch escolhida já tem worktree, e o texto
+ * digitado não podia mais só sumir — o modal sabia para onde ir, mas não como
+ * levar o rascunho junto (`arriveDraft`, `lib/navigation.ts`).
+ */
+describe("colisão de branch — abre a existente com o rascunho preenchido", () => {
+  it("chega na worktree existente com a aba de rascunho ativa e o texto preservado", async () => {
+    const user = userEvent.setup();
+    trpc.worktree.listByProject.query.mockResolvedValue([worktree("wt9", "feature-a")]);
+    trpc.worktree.getDetail.query.mockResolvedValue(detail(worktree("wt9", "feature-a")));
+    trpc.worktree.branches.query.mockResolvedValue([
+      {
+        name: "feature-a",
+        local: true,
+        remotes: [],
+        worktreePath: "/w/feature-a",
+        worktreeId: "wt9",
+        worktreeName: "feature-a",
+      },
+    ]);
+
+    await selectProject(user);
+    await openCreateWorktree(user);
+    await user.type(screen.getByLabelText("No que você quer trabalhar?"), "continuar dali");
+    await user.click(screen.getByRole("button", { name: /^origem:/ }));
+    await user.click(screen.getByRole("button", { name: "branch" }));
+    await user.click(await screen.findByRole("option", { name: /feature-a/ }));
+    await user.click(screen.getByRole("button", { name: /abrir feature-a/ }));
+
+    // Chegou na worktree existente, e não criou nenhuma. A aba própria do
+    // checkout é o alvo — não o cabeçalho de dentro dela, que fica `hidden`
+    // assim que outra aba (aqui, o rascunho) está na frente.
+    expect(await screen.findByRole("tab", { name: "feature-a" })).toBeInTheDocument();
+    expect(trpc.worktree.start.mutate).not.toHaveBeenCalled();
+
+    // A aba de rascunho nasceu ativa, sem chamar o daemon — e com o texto de
+    // quem digitou no modal, sem mandar nem apagar.
+    const draftTab = await screen.findByRole("tab", { name: "rascunho" });
+    expect(draftTab).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByLabelText("mensagem para o agente")).toHaveValue("continuar dali");
+    expect(trpc.session.createAgent.mutate).not.toHaveBeenCalled();
   });
 });
 

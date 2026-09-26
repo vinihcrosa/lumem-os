@@ -270,6 +270,7 @@ PTY é o denominador comum universal; ACP/SDK dão estrutura. Suportar mais de u
 de `agent_config`, não bandeira. Sessão de shell continua sendo PTY de qualquer jeito, e ele é a
 saída se o billing do caminho ACP mudar. O estudo inteiro, com o custo medido e os riscos que a
 pesquisa achou depois, está em [pty-vs-acp.md](pty-vs-acp.md) §9.
+> **Nota, 2026-09-24 —** superado pelo [ADR de 2026-09-24](../adr/2026-09-24-1620-agent-is-always-acp.md): agente é só ACP; o PTY fica para o terminal integrado.
 
 #### [x] Q031 — Suportar modo estruturado **e** TUI puro na mesma casca? `[cd]`
 O Conductor usa SDK e ficou exposto quando a Anthropic passou a cobrar SDK como API (usuários citando *"$1k/month"*). A saída deles foi um TUI embutido — que mata a UI que era o valor do produto.
@@ -280,6 +281,7 @@ que derrubou o Conductor apareceu na pesquisa: pelo caminho ACP a autenticação
 não valer, e a Anthropic já anunciou (e cancelou) uma separação de pools de billing para uso via
 Agent SDK. Por isso a decisão manteve `transport` como **coluna**: a casca funciona por cima dos
 dois, e voltar uma sessão para PTY é config, não refactor. Ver [pty-vs-acp.md §9.2](pty-vs-acp.md).
+> **Nota, 2026-09-24 —** superado pelo [ADR de 2026-09-24](../adr/2026-09-24-1620-agent-is-always-acp.md): agente é só ACP.
 
 #### [ ] Q032 — Qual a fronteira entre "estado no banco" e "estado em arquivo no repo"? `[cz]`
 O Compozy põe no repo: `workspace.toml`, `AGENT.md`, `SKILL.md`, `loop.yaml`, memória. No banco: tasks, runs, eventos, sinais. Regra implícita: *o que o humano edita fica em arquivo*.

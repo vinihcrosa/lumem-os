@@ -52,7 +52,6 @@ test("uma pergunta sem resposta vira memória com evidência, e só custa uma ve
       name: AGENT,
       command: process.execPath,
       args: [E2E_FAKE_ACP_AGENT],
-      transport: "acp",
       adapterVersion: "0.0.0-fake",
     });
     const workspace = (await call(daemon.url, "workspace.create", { name: "pesquisa" })) as {

@@ -481,6 +481,8 @@ resultado, com o que cada uma prova e o que não prova, está no §9.5.
 
 ### 9.3 A regra que fica
 
+> **Nota, 2026-09-24 —** a regra desta seção foi superada pelo [ADR de 2026-09-24](../adr/2026-09-24-1620-agent-is-always-acp.md). O estudo continua como registro do que se pesou.
+
 **`transport` é coluna, não bandeira.** Mesmo migrando, `agent_config` ganha
 `transport ∈ pty | acp` e o PTY continua sendo caminho de primeira classe — porque a sessão de shell
 precisa dele de qualquer jeito, porque é a saída se o §9.2(b) se realizar, e porque é o que aceita o

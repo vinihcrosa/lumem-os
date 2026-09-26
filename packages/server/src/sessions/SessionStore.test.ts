@@ -1,4 +1,4 @@
-import { rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -8,9 +8,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Db } from "../db/index.js";
 import { openTestDb, type TestDb } from "../db/testing.js";
 import { AcpManager } from "../acp/AcpManager.js";
+import { AdapterCatalog } from "../acp/adapter-catalog.js";
 import { listSignals } from "../memory/signals.js";
 import { PtyManager } from "../pty/PtyManager.js";
-import { fakeAgentProcess } from "../testing/acp-fake-agent.js";
+import {
+  FAKE_CONFIG_OPTIONS,
+  fakeAgentProcess,
+  type FakeAgentScript,
+} from "../testing/acp-fake-agent.js";
 import { eq } from "drizzle-orm";
 
 import * as schema from "../db/schema.js";
@@ -64,7 +69,6 @@ async function acpAgent(db: Db, overrides: Record<string, unknown> = {}) {
   const config = await createAgentConfigRepository(db).create({
     name: `claude-acp-${newId()}`,
     command: "claude-agent-acp",
-    transport: "acp",
     adapterVersion: "0.69.0",
   });
   return {
@@ -74,7 +78,6 @@ async function acpAgent(db: Db, overrides: Record<string, unknown> = {}) {
     scopeId: "w1",
     cwd: tmpdir(),
     command: config.command,
-    transport: "acp" as const,
     adapterVersion: config.adapterVersion,
     ...overrides,
   };
@@ -131,6 +134,7 @@ describe("start", () => {
     const config = await createAgentConfigRepository(db).create({
       name: "fixture",
       command: "sh",
+      adapterVersion: "1.0.0",
     });
 
     const row = await store.start(
@@ -143,12 +147,15 @@ describe("start", () => {
   it("kills the process when the record cannot be written", async () => {
     // A process the daemon cannot describe is one nobody can find or stop from
     // the UI.
+    //
+    // Um shell com configuração, que o CHECK recusa: era um agente-PTY com uma
+    // configuração fantasma, e agente não chega mais ao PTY. O caso do agente mora
+    // em "kills the agent it could not write down".
     const { store, ptyManager } = setup();
 
-    await expect(
-      store.start(shell({ kind: "agent", agentConfigId: "ghost" })),
-    ).rejects.toThrow();
+    await expect(store.start(shell({ agentConfigId: "ghost" }))).rejects.toThrow();
 
+    expect(ptyManager.list()).toHaveLength(1);
     await vi.waitFor(() =>
       expect(ptyManager.list().every((info) => info.state === "exited")).toBe(true),
     );
@@ -295,11 +302,19 @@ describe("transport", () => {
     expect(row.acpSessionId).toBeNull();
   });
 
-  it("still starts a PTY agent when the configuration says so", async () => {
-    const { store, db } = setup();
+  it("starts an agent on ACP without anyone naming the transport", async () => {
+    /*
+     * O inverso do teste que morava aqui (*"still starts a PTY agent when the
+     * configuration says so"*): o agente sem transporte declarado caía no
+     * `ptyManager.spawn`, e esse era o caminho alternativo que o ADR de
+     * 2026-09-24 fechou. Agora o tipo é que decide — agente é ACP —, e nada
+     * chega ao PTY.
+     */
+    const { store, db, ptyManager, acpManager } = setup();
     const config = await createAgentConfigRepository(db).create({
       name: "claude-code",
       command: "sh",
+      adapterVersion: "1.0.0",
     });
 
     const row = await store.start({
@@ -312,7 +327,9 @@ describe("transport", () => {
       args: ["-c", "sleep 30"],
     });
 
-    expect(row).toMatchObject({ transport: "pty", acpSessionId: null });
+    expect(row).toMatchObject({ transport: "acp", acpSessionId: "fake-acp-session" });
+    expect(acpManager.get(row.id)?.state).toBe("running");
+    expect(ptyManager.list()).toEqual([]);
   });
 
   /**
@@ -331,7 +348,6 @@ describe("transport", () => {
       cwd: tmpdir(),
       command: "sh",
       args: ["-c", "sleep 30"],
-      transport: "acp",
     });
 
     expect(row).toMatchObject({
@@ -653,6 +669,119 @@ describe("resuming", () => {
     ]);
   });
 
+  /**
+   * O modelo sobrevive à retomada (`033` F6, Q7).
+   *
+   * Medido na M2: `session/load` **não** restaura o modelo trocado por
+   * `set_config_option` — volta o padrão local do adaptador. O fake reproduz
+   * isso de graça: o `loadSession` dele responde sempre `opus[1m]`, qualquer que
+   * fosse o modelo de ontem.
+   */
+  describe("o modelo", () => {
+    /** Um `set_config_option` que devolve o valor pedido, e anota a chamada. */
+    function switching(calls: string[] = []): FakeAgentScript {
+      return {
+        setConfigOption: (configId, value) => {
+          calls.push(`${configId}=${String(value)}`);
+          return FAKE_CONFIG_OPTIONS.map((option) =>
+            option.id === configId ? { ...option, currentValue: value } : option,
+          ) as typeof FAKE_CONFIG_OPTIONS;
+        },
+      };
+    }
+
+    /** A sessão de ontem, em `sonnet` na linha — trocado pela tela, como de verdade. */
+    async function endedOnSonnet(db: Db, store: SessionStore, acpManager: AcpManager) {
+      queued.push(fakeAgentProcess(switching()).process);
+      const row = await store.start(await acpAgent(db));
+      await acpManager.setConfig(row.id, "model", "sonnet");
+      await vi.waitFor(async () => expect((await store.findById(row.id))?.model).toBe("sonnet"));
+      await acpManager.prompt(row.id, "algo dito ontem");
+      acpManager.kill(row.id);
+      await vi.waitFor(async () =>
+        expect((await store.findById(row.id))?.state).toBe("exited"),
+      );
+      return row;
+    }
+
+    function modelEvents(transcripts: TranscriptStore, id: string) {
+      return transcripts
+        .read(id)
+        .map((entry) => entry.event)
+        .filter((event) => event.type === "model_unavailable");
+    }
+
+    it("o load volta ao padrão, e a retomada reaplica o modelo de ontem", async () => {
+      const { store, db, acpManager, transcripts } = setup();
+      const old = await endedOnSonnet(db, store, acpManager);
+      const calls: string[] = [];
+      queued.push(fakeAgentProcess(switching(calls)).process);
+
+      const resumed = await store.resume(old.id);
+
+      // O daemon viu o `opus[1m]` do load e mandou o `sonnet` de volta.
+      expect(calls).toEqual(["model=sonnet"]);
+      expect(resumed.model).toBe("sonnet");
+      // A linha nova, e não só a resposta: reabrir a aba lê daqui.
+      expect((await store.findById(resumed.id))?.model).toBe("sonnet");
+      expect(acpManager.get(resumed.id)?.model).toBe("sonnet");
+      expect(modelEvents(transcripts, resumed.id)).toEqual([]);
+    });
+
+    it("o modelo sumiu do agente: a conversa diz qual, e a retomada não falha", async () => {
+      const { store, db, acpManager, transcripts } = setup();
+      const old = await endedOnSonnet(db, store, acpManager);
+      const calls: string[] = [];
+      // O agente de hoje só oferece `opus[1m]`: o `sonnet` de ontem não existe mais.
+      const onlyOpus = FAKE_CONFIG_OPTIONS.map((option) => ({
+        ...option,
+        options: [{ value: "opus[1m]", name: "opus[1m]", description: "Opus 5 · 1M context" }],
+      })) as unknown as typeof FAKE_CONFIG_OPTIONS;
+      queued.push(
+        fakeAgentProcess({ ...switching(calls), loadSession: () => ({ configOptions: onlyOpus }) })
+          .process,
+      );
+
+      const resumed = await store.resume(old.id);
+
+      // Conferido contra o que a sessão oferece, antes de perguntar ao adaptador.
+      expect(calls).toEqual([]);
+      expect(resumed).toMatchObject({ state: "running", model: "opus[1m]" });
+      expect(modelEvents(transcripts, resumed.id)).toEqual([
+        { type: "model_unavailable", model: "sonnet", current: "opus[1m]" },
+      ]);
+      // Depois do separador: é a conversa de hoje que continuou em outro modelo.
+      expect(transcripts.read(resumed.id).map((entry) => entry.event.type).slice(-2)).toEqual([
+        "resumed",
+        "model_unavailable",
+      ]);
+    });
+
+    it("o adaptador recusa a troca: a mesma linha, e a retomada fica de pé", async () => {
+      /*
+       * Um valor oferecido que o adaptador recusa não tem código confiável —
+       * a lição da T10 —, então a recusa não pode derrubar a retomada: a
+       * conversa de ontem é o que a pessoa pediu, o modelo é o detalhe.
+       */
+      const { store, db, acpManager, transcripts } = setup();
+      const old = await endedOnSonnet(db, store, acpManager);
+      queued.push(
+        fakeAgentProcess({
+          setConfigOption: () => {
+            throw new Error("model sonnet is not available on this plan");
+          },
+        }).process,
+      );
+
+      const resumed = await store.resume(old.id);
+
+      expect(resumed).toMatchObject({ state: "running", model: "opus[1m]" });
+      expect(modelEvents(transcripts, resumed.id)).toEqual([
+        { type: "model_unavailable", model: "sonnet", current: "opus[1m]" },
+      ]);
+    });
+  });
+
   it("kills the adapter it could not write down", async () => {
     /*
      * Same rule as `start`: a conversation the daemon cannot describe is one nobody
@@ -798,23 +927,21 @@ describe("os sinais que a saída de uma sessão produz (Q17)", () => {
     cleanupGitFixtures();
   });
 
-  /** Uma sessão de agente que morre no ato, no diretório pedido. */
+  /**
+   * Uma sessão de agente que morre no ato, no diretório pedido.
+   *
+   * Um adaptador falso que sai logo depois do handshake: era um PTY com
+   * `exit 0`, e agente não é mais PTY.
+   */
   async function agentThatDiesAt(
     store: SessionStore,
     db: Db,
     cwd: string,
   ): Promise<{ id: string }> {
-    const config = await createAgentConfigRepository(db).create({ name: "fixture", command: "sh" });
-    const row = await store.start(
-      shell({
-        kind: "agent",
-        agentConfigId: config.id,
-        scopeType: "worktree",
-        scopeId: "wt1",
-        cwd,
-        args: ["-c", "exit 0"],
-      }),
-    );
+    const fake = fakeAgentProcess();
+    queued.push(fake.process);
+    const row = await store.start(await acpAgent(db, { scopeId: "wt1", cwd }));
+    fake.process.kill();
     return { id: row.id };
   }
 
@@ -1037,5 +1164,211 @@ describe("o modo do Lumem", () => {
     const frame = await store.transcript(row.id);
 
     expect(frame).toMatchObject({ lumemMode: "auto" });
+  });
+});
+
+/**
+ * As duas fontes do catálogo de adaptador que moram aqui (`033` T8).
+ *
+ * O store é o único lugar que segura ao mesmo tempo a linha da sessão — que diz
+ * qual configuração e qual escopo — e o `AcpManager` — que diz o que o
+ * adaptador ofereceu. O catálogo precisa das duas metades: o **nome** da
+ * configuração é o id do adaptador, e o **projeto** é a chave dos comandos.
+ */
+describe("o catálogo de adaptador", () => {
+  const catalogDirs: string[] = [];
+
+  afterEach(() => {
+    for (const dir of catalogDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+  });
+
+  function withCatalog() {
+    const stateDir = mkdtempSync(join(tmpdir(), "lumem-catalog-"));
+    catalogDirs.push(stateDir);
+    const catalog = new AdapterCatalog({ stateDir });
+    const database = openTestDb();
+    databases.push(database);
+    const ptyManager = new PtyManager();
+    managers.push(ptyManager);
+    const acpManager = new AcpManager({
+      spawner: () => queued.shift() ?? fakeAgentProcess().process,
+      isAvailable: () => true,
+      handshakeTimeoutMs: 2_000,
+    });
+    acpManagers.push(acpManager);
+    const store = createSessionStore({
+      db: database.db,
+      ptyManager,
+      acpManager,
+      adapterCatalog: catalog,
+      // O que o `bootstrap` faz: o binário gerenciado da spec é aquela spec.
+      catalogAdapterOf: (config) => (config.command === "claude-agent-acp" ? "claude" : null),
+    });
+    unsubscribes.push(store.trackExits());
+    return { store, db: database.db, acpManager, catalog };
+  }
+
+  /** Um projeto com uma worktree, para o escopo ter de onde subir. */
+  async function checkout(db: Db) {
+    const workspace = await createWorkspaceRepository(db).create({ name: `ws-${newId()}` });
+    const project = await createProjectRepository(db).create({
+      workspaceId: workspace.id,
+      name: `p-${newId()}`,
+      path: join(tmpdir(), `p-${newId()}`),
+      defaultBranch: "main",
+    });
+    const tree = await createWorktreeRepository(db).create({
+      projectId: project.id,
+      name: `wt-${newId()}`,
+      branch: "feat",
+      path: join(tmpdir(), `wt-${newId()}`),
+    });
+    return { projectId: project.id, worktreeId: tree.id };
+  }
+
+  function readingOf(catalog: AdapterCatalog, adapterId: string, projectId?: string) {
+    return catalog.view(projectId).find((reading) => reading.adapterId === adapterId);
+  }
+
+  it("uma sessão criada grava no catálogo as opções do handshake, pelo adaptador da config", async () => {
+    const { store, db, catalog } = withCatalog();
+    const input = await acpAgent(db);
+
+    await store.start(input);
+
+    const reading = readingOf(catalog, "claude");
+    expect(reading?.configOptions.map((option) => option.id)).toEqual(["mode", "model"]);
+    expect(reading?.configOptions.find((option) => option.id === "model")?.currentValue).toBe(
+      "opus[1m]",
+    );
+    // Veio de uma sessão que abriu: a credencial serviu.
+    expect(reading?.authRequired).toBe(false);
+  });
+
+  it("uma config que o catálogo não conhece não grava nada nele", async () => {
+    // Gravar pelo nome dela punha na pílula um grupo que nunca se escolhe.
+    const { store, db, catalog } = withCatalog();
+    const input = await acpAgent(db);
+    const own = await createAgentConfigRepository(db).create({
+      name: "my-claude",
+      command: "/opt/meu/adaptador",
+      adapterVersion: "1.0.0",
+    });
+
+    await store.start({ ...input, agentConfigId: own.id, command: own.command });
+
+    expect(catalog.view().map((reading) => reading.adapterId)).not.toContain("my-claude");
+  });
+
+  it("não apaga as opções por modelo que o probe percorreu", async () => {
+    // A sessão só conhece o `session/new`. Se ela gravasse `optionsByModel`, a
+    // pílula de *effort* voltaria ao modelo padrão a cada conversa aberta (M1a).
+    const { store, db, catalog } = withCatalog();
+    const input = await acpAgent(db);
+    const walked = {
+      sonnet: [{ id: "model", name: "Model", category: "model", currentValue: "sonnet", choices: [] }],
+    };
+    await catalog.recordOptions("claude", [], { authRequired: false, optionsByModel: walked });
+
+    await store.start(input);
+
+    expect(readingOf(catalog, "claude")?.optionsByModel).toEqual(walked);
+    expect(readingOf(catalog, "claude")?.configOptions).not.toEqual([]);
+  });
+
+  it("os comandos de uma sessão de worktree vão para o projeto dela, e só dele", async () => {
+    queued.push(
+      fakeAgentProcess({
+        prompt: async (_text, turn) => {
+          await turn.update({
+            sessionUpdate: "available_commands_update",
+            availableCommands: [{ name: "review", description: "Review the diff" }],
+          } as never);
+          return "end_turn";
+        },
+      }).process,
+    );
+    const { store, db, acpManager, catalog } = withCatalog();
+    const { projectId, worktreeId } = await checkout(db);
+    const other = await checkout(db);
+    const input = await acpAgent(db, { scopeType: "worktree", scopeId: worktreeId });
+    const row = await store.start(input);
+
+    await acpManager.prompt(row.id, "oi");
+
+    await vi.waitFor(() => {
+      expect(readingOf(catalog, "claude", projectId)?.commands).toEqual([
+        { name: "review", description: "Review the diff", takesInput: false },
+      ]);
+    });
+    expect(readingOf(catalog, "claude", other.projectId)?.commands).toEqual([]);
+  });
+
+  it("comandos que chegam junto com o handshake chegam ao catálogo", async () => {
+    /*
+     * O caso do Claude: ele manda o `available_commands_update` logo depois do
+     * `session/new`. Aqui o fake manda **antes** da resposta, a pior ordem que
+     * o fio permite — e, medido com um `console.log` nos dois lados, o SDK
+     * ainda entrega a resposta primeiro: o `spawn` volta, a linha é gravada, e
+     * só então o observador procura por ela.
+     *
+     * Este teste guarda essa ordem. Se um dia o SDK ou o `AcpManager` passarem a
+     * tratar a notificação antes, o observador procura uma linha que ainda não
+     * existe e o `/` da primeira conversa de todo projeto some sem erro — e é
+     * aqui que isso fica vermelho.
+     */
+    const fake = fakeAgentProcess({
+      newSession: () => {
+        void fake.sendRaw({
+          jsonrpc: "2.0",
+          method: "session/update",
+          params: {
+            sessionId: "fake-acp-session",
+            update: {
+              sessionUpdate: "available_commands_update",
+              availableCommands: [{ name: "early", description: "Came with the handshake" }],
+            },
+          },
+        });
+      },
+    });
+    queued.push(fake.process);
+    const { store, db, catalog } = withCatalog();
+    const { projectId, worktreeId } = await checkout(db);
+    const input = await acpAgent(db, { scopeType: "worktree", scopeId: worktreeId });
+
+    await store.start(input);
+
+    await vi.waitFor(() => {
+      expect(readingOf(catalog, "claude", projectId)?.commands.map((c) => c.name)).toEqual([
+        "early",
+      ]);
+    });
+  });
+
+  it("uma sessão de projeto grava os comandos no próprio projeto", async () => {
+    queued.push(
+      fakeAgentProcess({
+        prompt: async (_text, turn) => {
+          await turn.update({
+            sessionUpdate: "available_commands_update",
+            availableCommands: [{ name: "plan", description: "Plan first" }],
+          } as never);
+          return "end_turn";
+        },
+      }).process,
+    );
+    const { store, db, acpManager, catalog } = withCatalog();
+    const { projectId } = await checkout(db);
+    const input = await acpAgent(db, { scopeType: "project", scopeId: projectId });
+    const row = await store.start(input);
+
+    await acpManager.prompt(row.id, "oi");
+
+    await vi.waitFor(() => {
+      expect(readingOf(catalog, "claude", projectId)?.commands.map((c) => c.name)).toEqual([
+        "plan",
+      ]);
+    });
   });
 });

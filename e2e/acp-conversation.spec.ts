@@ -1,6 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { createAgentConfig, createWorktree, ensureProject, ensureWorkspace, openProject } from "./support/app.js";
+import {
+  createAgentConfig,
+  createWorktree,
+  ensureProject,
+  ensureWorkspace,
+  openConfiguredAgent,
+  openProject,
+} from "./support/app.js";
 import { E2E_FAKE_ACP_AGENT, E2E_FIXTURE_REPO_ACP } from "./support/fixtures.js";
 import { E2E_SERVER_PORT } from "../ports.js";
 
@@ -43,15 +50,7 @@ function conversation(page: Page) {
 }
 
 async function openConversation(page: Page): Promise<void> {
-  await page.getByRole("button", { name: /nova sessão/ }).click();
-  await page.getByRole("menuitem", { name: new RegExp(`^${AGENT}\\b`) }).click();
-  await expect(conversation(page)).toBeVisible({ timeout: 20_000 });
-  // Atada, e não só visível. O painel renderiza enquanto o socket conecta, e o
-  // composer só aceita mensagem depois do `attached` — CI no Linux é onde essa
-  // janela aparece, e onde ela custou um turno perdido.
-  await expect(conversation(page).getByText("sessão aberta, nada pedido ainda")).toBeVisible({
-    timeout: 20_000,
-  });
+  await openConfiguredAgent(page, DAEMON, AGENT);
 }
 
 /** Everything up to an open, empty worktree of this test's own. */
@@ -71,7 +70,6 @@ test.beforeEach(async ({ request }) => {
     name: AGENT,
     command: process.execPath,
     args: [E2E_FAKE_ACP_AGENT],
-    transport: "acp",
     adapterVersion: "0.0.0-fake",
   });
 });

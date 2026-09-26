@@ -19,7 +19,7 @@ import {
   type TabState,
 } from "../../ui/index.js";
 import { FileViewer } from "./FileViewer.js";
-import { NewSessionMenu } from "../conversation/index.js";
+import { DraftAgentTab, NewSessionMenu } from "../conversation/index.js";
 import { PatchViewer } from "./PatchViewer.js";
 import { SessionTabPanel } from "../conversation/index.js";
 import { TabSplit } from "./TabSplit.js";
@@ -76,7 +76,20 @@ export function ScopePanel({
   context,
   cwd,
 }: ScopePanelProps) {
-  const { tabs, activeId, select, close, reopen, resume, resuming, resumeError, sessions } =
+  const {
+    tabs,
+    drafts,
+    activeId,
+    select,
+    close,
+    reopen,
+    resume,
+    resuming,
+    resumeError,
+    sessions,
+    addDraft,
+    closeDraft,
+  } =
     useWorktreeTabs(scope);
   const awaiting = useAwaitingPermission();
   const openFiles = useOpenFiles();
@@ -96,7 +109,11 @@ export function ScopePanel({
    * dela dispara antes deste efeito (efeitos correm de dentro para fora) — ler
    * o store de novo aqui já veria `null`.
    */
-  const { arrival } = useNavigation();
+  const { arrival, selection } = useNavigation();
+  // O catálogo de adaptador é lido por projeto (`033` §3.1) — `scope.scopeId`
+  // não serve para isso quando o escopo é uma worktree. A `selection` é a mesma
+  // fonte que decidiu qual `scope` chegou até aqui, então os dois nunca discordam.
+  const projectId = selection?.projectId ?? null;
   const opened = useRef<string | null>(null);
   useEffect(() => {
     if (arrival === null || opened.current === arrival.sessionId) return;
@@ -168,6 +185,7 @@ export function ScopePanel({
             scopeType={scope.scopeType}
             scopeId={scope.scopeId}
             onCreated={(sessionId) => select(sessionId)}
+            onNewAgent={addDraft}
           />
         }
         end={
@@ -220,6 +238,19 @@ export function ScopePanel({
             }}
           />
         ))}
+        {drafts.map((draft) => (
+          // Sem estado a reportar: um rascunho nunca está `running` nem
+          // `exited`, e fechá-lo não passa pelo `end` — nenhuma sessão existe
+          // no daemon para encerrar (Q4).
+          <Tab
+            key={draft.id}
+            label="rascunho"
+            glyph={<Glyph tone="agent">◆</Glyph>}
+            active={activeId === draft.id}
+            onSelect={() => select(draft.id)}
+            onClose={() => closeDraft(draft.id)}
+          />
+        ))}
       </TabStrip>
 
       {/* Every tab stays mounted; only the open one is shown. Unmounting would
@@ -254,6 +285,10 @@ export function ScopePanel({
             all.map((session) => {
               const running = session.state === "running";
               const listed = openIds.has(session.id);
+              // `033` Q3: legado, sem acesso. An agent that ran in a terminal is
+              // history — named, with its state and age, and no verb that would
+              // bring it back, because the daemon no longer runs agents that way.
+              const legacy = session.kind === "agent" && session.transport !== "acp";
 
               return (
                 <Item
@@ -279,7 +314,7 @@ export function ScopePanel({
                   age={relativeAge(session.createdAt)}
                   onSelect={listed ? () => select(session.id) : undefined}
                   action={
-                    listed ? undefined : (
+                    listed || legacy ? undefined : (
                       // The record outlives the tab, and so does the daemon's
                       // ring buffer — this is how the output of something that
                       // crashed gets read after its tab went away.
@@ -320,6 +355,21 @@ export function ScopePanel({
           {...(resumeError?.sessionId === tab.sessionId
             ? { resumeError: resumeError.message }
             : {})}
+        />
+      ))}
+
+      {drafts.map((draft) => (
+        <DraftAgentTab
+          key={draft.id}
+          scope={scope}
+          projectId={projectId}
+          worktreeName={checkout.name}
+          active={activeId === draft.id}
+          initialText={draft.initialText}
+          onCreated={(sessionId) => {
+            closeDraft(draft.id);
+            select(sessionId);
+          }}
         />
       ))}
     </section>

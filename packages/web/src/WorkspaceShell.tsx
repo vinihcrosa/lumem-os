@@ -1,6 +1,6 @@
 import {
   AddProjectDialog,
-  CreateWorktreeDialog,
+  NewWorktreeComposerModal,
   SidebarNav,
   SidebarTree,
   WorkspaceSelector,
@@ -157,36 +157,19 @@ export function WorkspaceShell({
       />
 
       {worktreeFor !== null && (
-        <CreateWorktreeDialog
+        <NewWorktreeComposerModal
           // Keyed by project: the field is per dialog, and reopening on another
           // row must not inherit what was typed for the last one.
           key={worktreeFor.id}
+          workspaceId={workspaceId}
           projectId={worktreeFor.id}
-          projectName={worktreeFor.name}
-          hasCommits={worktreeFor.hasCommits}
-          open
           onClose={onCloseCreateWorktree}
-          // Q5: escolher uma branch que outro checkout já tem leva PARA ele.
-          // O destino é o mesmo de criar; o que não acontece é a criação.
-          onOpenExisting={(worktreeId) => {
-            expansion.expand(worktreeFor.id);
-            selectScope({
-              projectId: worktreeFor.id,
-              scope: { scopeType: "worktree", scopeId: worktreeId },
-            });
-            onCloseCreateWorktree();
-          }}
-          onCreated={(worktreeId) => {
-            // F1.5: the same destination the old path delivered. Expanding is
-            // part of it — a worktree selected inside a folded project is a
-            // selection with nothing on screen to show for it.
-            expansion.expand(worktreeFor.id);
-            selectScope({
-              projectId: worktreeFor.id,
-              scope: { scopeType: "worktree", scopeId: worktreeId },
-            });
-            onCloseCreateWorktree();
-          }}
+          // Q5 (`026`): escolher uma branch que outro checkout já tem leva PARA
+          // ele. O destino é o mesmo de criar; o que não acontece é a criação.
+          // `selectScope` já rodou dentro do compositor (`033` T20) — aqui só
+          // falta o que é deste componente: abrir a pasta na árvore.
+          onOpenExisting={() => expansion.expand(worktreeFor.id)}
+          onCreated={() => expansion.expand(worktreeFor.id)}
         />
       )}
     </>

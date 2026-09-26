@@ -395,9 +395,9 @@ function NoScripts({
 }) {
   const configs = useAgentConfigs();
 
-  // Só conversa serve: o pedido é uma pergunta em texto, e um agente por PTY é um
-  // terminal — mandar texto nele seria digitar no prompt de outra coisa.
-  const agent = (configs.data ?? []).find((config) => config.transport === "acp") ?? null;
+  // Todo agente listado é conversa (`033` F1.1), e o pedido é uma pergunta em
+  // texto: qualquer um serve.
+  const agent = configs.data?.[0] ?? null;
 
   const { createAgent } = useSessionMutations(scope);
   const ask = useMutation({

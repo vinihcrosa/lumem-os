@@ -68,3 +68,16 @@
   flex: 1;
   border-left: 0;
 }
+
+/* A coluna do meio, com altura: a conversa rola dentro dela e o composer fica
+   no pé, como no produto. Sem altura o `.conv` encolhe até o conteúdo e o
+   composer sobe para o meio da página. Sem `overflow: hidden` — os menus do
+   composer abrem para cima e não podem ser recortados pela moldura. */
+.sg__pane {
+  display: flex;
+  flex-direction: column;
+  height: calc(var(--space-64) * 9);
+  background: var(--color-bg-base);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+}

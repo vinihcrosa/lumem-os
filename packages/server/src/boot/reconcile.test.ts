@@ -182,7 +182,6 @@ describe("reconcileOrphanSessions", () => {
       const config = await createAgentConfigRepository(db).create({
         name: "claude-acp",
         command: "claude-agent-acp",
-        transport: "acp",
         adapterVersion: "0.69.0",
       });
       const sessions = createSessionRepository(db);
@@ -456,6 +455,7 @@ describe("reconcileOnBoot", () => {
       const mine = await createAgentConfigRepository(db).create({
         name: "meu-agente",
         command: "outro",
+        adapterVersion: "1.0.0",
       });
       await reconcileOnBoot({ db, config: testConfig(), transcriptsDir: transcriptsDir() });
 

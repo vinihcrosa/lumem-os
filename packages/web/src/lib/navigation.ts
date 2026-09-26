@@ -56,12 +56,27 @@ export interface Arrival {
   readonly send: boolean;
 }
 
+/**
+ * Um rascunho pedido num escopo, com o texto que ele nasce mostrando.
+ *
+ * Separado de `Arrival` porque não tem sessão nenhuma para apontar (`033`
+ * F4.7): a colisão de branch leva para uma worktree que já existe, mas o
+ * texto digitado no modal de nova worktree não tem `sessionId` — o rascunho
+ * ainda não existe do lado do cliente, e só nasce dentro do `useWorktreeTabs`
+ * do escopo de destino.
+ */
+interface PendingDraft {
+  readonly scope: NavigationScope;
+  readonly text: string;
+}
+
 interface NavigationState {
   readonly selection: Selection | null;
   readonly arrival: Arrival | null;
+  readonly pendingDraft: PendingDraft | null;
 }
 
-let state: NavigationState = { selection: null, arrival: null };
+let state: NavigationState = { selection: null, arrival: null, pendingDraft: null };
 const listeners = new Set<() => void>();
 
 function commit(next: NavigationState): void {
@@ -101,11 +116,12 @@ export function select(next: Selection): void {
  * chegada pendente de um checkout ficava viva apontando para uma sessão de
  * fora do workspace novo, até outra chegada a substituir. Paridade com
  * `origin/main`, onde `ask`/`draft` também sobreviviam a uma troca — mas lá
- * eram três lugares, e agora é um só.
+ * eram três lugares, e agora é um só. `pendingDraft` segue a mesma regra pelo
+ * mesmo motivo.
  */
 export function clear(): void {
-  if (state.selection === null && state.arrival === null) return;
-  commit({ selection: null, arrival: null });
+  if (state.selection === null && state.arrival === null && state.pendingDraft === null) return;
+  commit({ selection: null, arrival: null, pendingDraft: null });
 }
 
 /** Uma sessão pede para entrar na tela — ver `Arrival`. */
@@ -129,6 +145,36 @@ export function consumeArrival(sessionId: string): Arrival | null {
   return current;
 }
 
+/**
+ * Pede um rascunho pré-preenchido no escopo indicado, uma vez.
+ *
+ * Existe ao lado de `arrive()`, e não dentro dele: aquele aponta para uma
+ * sessão que já existe. A colisão de branch (`033` F4.7) tem só um escopo de
+ * destino — a worktree já existe, o rascunho ainda não. Consumido por
+ * `useWorktreeTabs`, que é quem sabe nascer um rascunho.
+ */
+export function arriveDraft(scope: NavigationScope, text: string): void {
+  commit({ ...state, pendingDraft: { scope, text } });
+}
+
+/**
+ * Consome o rascunho pendente deste escopo, uma vez — mesma forma de
+ * `consumeArrival`: `null` quando não há nada para este escopo (outro, ou
+ * nenhum), e quem recebe outra coisa é dono dela.
+ */
+export function consumePendingDraft(scope: NavigationScope): string | null {
+  const current = state.pendingDraft;
+  if (
+    current === null ||
+    current.scope.scopeType !== scope.scopeType ||
+    current.scope.scopeId !== scope.scopeId
+  ) {
+    return null;
+  }
+  commit({ ...state, pendingDraft: null });
+  return current.text;
+}
+
 /** Onde você está: o checkout selecionado, e a chegada pendente, se houver. */
 export function useNavigation(): NavigationState {
   return useSyncExternalStore(subscribe, snapshot, snapshot);
@@ -144,5 +190,5 @@ export function useNavigation(): NavigationState {
  * (`replaceState`); este estado não mora em lugar nenhum fora do módulo.
  */
 export function resetNavigationForTests(): void {
-  state = { selection: null, arrival: null };
+  state = { selection: null, arrival: null, pendingDraft: null };
 }

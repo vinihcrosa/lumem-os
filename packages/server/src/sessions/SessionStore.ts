@@ -2,11 +2,12 @@ import type { FastifyBaseLogger } from "fastify";
 
 import type { Db } from "../db/index.js";
 import type { EventBus } from "../events.js";
-import type { AcpServerMessage, LumemMode, LumemModeDefault } from "@lumem/shared";
+import { adapterById, type AcpServerMessage, type LumemMode, type LumemModeDefault } from "@lumem/shared";
 
 import type { SessionRow } from "../db/schema.js";
 import { DomainError } from "../errors.js";
-import type { AcpDriver, AcpManager } from "../acp/AcpManager.js";
+import type { AcpDriver, AcpManager, AcpSessionInfo } from "../acp/AcpManager.js";
+import type { AdapterCatalog } from "../acp/adapter-catalog.js";
 import { createGitService, type GitService } from "../git/GitService.js";
 import {
   isKilledEarly,
@@ -21,6 +22,7 @@ import { createAgentConfigRepository } from "../repositories/agentConfig.js";
 import { createProjectRepository } from "../repositories/project.js";
 import {
   createSessionRepository,
+  type PendingReason,
   type ScopeType,
   type ScriptPhase,
   type SessionKind,
@@ -49,15 +51,16 @@ export interface StartSessionInput {
   env?: Readonly<Record<string, string>>;
   cols?: number;
   rows?: number;
-  /**
-   * Which manager owns this session, from the agent configuration.
+  /*
+   * There is no `transport` here any more, and that is the change.
    *
-   * Passed in rather than looked up: the router already holds the configuration
-   * it validated, and reading it a second time here would let the two reads
-   * disagree if it changed in between. Defaults to `pty`, so a caller written
-   * before ACP existed keeps producing the session it used to.
+   * It used to come from the agent configuration and default to `pty`, which is
+   * how an agent could still be born on a terminal. Since the [ADR de
+   * 2026-09-24](../../../../docs/adr/2026-09-24-1620-agent-is-always-acp.md) the
+   * kind decides it alone — an agent is ACP, a shell or a script is PTY — and a
+   * field that could only ever agree with the kind is a field that could one day
+   * disagree with it.
    */
-  transport?: "pty" | "acp";
   /** Pinned adapter version, for the launch failure message (F1.6). */
   adapterVersion?: string | null;
   /**
@@ -195,6 +198,31 @@ export interface SessionStoreOptions {
    * o `ptyManager` e o `transcripts` do `AcpManager` já usam, pelo mesmo motivo.
    */
   resolveAcpCommand?: (config: AdapterConfigRef) => string;
+  /**
+   * O cache do que cada adaptador oferece sem sessão (`033` §3.1).
+   *
+   * Duas das três fontes dele moram aqui, porque só aqui a linha e o processo
+   * se encontram: o `start` grava as opções do handshake, e o `trackExits`
+   * ouve os `commands` de toda sessão. A chave é o `adapterId`, resolvido por
+   * `catalogAdapterOf`, e uma configuração que o catálogo não conhece **não
+   * grava**: gravar pelo nome dela punha na pílula um grupo `my-claude · não
+   * instalado` que nunca se escolhe.
+   *
+   * Ausente é o default de teste, e nada muda para quem não liga.
+   */
+  adapterCatalog?: AdapterCatalog;
+  /**
+   * O `adapterId` de uma configuração, ou `null` para a que o catálogo não
+   * conhece.
+   *
+   * Injetado pelo mesmo motivo do `resolveAcpCommand`: quem sabe que o binário
+   * gerenciado de uma spec mora em `<stateDir>/adapters` é o `setup/`. O
+   * `bootstrap` passa `catalogedAdapterOf`; ausente, só o nome que já é um id do
+   * catálogo responde.
+   */
+  catalogAdapterOf?: (config: AdapterConfigRef) => string | null;
+  /** Para onde vai a falha de gravar o catálogo — que nunca é falha da sessão. */
+  log?: Pick<FastifyBaseLogger, "warn">;
 }
 
 export function createSessionStore({
@@ -205,8 +233,92 @@ export function createSessionStore({
   git = createGitService(),
   onEnded,
   resolveAcpCommand,
+  adapterCatalog,
+  catalogAdapterOf,
+  log: storeLog,
 }: SessionStoreOptions): SessionStore {
   const sessions = createSessionRepository(db);
+
+  /** O adaptador do catálogo de uma sessão de agente, ou nenhum. */
+  async function adapterIdOf(agentConfigId: string | null): Promise<string | undefined> {
+    if (agentConfigId === null) return undefined;
+    const config = await createAgentConfigRepository(db).findById(agentConfigId);
+    if (!config) return undefined;
+    const adapterId = catalogAdapterOf
+      ? catalogAdapterOf(config)
+      : (adapterById(config.name)?.id ?? null);
+    return adapterId ?? undefined;
+  }
+
+  /** O projeto de um escopo: ele mesmo, ou o projeto da worktree. */
+  async function projectIdOf(scopeType: string, scopeId: string): Promise<string | undefined> {
+    if (scopeType === "project") return scopeId;
+    return (await createWorktreeRepository(db).findById(scopeId))?.projectId;
+  }
+
+  /**
+   * As opções do handshake no catálogo, sem nunca derrubar a sessão.
+   *
+   * O catálogo é cache: um disco que recusa a gravação custa a pílula do
+   * próximo rascunho, e a próxima sessão repõe. Recusar a conversa por isso
+   * trocaria o que a pessoa pediu pelo que ninguém pediu.
+   */
+  async function recordHandshake(
+    agentConfigId: string | null,
+    configOptions: AcpSessionInfo["configOptions"],
+  ): Promise<void> {
+    if (!adapterCatalog) return;
+    try {
+      const adapterId = await adapterIdOf(agentConfigId);
+      if (adapterId === undefined) return;
+      await adapterCatalog.recordOptions(adapterId, [...configOptions], { authRequired: false });
+    } catch (error) {
+      storeLog?.warn({ err: error }, "falha ao gravar as opções do adaptador no catálogo");
+    }
+  }
+
+  /**
+   * O modelo de ontem, de volta na conversa de hoje (`033` F6, §3.6).
+   *
+   * Não é no-op: a M2 mediu que `session/load` devolve o padrão **local** do
+   * adaptador — o `settings.model` do Claude, o `config.toml` do Codex —, e
+   * nunca o modelo trocado por `set_config_option`. Sem isto, toda retomada
+   * voltava ao padrão calada.
+   *
+   * Conferido contra o que **esta** sessão oferece antes de perguntar, como o
+   * `applyOption` da criação: um valor que o adaptador não conhece ele responde
+   * como quiser, sem código em que confiar. E aqui, ao contrário da criação,
+   * nada falha: a conversa é o que a pessoa pediu para continuar, e perdê-la
+   * por causa do modelo trocaria o maior pelo menor (F6.2). O que não se faz é
+   * trocar calado — a linha na conversa diz qual sumiu e em qual ela seguiu.
+   */
+  async function reapplyModel(
+    manager: AcpManager,
+    agent: AcpSessionInfo,
+    wanted: string | null,
+  ): Promise<AcpSessionInfo> {
+    if (!wanted || agent.model === wanted) return agent;
+
+    const option = agent.configOptions.find((each) => each.id === "model");
+    const offered =
+      option !== undefined &&
+      (option.choices.length === 0 || option.choices.some((choice) => choice.value === wanted));
+
+    if (offered) {
+      try {
+        await manager.setConfig(agent.id, "model", wanted);
+        return manager.get(agent.id) ?? agent;
+      } catch (error) {
+        storeLog?.warn(
+          { sessionId: agent.id, model: wanted, err: error },
+          "o adaptador recusou reaplicar o modelo na retomada",
+        );
+      }
+    }
+
+    manager.reportModelUnavailable(agent.id, wanted);
+    return manager.get(agent.id) ?? agent;
+  }
 
   /** Which column of the signal names the scope the session ran in. */
   function scopeOf(row: SessionRow): { projectId?: string; worktreeId?: string } {
@@ -300,12 +412,18 @@ export function createSessionStore({
       const { kind, agentConfigId = null, scopeType, scopeId, cwd, command } = input;
       const scriptName = input.scriptName ?? null;
 
-      // A shell is always a PTY (F1.2), and so is a script — there is no
-      // conversation to have with `pnpm install`. The column enforces both, but
-      // failing here says why instead of surfacing a CHECK the caller has to decode.
-      const transport = kind === "agent" ? (input.transport ?? "pty") : "pty";
-
-      if (transport === "acp") {
+      /*
+       * The kind decides the transport, and nothing else does.
+       *
+       * An agent is always ACP ([ADR de
+       * 2026-09-24](../../../../docs/adr/2026-09-24-1620-agent-is-always-acp.md)); a
+       * shell is always a PTY (F1.2), and so is a script — there is no conversation
+       * to have with `pnpm install`. The agent branch returns, so below it `kind`
+       * is narrowed to shell or script, and an agent reaching `ptyManager.spawn` is
+       * a type error rather than a path: that fall-through was the alternative
+       * route the ADR closed.
+       */
+      if (kind === "agent") {
         if (!acpManager) {
           throw new DomainError(
             "INVALID_ARGUMENT",
@@ -341,8 +459,9 @@ export function createSessionStore({
           driver: input.driver ?? "human",
         });
 
+        let row: SessionRow;
         try {
-          return await sessions.create({
+          row = await sessions.create({
             id: agent.id,
             kind,
             agentConfigId,
@@ -366,6 +485,17 @@ export function createSessionStore({
           acpManager.kill(agent.id);
           throw error;
         }
+
+        /*
+         * Do `session/new`, e só daqui: o `currentValue` dele é o padrão do ACP
+         * (Q8). O `resume` não grava — o `session/load` pode trazer o modelo
+         * restaurado — e nenhuma troca grava, pelo mesmo motivo.
+         *
+         * Sem `optionsByModel`, de propósito: o catálogo preserva o que o probe
+         * percorreu, e esta sessão só conhece um modelo.
+         */
+        await recordHandshake(agentConfigId, agent.configOptions);
+        return row;
       }
 
       // The process first, so its id is the record's id: one identity for both
@@ -457,20 +587,15 @@ export function createSessionStore({
        */
       const command =
         config && resolveAcpCommand
-          ? resolveAcpCommand({
-              name: config.name,
-              command: row.command,
-              transport: "acp",
-            })
+          ? resolveAcpCommand({ name: config.name, command: row.command })
           : row.command;
 
-      const agent = await acpManager.resume({
+      const launch = {
         command,
         ...(config?.args?.length ? { args: config.args } : {}),
         cwd: row.cwd,
         ...(config?.env && Object.keys(config.env).length > 0 ? { env: config.env } : {}),
         ...(config?.adapterVersion ? { adapterVersion: config.adapterVersion } : {}),
-        acpSessionId: row.acpSessionId,
         /*
          * A política volta como estava (F1.4).
          *
@@ -481,15 +606,46 @@ export function createSessionStore({
          */
         lumemMode: row.lumemMode as LumemMode,
         lumemModeDefault: await inheritedMode(row.scopeType as ScopeType, row.scopeId),
-        // What makes the new session's transcript self-contained (D15): the old
-        // conversation is copied in front of it, and the separator recorded after.
-        fromSessionId: row.id,
-      });
+      };
+
+      /*
+       * A conversa que **nunca teve turno** não se carrega: abre-se outra (`033`
+       * M2a).
+       *
+       * A M2 mediu que `session/load` de uma conversa sem turno falha nos dois
+       * adaptadores — Claude `Resource not found`, Codex `Internal error` —,
+       * porque nenhum dos dois grava a conversa antes do primeiro prompt. É o
+       * estado da sessão do `worktree.start` cujo `setup` o daemon perdeu: ela
+       * existe na linha, com o prompt esperando, e não há nada do lado do
+       * adaptador para trazer de volta.
+       *
+       * O marcador é o `pending_prompt`, e não a transcrição: o prompt
+       * pendente **é** o primeiro turno, e ele zera no instante em que o turno
+       * entra na conversa — então enquanto ele está na linha, turno não houve.
+       * A conversa criada e nunca usada por outro caminho continua indo pelo
+       * `session/load`, como sempre foi.
+       */
+      const turnless = row.pendingPrompt !== null;
+      const loaded = turnless
+        ? await acpManager.spawn(launch)
+        : await acpManager.resume({
+            ...launch,
+            acpSessionId: row.acpSessionId,
+            // What makes the new session's transcript self-contained (D15): the old
+            // conversation is copied in front of it, and the separator recorded after.
+            fromSessionId: row.id,
+          });
+
+      // Antes da linha nova, para ela já nascer no modelo em vigor — e depois do
+      // separador que o `resume` gravou, que é onde a conversa de hoje começa.
+      const agent = await reapplyModel(acpManager, loaded, row.model);
 
       try {
-        return await sessions.create({
+        const resumed = await sessions.create({
           id: agent.id,
-          kind: row.kind as SessionKind,
+          // Not read from the row: only an ACP row gets this far, and the CHECK
+          // `session_shell_transport` makes every ACP row an agent's.
+          kind: "agent",
           agentConfigId: row.agentConfigId,
           scopeType: row.scopeType as ScopeType,
           scopeId: row.scopeId,
@@ -518,7 +674,22 @@ export function createSessionStore({
            * daemon a trata como liberada e a linha diz `perguntar tudo`.
            */
           lumemMode: row.lumemMode as LumemMode,
+          /*
+           * O prompt que esperava **muda de casa** (M2a): ele vai para a sessão
+           * que pode mandá-lo, com o motivo se já havia um, e sai da morta
+           * logo abaixo. Duas linhas com o mesmo texto esperando seriam dois
+           * `mandar assim mesmo` para um turno só.
+           */
+          ...(turnless
+            ? {
+                pendingPrompt: row.pendingPrompt,
+                pendingReason: row.pendingReason as PendingReason | null,
+                pendingDetail: row.pendingDetail,
+              }
+            : {}),
         });
+        if (turnless) await sessions.clearPending(row.id);
+        return resumed;
       } catch (error) {
         // Same rule as `start`: a conversation the daemon cannot describe is one
         // nobody can find or stop from the UI.
@@ -650,10 +821,36 @@ export function createSessionStore({
           });
       });
 
+      /*
+       * A terceira fonte do catálogo: o `/` que cada adaptador oferece, **por
+       * projeto** (`033` §3.1). Por projeto porque as skills do repositório
+       * entram na lista, e elas dependem do `cwd`.
+       *
+       * Ouvido aqui, e não no `start`, porque o comando chega quando o
+       * adaptador quiser: o Claude o manda logo depois do `session/new`, e o
+       * Codex só depois do primeiro prompt.
+       */
+      const offCommands = adapterCatalog
+        ? acpManager?.watchEvents(({ sessionId, event }) => {
+            if (event.type !== "commands") return;
+            void (async () => {
+              const row = await sessions.findById(sessionId);
+              if (!row) return;
+              const adapterId = await adapterIdOf(row.agentConfigId);
+              const projectId = await projectIdOf(row.scopeType, row.scopeId);
+              if (adapterId === undefined || projectId === undefined) return;
+              await adapterCatalog.recordCommands(adapterId, projectId, event.commands);
+            })().catch((error: unknown) => {
+              log?.warn({ session: sessionId, err: error }, "falha ao gravar os comandos no catálogo");
+            });
+          })
+        : undefined;
+
       return () => {
         offPty();
         offAcp?.();
         offConfig?.();
+        offCommands?.();
       };
     },
   };

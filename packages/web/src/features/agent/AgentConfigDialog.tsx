@@ -4,17 +4,17 @@ import { useState, type FormEvent } from "react";
 import { useAgentConfigMutations, useAgentConfigs } from "./queries.js";
 import { Banner, Button, Card, Chip, Field, Glyph, Input } from "../../ui/index.js";
 
-type Transport = "pty" | "acp";
-
 /**
  * The agents this daemon knows how to launch, and how to add one.
  *
  * This exists because the ACP transport made it necessary. The CRUD is the
  * `walking-skeleton`'s and never needed a screen — the seeded `claude-code`
  * configuration comes up on boot (F6.4) and creating another was convenience. An
- * **ACP** configuration is different: it needs a `transport` (F1.2) and a pinned
- * adapter version (F5.5), and no screen could write either, so the only way to use
- * the conversation at all was an HTTP call by hand.
+ * **ACP** configuration is different: it needs a pinned adapter version (F5.5), and
+ * no screen could write it, so the only way to use the conversation at all was an
+ * HTTP call by hand. There is no transport to pick (`033` F1.1): every
+ * configuration is an ACP adapter, so the field is gone rather than disabled — a
+ * greyed-out choice would still say there is one.
  *
  * In the sidebar footer, reusing the shape of a form that used to sit beside it —
  * `sidebar-actions` moved `adicionar projeto` up into the tree, and this is what
@@ -45,15 +45,6 @@ export function AgentConfigDialog({ embedded = false, onClose }: AgentConfigDial
   const [name, setName] = useState("");
   const [command, setCommand] = useState("");
   const [args, setArgs] = useState("");
-  /*
-   * ACP by default.
-   *
-   * A11 defaults the *column* to `pty`, so that migrating a row changes nothing
-   * about how it behaves. A human typing into this form is a different question: the
-   * PTY configuration already exists from the seed, and the reason to be here is the
-   * conversation.
-   */
-  const [transport, setTransport] = useState<Transport>("acp");
   const [adapterVersion, setAdapterVersion] = useState("");
   /** Which row asked to be removed and is waiting for a second click. */
   const [confirming, setConfirming] = useState<string | null>(null);
@@ -63,14 +54,10 @@ export function AgentConfigDialog({ embedded = false, onClose }: AgentConfigDial
    *
    * Repeating a rule is a debt, and this one pays: without it the only way to find
    * out the version is missing is to submit and read a refusal — and this is the rule
-   * that separates a conversation from a terminal, which is the most consequential
-   * choice on the form. The daemon stays the authority: whatever it refuses shows up
-   * in its own words.
+   * the daemon has refused every configuration without it since `033`. The daemon
+   * stays the authority: whatever it refuses shows up in its own words.
    */
-  const complete =
-    name.trim() !== "" &&
-    command.trim() !== "" &&
-    (transport === "pty" || adapterVersion.trim() !== "");
+  const complete = name.trim() !== "" && command.trim() !== "" && adapterVersion.trim() !== "";
 
   const submit = (event: FormEvent): void => {
     event.preventDefault();
@@ -83,8 +70,7 @@ export function AgentConfigDialog({ embedded = false, onClose }: AgentConfigDial
         // wire wants a list, and joining it back together downstream would make the
         // daemon guess where one argument ends.
         args: args.trim() === "" ? [] : args.trim().split(/\s+/),
-        transport,
-        ...(transport === "acp" ? { adapterVersion: adapterVersion.trim() } : {}),
+        adapterVersion: adapterVersion.trim(),
       },
       {
         onSuccess: () => {
@@ -115,53 +101,42 @@ export function AgentConfigDialog({ embedded = false, onClose }: AgentConfigDial
           <p className="agents__empty">nenhum agente configurado</p>
         )}
 
-        {list.map((config) => {
-          const conversation = config.transport === "acp";
-          return (
-            <div className="agents__row" key={config.id}>
-              <div className="agents__head">
-                <Glyph tone={conversation ? "agent" : "shell"}>{conversation ? "◆" : "●"}</Glyph>
-                <span className="agents__name">{config.name}</span>
-                {/*
-                  The word carries the fact and the colour does not. Colour is spoken
-                  for by state — the chip beside it — and an element with two colour
-                  axes has none.
-                */}
-                <Chip>{conversation ? "conversa" : "terminal"}</Chip>
-                {/* F6.5, and the same words the session menu uses: a list that
-                    disagreed with the menu about what is launchable would be a
-                    second, quieter truth. */}
-                {!config.available && <Chip tone="missing">fora do PATH</Chip>}
-              </div>
-              <div className="agents__foot">
-                <span className="agents__cmd" title={config.command}>
-                  {config.command}
-                  {conversation && config.adapterVersion ? ` @${config.adapterVersion}` : ""}
-                </span>
-                {/*
-                  Two clicks, because one is a mis-click away from retyping four
-                  fields. Not a modal: the daemon refuses a configuration still in use
-                  (IN_USE), which is the guard that matters, and this one is only about
-                  the pointer slipping.
-                */}
-                {confirming === config.id ? (
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    disabled={remove.isPending}
-                    onClick={() => remove.mutate(config.id, { onSuccess: () => setConfirming(null) })}
-                  >
-                    confirmar
-                  </Button>
-                ) : (
-                  <Button size="sm" variant="ghost" onClick={() => setConfirming(config.id)}>
-                    remover <span className="sr-only">{config.name}</span>
-                  </Button>
-                )}
-              </div>
+        {list.map((config) => (
+          <div className="agents__row" key={config.id}>
+            <div className="agents__head">
+              <Glyph tone="agent">◆</Glyph>
+              <span className="agents__name">{config.name}</span>
+              {/* F6.5: shown, and said why it cannot launch. */}
+              {!config.available && <Chip tone="missing">fora do PATH</Chip>}
             </div>
-          );
-        })}
+            <div className="agents__foot">
+              <span className="agents__cmd" title={config.command}>
+                {config.command}
+                {config.adapterVersion ? ` @${config.adapterVersion}` : ""}
+              </span>
+              {/*
+                Two clicks, because one is a mis-click away from retyping four
+                fields. Not a modal: the daemon refuses a configuration still in use
+                (IN_USE), which is the guard that matters, and this one is only about
+                the pointer slipping.
+              */}
+              {confirming === config.id ? (
+                <Button
+                  size="sm"
+                  variant="danger"
+                  disabled={remove.isPending}
+                  onClick={() => remove.mutate(config.id, { onSuccess: () => setConfirming(null) })}
+                >
+                  confirmar
+                </Button>
+              ) : (
+                <Button size="sm" variant="ghost" onClick={() => setConfirming(config.id)}>
+                  remover <span className="sr-only">{config.name}</span>
+                </Button>
+              )}
+            </div>
+          </div>
+        ))}
 
         {remove.isError && <Banner tone="danger">{remove.error.message}</Banner>}
 
@@ -183,26 +158,12 @@ export function AgentConfigDialog({ embedded = false, onClose }: AgentConfigDial
             />
           </Field>
 
-          <Field id="agent-transport" label="Transporte">
-            <select
-              id="agent-transport"
-              className="input"
-              value={transport}
-              onChange={(event) => setTransport(event.target.value as Transport)}
-            >
-              {/* The user's words first, the protocol's in brackets: what changes is
-                  whether the tab is a conversation or a terminal. */}
-              <option value="acp">conversa (ACP)</option>
-              <option value="pty">terminal (PTY)</option>
-            </select>
-          </Field>
-
           <Field id="agent-command" label="Comando">
             <Input
               id="agent-command"
               value={command}
               onChange={(event) => setCommand(event.target.value)}
-              placeholder={transport === "acp" ? "claude-agent-acp" : "claude"}
+              placeholder="claude-agent-acp"
             />
           </Field>
 
@@ -215,21 +176,17 @@ export function AgentConfigDialog({ embedded = false, onClose }: AgentConfigDial
             />
           </Field>
 
-          {/* Only on ACP, and required there: the column's CHECK forbids it on PTY,
-              where it would be a claim about something that never runs. */}
-          {transport === "acp" && (
-            <Field id="agent-version" label="Versão do adaptador">
-              <Input
-                id="agent-version"
-                value={adapterVersion}
-                onChange={(event) => setAdapterVersion(event.target.value)}
-                // From the catalogue, not typed here: a hint that outlives the
-                // pin teaches the version the product no longer installs, which
-                // is how LUM-54 read as normal for weeks.
-                placeholder={CLAUDE_ADAPTER.pinnedVersion}
-              />
-            </Field>
-          )}
+          <Field id="agent-version" label="Versão do adaptador">
+            <Input
+              id="agent-version"
+              value={adapterVersion}
+              onChange={(event) => setAdapterVersion(event.target.value)}
+              // From the catalogue, not typed here: a hint that outlives the
+              // pin teaches the version the product no longer installs, which
+              // is how LUM-54 read as normal for weeks.
+              placeholder={CLAUDE_ADAPTER.pinnedVersion}
+            />
+          </Field>
 
           <div className="agents__actions">
             <Button type="submit" variant="primary" disabled={create.isPending || !complete}>

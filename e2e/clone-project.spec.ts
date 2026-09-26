@@ -90,7 +90,7 @@ test("clona um repositório vazio, e a tela explica por que ele ainda não corta
 
   const dialogo = page.getByRole("dialog");
   await expect(dialogo).toContainText("nenhum commit");
-  await expect(dialogo.getByRole("button", { name: "criar" })).toBeDisabled();
+  await expect(dialogo.getByRole("button", { name: /^Create/ })).toBeDisabled();
 });
 
 test("remover o projeto clonado apaga o diretório", async ({ page }) => {

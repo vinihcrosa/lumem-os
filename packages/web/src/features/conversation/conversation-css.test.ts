@@ -28,8 +28,14 @@ const stylesheet = readFileSync(join(HERE, "conversation.css"), "utf8");
 const components = read(
   "Conversation.tsx",
   "Composer.tsx",
+  "ComposerBox.tsx",
   "Transcript.tsx",
   "Message.tsx",
+  // O primeiro prompt pendente (`033` T21) — faltavam aqui desde a T14, que
+  // é quando `PendingPrompt.tsx` nasceu: a mesma lacuna que este arquivo
+  // existe para fechar, achada ao tocar o vizinho em vez de por ele mesmo.
+  "PendingPrompt.tsx",
+  "PendingConversation.tsx",
   "ToolCard.tsx",
   "PermissionRequest.tsx",
   "PlanCard.tsx",
@@ -127,6 +133,10 @@ const BORROWED = new Set([
   // Shared primitives.
   "glyph",
   "btn",
+  // O ponto pulsando do rascunho (`DraftTab.tsx`), definido em
+  // `new-session.css` — o `PendingPrompt` reusa o mesmo aceno para "algo está
+  // em andamento" em vez de desenhar um segundo (`033` T21).
+  "draft__pulse",
   // Texto só para leitor de tela, definido no `base.css`. O protótipo chama de
   // `.vh` e o app de `.sr-only`; quem portar copiando o nome do protótipo deixa
   // o texto visível, e é este audit que pega.
