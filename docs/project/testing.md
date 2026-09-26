@@ -1511,6 +1511,19 @@ deslogada, e por isso escondia a dedução.
 **Regra:** login se lê do `loggedIn` da conferência de identidade (`034` T6), e nunca da lista de
 métodos — ela diz **como** entrar, e não **se** já entrou.
 
+### Limpar o rascunho quando o save termina apaga a edição feita durante ele
+
+**Sintoma:** no `gate:full`, e só nele, *"apagar o campo grava null"* gravou 12. Sozinho, o spec passou
+35 de 35.
+
+**Causa:** o campo de teto limpava o rascunho quando o `onCommit` resolvia — e ele resolve depois de
+recarregar. Com o daemon ocupado pelos specs de antes, a pessoa (o e2e) já tinha apagado o campo de
+novo quando o primeiro save terminou; o rascunho novo ia embora, e o blur mandava o valor antigo.
+
+**Conserto:** o save só limpa o rascunho que virou aquele envio (`bd45737`), com um teste de unidade
+que segura o primeiro `onCommit` pendente. A regra: **estado local que um `await` vai mexer tem de
+conferir, na volta, se ainda é o estado que ele levou**.
+
 ## Convenções
 
 - Teste de git usa **repositório temporário real**, nunca mock. `git worktree` tem caso de borda em nome com barra e branch existente que mock nenhum reproduz.
