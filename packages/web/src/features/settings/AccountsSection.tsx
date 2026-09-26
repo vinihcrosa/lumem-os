@@ -4,10 +4,12 @@ import { ADAPTERS, type AdapterCatalogView, type AdapterSpec } from "@lumem/shar
 
 import {
   useAdapterCatalog,
+  useAdoptMachineLogin,
   useAgentAccounts,
   useSetupAgentsReport,
   type AgentAccountView,
 } from "../agent/index.js";
+import { Button } from "../../ui/index.js";
 import { AccountLogin } from "./AccountLogin.js";
 import { AccountRow } from "./AccountRow.js";
 import { readingFor } from "./account-words.js";
@@ -60,6 +62,7 @@ export function AccountsSection({
             key={spec.id}
             spec={spec}
             installed={agents.data?.adapters.find((row) => row.id === spec.id)?.adapter.version ?? null}
+            report={agents.data}
             accounts={accounts.filter((account) => account.adapterId === spec.id)}
             catalog={catalog}
             defaultConnecting={defaultConnecting === spec.id}
@@ -73,12 +76,14 @@ export function AccountsSection({
 function AgentAccounts({
   spec,
   installed,
+  report,
   accounts,
   catalog,
   defaultConnecting,
 }: {
   spec: AdapterSpec;
   installed: string | null;
+  report: ReturnType<typeof useSetupAgentsReport>["data"];
   accounts: readonly AgentAccountView[];
   catalog: readonly AdapterCatalogView[];
   defaultConnecting: boolean;
@@ -102,6 +107,8 @@ function AgentAccounts({
         <span className="set__val">{installed ?? "não instalado"}</span>
       </SettingRow>
 
+      {accounts.length === 0 && <AdoptMachineLogin spec={spec} report={report} />}
+
       {accounts.map((account) => (
         <div className="set__acct" key={account.id}>
           <AccountRow
@@ -115,12 +122,16 @@ function AgentAccounts({
         </div>
       ))}
 
-      {/* Um agente de conta única (`accountEnv: null`) não tem o que conectar. */}
+      {/*
+        Um agente de conta única (`accountEnv: null`) não tem o que conectar, e um
+        sem conta nenhuma adota o login da máquina antes — a conta de diretório
+        próprio é a **segunda**.
+      */}
       {spec.accountEnv !== null &&
+        accounts.length > 0 &&
         (connecting ? (
           <ConnectAccountPanel
             spec={spec}
-            hasAccounts={accounts.length > 0}
             onClose={() => setConnecting(false)}
             onConnected={(account) => {
               setConnecting(false);
@@ -134,5 +145,38 @@ function AgentAccounts({
           </button>
         ))}
     </>
+  );
+}
+
+/**
+ * A sub-linha do agente sem conta nenhuma: o login que já existe nesta máquina
+ * entra como `principal`, e é o único gesto — um `＋ conectar conta` aqui
+ * criaria uma conta de diretório vazio, pedindo login do zero.
+ */
+function AdoptMachineLogin({
+  spec,
+  report,
+}: {
+  spec: AdapterSpec;
+  report: ReturnType<typeof useSetupAgentsReport>["data"];
+}) {
+  const adopt = useAdoptMachineLogin(report);
+  return (
+    <div className="set__acct">
+      <div className="set__row set__row--sub" role="group" aria-label={`nenhuma conta do ${spec.label}`}>
+        <span className="set__d">nenhuma conta ainda — o login que já existe nesta máquina entra como principal</span>
+        <span className="set__ctl">
+          <Button size="sm" variant="primary" disabled={adopt.isPending} onClick={() => adopt.mutate(spec)}>
+            {adopt.isPending ? "conectando…" : `conectar ${spec.label}`}
+          </Button>
+        </span>
+        <span className="own">máquina</span>
+        {adopt.error !== null && (
+          <span className="set__err set__wide" role="alert">
+            {adopt.error.message}
+          </span>
+        )}
+      </div>
+    </div>
   );
 }

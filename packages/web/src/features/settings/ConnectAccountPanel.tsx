@@ -15,17 +15,16 @@ type Kind = "subscription" | "api_key";
  * nasce sem os MCPs de usuário, e quem descobre isso na primeira conversa não
  * entende por quê.
  *
- * A linha dos termos de uso só aparece quando o agente **já tem** conta (§8):
- * é o único momento em que a frase é sobre o que você está fazendo.
+ * A linha dos termos de uso está sempre: o painel só abre quando o agente **já
+ * tem** conta (a primeira é o login da máquina, adotado), e é esse o momento em
+ * que a frase é sobre o que você está fazendo (§8).
  */
 export function ConnectAccountPanel({
   spec,
-  hasAccounts,
   onClose,
   onConnected,
 }: {
   spec: AdapterSpec;
-  hasAccounts: boolean;
   onClose(): void;
   onConnected(account: Pick<AgentAccountView, "id" | "kind">): void;
 }) {
@@ -104,7 +103,7 @@ export function ConnectAccountPanel({
             <b>não leva</b> {item}
           </li>
         ))}
-        {hasAccounts && <li className="set__terms">usar duas assinaturas para somar limite pode ferir os termos do provedor</li>}
+        <li className="set__terms">usar duas assinaturas para somar limite pode ferir os termos do provedor</li>
       </ul>
 
       {connect.error !== null && (

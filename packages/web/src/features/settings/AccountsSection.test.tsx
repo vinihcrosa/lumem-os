@@ -290,13 +290,64 @@ describe("o trio padrão", () => {
   });
 });
 
+/*
+ * O agente sem conta nenhuma (Codex nunca conectado nesta máquina). O `＋
+ * conectar conta` criava a `principal` **e** uma conta nova de diretório vazio,
+ * que pedia login do zero — o `~/.codex` que já estava logado ficava de lado. O
+ * gesto é outro: adotar o login da máquina, pelo mesmo caminho do rodapé.
+ */
+describe("agente sem conta", () => {
+  it("diz que o login da máquina entra como principal, e não oferece `＋ conectar conta`", async () => {
+    render();
+
+    const codex = await screen.findByRole("group", { name: "nenhuma conta do Codex" });
+    expect(
+      within(codex).getByText("nenhuma conta ainda — o login que já existe nesta máquina entra como principal"),
+    ).toBeInTheDocument();
+    expect(within(codex).getByRole("button", { name: "conectar Codex" })).toBeInTheDocument();
+    // O Claude tem conta: o `＋` dele fica; o do Codex, não.
+    expect(await screen.findAllByRole("button", { name: "＋ conectar conta" })).toHaveLength(1);
+  });
+
+  it("conectar instala se precisar, cria a configuração e confere a conta padrão dela", async () => {
+    const user = userEvent.setup();
+    trpc.setup.installAdapter.mutate.mockResolvedValue({ path: "/state/adapters/codex/bin" });
+    trpc.setup.probe.query.mockResolvedValue({ agentInfo: { version: "1.10.0" }, authRequired: false, authMethods: [] });
+    trpc.agentConfig.create.mutate.mockResolvedValue({ id: "cfg_codex" });
+    render();
+
+    const codex = await screen.findByRole("group", { name: "nenhuma conta do Codex" });
+    const calls = trpc.agentAccount.list.query.mock.calls.length;
+    await user.click(within(codex).getByRole("button", { name: "conectar Codex" }));
+
+    await waitFor(() => expect(trpc.setup.probe.query).toHaveBeenLastCalledWith({ adapterId: "codex" }));
+    expect(trpc.setup.installAdapter.mutate).toHaveBeenCalledWith({ adapterId: "codex" });
+    expect(trpc.agentConfig.create.mutate).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "codex", command: "/state/adapters/codex/bin" }),
+    );
+    // A conta que a configuração criou só aparece se a lista for relida.
+    await waitFor(() => expect(trpc.agentAccount.list.query.mock.calls.length).toBeGreaterThan(calls));
+  });
+
+  it("a recusa aparece na linha, com a frase do daemon", async () => {
+    const user = userEvent.setup();
+    trpc.setup.installAdapter.mutate.mockRejectedValue(new Error("npm não respondeu"));
+    render();
+
+    const codex = await screen.findByRole("group", { name: "nenhuma conta do Codex" });
+    await user.click(within(codex).getByRole("button", { name: "conectar Codex" }));
+
+    expect(await within(codex).findByRole("alert")).toHaveTextContent("npm não respondeu");
+  });
+});
+
 describe("conectar conta", () => {
   it("diz o que liga e o que não leva, e com uma conta já conectada, a linha dos termos", async () => {
     const user = userEvent.setup();
     render();
 
     const header = await screen.findByText("Claude Code");
-    await user.click(screen.getAllByRole("button", { name: "＋ conectar conta" })[0]!);
+    await user.click((await screen.findAllByRole("button", { name: "＋ conectar conta" }))[0]!);
 
     const panel = screen.getByRole("group", { name: "conectar conta do Claude Code" });
     expect(header).toBeInTheDocument();
@@ -307,17 +358,6 @@ describe("conectar conta", () => {
     ).toBeInTheDocument();
   });
 
-  it("sem conta nenhuma, a linha dos termos não aparece", async () => {
-    const user = userEvent.setup();
-    trpc.agentAccount.list.query.mockResolvedValue([]);
-    render();
-
-    await screen.findByText("Claude Code");
-    await waitFor(() => expect(trpc.agentAccount.list.query).toHaveBeenCalled());
-    await user.click(screen.getAllByRole("button", { name: "＋ conectar conta" })[0]!);
-
-    expect(screen.queryByText(/ferir os termos/)).toBeNull();
-  });
 
   it("assinatura: o rótulo vai ao daemon, e o login da conta nova abre em seguida", async () => {
     const user = userEvent.setup();
@@ -329,7 +369,7 @@ describe("conectar conta", () => {
     render();
 
     await screen.findByText("Claude Code");
-    await user.click(screen.getAllByRole("button", { name: "＋ conectar conta" })[0]!);
+    await user.click((await screen.findAllByRole("button", { name: "＋ conectar conta" }))[0]!);
     const panel = screen.getByRole("group", { name: "conectar conta do Claude Code" });
     expect(within(panel).getByRole("button", { name: "conectar" })).toBeDisabled();
     await user.type(within(panel).getByLabelText("nome da conta"), "trabalho");
@@ -354,7 +394,7 @@ describe("conectar conta", () => {
     render();
 
     await screen.findByText("Claude Code");
-    await user.click(screen.getAllByRole("button", { name: "＋ conectar conta" })[0]!);
+    await user.click((await screen.findAllByRole("button", { name: "＋ conectar conta" }))[0]!);
     const panel = screen.getByRole("group", { name: "conectar conta do Claude Code" });
     await user.type(within(panel).getByLabelText("nome da conta"), "cobrança");
     await user.click(within(panel).getByRole("button", { name: "chave de API" }));
@@ -376,7 +416,7 @@ describe("conectar conta", () => {
     render();
 
     await screen.findByText("Claude Code");
-    await user.click(screen.getAllByRole("button", { name: "＋ conectar conta" })[0]!);
+    await user.click((await screen.findAllByRole("button", { name: "＋ conectar conta" }))[0]!);
     const panel = screen.getByRole("group", { name: "conectar conta do Claude Code" });
     await user.type(within(panel).getByLabelText("nome da conta"), "pessoal");
     await user.click(within(panel).getByRole("button", { name: "conectar" }));

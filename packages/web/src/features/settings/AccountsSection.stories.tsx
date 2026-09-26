@@ -120,8 +120,12 @@ export const ConectarComTermos: Story = {
   render: () => <Stage accounts={[PESSOAL]} connecting="claude" />,
 };
 
-/** O painel de conectar no primeiro: sem conta ainda, sem a linha dos termos. */
-export const ConectarPrimeira: Story = {
-  name: "Conectar conta (a primeira)",
-  render: () => <Stage accounts={[PESSOAL]} connecting="codex" />,
+/**
+ * Agente sem conta nenhuma: o gesto é adotar o login que já existe na máquina,
+ * que entra como `principal`. O `＋ conectar conta` só aparece depois — ele cria
+ * uma conta de diretório vazio, e a primeira não pode ser essa.
+ */
+export const SemConta: Story = {
+  name: "Agente sem conta (adota o login da máquina)",
+  render: () => <Stage accounts={[]} catalog={[]} />,
 };

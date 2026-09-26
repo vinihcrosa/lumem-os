@@ -1,3 +1,4 @@
+import type { AdapterSpec } from "@lumem/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -7,6 +8,7 @@ import {
   agentAccountsKey,
 } from "../../lib/queryKeys.js";
 import { trpc } from "../../lib/trpc.js";
+import { useConnectAgent, type useSetupAgentsReport } from "./queries.js";
 
 /**
  * Uma conta de agente, do jeito que a tela a desenha (`034`).
@@ -116,6 +118,32 @@ export function useAgentAccountMutations() {
   });
 
   return { connect, disconnect, purge, setDefault, setDefaults, rename };
+}
+
+/**
+ * Adota o login que **já existe** nesta máquina, para um agente sem conta
+ * nenhuma (`034` T18).
+ *
+ * O caminho do rodapé — instala se precisar, faz o handshake, cria a
+ * configuração —, e criar a configuração é o que cria a conta sem diretório,
+ * `principal`. Depois, a conferência **dela** (o probe sem `accountId` é o da
+ * padrão), que grava o e-mail. O `＋ conectar conta` não serve aqui: ele cria
+ * uma conta de diretório vazio, que pede login do zero e deixa o login da
+ * máquina de lado.
+ */
+export function useAdoptMachineLogin(report: ReturnType<typeof useSetupAgentsReport>["data"]) {
+  const queryClient = useQueryClient();
+  const connect = useConnectAgent(report);
+  return useMutation({
+    mutationFn: async (spec: AdapterSpec) => {
+      await connect.mutateAsync(spec);
+      await trpc.setup.probe.query({ adapterId: spec.id });
+    },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: AGENT_ACCOUNT_PREFIX });
+      await queryClient.invalidateQueries({ queryKey: ADAPTER_CATALOG_PREFIX });
+    },
+  });
 }
 
 /**
