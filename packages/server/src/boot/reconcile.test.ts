@@ -189,6 +189,7 @@ describe("reconcileOrphanSessions", () => {
         id: newId(),
         kind: "agent",
         agentConfigId: config.id,
+        agentAccountId: config.defaultAccountId,
         scopeType: "worktree",
         scopeId: "w1",
         cwd: "/repo",

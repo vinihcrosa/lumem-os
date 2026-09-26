@@ -262,7 +262,7 @@ describe("bootstrap", () => {
      * serialização da falha. Uma asserção que não consegue *relatar* a falha é uma
      * asserção pela metade.
      */
-    expect(spy.mock.calls[0]?.[0].resolveAcpCommand).toBeTypeOf("function");
+    expect(spy.mock.calls[0]?.[0].resolveInvocation).toBeTypeOf("function");
     spy.mockRestore();
   });
 

@@ -8,7 +8,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { AcpManager } from "../acp/AcpManager.js";
 import type { AcpProcess, AcpSpawnRequest } from "../acp/process.js";
 import { agentAccount, agentConfig, session } from "../db/schema.js";
+import { createAgentAccountRepository } from "../repositories/agentAccount.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
+import { startAgentSession } from "../sessions/start-agent-session.js";
 import {
   FAKE_CONFIG_OPTIONS,
   fakeAgentProcess,
@@ -620,6 +622,55 @@ describe("session.createAgent com adaptador e config (`033` §3.2)", () => {
       adapterId: CLAUDE_ADAPTER.id,
     });
     expect(again.agentConfigId).toBe(created.agentConfigId);
+  });
+
+  it("a conta padrão chega ao spawner: a primeira sobe **sem** a variável", async () => {
+    // `034` T5. A conta de antes da feature é a variável ausente — escrever o
+    // caminho padrão faria o Claude procurar outra entrada do Keychain.
+    const { acpManager, spawner } = fakeAcp();
+    const { ctx, worktreeId } = await setup({ acpManager });
+    stageManagedAdapter(ctx.config.stateDir);
+
+    const created = await ctx.api.session.createAgent({
+      scopeType: "worktree",
+      scopeId: worktreeId,
+      adapterId: CLAUDE_ADAPTER.id,
+    });
+
+    const request = spawner.mock.calls[0]![0];
+    expect(request.env?.CLAUDE_CONFIG_DIR).toBeUndefined();
+    expect(request.unsetEnv).toEqual(["CLAUDE_CONFIG_DIR"]);
+    const account = await createAgentAccountRepository(ctx.db).defaultFor(created.agentConfigId!);
+    const [row] = await ctx.db.select().from(session).where(eq(session.id, created.id));
+    expect(row?.agentAccountId).toBe(account!.id);
+  });
+
+  it("a conta pedida chega ao spawner com o diretório dela, e a linha nasce nela", async () => {
+    const { acpManager, spawner } = fakeAcp();
+    const { ctx, worktreeId } = await setup({ acpManager });
+    stageManagedAdapter(ctx.config.stateDir);
+    const configId = (
+      await ctx.api.session.createAgent({
+        scopeType: "worktree",
+        scopeId: worktreeId,
+        adapterId: CLAUDE_ADAPTER.id,
+      })
+    ).agentConfigId!;
+    const second = await createAgentAccountRepository(ctx.db).create({
+      agentConfigId: configId,
+      label: "trabalho",
+      configDir: "/contas/trabalho",
+    });
+
+    const row = await startAgentSession(ctx.ctx, {
+      scopeType: "worktree",
+      scopeId: worktreeId,
+      agent: { agentConfigId: configId },
+      agentAccountId: second.id,
+    });
+
+    expect(spawner.mock.calls.at(-1)![0].env?.CLAUDE_CONFIG_DIR).toBe("/contas/trabalho");
+    expect(row.agentAccountId).toBe(second.id);
   });
 
   it("pelo adaptador: o desconhecido é recusado como argumento", async () => {

@@ -3,9 +3,16 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { ADAPTERS_DIR_NAME, CLAUDE_ADAPTER, CODEX_ADAPTER } from "@lumem/shared";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { adapterCommandFor, adapterCommandForConfig, adaptersDir } from "./adapter-command.js";
+import {
+  adapterCommandFor,
+  adapterCommandForConfig,
+  adapterInvocationFor,
+  adaptersDir,
+  agentAccountSecretId,
+  type AccountRef,
+} from "./adapter-command.js";
 
 /**
  * Qual cópia o daemon lança — e o `else` que não existe mais.
@@ -149,4 +156,159 @@ it("cada spec tem seu próprio diretório", () => {
     join(ADAPTERS_DIR_NAME, CODEX_ADAPTER.id),
   );
   expect(() => adapterCommandFor(CLAUDE_ADAPTER, state)).toThrow();
+});
+
+/*
+ * A invocação por conta (`034` T5, ADR de 2026-09-26): a conta chega ao
+ * processo como uma variável do CLI, e a primeira conta é a variável ausente.
+ */
+describe("adapterInvocationFor", () => {
+  const CONFIG = {
+    id: "cfg-claude",
+    name: "claude",
+    command: "claude-agent-acp",
+    args: ["--flag"],
+    env: { FROM_CONFIG: "1" } as Record<string, string>,
+  };
+  const noSecrets = { read: (): string | null => null };
+
+  function account(overrides: Partial<AccountRef> = {}): AccountRef {
+    return {
+      id: "acct-1",
+      agentConfigId: CONFIG.id,
+      kind: "subscription",
+      configDir: null,
+      state: "connected",
+      ...overrides,
+    };
+  }
+
+  it("conta com diretório: a variável do CLI aponta para ele, junto do env da configuração", () => {
+    const state = stateDir();
+    const managed = stageManaged(state);
+
+    const invocation = adapterInvocationFor({
+      config: CONFIG,
+      account: account({ configDir: "/contas/trabalho" }),
+      stateDir: state,
+      secrets: noSecrets,
+    });
+
+    expect(invocation).toEqual({
+      command: managed,
+      args: ["--flag"],
+      env: { FROM_CONFIG: "1", CLAUDE_CONFIG_DIR: "/contas/trabalho" },
+      unsetEnv: [],
+    });
+  });
+
+  it("conta sem diretório: a variável fica ausente — nem no env, nem herdada do daemon", () => {
+    // Medido: `CLAUDE_CONFIG_DIR=~/.claude` escrito faz a conta de hoje aparecer
+    // deslogada. Ausente quer dizer ausente, inclusive se a configuração a trouxer.
+    const state = stateDir();
+    stageManaged(state);
+
+    const invocation = adapterInvocationFor({
+      config: { ...CONFIG, env: { FROM_CONFIG: "1", CLAUDE_CONFIG_DIR: "/vazou" } },
+      account: account(),
+      stateDir: state,
+      secrets: noSecrets,
+    });
+
+    expect(invocation.env).toEqual({ FROM_CONFIG: "1" });
+    expect(invocation.unsetEnv).toEqual(["CLAUDE_CONFIG_DIR"]);
+  });
+
+  it("usa a variável da spec de cada adaptador", () => {
+    const state = stateDir();
+    stageManaged(state, CODEX_ADAPTER);
+
+    const invocation = adapterInvocationFor({
+      config: { ...CONFIG, name: "codex" },
+      account: account({ configDir: "/contas/codex-2" }),
+      stateDir: state,
+      secrets: noSecrets,
+    });
+
+    expect(invocation.env.CODEX_HOME).toBe("/contas/codex-2");
+    expect(invocation.env.CLAUDE_CONFIG_DIR).toBeUndefined();
+  });
+
+  it("conta de chave: o cofre entrega a chave no primeiro nome do `apiKeyEnv`", () => {
+    const state = stateDir();
+    stageManaged(state, CODEX_ADAPTER);
+    const read = vi.fn((id: string) => (id === "agent-account:acct-key" ? "sk-conta" : null));
+
+    const invocation = adapterInvocationFor({
+      config: { ...CONFIG, name: "codex" },
+      account: account({ id: "acct-key", kind: "api_key" }),
+      stateDir: state,
+      secrets: { read },
+    });
+
+    expect(read).toHaveBeenCalledWith(agentAccountSecretId("acct-key"));
+    expect(invocation.env.CODEX_API_KEY).toBe("sk-conta");
+    expect(invocation.env.OPENAI_API_KEY).toBeUndefined();
+  });
+
+  it("conta de chave sem chave no cofre é recusada, e não sobe sem credencial", () => {
+    const state = stateDir();
+    stageManaged(state);
+
+    expect(() =>
+      adapterInvocationFor({
+        config: CONFIG,
+        account: account({ kind: "api_key" }),
+        stateDir: state,
+        secrets: noSecrets,
+      }),
+    ).toThrow(expect.objectContaining({ code: "NOT_FOUND" }));
+  });
+
+  it("conta desconectada é recusada com o que fazer", () => {
+    const state = stateDir();
+    stageManaged(state);
+
+    expect(() =>
+      adapterInvocationFor({
+        config: CONFIG,
+        account: account({ state: "disconnected" }),
+        stateDir: state,
+        secrets: noSecrets,
+      }),
+    ).toThrow(expect.objectContaining({ code: "BLOCKED", message: expect.stringMatching(/reconecte a conta/) }));
+  });
+
+  it("recusa a conta de outro agente", () => {
+    const state = stateDir();
+    stageManaged(state);
+
+    expect(() =>
+      adapterInvocationFor({
+        config: CONFIG,
+        account: account({ agentConfigId: "cfg-outro" }),
+        stateDir: state,
+        secrets: noSecrets,
+      }),
+    ).toThrow(expect.objectContaining({ code: "INVALID_ARGUMENT" }));
+  });
+
+  it("um adaptador fora do catálogo só tem a conta sem diretório", () => {
+    // Sem spec, não há variável de conta para traduzir: a conta com diretório
+    // seria o daemon fingindo isolar o que não sabe isolar.
+    const state = stateDir();
+    const fake = { ...CONFIG, name: "fake-agent", command: "/opt/fake-acp" };
+
+    expect(
+      adapterInvocationFor({ config: fake, account: account(), stateDir: state, secrets: noSecrets }),
+    ).toEqual({ command: "/opt/fake-acp", args: ["--flag"], env: { FROM_CONFIG: "1" }, unsetEnv: [] });
+    expect(() =>
+      adapterInvocationFor({
+        config: fake,
+        account: account({ configDir: "/contas/x" }),
+        stateDir: state,
+        secrets: noSecrets,
+      }),
+    ).toThrow(expect.objectContaining({ code: "INVALID_ARGUMENT" }));
+  });
 });

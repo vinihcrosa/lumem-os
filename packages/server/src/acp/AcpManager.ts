@@ -57,6 +57,8 @@ export interface AcpSpawnOptions {
   args?: readonly string[];
   cwd: string;
   env?: Readonly<Record<string, string>>;
+  /** O que o processo não herda do daemon — ver `AcpSpawnRequest.unsetEnv`. */
+  unsetEnv?: readonly string[];
   /**
    * The pinned adapter version (A12).
    *
@@ -959,7 +961,7 @@ export class AcpManager {
     options: AcpSpawnOptions,
     { probe = false }: { probe?: boolean } = {},
   ): { session: Session; child: AcpProcess } {
-    const { command, args = [], cwd, env, adapterVersion } = options;
+    const { command, args = [], cwd, env, unsetEnv, adapterVersion } = options;
 
     if (command.trim() === "") {
       throw new DomainError("INVALID_ARGUMENT", "command must not be empty");
@@ -977,7 +979,7 @@ export class AcpManager {
     const id = newId();
     let child: AcpProcess;
     try {
-      child = this.spawner({ command, args, cwd, env });
+      child = this.spawner({ command, args, cwd, env, ...(unsetEnv ? { unsetEnv } : {}) });
     } catch (error) {
       throw launchFailure(command, adapterVersion, error);
     }

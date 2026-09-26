@@ -28,6 +28,14 @@ export interface AcpSpawnRequest {
   args: readonly string[];
   cwd: string;
   env?: Readonly<Record<string, string>>;
+  /**
+   * Variáveis que o processo **não** herda do daemon (`034` T5).
+   *
+   * Existe porque o `env` acima só acrescenta: a conta que sobe sem a variável
+   * do CLI a receberia de volta do `process.env` de um daemon aberto num
+   * terminal que a exportou — e subiria no diretório de outra conta.
+   */
+  unsetEnv?: readonly string[];
 }
 
 export type AcpProcessSpawner = (request: AcpSpawnRequest) => AcpProcess;
@@ -40,10 +48,18 @@ export type AcpProcessSpawner = (request: AcpSpawnRequest) => AcpProcess;
  * someone has to remember to drain the pipe, and a full stderr buffer blocks
  * the child, which looks exactly like a hung agent.
  */
-export function spawnAcpProcess({ command, args, cwd, env }: AcpSpawnRequest): AcpProcess {
+export function spawnAcpProcess({
+  command,
+  args,
+  cwd,
+  env,
+  unsetEnv = [],
+}: AcpSpawnRequest): AcpProcess {
+  const merged: Record<string, string> = { ...(process.env as Record<string, string>), ...env };
+  for (const name of unsetEnv) delete merged[name];
   const child = spawn(command, [...args], {
     cwd,
-    env: { ...(process.env as Record<string, string>), ...env },
+    env: merged,
     stdio: ["pipe", "pipe", "inherit"],
   });
 

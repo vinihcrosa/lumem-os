@@ -1,13 +1,14 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
-import { newId } from "@lumem/shared";
+import { CLAUDE_ADAPTER, newId } from "@lumem/shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Db } from "../db/index.js";
 import { openTestDb, type TestDb } from "../db/testing.js";
 import { AcpManager } from "../acp/AcpManager.js";
+import type { AcpSpawnRequest } from "../acp/process.js";
 import { AdapterCatalog } from "../acp/adapter-catalog.js";
 import { listSignals } from "../memory/signals.js";
 import { PtyManager } from "../pty/PtyManager.js";
@@ -30,6 +31,8 @@ import {
   type TranscriptStore,
 } from "../acp/TranscriptStore.js";
 import { cleanupGitFixtures, createRepo, runGit } from "../testing/git-fixtures.js";
+import { adapterInvocationFor, adaptersDir } from "../setup/adapter-command.js";
+import { adapterBinaryPath } from "../setup/install-adapter.js";
 import { createSessionStore, type SessionStore } from "./SessionStore.js";
 
 const managers: PtyManager[] = [];
@@ -75,6 +78,7 @@ async function acpAgent(db: Db, overrides: Record<string, unknown> = {}) {
   return {
     kind: "agent" as const,
     agentConfigId: config.id,
+    agentAccountId: config.defaultAccountId,
     scopeType: "worktree" as const,
     scopeId: "w1",
     cwd: tmpdir(),
@@ -139,29 +143,36 @@ describe("start", () => {
     });
 
     const row = await store.start(
-      shell({ kind: "agent", agentConfigId: config.id, scopeType: "worktree", scopeId: "wt1" }),
+      shell({
+        kind: "agent",
+        agentConfigId: config.id,
+        agentAccountId: config.defaultAccountId,
+        scopeType: "worktree",
+        scopeId: "wt1",
+      }),
     );
 
-    expect(row).toMatchObject({ kind: "agent", agentConfigId: config.id });
+    expect(row).toMatchObject({
+      kind: "agent",
+      agentConfigId: config.id,
+      agentAccountId: config.defaultAccountId,
+    });
   });
 
-  it("records an agent session against its configuration's default account", async () => {
-    // `034` T4: sem conta pedida, a sessão nasce na padrão do agente — que, num
-    // banco de antes, é a conta que sobe sem a variável. A T5 torna explícito.
-    const { store, db } = setup();
-    const config = await createAgentConfigRepository(db).create({
-      name: "fixture",
-      command: "sh",
-      adapterVersion: "1.0.0",
-    });
-    const account = await createAgentAccountRepository(db).defaultFor(config.id);
+  it("refuses an agent session with no account, before spawning anything", async () => {
+    /*
+     * Isto **substitui** *"records an agent session against its configuration's
+     * default account"*, da `034` T4: lá a conta ausente caía na padrão, dentro
+     * do store. A T5 tirou o default daqui — quem abre a conversa escolhe a
+     * conta, e é quem escolhe que resolve o env dela antes de pedir o `spawn`.
+     * Um store que ainda escolhesse sozinho subiria o processo com o env de uma
+     * conta e gravaria a linha em outra.
+     */
+    const { store, db, acpManager } = setup();
+    const input = await acpAgent(db, { agentAccountId: undefined });
 
-    const row = await store.start(
-      shell({ kind: "agent", agentConfigId: config.id, scopeType: "worktree", scopeId: "wt1" }),
-    );
-
-    expect(account).toBeDefined();
-    expect(row.agentAccountId).toBe(account!.id);
+    await expect(store.start(input)).rejects.toMatchObject({ code: "INVALID_ARGUMENT" });
+    expect(acpManager.list()).toEqual([]);
   });
 
   it("kills the process when the record cannot be written", async () => {
@@ -340,6 +351,7 @@ describe("transport", () => {
     const row = await store.start({
       kind: "agent",
       agentConfigId: config.id,
+      agentAccountId: config.defaultAccountId,
       scopeType: "worktree",
       scopeId: "w1",
       cwd: tmpdir(),
@@ -428,16 +440,6 @@ describe("transport", () => {
     await expect(store.start(input)).rejects.toThrow();
     expect(acpManager.list()).toHaveLength(1);
     expect(acpManager.list().every((info) => info.state === "exited")).toBe(true);
-  });
-
-  it("refuses an agent whose configuration does not exist, before spawning anything", async () => {
-    // `034` T4: a conta padrão é resolvida antes do `spawn`, e resolver a de
-    // uma configuração que não existe é a recusa — sem processo para matar.
-    const { store, db, acpManager } = setup();
-    const input = await acpAgent(db, { agentConfigId: "nao-existe" });
-
-    await expect(store.start(input)).rejects.toMatchObject({ code: "NOT_FOUND" });
-    expect(acpManager.list()).toEqual([]);
   });
 
   it("closes an ACP session through the manager the row names", async () => {
@@ -646,6 +648,138 @@ describe("resuming", () => {
 
     expect(old.agentAccountId).toBe(second.id);
     expect(resumed.agentAccountId).toBe(second.id);
+  });
+
+  describe("a conta chega ao processo (`034` T5)", () => {
+    /*
+     * Com o resolvedor de verdade ligado — o mesmo par que o `bootstrap` passa —
+     * e o spawner dizendo o que recebeu. É a única asserção que pega a conta
+     * errada: a linha diria a conta certa e o processo subiria em outra.
+     */
+    const stateDirs: string[] = [];
+    afterEach(() => {
+      for (const dir of stateDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+    });
+
+    function accountWorld() {
+      const database = openTestDb();
+      databases.push(database);
+      const stateDir = mkdtempSync(join(tmpdir(), "lumem-state-"));
+      stateDirs.push(stateDir);
+      const managed = adapterBinaryPath(adaptersDir(stateDir), CLAUDE_ADAPTER);
+      mkdirSync(join(managed, ".."), { recursive: true });
+      writeFileSync(managed, "#!/bin/sh\n");
+      chmodSync(managed, 0o755);
+      const requests: AcpSpawnRequest[] = [];
+      const acpManager = new AcpManager({
+        spawner: (request) => {
+          requests.push(request);
+          return fakeAgentProcess().process;
+        },
+        isAvailable: () => true,
+        handshakeTimeoutMs: 2_000,
+      });
+      acpManagers.push(acpManager);
+      const ptyManager = new PtyManager();
+      managers.push(ptyManager);
+      const secrets = { read: (): string | null => null };
+      const store = createSessionStore({
+        db: database.db,
+        ptyManager,
+        acpManager,
+        resolveInvocation: (config, account) =>
+          adapterInvocationFor({ config, account, stateDir, secrets }),
+      });
+      unsubscribes.push(store.trackExits());
+      return { db: database.db, store, acpManager, requests, managed };
+    }
+
+    async function endedIn(world: ReturnType<typeof accountWorld>, accountId: string) {
+      const config = (await world.db.query.agentConfig.findFirst())!;
+      const row = await world.store.start({
+        kind: "agent",
+        agentConfigId: config.id,
+        agentAccountId: accountId,
+        scopeType: "worktree",
+        scopeId: "w1",
+        cwd: tmpdir(),
+        command: world.managed,
+      });
+      await world.acpManager.prompt(row.id, "algo dito ontem");
+      world.acpManager.kill(row.id);
+      await vi.waitFor(async () =>
+        expect((await world.store.findById(row.id))?.state).toBe("exited"),
+      );
+      return row;
+    }
+
+    it("a sessão de antes volta **sem** a variável — a conta que já existia", async () => {
+      const world = accountWorld();
+      const config = await createAgentConfigRepository(world.db).create({
+        name: "claude",
+        command: "claude-agent-acp",
+        adapterVersion: "0.75.1",
+      });
+      const old = await endedIn(world, config.defaultAccountId!);
+
+      await world.store.resume(old.id);
+
+      const request = world.requests.at(-1)!;
+      expect(request.command).toBe(world.managed);
+      expect(request.env?.CLAUDE_CONFIG_DIR).toBeUndefined();
+      expect(request.unsetEnv).toEqual(["CLAUDE_CONFIG_DIR"]);
+    });
+
+    it("a sessão da conta 2 volta no diretório da conta 2, mesmo depois de o padrão mudar", async () => {
+      const world = accountWorld();
+      const config = await createAgentConfigRepository(world.db).create({
+        name: "claude",
+        command: "claude-agent-acp",
+        adapterVersion: "0.75.1",
+      });
+      const accounts = createAgentAccountRepository(world.db);
+      const second = await accounts.create({
+        agentConfigId: config.id,
+        label: "trabalho",
+        configDir: "/contas/trabalho",
+      });
+      const old = await endedIn(world, second.id);
+      const third = await accounts.create({
+        agentConfigId: config.id,
+        label: "outra",
+        configDir: "/contas/outra",
+      });
+      await world.db
+        .update(schema.agentConfig)
+        .set({ defaultAccountId: third.id })
+        .where(eq(schema.agentConfig.id, config.id));
+
+      const resumed = await world.store.resume(old.id);
+
+      expect(world.requests.at(-1)?.env?.CLAUDE_CONFIG_DIR).toBe("/contas/trabalho");
+      expect(resumed.agentAccountId).toBe(second.id);
+    });
+
+    it("conta desconectada: recusa com *reconecte a conta*, sem subir nada", async () => {
+      const world = accountWorld();
+      const config = await createAgentConfigRepository(world.db).create({
+        name: "claude",
+        command: "claude-agent-acp",
+        adapterVersion: "0.75.1",
+      });
+      const old = await endedIn(world, config.defaultAccountId!);
+      await world.db
+        .update(schema.agentAccount)
+        .set({ state: "disconnected" })
+        .where(eq(schema.agentAccount.id, config.defaultAccountId!));
+      const spawnsBefore = world.requests.length;
+
+      await expect(world.store.resume(old.id)).rejects.toMatchObject({
+        code: "BLOCKED",
+        message: expect.stringMatching(/reconecte a conta/),
+      });
+      expect(world.requests).toHaveLength(spawnsBefore);
+    });
   });
 
   it("a conversa da esteira volta liberada — e a linha diz isso", async () => {

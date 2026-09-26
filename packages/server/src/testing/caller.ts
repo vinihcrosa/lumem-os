@@ -19,7 +19,7 @@ import { PtyManager } from "../pty/PtyManager.js";
 import { createScriptRunner, type ScriptRunner } from "../scripts/ScriptRunner.js";
 import { createSecretStore } from "../secrets/SecretStore.js";
 import { createSessionStore, type SessionStore } from "../sessions/SessionStore.js";
-import { adapterCommandForConfig } from "../setup/adapter-command.js";
+import { adapterInvocationFor } from "../setup/adapter-command.js";
 import { appRouter } from "../routers/index.js";
 import { createCallerFactory, type Context } from "../trpc.js";
 
@@ -124,13 +124,17 @@ export function createTestCaller(
    * dois aqui é o que faz um teste de router poder afirmar **o que o spawner
    * recebeu**, que é a única asserção que pega a versão errada.
    */
+  // O cofre do daemon de teste: um diretório descartável, como o resto. Antes
+  // do store, porque a retomada de uma conta de chave lê dele (`034` T5).
+  const secrets = createSecretStore({ stateDir: config.stateDir });
   const sessionStore = createSessionStore({
     db: database.db,
     ptyManager,
     acpManager,
     events,
     git,
-    resolveAcpCommand: (agent) => adapterCommandForConfig(agent, config.stateDir),
+    resolveInvocation: (agent, account) =>
+      adapterInvocationFor({ config: agent, account, stateDir: config.stateDir, secrets }),
   });
   // Same wiring the daemon uses: without it a session that ends on its own
   // stays `running` and the removal rules read stale state.
@@ -168,8 +172,7 @@ export function createTestCaller(
     adapterCatalog: new AdapterCatalog({ stateDir: config.stateDir }),
     sessionStore,
     scripts,
-    // O cofre do daemon de teste: um diretório descartável, como o resto.
-    secrets: createSecretStore({ stateDir: config.stateDir }),
+    secrets,
     git,
     clones: createCloneJobStore(),
     pr: prCache,

@@ -1,20 +1,25 @@
+import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
-import type { AcpEvent, AcpTranscriptEntry } from "@lumem/shared";
+import { CLAUDE_ADAPTER, type AcpEvent, type AcpTranscriptEntry } from "@lumem/shared";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { AcpManager } from "../acp/AcpManager.js";
+import type { AcpSpawnRequest } from "../acp/process.js";
 import { createMemoryTranscriptStore, type TranscriptStore } from "../acp/TranscriptStore.js";
 import type { Db } from "../db/index.js";
 import type { SessionRow } from "../db/schema.js";
 import { openTestDb, type TestDb } from "../db/testing.js";
+import { agentAccount } from "../db/schema.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
 import { createProjectRepository } from "../repositories/project.js";
 import { createSessionRepository } from "../repositories/session.js";
 import { createWorkspaceRepository } from "../repositories/workspace.js";
 import { fakeAgentProcess } from "../testing/acp-fake-agent.js";
 import { cleanupGitFixtures, tempDir } from "../testing/git-fixtures.js";
+import { adaptersDir } from "../setup/adapter-command.js";
+import { adapterBinaryPath } from "../setup/install-adapter.js";
 
 import { MemoryService } from "./MemoryService.js";
 import { createSessionCapture } from "./capture.js";
@@ -67,6 +72,8 @@ interface World {
   db: Db;
   row: SessionRow;
   transcripts: TranscriptStore;
+  /** O que cada `spawn` recebeu — é o que diz em que conta a destilação subiu. */
+  requests: AcpSpawnRequest[];
 }
 
 async function world(
@@ -74,6 +81,13 @@ async function world(
 ): Promise<World> {
   const stateDir = join(tempDir("lumem-capture-"), ".lumem");
   await ensureMemoryHome({ stateDir });
+  // A cópia que o daemon instalou: a destilação passa pelo resolvedor desde a
+  // `034` T5, e ele não lança nada fora dela.
+  const managed = adapterBinaryPath(adaptersDir(stateDir), CLAUDE_ADAPTER);
+  mkdirSync(dirname(managed), { recursive: true });
+  writeFileSync(managed, "#!/bin/sh\n");
+  chmodSync(managed, 0o755);
+  const requests: AcpSpawnRequest[] = [];
   const database = openTestDb();
   databases.push(database);
   const db = database.db;
@@ -81,8 +95,9 @@ async function world(
   const transcripts = createMemoryTranscriptStore();
   const answer = options.answer ?? CANDIDATE;
   const acpManager = new AcpManager({
-    spawner: () =>
-      fakeAgentProcess({
+    spawner: (request) => {
+      requests.push(request);
+      return fakeAgentProcess({
         prompt: async (_text, turn) => {
           await turn.update({
             sessionUpdate: "agent_message_chunk",
@@ -90,7 +105,8 @@ async function world(
           });
           return "end_turn";
         },
-      }).process,
+      }).process;
+    },
     isAvailable: () => true,
     handshakeTimeoutMs: 2_000,
     transcripts,
@@ -113,6 +129,7 @@ async function world(
     id: "ses_morta",
     kind: "agent",
     agentConfigId: config.id,
+    agentAccountId: config.defaultAccountId,
     scopeType: "project",
     scopeId: project.id,
     cwd: tmpdir(),
@@ -128,12 +145,14 @@ async function world(
       db,
       stateDir,
       acpManager,
+      secrets: { read: () => null },
       enabled: options.enabled ?? true,
     }),
     memory: new MemoryService({ db, stateDir }),
     db,
     row,
     transcripts,
+    requests,
   };
 }
 
@@ -154,6 +173,22 @@ describe("createSessionCapture", () => {
     expect(memory.list()).toHaveLength(0);
   });
 
+  it("a destilação sobe pelo resolvedor, na conta padrão e com o env dela (`034` T5)", async () => {
+    /*
+     * Antes, este caminho spawnava `config.command` cru — por fora do resolvedor
+     * que o ADR de 2026-09-08 fez valer em todo o resto. Agora ele lança a cópia
+     * gerenciada, e a conta padrão chega ao processo como qualquer outra.
+     */
+    const { capture, db, row, requests } = await world();
+    await db.update(agentAccount).set({ configDir: "/contas/padrao" });
+
+    await capture(row, LIVED(row));
+
+    expect(requests).toHaveLength(1);
+    expect(requests[0]?.command).toMatch(/node_modules\/\.bin\/claude-agent-acp$/);
+    expect(requests[0]?.env?.CLAUDE_CONFIG_DIR).toBe("/contas/padrao");
+  });
+
   it("desligada, não faz nada", async () => {
     const { capture, memory, row } = await world({ enabled: false });
 
@@ -168,6 +203,7 @@ describe("createSessionCapture", () => {
       id: "ses_hoje",
       kind: "agent",
       agentConfigId: row.agentConfigId,
+      agentAccountId: row.agentAccountId,
       scopeType: "project",
       scopeId: row.scopeId,
       cwd: row.cwd,

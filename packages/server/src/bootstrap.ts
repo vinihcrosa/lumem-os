@@ -20,7 +20,7 @@ import { trackTaskProgress } from "./tasks/progress.js";
 import { createAgentAuthService } from "./setup/agent-auth.js";
 import {
   adapterCommandFor,
-  adapterCommandForConfig,
+  adapterInvocationFor,
   catalogedAdapterOf,
 } from "./setup/adapter-command.js";
 import { reconcileAdapters } from "./setup/reconcile-adapters.js";
@@ -217,15 +217,20 @@ export async function bootstrap({
    * que ninguém desliga.
    */
   const agentAuth = createAgentAuthService({ acpManager: acp });
+  // O cofre, antes do store: a conta de chave (`034` T5) sai dele no `spawn`
+  // e na retomada, e o tracker abaixo usa a mesma instância.
+  const secrets = createSecretStore({ stateDir: config.stateDir });
   const sessionStore = createSessionStore({
     db: openedDatabase.db,
     ptyManager,
     acpManager: acp,
     events,
     // Retomar relança o adaptador **de hoje**, não o caminho gravado na sessão
-    // morta. A costura é opcional no store e obrigatória aqui: sem esta linha,
-    // toda unidade passa e o daemon real retoma na versão velha.
-    resolveAcpCommand: (agent) => adapterCommandForConfig(agent, config.stateDir),
+    // morta — e na conta **da sessão**, com o env dela (`034` T5). A costura é
+    // opcional no store e obrigatória aqui: sem esta linha, toda unidade passa e
+    // o daemon real retoma na versão velha e na conta errada.
+    resolveInvocation: (agent, account) =>
+      adapterInvocationFor({ config: agent, account, stateDir: config.stateDir, secrets }),
     // Duas das três fontes do catálogo: o handshake de cada sessão e os `/`
     // que ela recebe, por projeto.
     adapterCatalog,
@@ -241,6 +246,7 @@ export async function bootstrap({
       db: openedDatabase.db,
       stateDir: config.stateDir,
       acpManager: acp,
+      secrets,
       enabled: config.distill,
       log: {
         warn: (...args: Parameters<FastifyBaseLogger["warn"]>) => {
@@ -337,7 +343,6 @@ export async function bootstrap({
    * seguinte — e guardar a chave é um gesto na tela, não uma variável de
    * ambiente que pede reinício.
    */
-  const secrets = createSecretStore({ stateDir: config.stateDir });
   const tracker = createLinearHost({ secrets });
 
   /*

@@ -3,9 +3,11 @@ import type { FastifyBaseLogger } from "fastify";
 import type { AcpManager } from "../acp/AcpManager.js";
 import type { Db } from "../db/index.js";
 import type { AgentConfigRow } from "../db/schema.js";
+import { createAgentAccountRepository } from "../repositories/agentAccount.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
 import { createSessionRepository } from "../repositories/session.js";
-import { adapterCommandForConfig } from "../setup/adapter-command.js";
+import type { SecretStore } from "../secrets/SecretStore.js";
+import { adapterCommandForConfig, adapterInvocationFor } from "../setup/adapter-command.js";
 
 import { MemoryService } from "./MemoryService.js";
 import { markUnverified, routeFor } from "./evidence.js";
@@ -29,6 +31,8 @@ export interface AutoLearnOptions {
   db: Db;
   stateDir: string;
   acpManager: AcpManager;
+  /** O cofre, para a conta de chave (`034` T5). */
+  secrets: Pick<SecretStore, "read">;
   enabled: boolean;
   /** Quantas perguntas de uma sessão podem subir agente. */
   budget: number;
@@ -50,6 +54,7 @@ export function createAutoLearn({
   db,
   stateDir,
   acpManager,
+  secrets,
   enabled,
   budget,
   log,
@@ -79,7 +84,7 @@ export function createAutoLearn({
     const started = Date.now();
     const { answer, degraded } = await research({
       question,
-      ask: askAgent({ acpManager, db, stateDir, sessionId, log }),
+      ask: askAgent({ acpManager, db, stateDir, secrets, sessionId, log }),
       ...(log ? { log: { warn: (object, message) => log.warn(object, message) } } : {}),
     });
 
@@ -203,12 +208,14 @@ function askAgent({
   acpManager,
   db,
   stateDir,
+  secrets,
   sessionId,
   log,
 }: {
   acpManager: AcpManager;
   db: Db;
   stateDir: string;
+  secrets: Pick<SecretStore, "read">;
   sessionId: string | undefined;
   log?: Pick<FastifyBaseLogger, "warn">;
 }) {
@@ -217,15 +224,21 @@ function askAgent({
     // `list` já deixa as aposentadas de fora: uma sessão legada cuja config a
     // `0033` aposentou pesquisa com o primeiro agente que ainda pode subir.
     const configs = await createAgentConfigRepository(db).list();
-    const { config, command } = firstLaunchable(configs, asking?.agentConfigId ?? null, stateDir);
+    const { config } = firstLaunchable(configs, asking?.agentConfigId ?? null, stateDir);
+    // Pelo resolvedor, na conta **padrão** do agente escolhido (`034` T5): a
+    // pesquisa é trabalho do daemon, e não continuação da conversa de quem
+    // perguntou.
+    const account = await createAgentAccountRepository(db).ensureDefault(config.id);
+    const invocation = adapterInvocationFor({ config, account, stateDir, secrets });
 
     const session = await acpManager.spawn({
-      command,
-      args: config.args,
+      command: invocation.command,
+      args: invocation.args,
       // O checkout de quem perguntou: é lá que a resposta está. Sem sessão, o
       // diretório do daemon — e aí o agente não acha nada, o que é honesto.
       cwd: asking?.cwd ?? process.cwd(),
-      env: config.env,
+      env: invocation.env,
+      unsetEnv: invocation.unsetEnv,
       ...(config.adapterVersion === null ? {} : { adapterVersion: config.adapterVersion }),
     });
 

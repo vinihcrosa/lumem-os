@@ -113,7 +113,7 @@ async function world(): Promise<World> {
         id: info.id,
         kind: "agent",
         agentConfigId: config.id,
-        ...(agentAccountId === undefined ? {} : { agentAccountId }),
+        agentAccountId: agentAccountId ?? config.defaultAccountId,
         scopeType: scope === null ? "project" : "worktree",
         scopeId: scope === null ? project.id : scope.id,
         cwd: tmpdir(),

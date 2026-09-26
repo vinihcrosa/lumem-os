@@ -226,6 +226,7 @@ export async function createServer({
             db,
             stateDir: config.stateDir,
             acpManager,
+            secrets,
             enabled: true,
             budget: config.autoLearnBudget,
             log: app.log,

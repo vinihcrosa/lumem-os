@@ -4,7 +4,7 @@ import type { Db } from "../db/index.js";
 import type { EventBus } from "../events.js";
 import { adapterById, type AcpServerMessage, type LumemMode, type LumemModeDefault } from "@lumem/shared";
 
-import type { SessionRow } from "../db/schema.js";
+import type { AgentAccountRow, AgentConfigRow, SessionRow } from "../db/schema.js";
 import { DomainError } from "../errors.js";
 import type { AcpDriver, AcpManager, AcpSessionInfo } from "../acp/AcpManager.js";
 import type { AdapterCatalog } from "../acp/adapter-catalog.js";
@@ -17,7 +17,7 @@ import {
   tryRecordSignal,
 } from "../memory/signals.js";
 import type { PtyManager } from "../pty/PtyManager.js";
-import type { AdapterConfigRef } from "../setup/adapter-command.js";
+import type { AdapterConfigRef, AdapterInvocation } from "../setup/adapter-command.js";
 import { createAgentAccountRepository } from "../repositories/agentAccount.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
 import { createProjectRepository } from "../repositories/project.js";
@@ -44,7 +44,13 @@ export interface StartSessionInput {
   /** Which script this is. Required for `kind: "script"` and refused otherwise. */
   scriptName?: ScriptPhase | null;
   agentConfigId?: string | null;
-  /** A conta da sessão de agente. Ausente, é a padrão do agente (`034` T4). */
+  /**
+   * A conta da sessão de agente — obrigatória para `kind: "agent"` (`034` T5).
+   *
+   * Quem abre a conversa escolhe a conta **e** resolve o env dela antes de
+   * chegar aqui; o store só grava. Um store que escolhesse sozinho subiria o
+   * processo com o env de uma conta e a linha diria outra.
+   */
   agentAccountId?: string | null;
   scopeType: ScopeType;
   scopeId: string;
@@ -52,6 +58,8 @@ export interface StartSessionInput {
   command: string;
   args?: readonly string[];
   env?: Readonly<Record<string, string>>;
+  /** O que o processo não herda do daemon — a variável de conta ausente (`034` T5). */
+  unsetEnv?: readonly string[];
   cols?: number;
   rows?: number;
   /*
@@ -186,21 +194,26 @@ export interface SessionStoreOptions {
    */
   onEnded?: (row: SessionRow, endedAt: Date) => Promise<void>;
   /**
-   * O que lançar para retomar uma conversa ACP, resolvido agora.
+   * O que lançar para retomar uma conversa ACP — comando **e** ambiente da conta
+   * —, resolvido agora.
    *
-   * Injetado e não calculado aqui porque este arquivo não conhece o `stateDir` — e
-   * não deveria: ele cuida de ciclo de vida de processo, e onde o daemon guarda os
-   * adaptadores é assunto de `setup/`. O `bootstrap` passa
-   * `adapterCommandForConfig`.
+   * Injetado e não calculado aqui porque este arquivo não conhece o `stateDir`
+   * nem o cofre — e não deveria: ele cuida de ciclo de vida de processo, e onde
+   * o daemon guarda adaptadores e chaves é assunto de `setup/`. O `bootstrap`
+   * passa `adapterInvocationFor`.
    *
-   * Ausente, o `resume` cai para `row.command` — o caminho da sessão morta, que é
-   * o comportamento anterior. Isto é uma costura de teste e **não** um default
+   * Era `resolveAcpCommand`, que só devolvia o comando; a `034` T5 o alargou,
+   * porque retomar na conta errada é carregar uma conversa que não está no
+   * diretório daquela conta.
+   *
+   * Ausente, o `resume` cai para `row.command` e o env da configuração — o
+   * comportamento anterior. Isto é uma costura de teste e **não** um default
    * aceitável no daemon real: sem ela ligada, retomar uma conversa nascida no
    * `0.40.0` relança o `0.40.0`, com toda unidade passando. Por isso a prova de que
    * ela está ligada mora no teste de `bootstrap`, e não aqui — o mesmo desenho que
    * o `ptyManager` e o `transcripts` do `AcpManager` já usam, pelo mesmo motivo.
    */
-  resolveAcpCommand?: (config: AdapterConfigRef) => string;
+  resolveInvocation?: (config: AgentConfigRow, account: AgentAccountRow) => AdapterInvocation;
   /**
    * O cache do que cada adaptador oferece sem sessão (`033` §3.1).
    *
@@ -235,7 +248,7 @@ export function createSessionStore({
   events,
   git = createGitService(),
   onEnded,
-  resolveAcpCommand,
+  resolveInvocation,
   adapterCatalog,
   catalogAdapterOf,
   log: storeLog,
@@ -439,21 +452,20 @@ export function createSessionStore({
         const born = input.lumemMode ?? inherited;
 
         /*
-         * A conta, resolvida **antes** do `spawn` (`034` T4; a T5 a torna
-         * explícita em quem chama).
-         *
-         * Antes, e não entre o `spawn` e a linha: o Claude manda o
-         * `available_commands_update` colado no `session/new`, e o observador do
-         * catálogo procura a linha nesse instante — cada `await` a mais ali é o
-         * `/` da primeira conversa sumindo (o teste *"comandos que chegam junto
-         * com o handshake"* ficou vermelho exatamente assim). E um agente que
-         * não existe falha sem ter subido processo nenhum.
+         * A conta vem de quem chama, e a recusa é **antes** do `spawn` (`034`
+         * T5): o env do processo já foi resolvido para uma conta, e sem ela a
+         * linha não teria o que dizer. Nada de `await` entre o `spawn` e a
+         * linha — o Claude manda o `available_commands_update` colado no
+         * `session/new`, e o observador do catálogo procura a linha nesse
+         * instante (o teste *"comandos que chegam junto com o handshake"*).
          */
-        const agentAccountId =
-          input.agentAccountId ??
-          (agentConfigId === null
-            ? null
-            : (await createAgentAccountRepository(db).ensureDefault(agentConfigId)).id);
+        const agentAccountId = input.agentAccountId ?? null;
+        if (agentAccountId === null) {
+          throw new DomainError(
+            "INVALID_ARGUMENT",
+            "sessão de agente exige a conta em que ela roda",
+          );
+        }
 
         // The agent first, so its id is the record's id — the same identity rule
         // the PTY path follows, for the same reason.
@@ -462,6 +474,7 @@ export function createSessionStore({
           ...(input.args ? { args: input.args } : {}),
           cwd,
           ...(input.env ? { env: input.env } : {}),
+          ...(input.unsetEnv?.length ? { unsetEnv: input.unsetEnv } : {}),
           ...(input.adapterVersion ? { adapterVersion: input.adapterVersion } : {}),
           /*
            * O modo em que ela nasce, e o **padrão de onde ela veio** — e agora
@@ -604,18 +617,39 @@ export function createSessionStore({
        * defeito que o [ADR de
        * 2026-09-08](../../../../docs/adr/2026-09-08-0507-adapter-is-the-copy-the-daemon-owns.md)
        * fecha no `start`. Sem o resolvedor ligado, o comportamento anterior fica —
-       * ver a nota em `resolveAcpCommand`.
+       * ver a nota em `resolveInvocation`.
        */
-      const command =
-        config && resolveAcpCommand
-          ? resolveAcpCommand({ name: config.name, command: row.command })
-          : row.command;
+      /*
+       * A conta **da linha**, e nunca a padrão de hoje (`034` T5): a conversa do
+       * Claude mora em `<config>/projects/` daquela conta, e o `session/load`
+       * noutra não a encontra. Desconectada é recusa antes do `spawn` (Q8) —
+       * subir ali seria subir deslogado.
+       */
+      const account = row.agentAccountId
+        ? await createAgentAccountRepository(db).get(row.agentAccountId)
+        : undefined;
+      if (!account) {
+        throw new DomainError("NOT_FOUND", "a conta em que esta conversa rodou não existe mais");
+      }
+      if (account.state === "disconnected") {
+        throw new DomainError(
+          "BLOCKED",
+          "a conta desta conversa foi desconectada — reconecte a conta para retomá-la",
+        );
+      }
+
+      const invocation: AdapterInvocation =
+        config && resolveInvocation
+          ? resolveInvocation(config, account)
+          : { command: row.command, args: config?.args ?? [], env: { ...config?.env }, unsetEnv: [] };
+      const command = invocation.command;
 
       const launch = {
         command,
-        ...(config?.args?.length ? { args: config.args } : {}),
+        ...(invocation.args.length > 0 ? { args: invocation.args } : {}),
         cwd: row.cwd,
-        ...(config?.env && Object.keys(config.env).length > 0 ? { env: config.env } : {}),
+        ...(Object.keys(invocation.env).length > 0 ? { env: invocation.env } : {}),
+        ...(invocation.unsetEnv.length > 0 ? { unsetEnv: invocation.unsetEnv } : {}),
         ...(config?.adapterVersion ? { adapterVersion: config.adapterVersion } : {}),
         /*
          * A política volta como estava (F1.4).

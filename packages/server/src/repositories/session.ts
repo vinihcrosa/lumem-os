@@ -5,7 +5,6 @@ import type { LumemMode } from "@lumem/shared";
 import type { Db } from "../db/index.js";
 import { session, type SessionRow } from "../db/schema.js";
 import { DomainError } from "../errors.js";
-import { createAgentAccountRepository } from "./agentAccount.js";
 import { withConstraints, type ConstraintMap } from "./base.js";
 
 /**
@@ -71,11 +70,9 @@ interface CreateSessionFields {
   scriptName?: ScriptPhase | null;
   agentConfigId?: string | null;
   /**
-   * Em que conta a sessão de agente roda (`034` T4).
-   *
-   * Ausente numa sessão de agente, é a **padrão** do agente — criada se faltar.
-   * A T5 torna a escolha explícita em quem abre a conversa; a retomada já passa
-   * a da linha morta, porque a conversa mora no diretório **dela**.
+   * Em que conta a sessão de agente roda (`034`). Obrigatória para `agent` — a
+   * CHECK `session_agent_config` cobra —, e escolhida por quem abre a conversa:
+   * é quem escolhe que resolveu o env do processo para ela.
    */
   agentAccountId?: string | null;
   scopeType: ScopeType;
@@ -185,17 +182,12 @@ const CONSTRAINTS: ConstraintMap = {
 
 export function createSessionRepository(db: Db): SessionRepository {
   return {
-    async create({ agentConfigId = null, agentAccountId, scriptName = null, ...input }) {
-      const account =
-        agentAccountId ??
-        (input.kind === "agent" && agentConfigId !== null
-          ? (await createAgentAccountRepository(db).ensureDefault(agentConfigId)).id
-          : null);
+    async create({ agentConfigId = null, agentAccountId = null, scriptName = null, ...input }) {
       const [row] = await withConstraints(
         () =>
           db
             .insert(session)
-            .values({ ...input, agentConfigId, agentAccountId: account, scriptName })
+            .values({ ...input, agentConfigId, agentAccountId, scriptName })
             .returning(),
         CONSTRAINTS,
       );

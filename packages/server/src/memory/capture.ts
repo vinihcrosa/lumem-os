@@ -3,7 +3,10 @@ import type { FastifyBaseLogger } from "fastify";
 import type { AcpManager } from "../acp/AcpManager.js";
 import type { Db } from "../db/index.js";
 import type { SessionRow } from "../db/schema.js";
+import { createAgentAccountRepository } from "../repositories/agentAccount.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
+import type { SecretStore } from "../secrets/SecretStore.js";
+import { adapterInvocationFor } from "../setup/adapter-command.js";
 
 import { MemoryService } from "./MemoryService.js";
 import { distill, type Distiller } from "./distiller.js";
@@ -27,6 +30,8 @@ export interface SessionCaptureOptions {
   db: Db;
   stateDir: string;
   acpManager: AcpManager;
+  /** O cofre, para a conta de chave (`034` T5). */
+  secrets: Pick<SecretStore, "read">;
   /** Ligada ou não (§10 do PRD). Desligada é o default do daemon. */
   enabled: boolean;
   log?: Pick<FastifyBaseLogger, "warn">;
@@ -43,6 +48,7 @@ export function createSessionCapture({
   db,
   stateDir,
   acpManager,
+  secrets,
   enabled,
   log,
   now = () => Date.now(),
@@ -82,7 +88,7 @@ export function createSessionCapture({
     const { candidates, skipped } = await distill({
       enabled,
       projection,
-      ask: askAgent({ acpManager, db, row, log }),
+      ask: askAgent({ acpManager, db, stateDir, secrets, row, log }),
       ...(log ? { log: { warn: (object, message) => log.warn(object, message) } } : {}),
     });
 
@@ -128,11 +134,15 @@ export function createSessionCapture({
 function askAgent({
   acpManager,
   db,
+  stateDir,
+  secrets,
   row,
   log,
 }: {
   acpManager: AcpManager;
   db: Db;
+  stateDir: string;
+  secrets: Pick<SecretStore, "read">;
   row: SessionRow;
   log?: Pick<FastifyBaseLogger, "warn">;
 }): Distiller {
@@ -141,11 +151,22 @@ function askAgent({
     const config = await createAgentConfigRepository(db).findById(row.agentConfigId);
     if (config === undefined) throw new Error("a configuração do agente não existe mais");
 
+    /*
+     * Pelo resolvedor, e na conta **padrão** (`034` T5).
+     *
+     * Até aqui este caminho spawnava `config.command` cru — a coluna que o ADR
+     * de 2026-09-08 deixou de ler em todo o resto, porque ela envelhece. A conta
+     * é a padrão, e não a da sessão que acabou: a destilação é trabalho do
+     * daemon, e não uma continuação da conversa.
+     */
+    const account = await createAgentAccountRepository(db).ensureDefault(config.id);
+    const invocation = adapterInvocationFor({ config, account, stateDir, secrets });
     const session = await acpManager.spawn({
-      command: config.command,
-      args: config.args,
+      command: invocation.command,
+      args: invocation.args,
       cwd: row.cwd,
-      env: config.env,
+      env: invocation.env,
+      unsetEnv: invocation.unsetEnv,
       ...(config.adapterVersion === null ? {} : { adapterVersion: config.adapterVersion }),
     });
     // Esta sessão **não** tem linha no banco, e é de propósito: ela não é um

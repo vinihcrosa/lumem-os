@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AcpManager } from "../acp/AcpManager.js";
 import type { Db } from "../db/index.js";
-import { agentConfig } from "../db/schema.js";
+import { agentAccount, agentConfig } from "../db/schema.js";
 import { openTestDb, type TestDb } from "../db/testing.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
 import { createProjectRepository } from "../repositories/project.js";
@@ -63,6 +63,8 @@ interface World {
   prompts: number;
   /** O `command` de cada `spawn`, na ordem — é o que diz qual cópia subiu. */
   spawned: readonly string[];
+  /** O env de cada `spawn`, na ordem — é o que diz em que conta ele subiu. */
+  envs: readonly (Readonly<Record<string, string>> | undefined)[];
   stateDir: string;
   configId: string;
   db: Db;
@@ -89,9 +91,11 @@ async function world(
 
   const state = { prompts: 0 };
   const spawned: string[] = [];
+  const envs: (Readonly<Record<string, string>> | undefined)[] = [];
   const acpManager = new AcpManager({
-    spawner: ({ command }) => {
+    spawner: ({ command, env }) => {
       spawned.push(command);
+      envs.push(env);
       return fakeAgentProcess({
         prompt: async (_text, turn) => {
           state.prompts += 1;
@@ -124,6 +128,7 @@ async function world(
     id: "ses_1",
     kind: "agent",
     agentConfigId: config.id,
+    agentAccountId: config.defaultAccountId,
     scopeType: "project",
     scopeId: project.id,
     cwd: stateDir,
@@ -137,6 +142,7 @@ async function world(
       db,
       stateDir,
       acpManager,
+      secrets: { read: () => null },
       enabled: options.enabled ?? true,
       budget: options.budget ?? 3,
     }),
@@ -146,6 +152,7 @@ async function world(
       return state.prompts;
     },
     spawned,
+    envs,
     stateDir,
     configId: config.id,
     db,
@@ -153,6 +160,16 @@ async function world(
 }
 
 describe("createAutoLearn", () => {
+  it("a pesquisa sobe na conta padrão do agente, com o env dela (`034` T5)", async () => {
+    const world_ = await world();
+    await world_.db.update(agentAccount).set({ configDir: "/contas/padrao" });
+
+    await world_.learn("qual é o endpoint de checkout?", world_.sessionId);
+
+    expect(world_.envs).toHaveLength(1);
+    expect(world_.envs[0]?.CLAUDE_CONFIG_DIR).toBe("/contas/padrao");
+  });
+
   it("com evidência verificável, grava direto — marcada como não verificada", async () => {
     const { learn, memory, sessionId } = await world();
 

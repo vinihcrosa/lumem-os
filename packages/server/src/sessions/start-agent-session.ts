@@ -2,13 +2,19 @@ import { adapterById } from "@lumem/shared";
 import { eq } from "drizzle-orm";
 
 import { isCommandAvailable } from "../agents/availability.js";
-import { session, type AgentConfigRow, type SessionRow } from "../db/schema.js";
+import {
+  session,
+  type AgentAccountRow,
+  type AgentConfigRow,
+  type SessionRow,
+} from "../db/schema.js";
 import { DomainError } from "../errors.js";
+import { createAgentAccountRepository } from "../repositories/agentAccount.js";
 import { configForAdapter, createAgentConfigRepository } from "../repositories/agentConfig.js";
 import { createSessionRepository } from "../repositories/session.js";
 import { createTaskRepository } from "../repositories/task.js";
 import { resolveScope, type ScopeType } from "../scope.js";
-import { adapterCommandFor, adapterCommandForConfig } from "../setup/adapter-command.js";
+import { adapterCommandFor, adapterInvocationFor } from "../setup/adapter-command.js";
 import type { Context } from "../trpc.js";
 
 /**
@@ -31,6 +37,11 @@ export interface StartAgentSessionInput {
   scopeType: ScopeType;
   scopeId: string;
   agent: AgentChoice;
+  /**
+   * Em que conta a conversa roda (`034` T5). Ausente, a **padrão** do agente —
+   * que num banco de antes da feature é a conta que sobe sem a variável.
+   */
+  agentAccountId?: string;
   /**
    * `optionId → valor`, aplicado **antes** de devolver.
    *
@@ -99,7 +110,17 @@ export async function startAgentSession(
    * teria desalojado ela. Quem decide é a spec. [ADR de
    * 2026-09-08](../../../../docs/adr/2026-09-08-0507-adapter-is-the-copy-the-daemon-owns.md).
    */
-  const command = adapterCommandForConfig(config, ctx.config.stateDir);
+  //
+  // E a conta vai junto (`034` T5): o env dela é resolvido na mesma chamada que
+  // o comando, e a linha nasce na mesma conta cujo env o processo recebeu.
+  const account = await resolveAccount(ctx, config, input.agentAccountId);
+  const invocation = adapterInvocationFor({
+    config,
+    account,
+    stateDir: ctx.config.stateDir,
+    secrets: ctx.secrets,
+  });
+  const command = invocation.command;
 
   // F6.5: refused before the spawn. Afterwards, a missing binary reads as
   // the agent crashing rather than as not being installed.
@@ -121,13 +142,16 @@ export async function startAgentSession(
   const started = await ctx.sessionStore.start({
     kind: "agent",
     agentConfigId: config.id,
+    agentAccountId: account.id,
     scopeType: input.scopeType,
     scopeId: input.scopeId,
     cwd,
     command,
-    args: config.args,
-    // F5.5: the daemon's environment plus what the configuration declares.
-    env: config.env,
+    args: invocation.args,
+    // F5.5: the daemon's environment plus what the configuration declares —
+    // and, since `034` T5, what the account says (its variable, or its absence).
+    env: invocation.env,
+    unsetEnv: invocation.unsetEnv,
     adapterVersion: config.adapterVersion,
     // Nasce liberada só quando quem chamou disse que não há ninguém do
     // outro lado. O default é `false`, então toda conversa que a tela
@@ -170,6 +194,19 @@ export async function startAgentSession(
 
   ctx.events.emit({ type: "session.changed", scopeType: input.scopeType, scopeId: input.scopeId });
   return row;
+}
+
+/** A conta pedida, ou a padrão do agente — criada se faltar. */
+async function resolveAccount(
+  ctx: Context,
+  config: AgentConfigRow,
+  agentAccountId: string | undefined,
+): Promise<AgentAccountRow> {
+  const accounts = createAgentAccountRepository(ctx.db);
+  if (agentAccountId === undefined) return accounts.ensureDefault(config.id);
+  const found = await accounts.get(agentAccountId);
+  if (!found) throw new DomainError("NOT_FOUND", `conta ${agentAccountId} não existe`);
+  return found;
 }
 
 /**

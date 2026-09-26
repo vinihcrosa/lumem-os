@@ -126,3 +126,122 @@ export function catalogedAdapterOf(config: AdapterConfigRef, stateDir: string): 
 export function catalogedAdapterAt(command: string, stateDir: string): AdapterSpec | null {
   return ADAPTERS.find((spec) => adapterBinaryPath(adaptersDir(stateDir), spec) === command) ?? null;
 }
+
+/** Os campos de uma `agent_account` que a invocação lê. */
+export interface AccountRef {
+  id: string;
+  agentConfigId: string;
+  kind: string;
+  configDir: string | null;
+  state: string;
+}
+
+/** Os campos de uma `agent_config` que a invocação lê. */
+export interface InvocationConfigRef extends AdapterConfigRef {
+  id: string;
+  args: readonly string[];
+  env: Readonly<Record<string, string>>;
+}
+
+/** O que lançar, e com que ambiente — a conta traduzida para um processo. */
+export interface AdapterInvocation {
+  command: string;
+  args: readonly string[];
+  env: Record<string, string>;
+  /** O que o processo **não** herda do daemon: a variável de conta ausente. */
+  unsetEnv: readonly string[];
+}
+
+/** Onde o cofre guarda a chave de uma conta `api_key` (ADR de 2026-09-13-1730). */
+export function agentAccountSecretId(accountId: string): string {
+  return `agent-account:${accountId}`;
+}
+
+/**
+ * O ambiente de uma conta, sem decidir se ela pode subir.
+ *
+ * Separado de `adapterInvocationFor` porque o login e a conferência da T6 sobem
+ * justamente a conta que ainda está `disconnected` — é conectando que ela deixa
+ * de estar.
+ *
+ * - **Com diretório**: a variável da spec aponta para ele;
+ * - **sem diretório**: a variável fica **ausente** — tirada do env da
+ *   configuração e do que o daemon herdou. É a primeira conta do ADR de
+ *   2026-09-26: escrever o caminho padrão faria o Claude procurar outra entrada
+ *   do Keychain, e a conta de hoje apareceria deslogada;
+ * - **de chave**: o valor sai do cofre para o **primeiro** nome do `apiKeyEnv`.
+ *   O primeiro porque é o que o adaptador documenta; pôr nos dois seria o Lumem
+ *   decidindo precedência entre variáveis de um CLI que não é dele.
+ */
+export function accountEnvFor(
+  spec: AdapterSpec | null,
+  account: AccountRef,
+  base: Readonly<Record<string, string>>,
+  secrets: { read(id: string): string | null },
+): { env: Record<string, string>; unsetEnv: readonly string[] } {
+  const variable = spec?.accountEnv ?? null;
+  if (variable === null && account.configDir !== null) {
+    throw new DomainError(
+      "INVALID_ARGUMENT",
+      "este agente não tem mais de uma conta: o Lumem não sabe em que variável dizer o diretório dela",
+    );
+  }
+
+  const env: Record<string, string> = { ...base };
+  let unsetEnv: readonly string[] = [];
+  if (variable !== null) {
+    if (account.configDir === null) {
+      delete env[variable];
+      unsetEnv = [variable];
+    } else {
+      env[variable] = account.configDir;
+    }
+  }
+
+  if (account.kind === "api_key") {
+    const key = secrets.read(agentAccountSecretId(account.id));
+    const name = spec?.apiKeyEnv[0];
+    if (key === null || name === undefined) {
+      throw new DomainError(
+        "NOT_FOUND",
+        "a chave desta conta não está no cofre do Lumem — conecte a conta de novo",
+      );
+    }
+    env[name] = key;
+  }
+  return { env, unsetEnv };
+}
+
+/**
+ * O que lançar para uma conta de um agente (`034` T5): comando, argumentos e
+ * ambiente, resolvidos **agora**.
+ *
+ * Todo caminho que sobe um adaptador para trabalhar passa por aqui — a sessão
+ * nova, a retomada, a destilação e a pesquisa —, e o `adapter-invocation-sites`
+ * é o teste que cobra isso. O comando continua sendo o da regra do ADR de
+ * 2026-09-08; a conta é ambiente do `spawn`, resolvido junto, pela mesma razão.
+ */
+export function adapterInvocationFor({
+  config,
+  account,
+  stateDir,
+  secrets,
+}: {
+  config: InvocationConfigRef;
+  account: AccountRef;
+  stateDir: string;
+  secrets: { read(id: string): string | null };
+}): AdapterInvocation {
+  if (account.agentConfigId !== config.id) {
+    throw new DomainError("INVALID_ARGUMENT", "esta conta é de outro agente");
+  }
+  // A conversa mora no diretório da conta, e o login dela foi desfeito: subir
+  // ali é subir deslogado. Antes do `spawn`, com o que fazer (Q8).
+  if (account.state === "disconnected") {
+    throw new DomainError("BLOCKED", "esta conta foi desconectada — reconecte a conta para usá-la");
+  }
+
+  const command = adapterCommandForConfig(config, stateDir);
+  const spec = catalogedAdapterOf(config, stateDir);
+  return { command, args: [...config.args], ...accountEnvFor(spec, account, config.env, secrets) };
+}
