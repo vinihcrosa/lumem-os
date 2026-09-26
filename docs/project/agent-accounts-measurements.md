@@ -188,6 +188,10 @@ grava no mesmo `auth.json` do mesmo diretório.
 | `CODEX_HOME=a` (sem login) | **`-32000`**, 3 ms | — | — |
 | `CODEX_HOME=b` (chave falsa) | fecha, 19 ms | `{ kind: "api_key", label: "OpenAI API key" }` | **6** (com `gpt-5.2`), effort até **`ultra`** |
 
+A ordem também foi vista, e ela importa para quem espera a notificação: o `_auth/status_update`
+chega **antes** da resposta do `session/new` (no registro da rodada padrão, a notificação aparece
+antes da linha com os 1,2 s do `session/new`). Uma espera curta depois da resposta é só folga.
+
 Duas coisas daqui:
 
 - **a lista de modelos muda com a conta**, e não é pouco: a conta ChatGPT e a chave de API oferecem

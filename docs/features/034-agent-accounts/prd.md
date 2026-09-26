@@ -14,7 +14,7 @@
 > [`025`](../025-docs-contract/prd.md), renumera a que mergeia depois. Junto veio o que o `main` mudou por baixo dela:
 > o desenho passou a morar no código, o login de agentes saiu do rodapé para `/settings`, e agente
 > passou a ser sempre ACP. As notas estão no cabeçalho, no §6 e nas tasks
-> **Perguntas:** [open-questions.md](open-questions.md) — 13 perguntas, **todas respondidas**
+> **Perguntas:** [open-questions.md](open-questions.md) — 14 perguntas, **todas respondidas**
 > (2026-09-25 e 2026-09-26), **3 contra a proposta** e **2 emendadas**. A Q10 nasceu da fase 0
 > **Depende de:** a [`009-agent-login`](../009-agent-login/prd.md) (o login pela tela, que esta PRD
 > multiplica), a [`021-second-agent`](../021-second-agent/prd.md) (o catálogo `ADAPTERS` e o rodapé

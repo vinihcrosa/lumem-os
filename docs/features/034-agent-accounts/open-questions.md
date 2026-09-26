@@ -2,10 +2,10 @@
 
 **PRD:** [prd.md](prd.md)
 
-**Estado:** 13 perguntas · **13 respondidas** (2026-09-25 e 2026-09-26). A
+**Estado:** 14 perguntas · **14 respondidas** (2026-09-25 e 2026-09-26). A
 [Q7](#x-q7--isso-vira-adr) foi respondida pela fase 0 (**vira ADR**), e a
 [Q10](#x-q10--o-que-uma-conta-nova-herda-da-sua-configuração-de-hoje), que nasceu dela, foi aceita
-como proposta.
+como proposta. A [Q11](#x-q11--uma-conta-de-assinatura-herda-o-anthropic_api_key-do-daemon) nasceu na T6.
 
 A Q1 e a Q5 foram **emendadas no mesmo dia** — a interpretação delas estava errada, e a emenda está
 dentro de cada resposta, com a versão anterior riscada.
@@ -386,3 +386,19 @@ no Codex), e a tela de conectar diz numa linha o que foi ligado. Os MCPs de usu�
 **fora**, e essa mesma linha diz isso. A medição que falta (plugin lido por link, e `config.toml`
 compartilhado sem arrastar um `cli_auth_credentials_store`) é critério de aceite da task. Se ela
 falhar, a resposta cai para a **cópia no momento de conectar** (3), sem pergunta nova.
+
+---
+
+### [x] Q11 — Uma conta de assinatura herda o `ANTHROPIC_API_KEY` do daemon?
+
+Nasceu na T6. O `spawn` soma o ambiente do daemon ao da conta, então um `ANTHROPIC_API_KEY` exportado
+no terminal que subiu o Lumem chega também à conta `trabalho`. O Claude Code prefere a chave à
+assinatura, e o turno passa a ser **cobrado por token** numa conta que você conectou por assinatura,
+sem nada na tela dizer isso. É o mesmo defeito que a `034` existe para resolver: gastar na conta
+errada em silêncio.
+
+**R (2026-09-26), decidida na implementação com autonomia delegada:** **conta de assinatura com
+diretório próprio não herda**. O resolvedor remove os nomes do `apiKeyEnv` do ambiente dela, do mesmo
+jeito que já remove a variável de conta da primeira. A **primeira conta** (a sem diretório) continua
+herdando, porque é o comportamento de hoje, e mudar isso trocaria a forma de cobrança de quem já
+usa o produto sem que ninguém tenha pedido. Conta de chave recebe a chave do cofre, e só ela.
