@@ -94,6 +94,9 @@ const PROBE = {
   agentInfo: { name: "claude-agent-acp", title: null, version: "0.69.0" },
   protocolVersion: 1,
   authMethods: [] as { id: string; name: string | null }[],
+  authRequired: false,
+  loggedIn: true,
+  identity: null as { email: string | null; plan: string | null } | null,
   capabilities: ["loadSession", "prompt.image"],
   acpSessionId: "d81b05ee",
   modes: ["default", "plan", "bypassPermissions"],
@@ -371,7 +374,27 @@ describe("handshake step", () => {
 
     expect(await screen.findByText(/ACP v1 · claude-agent-acp 0\.69\.0/)).toBeInTheDocument();
     expect(screen.getByText(/session\/new devolveu d81b05ee/)).toBeInTheDocument();
-    expect(screen.getByText(/não pediu autenticação/)).toBeInTheDocument();
+    expect(screen.getByText(/já tem login: usou a credencial local/)).toBeInTheDocument();
+  });
+
+  /*
+   * O `claude-agent-acp@0.75.1` oferece os métodos de login **sempre** que o
+   * cliente declara `_meta["terminal-auth"]` — logado ou não. Contar os métodos
+   * fazia o primeiro acesso dizer "pede autenticação" numa máquina logada.
+   */
+  it("says the account is logged in even when the adapter offers login methods", async () => {
+    const user = userEvent.setup();
+    trpc.setup.probe.query.mockResolvedValue({
+      ...PROBE,
+      authMethods: [{ id: "claude-ai-login", name: "Claude Subscription" }],
+      identity: { email: "vini@exemplo.com", plan: "team" },
+    });
+
+    render();
+    await reachHandshake(user);
+
+    expect(await screen.findByText(/já tem login — vini@exemplo\.com · team/)).toBeInTheDocument();
+    expect(screen.queryByText(/pede autenticação/)).not.toBeInTheDocument();
   });
 
   it("says no token was spent, because none was", async () => {
@@ -433,6 +456,8 @@ describe("handshake step", () => {
     trpc.setup.probe.query.mockResolvedValue({
       ...PROBE,
       authMethods: [{ id: "claude-login", name: "Assinatura Claude" }],
+      authRequired: true,
+      loggedIn: false,
     });
 
     render();

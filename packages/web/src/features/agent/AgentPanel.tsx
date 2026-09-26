@@ -77,7 +77,7 @@ export function AgentPanel({
           <div className="acct__r">
             <span className="acct__k">entrada</span>
             <span className="acct__v">
-              {report?.authMethods.length === 0 ? "credencial local, já válida" : "credencial local"}
+              {report?.loggedIn === true ? "credencial local, já válida" : "credencial local"}
             </span>
           </div>
           <div className="acct__r">
