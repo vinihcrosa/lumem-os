@@ -198,7 +198,8 @@ describe("adapterInvocationFor", () => {
       command: managed,
       args: ["--flag"],
       env: { FROM_CONFIG: "1", CLAUDE_CONFIG_DIR: "/contas/trabalho" },
-      unsetEnv: [],
+      // A Q11: a conta com diretório não herda a chave de API do daemon.
+      unsetEnv: ["ANTHROPIC_API_KEY"],
     });
   });
 
@@ -249,6 +250,53 @@ describe("adapterInvocationFor", () => {
     expect(read).toHaveBeenCalledWith(agentAccountSecretId("acct-key"));
     expect(invocation.env.CODEX_API_KEY).toBe("sk-conta");
     expect(invocation.env.OPENAI_API_KEY).toBeUndefined();
+  });
+
+  it("conta de assinatura com diretório não herda a chave de API do daemon (Q11)", () => {
+    // Um `ANTHROPIC_API_KEY` exportado no terminal que subiu o Lumem faria a
+    // conta `trabalho` ser cobrada por token, sem nada na tela dizer isso.
+    const state = stateDir();
+    stageManaged(state);
+
+    const invocation = adapterInvocationFor({
+      config: { ...CONFIG, env: { FROM_CONFIG: "1", ANTHROPIC_API_KEY: "da-config" } },
+      account: account({ configDir: "/contas/trabalho" }),
+      stateDir: state,
+      secrets: noSecrets,
+    });
+
+    expect(invocation.env.ANTHROPIC_API_KEY).toBeUndefined();
+    expect(invocation.unsetEnv).toEqual(["ANTHROPIC_API_KEY"]);
+  });
+
+  it("a primeira conta continua herdando a chave — é como ela é cobrada hoje (Q11)", () => {
+    const state = stateDir();
+    stageManaged(state);
+
+    const invocation = adapterInvocationFor({
+      config: CONFIG,
+      account: account(),
+      stateDir: state,
+      secrets: noSecrets,
+    });
+
+    expect(invocation.unsetEnv).toEqual(["CLAUDE_CONFIG_DIR"]);
+  });
+
+  it("conta de chave recebe a do cofre, e só ela: os outros nomes não vêm do daemon (Q11)", () => {
+    const state = stateDir();
+    stageManaged(state, CODEX_ADAPTER);
+
+    const invocation = adapterInvocationFor({
+      config: { ...CONFIG, name: "codex", env: { OPENAI_API_KEY: "da-config" } },
+      account: account({ id: "acct-key", kind: "api_key", configDir: "/contas/chave" }),
+      stateDir: state,
+      secrets: { read: () => "sk-conta" },
+    });
+
+    expect(invocation.env).toMatchObject({ CODEX_API_KEY: "sk-conta", CODEX_HOME: "/contas/chave" });
+    expect(invocation.env.OPENAI_API_KEY).toBeUndefined();
+    expect(invocation.unsetEnv).toEqual(["OPENAI_API_KEY"]);
   });
 
   it("conta de chave sem chave no cofre é recusada, e não sobe sem credencial", () => {

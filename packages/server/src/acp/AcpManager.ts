@@ -67,9 +67,9 @@ export const AUTH_STATUS_TIMEOUT_MS = 10_000;
 
 /**
  * Quanto o probe espera o `_auth/status_update` do Codex depois do
- * `session/new`. **Não medido**: o estudo mediu o conteúdo da notificação, e não
- * se ela chega antes ou depois da resposta. Curto, e resolvido assim que ela
- * chega; sem ela, a conta confere presença e fica sem e-mail.
+ * `session/new`. Medido (§3.3 do estudo da `034`): ela chega **antes** da
+ * resposta, então a espera é só folga — resolvida assim que ela chega; sem
+ * ela, a conta confere presença e fica sem e-mail.
  */
 export const AUTH_STATUS_GRACE_MS = 1_000;
 

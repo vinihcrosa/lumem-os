@@ -171,7 +171,14 @@ export function agentAccountSecretId(accountId: string): string {
  *   do Keychain, e a conta de hoje apareceria deslogada;
  * - **de chave**: o valor sai do cofre para o **primeiro** nome do `apiKeyEnv`.
  *   O primeiro porque é o que o adaptador documenta; pôr nos dois seria o Lumem
- *   decidindo precedência entre variáveis de um CLI que não é dele.
+ *   decidindo precedência entre variáveis de um CLI que não é dele. Os outros
+ *   nomes não vêm do daemon: a conta é cobrada pela chave **dela** (Q11).
+ *
+ * E a chave de API do daemon (Q11): uma conta **de assinatura com diretório**
+ * não a herda — um `ANTHROPIC_API_KEY` exportado no terminal que subiu o Lumem
+ * faria o Claude cobrar por token numa conta conectada por assinatura. A
+ * primeira conta continua herdando: é como ela é cobrada hoje, e mudar isso
+ * trocaria a forma de cobrança de quem já usa o produto sem ninguém pedir.
  */
 export function accountEnvFor(
   spec: AdapterSpec | null,
@@ -188,19 +195,20 @@ export function accountEnvFor(
   }
 
   const env: Record<string, string> = { ...base };
-  let unsetEnv: readonly string[] = [];
+  const unsetEnv: string[] = [];
+  const absent = (name: string) => {
+    delete env[name];
+    unsetEnv.push(name);
+  };
   if (variable !== null) {
-    if (account.configDir === null) {
-      delete env[variable];
-      unsetEnv = [variable];
-    } else {
-      env[variable] = account.configDir;
-    }
+    if (account.configDir === null) absent(variable);
+    else env[variable] = account.configDir;
   }
 
+  const keyNames = spec?.apiKeyEnv ?? [];
   if (account.kind === "api_key") {
     const key = secrets.read(agentAccountSecretId(account.id));
-    const name = spec?.apiKeyEnv[0];
+    const [name, ...others] = keyNames;
     if (key === null || name === undefined) {
       throw new DomainError(
         "NOT_FOUND",
@@ -208,6 +216,9 @@ export function accountEnvFor(
       );
     }
     env[name] = key;
+    others.forEach(absent);
+  } else if (account.configDir !== null) {
+    keyNames.forEach(absent);
   }
   return { env, unsetEnv };
 }
