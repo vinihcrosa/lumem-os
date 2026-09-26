@@ -1,15 +1,9 @@
 import { useState } from "react";
 
-import { useAgentConfigs } from "../agent/index.js";
 import { useProjects } from "./useProjects.js";
 import { useWorkspaceMutations } from "./useWorkspace.js";
-import {
-  useUsageByProject,
-  useUsageByProjectAndAgent,
-  USAGE_WINDOWS,
-  type ProjectAgentUsage,
-  type UsageWindow,
-} from "./useUsage.js";
+import { useProjectSpend } from "./useProjectSpend.js";
+import { USAGE_WINDOWS, type UsageWindow } from "./useUsage.js";
 import {
   Banner,
   Button,
@@ -25,7 +19,7 @@ import { ProposalQueue } from "../memory/index.js";
 import { Board } from "../tasks/index.js";
 import { TaskDetail } from "../tasks/index.js";
 import { TaskList } from "../tasks/index.js";
-import { SpendList, type SpendAgent, type SpendRow } from "./SpendList.js";
+import { SpendList } from "./SpendList.js";
 
 
 /**
@@ -107,30 +101,10 @@ export function WorkspacePanel({
     onView(open ? "board" : "home");
   };
   const projects = useProjects(workspaceId);
-  const usage = useUsageByProject(workspaceId, period);
-
-  /*
-   * A divisão por agente só é perguntada quando há mais de um (`second-agent`, C5).
-   *
-   * `agentConfig.list` é a consulta que o rodapé da coluna já mantém em cache, e é
-   * ela que decide: com um agente a comparação não existe, e a segunda consulta
-   * também não acontece. É a pergunta respondida em código e não em comentário.
-   */
-  const configs = useAgentConfigs();
-  const manyAgents = (configs.data ?? []).length > 1;
-  const byAgent = useUsageByProjectAndAgent(workspaceId, period, manyAgents);
+  // O consumo por projeto, com as divisões por agente e por conta (`034` T16).
+  const { usage, rows } = useProjectSpend(workspaceId, period);
 
   const list = projects.data ?? [];
-  const rows: SpendRow[] = (usage.data ?? []).map((row) => ({
-    id: row.projectId,
-    name: row.name,
-    tokens: row.tokens,
-    cost: row.cost,
-    currency: row.currency,
-    turns: row.turns,
-    kind: "project",
-    ...agentsOf(byAgent.data, row.projectId),
-  }));
 
   if (board) {
     return (
@@ -390,34 +364,4 @@ function RemoveWorkspace({
       {remove.isError && <Banner tone="danger">{remove.error.message}</Banner>}
     </>
   );
-}
-
-
-/**
- * As sub-linhas de um projeto, quando a consulta agrupada respondeu.
- *
- * Devolve `{}` — e não `{ agents: [] }` — quando não há divisão: a `SpendList`
- * decide abrir pela **presença** do campo, e um array vazio faria a lista ganhar a
- * coluna do `▸` para não mostrar nada dentro dela.
- */
-function agentsOf(
-  rows: readonly ProjectAgentUsage[] | undefined,
-  projectId: string,
-): { agents?: readonly SpendAgent[] } {
-  const mine = (rows ?? [])
-    .filter((row) => row.projectId === projectId)
-    .map(
-      (row): SpendAgent => ({
-        // O id da linha é o do agente, e `sem-agente` para o turno que não tem um:
-        // duas linhas sem chave estável reordenariam a cada resposta.
-        id: row.agentConfigId ?? "sem-agente",
-        name: row.name,
-        tokens: row.tokens,
-        cost: row.cost,
-        currency: row.currency,
-        turns: row.turns,
-      }),
-    );
-
-  return mine.length > 0 ? { agents: mine } : {};
 }

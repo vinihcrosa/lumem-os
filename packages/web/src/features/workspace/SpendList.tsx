@@ -52,6 +52,21 @@ export interface SpendAgent {
   cost: number | null;
   currency: string | null;
   turns: number;
+  /**
+   * Quanto deste agente foi de cada conta (`034` T16). Ausente com uma conta só —
+   * aí o agente já é a conta —, e presente só com duas ou mais com consumo.
+   */
+  accounts?: readonly SpendAccount[];
+}
+
+/** Uma conta dentro de um agente. `label` nulo é consumo sem conta, ou de conta apagada. */
+export interface SpendAccount {
+  id: string;
+  label: string | null;
+  tokens: number;
+  cost: number | null;
+  currency: string | null;
+  turns: number;
 }
 
 export interface SpendListProps {
@@ -157,50 +172,66 @@ export function SpendList({ rows }: SpendListProps) {
 
             {isOpen &&
               agents.map((agent) => (
-                <div
-                  className={`spend__row spend__row--agent${
-                    agent.name === null ? " spend__row--idle" : ""
-                  }`}
-                  key={agent.id}
-                >
-                  <span className="spend__twist" />
-                  <Glyph tone={agent.name === null ? "off" : "agent"}>◆</Glyph>
+                <Fragment key={agent.id}>
+                  <div className={`spend__row spend__row--agent${agent.name === null ? " spend__row--idle" : ""}`}>
+                    <span className="spend__twist" />
+                    <Glyph tone={agent.name === null ? "off" : "agent"}>◆</Glyph>
+                    {/*
+                      A linha gravada antes da coluna existir não tem agente, e não
+                      ganha um inventado: somar o que ela gastou a um dos dois seria
+                      escolher um culpado no lugar de dizer "não sei".
+                    */}
+                    <span className="spend__name">{agent.name ?? "antes desta versão"}</span>
+                    {/* A fração é **dentro do escopo**: quanto deste projeto foi de cada um. */}
+                    <Numbers part={agent} whole={row.tokens} />
+                  </div>
                   {/*
-                    A linha gravada antes da coluna existir não tem agente, e não
-                    ganha um inventado: somar o que ela gastou a um dos dois seria
-                    escolher um culpado no lugar de dizer "não sei".
+                    E um nível abaixo, por conta (`034` T16): mesma grade, e o recuo
+                    vai no nome — é o que mantém os números na coluna de cima.
                   */}
-                  <span className="spend__name">{agent.name ?? "antes desta versão"}</span>
-                  <span className="spend__bar">
-                    {row.tokens > 0 && agent.tokens > 0 && (
-                      <span
-                        className="spend__fill"
-                        style={
-                          {
-                            // A fração é **dentro do escopo**, e não da lista: a
-                            // pergunta da sub-linha é quanto deste projeto foi de
-                            // cada um.
-                            "--w": `${String(Math.round((agent.tokens / row.tokens) * 100))}%`,
-                          } as never
-                        }
-                      />
-                    )}
-                  </span>
-                  <span className="spend__tok">{formatTokens(agent.tokens)}</span>
-                  {agent.cost === null ? (
-                    <span className="spend__cost spend__cost--none">sem custo reportado</span>
-                  ) : (
-                    <span className="spend__cost">{money(agent.cost, agent.currency)}</span>
-                  )}
-                  <span className="spend__turns">
-                    {agent.turns === 0 ? "nenhum turno" : `${String(agent.turns)} turnos`}
-                  </span>
-                </div>
+                  {(agent.accounts ?? []).map((account) => (
+                    <div className="spend__row spend__row--agent spend__row--account" key={account.id}>
+                      <span className="spend__twist" />
+                      <span aria-hidden="true" />
+                      <span className="spend__name">{account.label ?? "conta apagada"}</span>
+                      <Numbers part={account} whole={agent.tokens} />
+                    </div>
+                  ))}
+                </Fragment>
               ))}
           </Wrap>
         );
       })}
     </div>
+  );
+}
+
+/** Barra, token, custo e turnos de uma sub-linha — a mesma forma por agente e por conta. */
+function Numbers({
+  part,
+  whole,
+}: {
+  part: { tokens: number; cost: number | null; currency: string | null; turns: number };
+  whole: number;
+}) {
+  return (
+    <>
+      <span className="spend__bar">
+        {whole > 0 && part.tokens > 0 && (
+          <span
+            className="spend__fill"
+            style={{ "--w": `${String(Math.round((part.tokens / whole) * 100))}%` } as never}
+          />
+        )}
+      </span>
+      <span className="spend__tok">{formatTokens(part.tokens)}</span>
+      {part.cost === null ? (
+        <span className="spend__cost spend__cost--none">sem custo reportado</span>
+      ) : (
+        <span className="spend__cost">{money(part.cost, part.currency)}</span>
+      )}
+      <span className="spend__turns">{part.turns === 0 ? "nenhum turno" : `${String(part.turns)} turnos`}</span>
+    </>
   );
 }
 

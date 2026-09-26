@@ -127,6 +127,28 @@ export interface AgentCatalog {
   unbind(input: { scopeType: BindingScope; scopeId: string; role: Role }): Promise<void>;
   /** Quem faz este papel nesta tarefa, subindo a cascata até o default. */
   resolve(input: { taskId: string; role: Role }): Promise<ResolvedAgent>;
+  /** O degrau do workspace, e o default abaixo dele — o que `/settings` mostra (`034` T16). */
+  resolveWorkspace(input: { workspaceId: string; role: Role }): Promise<ResolvedAgent>;
+  /**
+   * Troca o trio de um encaixe no workspace (`034` T16, Q5).
+   *
+   * Escreve no agente **do encaixe** (`encaixe-<papel>`), e não no que estiver
+   * amarrado: um agente que você nomeou pode servir dois papéis ou dois
+   * escopos, e mudar a conta dele por um encaixe mudaria os outros em silêncio.
+   */
+  setWorkspaceSlot(input: {
+    workspaceId: string;
+    role: Role;
+    adapter: string;
+    accountId: string | null;
+    model: string | null;
+    effort: string | null;
+  }): Promise<void>;
+}
+
+/** O nome do agente que a tela de configuração cria para um encaixe. */
+export function slotAgentName(role: Role): string {
+  return `encaixe-${role}`;
 }
 
 /**
@@ -274,6 +296,48 @@ export function createAgentCatalog(db: Db): AgentCatalog {
       for (const row of rows) bound[row.scopeType as BindingScope] = row.agent;
 
       return resolveFromBindings(bound);
+    },
+
+    async resolveWorkspace({ workspaceId, role }) {
+      const row = await db
+        .select({ agent: namedAgent })
+        .from(roleBinding)
+        .innerJoin(namedAgent, eq(namedAgent.id, roleBinding.agentId))
+        .where(
+          and(
+            eq(roleBinding.role, role),
+            eq(roleBinding.scopeType, "workspace"),
+            eq(roleBinding.scopeId, workspaceId),
+          ),
+        )
+        .get();
+      return resolveFromBindings(row === undefined ? {} : { workspace: row.agent });
+    },
+
+    async setWorkspaceSlot({ workspaceId, role, adapter, accountId, model, effort }) {
+      if (adapterById(adapter) === null) {
+        throw new DomainError("INVALID_ARGUMENT", `adaptador desconhecido: ${adapter}`);
+      }
+      // Antes de qualquer escrita: a recusa não deixa um agente pela metade.
+      if (accountId !== null) await requireAccountOf(db, adapter, accountId);
+
+      const name = slotAgentName(role);
+      const existing = await db
+        .select()
+        .from(namedAgent)
+        .where(and(eq(namedAgent.workspaceId, workspaceId), eq(namedAgent.name, name)))
+        .get();
+      let agentId: string;
+      if (existing) {
+        await db
+          .update(namedAgent)
+          .set({ adapter, accountId, model, effort, updatedAt: new Date() })
+          .where(eq(namedAgent.id, existing.id));
+        agentId = existing.id;
+      } else {
+        agentId = (await this.create({ workspaceId, name, adapter, accountId, model, effort })).id;
+      }
+      await this.bind({ scopeType: "workspace", scopeId: workspaceId, role, agentId });
     },
   };
 }

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 
-import { tasksKey, taskSettingsKey, WORKSPACES_KEY } from "../../lib/queryKeys.js";
+import { tasksKey, taskSettingsKey, WORKSPACES_KEY, workspaceSlotsKey } from "../../lib/queryKeys.js";
 import { trpc } from "../../lib/trpc.js";
 
 /** A lista de workspaces — lida no topo do App, sem um só chamador de escrita. */
@@ -96,5 +96,24 @@ export function useWorkspaceMutations(workspaceId: string) {
     onSettled: refreshTaskSettings,
   });
 
-  return { rename, remove, setAutonomy, setCleanup, setBudget };
+  /** O trio de um encaixe da esteira (`034` T16). */
+  const setSlot = useMutation({
+    mutationFn: (slot: Omit<Parameters<typeof trpc.workspace.setSlot.mutate>[0], "id">) =>
+      trpc.workspace.setSlot.mutate({ id: workspaceId, ...slot }),
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: workspaceSlotsKey(workspaceId) });
+    },
+  });
+
+  return { rename, remove, setAutonomy, setCleanup, setBudget, setSlot };
+}
+
+export type ConveyorSlot = Awaited<ReturnType<typeof trpc.workspace.slots.query>>[number];
+
+/** O trio de cada encaixe da esteira neste workspace — o degrau dele, ou o default (`034` T16). */
+export function useConveyorSlots(workspaceId: string) {
+  return useQuery({
+    queryKey: workspaceSlotsKey(workspaceId),
+    queryFn: () => trpc.workspace.slots.query({ id: workspaceId }),
+  });
 }

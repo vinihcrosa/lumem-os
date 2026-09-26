@@ -144,6 +144,13 @@
 .spend__row--agent .spend__tok { color: var(--color-text-secondary); }
 .spend__row--agent { border-bottom: 0; }
 
+/*
+ * A conta, um nível abaixo do agente (`034` T16). O recuo vai no nome, pelo
+ * motivo de cima: na linha, ele desalinharia os números que a sub-linha existe
+ * para comparar.
+ */
+.spend__row--account .spend__name { padding-left: var(--space-32); color: var(--color-text-tertiary); }
+
 /* O grupo aberto fica junto: a borda de baixo é dele, não das linhas dentro. */
 .spend__group { border-bottom: var(--border-width-thin) solid var(--color-border-subtle); }
 .spend__group .spend__row { border-bottom: 0; }

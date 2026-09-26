@@ -2,6 +2,7 @@ import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { accountRow } from "../../test/agent-account-fixtures.js";
 import { renderWithProviders } from "../../test/render.js";
 import { installTrpcDefaults, trpcMock as trpc } from "../../test/trpc-mock.js";
 
@@ -453,5 +454,81 @@ describe("a divisão por agente", () => {
       .filter((name) => name.classList.contains("spend__name"))
       .map((name) => name.parentElement?.childElementCount);
     expect(new Set(cells).size).toBe(1);
+  });
+});
+
+/*
+ * Um nível abaixo do agente, por conta (`034` T16) — sub-linha, e não coluna.
+ * Só quando o agente tem duas contas com consumo: com uma, o agente já é a conta.
+ */
+describe("a divisão por conta", () => {
+  const byAccount = (overrides: Record<string, unknown> = {}) => ({
+    projectId: "p1",
+    agentConfigId: "a1",
+    name: "claude",
+    agentAccountId: "acct_pessoal",
+    label: "casa",
+    tokens: 600_000,
+    cost: 8,
+    currency: "USD",
+    turns: 40,
+    ...overrides,
+  });
+  const TWO_ACCOUNTS = [
+    accountRow({ label: "casa" }),
+    accountRow({ id: "acct_trabalho", label: "trabalho", isDefault: false, bare: false }),
+  ];
+
+  it("com um agente e duas contas, o agente abre e cada conta é uma linha embaixo dele", async () => {
+    trpc.agentAccount.list.query.mockResolvedValue(TWO_ACCOUNTS);
+    trpc.usage.byProjectAndAgent.query.mockResolvedValue([byAgent()]);
+    trpc.usage.byProjectAndAccount.query.mockResolvedValue([
+      byAccount(),
+      byAccount({ agentAccountId: "acct_trabalho", label: "trabalho", tokens: 394_000, cost: 4.4071, turns: 21 }),
+    ]);
+
+    render();
+    await userEvent.click(await screen.findByRole("button", { name: /abrir a divisão por agente/ }));
+
+    const casa = await screen.findByText("casa");
+    expect(casa.closest(".spend__row")).toHaveClass("spend__row--account");
+    expect(screen.getByText("trabalho")).toBeInTheDocument();
+    expect(screen.getByText("600k")).toBeInTheDocument();
+    expect(screen.getByText("394k")).toBeInTheDocument();
+    expect(trpc.usage.byProjectAndAccount.query).toHaveBeenCalledWith({ workspaceId: "ws1", period: "7d" });
+  });
+
+  it("a conta vem logo abaixo do agente dela, e não embaixo do outro", async () => {
+    trpc.agentConfig.list.query.mockResolvedValue([agent("a1", "claude"), agent("a2", "codex")]);
+    trpc.agentAccount.list.query.mockResolvedValue(TWO_ACCOUNTS);
+    trpc.usage.byProjectAndAgent.query.mockResolvedValue([
+      byAgent(),
+      byAgent({ agentConfigId: "a2", name: "codex", tokens: 406_000, cost: null, currency: null, turns: 25 }),
+    ]);
+    trpc.usage.byProjectAndAccount.query.mockResolvedValue([
+      byAccount(),
+      byAccount({ agentAccountId: "acct_trabalho", label: "trabalho", tokens: 394_000 }),
+      byAccount({ agentConfigId: "a2", name: "codex", agentAccountId: "acct_codex", label: "chatgpt", tokens: 406_000 }),
+    ]);
+
+    render();
+    await userEvent.click(await screen.findByRole("button", { name: /abrir a divisão por agente/ }));
+    await screen.findByText("casa");
+
+    const names = [...document.querySelectorAll(".spend__row .spend__name")].map((node) => node.textContent);
+    expect(names).toEqual(["lorebase", "claude", "casa", "trabalho", "codex"]);
+    // O Codex tem uma conta só com consumo: nada embaixo dele.
+    expect(screen.queryByText("chatgpt")).not.toBeInTheDocument();
+  });
+
+  it("com uma conta por agente, a consulta por conta não acontece", async () => {
+    trpc.agentConfig.list.query.mockResolvedValue([agent("a1", "claude"), agent("a2", "codex")]);
+    trpc.agentAccount.list.query.mockResolvedValue([accountRow()]);
+    trpc.usage.byProjectAndAgent.query.mockResolvedValue([byAgent()]);
+
+    render();
+    await screen.findByRole("button", { name: /abrir a divisão por agente/ });
+
+    expect(trpc.usage.byProjectAndAccount.query).not.toHaveBeenCalled();
   });
 });

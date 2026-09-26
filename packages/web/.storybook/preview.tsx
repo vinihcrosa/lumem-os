@@ -21,6 +21,8 @@ import "../src/features/workspace/create-worktree.css";
 // a do login do rodapé, que o painel de entrar numa conta reusa.
 import "../src/features/settings/settings.css";
 import "../src/features/agent/agent-login.css";
+// O consumo do workspace, aberto por agente e por conta (`034` T16).
+import "../src/features/workspace/workspace.css";
 import "../src/ui/stories.css";
 
 import { mountAgentation } from "../src/lib/agentation.js";

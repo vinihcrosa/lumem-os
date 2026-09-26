@@ -6,6 +6,15 @@
  */
 export const WORKSPACES_KEY = ["workspace", "list"] as const;
 
+/**
+ * O trio de cada encaixe da esteira num workspace (`034` T16). Sob `workspace`
+ * porque é o degrau do workspace da cascata — o do projeto e o da tarefa não
+ * aparecem nesta leitura.
+ */
+export function workspaceSlotsKey(workspaceId: string) {
+  return ["workspace", "slots", workspaceId] as const;
+}
+
 export const PTY_SESSIONS_KEY = ["pty", "list"] as const;
 
 export function projectsKey(workspaceId: string) {
@@ -202,6 +211,11 @@ export function usageByWorktreeKey(projectId: string, period: string) {
  */
 export function usageByProjectAndAgentKey(workspaceId: string, period: string) {
   return ["usage", "byProjectAndAgent", workspaceId, period] as const;
+}
+
+/** E um nível abaixo do agente, por conta (`034` T16) — chave própria pelo mesmo motivo. */
+export function usageByProjectAndAccountKey(workspaceId: string, period: string) {
+  return ["usage", "byProjectAndAccount", workspaceId, period] as const;
 }
 
 /** Os playbooks de um escopo. `archived` é filtro, e por isso entra na chave. */

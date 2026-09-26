@@ -1,13 +1,12 @@
 import { useState, type ReactNode } from "react";
 
-import { askNoticePermission } from "../tasks/index.js";
+import { askNoticePermission, useTaskSettings } from "../tasks/index.js";
 import { useSecrets } from "../agent/index.js";
-import { useTaskSettings } from "../tasks/index.js";
 import { useWorkspaceMutations } from "../workspace/index.js";
 import { Skeleton } from "../../ui/index.js";
 import { AccountsSection } from "./AccountsSection.js";
+import { ConveyorSlots } from "./ConveyorSlots.js";
 import { SaveMark, type SaveState } from "./SaveMark.js";
-
 
 /**
  * A tela de configurações (`030-settings`).
@@ -463,6 +462,7 @@ function ConveyorSection({ workspaceId }: { workspaceId: string }) {
         >
           <span className="set__val">{data.budget}</span>
         </SettingRow>
+        <ConveyorSlots workspaceId={workspaceId} />
       </div>
     </SettingSection>
   );

@@ -106,6 +106,9 @@ function createTrpcMock() {
        * é `undefined.mutate`, e o sintoma é um erro que não fala de orçamento.
        */
       setBudget: { mutate: vi.fn() },
+      // O trio de cada encaixe da esteira (`034` T16), lido e escrito por `/settings`.
+      slots: { query: vi.fn() },
+      setSlot: { mutate: vi.fn() },
       list: { query: vi.fn() },
       get: { query: vi.fn() },
       create: { mutate: vi.fn() },
@@ -376,6 +379,18 @@ export function installTrpcDefaults(mock: TrpcMock = trpcMock): void {
   mock.secrets.list.query.mockResolvedValue([]);
   // A seção Agentes de `/settings` lê as contas no `mount` (`034` T13).
   mock.agentAccount.list.query.mockResolvedValue([]);
+  // Os encaixes nunca configurados: o default do produto nos três.
+  mock.workspace.slots.query.mockResolvedValue(
+    (["implementador", "revisor", "testador"] as const).map((role) => ({
+      role,
+      from: "default" as const,
+      adapter: "claude",
+      accountId: null,
+      accountLabel: null,
+      model: null,
+      effort: null,
+    })),
+  );
   /*
    * O quadro chama isto no `mount` para todo cartão que tem aviso (`028` T35).
    *

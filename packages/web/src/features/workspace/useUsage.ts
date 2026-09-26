@@ -1,6 +1,7 @@
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 
 import {
+  usageByProjectAndAccountKey,
   usageByProjectAndAgentKey,
   usageByProjectKey,
   usageByWorktreeKey,
@@ -25,6 +26,10 @@ export type ProjectUsage = Awaited<ReturnType<typeof trpc.usage.byProject.query>
 export type WorktreeUsage = Awaited<ReturnType<typeof trpc.usage.byWorktree.query>>;
 export type ProjectAgentUsage = Awaited<
   ReturnType<typeof trpc.usage.byProjectAndAgent.query>
+>[number];
+
+export type ProjectAccountUsage = Awaited<
+  ReturnType<typeof trpc.usage.byProjectAndAccount.query>
 >[number];
 
 /** As janelas, na ordem em que a tela as mostra. `1a` é como se escreve em pt-BR. */
@@ -71,6 +76,24 @@ export function useUsageByProjectAndAgent(
   return useQuery({
     queryKey: usageByProjectAndAgentKey(workspaceId, period),
     queryFn: () => trpc.usage.byProjectAndAgent.query({ workspaceId, period }),
+    enabled,
+  });
+}
+
+/**
+ * O consumo de cada projeto **por conta** (`034` T16), um nível abaixo do agente.
+ *
+ * `enabled` pela mesma regra do de cima: só quando algum agente tem mais de uma
+ * conta — com uma, o agente já é a conta, e a consulta não acontece.
+ */
+export function useUsageByProjectAndAccount(
+  workspaceId: string,
+  period: NonNullable<UsageWindow>,
+  enabled: boolean,
+): UseQueryResult<ProjectAccountUsage[]> {
+  return useQuery({
+    queryKey: usageByProjectAndAccountKey(workspaceId, period),
+    queryFn: () => trpc.usage.byProjectAndAccount.query({ workspaceId, period }),
     enabled,
   });
 }
