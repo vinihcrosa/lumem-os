@@ -152,8 +152,7 @@ export function NumberSetting({
         setError("este não pode ficar vazio");
         return;
       }
-      await send(null);
-      return;
+      return send(null, draft);
     }
 
     const parsed = Number(text.replace(",", "."));
@@ -165,15 +164,16 @@ export function NumberSetting({
       setError("este conta inteiros");
       return;
     }
-    await send(parsed);
+    await send(parsed, draft);
   }
 
-  async function send(next: number | null): Promise<void> {
+  // `sent`: só limpa o rascunho que virou este envio, e não uma edição feita enquanto ele terminava.
+  async function send(next: number | null, sent: string | null): Promise<void> {
     setError(null);
     setState({ kind: "saving" });
     try {
       await onCommit(next);
-      setDraft(null);
+      setDraft((current) => (current === sent ? null : current));
       setState({ kind: "saved" });
     } catch (cause) {
       // A frase do daemon, e não uma nossa: ele é o único que sabe o que
