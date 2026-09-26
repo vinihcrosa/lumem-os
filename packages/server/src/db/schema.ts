@@ -389,6 +389,21 @@ export const session = sqliteTable(
      */
     resumedFromId: text("resumed_from_id"),
     /**
+     * A conversa de que esta é a continuação **noutra conta** (`034` T11, Q3).
+     *
+     * Irmã do `resumed_from_id`, e não a mesma coisa: aquele é o mesmo
+     * `acp_session_id` num processo novo; este é outra conversa, noutro
+     * adaptador, que nasceu com o corte da primeira.
+     *
+     * Com estrangeiro, e `SET NULL` — ao contrário do de cima, que foi escrito
+     * quando `RESTRICT` era a única regra do schema. É proveniência: apagar de
+     * vez a conta da origem apaga as conversas dela, e a continuação sobrevive
+     * sem o ponteiro, como a sessão sobrevive à tarefa.
+     */
+    continuedFromId: text("continued_from_id").references((): AnySQLiteColumn => session.id, {
+      onDelete: "set null",
+    }),
+    /**
      * A tarefa que esta sessão serve (workspace-tasks §3.1).
      *
      * Nula, e `ON DELETE SET NULL`: **uma sessão pertence a no máximo uma

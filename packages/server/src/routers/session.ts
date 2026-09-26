@@ -5,9 +5,11 @@ import { DomainError } from "../errors.js";
 import { asc, eq } from "drizzle-orm";
 
 import { session } from "../db/schema.js";
+import { createAgentAccountRepository } from "../repositories/agentAccount.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
 import { createSessionRepository, type PendingReason } from "../repositories/session.js";
 import { resolveScope } from "../scope.js";
+import { continueIn } from "../sessions/continue-in.js";
 import { deliverPending, sendPendingNow } from "../sessions/pending-prompt.js";
 import { startAgentSession } from "../sessions/start-agent-session.js";
 import { domainSafeAsync, publicProcedure, router, type Context } from "../trpc.js";
@@ -42,13 +44,34 @@ export interface SessionView extends Omit<SessionRow, "pendingReason"> {
    * a tela precisa de uma união para escrever um `switch` que o `tsc` cobra.
    */
   pendingReason: PendingReason | null;
+  /** O rótulo da conta em que a conversa roda (`034` T11). Nulo para um shell. */
+  agentAccountLabel: string | null;
+  /**
+   * Se o agente desta conversa tem mais de uma conta — conectada ou não.
+   *
+   * É o que decide se o cabeçalho escreve `agente · conta` (T15): com uma conta
+   * só, o nome dela é ruído. Conta as desconectadas porque a conversa de ontem
+   * pode ser justamente da conta que saiu, e é aí que o nome mais importa.
+   */
+  multiAccount: boolean;
 }
 
 async function toView(ctx: Context, row: SessionRow): Promise<SessionView> {
   const pendingReason = row.pendingReason as PendingReason | null;
-  if (row.agentConfigId === null) return { ...row, pendingReason, agentName: null };
+  if (row.agentConfigId === null) {
+    return { ...row, pendingReason, agentName: null, agentAccountLabel: null, multiAccount: false };
+  }
   const config = await createAgentConfigRepository(ctx.db).findById(row.agentConfigId);
-  return { ...row, pendingReason, agentName: config?.name ?? null };
+  const accounts = createAgentAccountRepository(ctx.db);
+  const account = row.agentAccountId ? await accounts.get(row.agentAccountId) : undefined;
+  const siblings = await accounts.listByConfig(row.agentConfigId);
+  return {
+    ...row,
+    pendingReason,
+    agentName: config?.name ?? null,
+    agentAccountLabel: account?.label ?? null,
+    multiAccount: siblings.length > 1,
+  };
 }
 
 /** A sessão, com o prompt esperando — ou a recusa que diz que não há nenhum. */
@@ -214,6 +237,19 @@ export const sessionRouter = router({
         });
         return toView(ctx, row);
       }),
+    ),
+
+  /**
+   * Continua a conversa noutra conta (`034` T11, Q3) — que pode ser de outro
+   * agente: é a conta que diz qual adaptador sobe.
+   *
+   * Devolve a sessão **nova**, que é a aba que a tela abre ao lado; a origem
+   * continua viva, com a linha de vínculo no fim.
+   */
+  continueIn: publicProcedure
+    .input(z.object({ sessionId: z.string().min(1), agentAccountId: z.string().min(1) }))
+    .mutation(({ ctx, input }) =>
+      domainSafeAsync(async () => toView(ctx, await continueIn(ctx, input))),
     ),
 
   /**

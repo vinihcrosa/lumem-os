@@ -1270,6 +1270,31 @@ describe("the mark between two conversations", () => {
     );
     expect(line).toHaveClass("meta--conversation");
   });
+
+  it("as linhas de vínculo de continuar em outra conta (`034` T11)", async () => {
+    const { socket } = mount();
+
+    socket.deliver(
+      attached([
+        entry({
+          type: "continued_from",
+          sessionId: "origem",
+          label: "Claude Code · pessoal",
+          messages: 12,
+          approxTokens: 3400,
+        }),
+        entry({ type: "message", messageId: "m-1", role: "agent", text: "segui daqui" }),
+        entry({ type: "continued_in", sessionId: "outra", label: "Codex · trabalho" }),
+      ]),
+    );
+
+    const from = await screen.findByText(
+      "continuação de Claude Code · pessoal — levou 12 mensagens, ~3400 tokens",
+    );
+    const into = screen.getByText("continuada em Codex · trabalho →");
+    expect(from).toHaveClass("meta--conversation");
+    expect(into).toHaveClass("meta--conversation");
+  });
 });
 
 /**

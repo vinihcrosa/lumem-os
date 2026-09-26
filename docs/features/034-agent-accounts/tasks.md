@@ -227,8 +227,15 @@ O `openAgentSession` e o `resumeSession` passam a conta adiante.
 4. Grava `continued_from_id`.
 
 A origem não é tocada, e as duas ganham a linha de vínculo ([Q3b](open-questions.md)).
+
+**Nota (2026-09-26), na implementação:** a entrada ficou `{ sessionId, agentAccountId }` — a conta
+já pertence a um agente, e pedir o `adapterId` junto só abria o caso de os dois discordarem. O corte
+vai como **prompt pendente**, e não solto: um turno recusado antes de entrar (o teto do workspace)
+deixa o corte na linha, com `mandar assim mesmo`. Conversa em que nada foi dito é recusada.
 **Where**: `server/src/routers/session.ts`, `server/src/acp/transcript-cut.ts` (novo, puro),
-`schema.ts`
+`schema.ts`, `server/src/sessions/continue-in.ts` (novo), `acp/AcpManager.ts` (`recordEvent`),
+`shared/src/acp-protocol.ts` (`continued_in`, `continued_from`), e a linha na conversa
+(`web/src/features/conversation/`)
 **Done when**:
 - o corte tem testes com saída longa, saída curta e conversa Claude → Codex;
 - a sessão nova nasce na conta pedida;

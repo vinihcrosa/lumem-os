@@ -1654,3 +1654,52 @@ describe("0036 — a conta do encaixe", () => {
     expect(agent?.accountId).toBeNull();
   });
 });
+
+describe("0037 — a continuação noutra conta", () => {
+  function databaseBeforeContinuations(): string {
+    const dir = mkdtempSync(join(tmpdir(), "lumem-db-continued-"));
+    dirs.push(dir);
+    const path = join(dir, "lumem.db");
+    const sqlite = new Database(path);
+    sqlite.pragma("foreign_keys = ON");
+    migrate(drizzle(sqlite), { migrationsFolder: migrationsUpTo(37) });
+    const run = (statement: string): void => {
+      sqlite.prepare(statement).run();
+    };
+    run(`INSERT INTO agent_config (id, name, command, adapter_version)
+         VALUES ('cfg-1', 'claude', 'claude-agent-acp', '0.75.1')`);
+    run(`INSERT INTO agent_account (id, agent_config_id, label) VALUES ('acct-1', 'cfg-1', 'claude')`);
+    for (const id of ["origem", "nova"]) {
+      run(`INSERT INTO session (id, kind, agent_config_id, agent_account_id, scope_type, scope_id, cwd,
+             command, transport, acp_session_id, state)
+           VALUES ('${id}', 'agent', 'cfg-1', 'acct-1', 'worktree', 'wt-1', '/wt/1',
+             'claude-agent-acp', 'acp', 'acp-${id}', 'exited')`);
+    }
+    sqlite.close();
+    return path;
+  }
+
+  it("a sessão que já existia acorda sem origem", async () => {
+    const handle = openDatabase({ path: databaseBeforeContinuations() });
+    open.push(handle);
+
+    const rows = await handle.db.select().from(schema.session);
+    expect(rows.map((row) => row.continuedFromId)).toEqual([null, null]);
+  });
+
+  it("apagar a origem solta o ponteiro da continuação, em vez de ser recusado", async () => {
+    // A ação do estrangeiro exercida, e não só a coluna presente: com a linha
+    // que o `drizzle-kit` gerou, o `delete` falha com FOREIGN KEY constraint.
+    const handle = openDatabase({ path: databaseBeforeContinuations() });
+    open.push(handle);
+    await handle.db
+      .update(schema.session)
+      .set({ continuedFromId: "origem" })
+      .where(eq(schema.session.id, "nova"));
+
+    await handle.db.delete(schema.session).where(eq(schema.session.id, "origem"));
+
+    const [nova] = await handle.db.select().from(schema.session);
+    expect(nova).toMatchObject({ id: "nova", continuedFromId: null });
+  });
+});

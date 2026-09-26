@@ -277,6 +277,8 @@ function createTrpcMock() {
       // O prompt pendente (`033` T21) — `mandar assim mesmo` e `editar`.
       sendPending: { mutate: vi.fn() },
       discardPending: { mutate: vi.fn() },
+      // Continuar em outra conta (`034` T11). A tela chega na T15.
+      continueIn: { mutate: vi.fn() },
     },
     pr: {
       getByWorktree: { query: vi.fn().mockResolvedValue(NO_PULL_REQUEST) },

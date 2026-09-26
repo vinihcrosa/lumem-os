@@ -16,6 +16,7 @@ import type {
   LumemModeDefault,
 } from "@lumem/shared";
 
+import { continuationText } from "./continuation-text.js";
 import { unavailableText } from "./unavailable-text.js";
 
 /**
@@ -473,6 +474,15 @@ export function reduceConversation(
           ...state.turns,
           { role: "agent", blocks: [{ kind: "meta", text: unavailableText(event) }], at },
         ],
+      };
+
+    case "continued_in":
+    case "continued_from":
+      // As linhas de vínculo (`034` T11): turno próprio pelo mesmo motivo — a
+      // passagem é o daemon falando, e não o agente.
+      return {
+        ...state,
+        turns: [...state.turns, { role: "agent", blocks: [{ kind: "meta", text: continuationText(event) }], at }],
       };
 
     case "memory_core":

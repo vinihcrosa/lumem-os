@@ -260,6 +260,13 @@
       "when": 1790430947638,
       "tag": "0036_conta_do_encaixe",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "6",
+      "when": 1790432598934,
+      "tag": "0037_continuacao_de_conta",
+      "breakpoints": true
     }
   ]
 }

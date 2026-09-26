@@ -1528,6 +1528,23 @@ export class AcpManager {
   }
 
   /**
+   * Uma linha do daemon na conversa, viva ou não (`034` T11).
+   *
+   * A linha de vínculo de *continuar em outra conta* cai na origem, e a origem
+   * pode estar morta há dias — é justamente o caso de quem continua uma conversa
+   * velha noutra conta. Viva, ela passa pelo `emit`, e a aba aberta a vê na hora;
+   * morta, vai direto para o disco, que é de onde a aba a relê.
+   */
+  recordEvent(sessionId: string, event: AcpEvent): void {
+    const session = this.sessions.get(sessionId);
+    if (session) {
+      this.emit(session, event);
+      return;
+    }
+    this.transcripts.append(sessionId, { at: this.now(), event });
+  }
+
+  /**
    * Everything an attaching client needs to catch up, in one frame.
    *
    * Read from the store, not from memory: the array this replaced grew for the life

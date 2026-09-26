@@ -455,6 +455,30 @@ export const acpEventSchema = z.discriminatedUnion("type", [
     got: z.string(),
   }),
   /**
+   * Esta conversa continuou noutra conta (`034` T11, Q3b) — a linha no fim da
+   * **origem**.
+   *
+   * Navegação e nada mais: a origem continua viva e aceitando prompt. `label` é
+   * o `agente · conta` de destino, montado pelo daemon, porque a linha tem de
+   * dizer o mesmo depois que alguém renomear a conta.
+   */
+  z.object({ type: z.literal("continued_in"), sessionId: z.string(), label: z.string() }),
+  /**
+   * Esta conversa é a continuação de outra (`034` T11, Q3a e Q3b) — a linha no
+   * começo da **nova**.
+   *
+   * `messages` e `approxTokens` são do corte que ela levou: a passagem não pode
+   * ser invisível, e *"levou 40 mensagens, ~18 mil tokens"* é o que diz quanto
+   * a conta nova pagou para saber do que se falava.
+   */
+  z.object({
+    type: z.literal("continued_from"),
+    sessionId: z.string(),
+    label: z.string(),
+    messages: z.number().int().nonnegative(),
+    approxTokens: z.number().int().nonnegative(),
+  }),
+  /**
    * O núcleo da memória entrou no prompt (workspace-memory, D2).
    *
    * Evento, e não silêncio: injeção invisível é o que o §12 do PRD proíbe por
