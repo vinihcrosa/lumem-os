@@ -54,7 +54,10 @@ export interface ConveyorDeps {
   openAgentSession(input: {
     taskId: string;
     adapter: string;
+    /** A conta do encaixe; `null` é a padrão do agente (`034` T10). */
+    accountId: string | null;
     model: string | null;
+    effort: string | null;
     cwd: string;
     worktreeId: string;
     /** `null` quando o adaptador não declara um modo que não pergunta. */
@@ -78,6 +81,11 @@ export interface ConveyorDeps {
     /** `null` quando o adaptador não declara um modo que não pergunta. */
     agentMode: string | null;
     model: string | null;
+    /**
+     * O effort do encaixe (`034` T10). A **conta** não vem: a retomada sobe na
+     * conta da sessão, sempre — a conversa mora no diretório dela.
+     */
+    effort: string | null;
   }): Promise<{ sessionId: string } | null>;
   prompt(input: { sessionId: string; text: string }): Promise<void>;
   /** Interrompe um turno que passou do teto. Falhar aqui não é fatal. */
@@ -279,7 +287,9 @@ export function createConveyorPorts(deps: ConveyorDeps): ConveyorPorts {
       const resolved = await catalog.resolve({ taskId, role });
       return {
         adapter: resolved.adapter,
+        accountId: resolved.accountId,
         model: resolved.model,
+        effort: resolved.effort,
         instructions: resolved.instructions,
       };
     },
@@ -314,7 +324,7 @@ export function createConveyorPorts(deps: ConveyorDeps): ConveyorPorts {
       return { worktreeId: checkout.id, path: checkout.path, dirty: !status.clean, head };
     },
 
-    openSession: async ({ taskId, role, adapter, model, cwd, worktreeId }) => {
+    openSession: async ({ taskId, role, adapter, accountId, model, effort, cwd, worktreeId }) => {
       /*
        * A postura de permissão vem da **spec do adaptador**, nunca escrita aqui
        * (Q41 e Q43). A Q43 mediu que dos cinco modos do Claude só
@@ -370,12 +380,22 @@ export function createConveyorPorts(deps: ConveyorDeps): ConveyorPorts {
          * ninguém para responder.
          */
         const resumed = await deps
-          .resumeSession({ sessionId: found.id, agentMode, model })
+          .resumeSession({ sessionId: found.id, agentMode, model, effort })
           .catch(() => null);
         if (resumed !== null) return resumed;
       }
 
-      return deps.openAgentSession({ taskId, adapter, model, cwd, worktreeId, agentMode, role });
+      return deps.openAgentSession({
+        taskId,
+        adapter,
+        accountId,
+        model,
+        effort,
+        cwd,
+        worktreeId,
+        agentMode,
+        role,
+      });
     },
 
     /*
@@ -676,7 +696,9 @@ export function createConveyorPorts(deps: ConveyorDeps): ConveyorPorts {
         worktreeId: checkout.id,
         checkoutPath: checkout.path,
         adapter: agent.adapter,
+        accountId: agent.accountId,
         model: agent.model,
+        effort: agent.effort,
       };
     },
   };

@@ -1607,3 +1607,50 @@ describe("0035 — a conta de agente", () => {
     expect(handle.db.all(sql`PRAGMA foreign_key_check`)).toEqual([]);
   });
 });
+
+describe("0036 — a conta do encaixe", () => {
+  function databaseBeforeSlotAccounts(): string {
+    const dir = mkdtempSync(join(tmpdir(), "lumem-db-slot-account-"));
+    dirs.push(dir);
+    const path = join(dir, "lumem.db");
+    const sqlite = new Database(path);
+    sqlite.pragma("foreign_keys = ON");
+    migrate(drizzle(sqlite), { migrationsFolder: migrationsUpTo(36) });
+    const run = (statement: string): void => {
+      sqlite.prepare(statement).run();
+    };
+    run(`INSERT INTO workspace (id, name) VALUES ('ws-1', 'pessoal')`);
+    run(`INSERT INTO agent_config (id, name, command, adapter_version)
+         VALUES ('cfg-1', 'claude', 'claude-agent-acp', '0.75.1')`);
+    run(`INSERT INTO agent_account (id, agent_config_id, label, config_dir)
+         VALUES ('acct-2', 'cfg-1', 'trabalho', '/contas/2')`);
+    run(`INSERT INTO named_agent (id, workspace_id, name, adapter, model)
+         VALUES ('ag-1', 'ws-1', 'revisor', 'claude', 'sonnet')`);
+    sqlite.close();
+    return path;
+  }
+
+  it("o agente que já existia acorda herdando conta e effort", async () => {
+    const handle = openDatabase({ path: databaseBeforeSlotAccounts() });
+    open.push(handle);
+
+    const [agent] = await handle.db.select().from(schema.namedAgent);
+    expect(agent).toMatchObject({ name: "revisor", model: "sonnet", accountId: null, effort: null });
+  });
+
+  it("apagar a conta que um agente cita o devolve à conta padrão, em vez de ser recusado", async () => {
+    // A ação do estrangeiro exercida, e não só a coluna presente — a regra que
+    // a `0014` deixou escrita no `testing.md`.
+    const handle = openDatabase({ path: databaseBeforeSlotAccounts() });
+    open.push(handle);
+    await handle.db
+      .update(schema.namedAgent)
+      .set({ accountId: "acct-2" })
+      .where(eq(schema.namedAgent.id, "ag-1"));
+
+    await handle.db.delete(schema.agentAccount).where(eq(schema.agentAccount.id, "acct-2"));
+
+    const [agent] = await handle.db.select().from(schema.namedAgent);
+    expect(agent?.accountId).toBeNull();
+  });
+});

@@ -289,11 +289,11 @@ async function applyConfigOrClose(
 }
 
 /** A opção de effort de uma lista — `thought_level` nos dois adaptadores medidos. */
-function effortOptionOf(options: readonly AcpConfigOption[]): AcpConfigOption | undefined {
+export function effortOptionOf(options: readonly AcpConfigOption[]): AcpConfigOption | undefined {
   return options.find((option) => option.category === "thought_level" || option.category === "effort");
 }
 
-function offers(option: AcpConfigOption, value: string): boolean {
+export function offers(option: AcpConfigOption, value: string): boolean {
   return option.choices.length === 0 || option.choices.some((choice) => choice.value === value);
 }
 

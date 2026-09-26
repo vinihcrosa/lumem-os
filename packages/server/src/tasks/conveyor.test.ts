@@ -170,7 +170,7 @@ function harness({
 
   const ports: ConveyorPorts = {
     queue: () => ({ slots: 2, autonomy: "autonomo", entries: [], ...facts }),
-    agentFor: async () => ({ adapter: "claude", model: null, instructions }),
+    agentFor: async () => ({ adapter: "claude", accountId: null, model: null, effort: null, instructions }),
     prepareCheckout: spies.prepareCheckout as unknown as ConveyorPorts["prepareCheckout"],
     returned: async () => returned,
     openSession: spies.openSession as unknown as ConveyorPorts["openSession"],
@@ -198,6 +198,8 @@ function harness({
       checkoutPath: `/wt/${taskId}`,
       adapter: "claude",
       model: null,
+      accountId: null,
+      effort: null,
     }),
   };
 

@@ -100,14 +100,23 @@ export type GateVerdict =
   /** Nem verde nem vermelho: o trabalho não chegou ao ponto de ser julgado. */
   | { kind: "unfinished"; reason: string };
 
+/**
+ * Quem faz o papel, como a esteira o abre: adaptador, conta, modelo e effort
+ * (`034` T10). `null` em conta é *a padrão do agente*, e em modelo e effort é
+ * *o padrão da conta* — quem resolve é a porta que abre a sessão.
+ */
+export interface SlotAgent {
+  adapter: string;
+  accountId: string | null;
+  model: string | null;
+  effort: string | null;
+}
+
 export interface ConveyorPorts {
   /** A fila deste workspace, agora (T24). */
   queue(workspaceId: string): QueueFacts;
   /** Qual agente faz este papel nesta tarefa, pela cascata do §5.1. */
-  agentFor(input: {
-    taskId: string;
-    role: Role;
-  }): Promise<{ adapter: string; model: string | null; instructions: string }>;
+  agentFor(input: { taskId: string; role: Role }): Promise<SlotAgent & { instructions: string }>;
   /** A worktree, criada ou reusada, com o `setup` já rodado (T26). */
   prepareCheckout(entry: QueueEntry): Promise<PreparedCheckout>;
   /**
@@ -127,15 +136,15 @@ export interface ConveyorPorts {
    * decidiu que a postura de permissão é **do adaptador, declarada na `spec`**.
    * Quem traduz é quem implementa esta porta.
    */
-  openSession(input: {
-    taskId: string;
-    role: Role;
-    adapter: string;
-    model: string | null;
-    cwd: string;
-    /** O escopo da sessão. Uma conversa da esteira mora **no checkout**. */
-    worktreeId: string;
-  }): Promise<{ sessionId: string }>;
+  openSession(
+    input: SlotAgent & {
+      taskId: string;
+      role: Role;
+      cwd: string;
+      /** O escopo da sessão. Uma conversa da esteira mora **no checkout**. */
+      worktreeId: string;
+    },
+  ): Promise<{ sessionId: string }>;
   /**
    * Manda o prompt e espera o turno. O motivo da **parada** é ignorado de
    * propósito — quem responde *"acabou?"* é o portão.
@@ -258,14 +267,15 @@ export interface ConveyorPorts {
     taskId?: string,
   ): Promise<void>;
   /** O que está preparado nesta tarefa, com o que falta para enviar. */
-  prepared(taskId: string): Promise<{
-    role: Role;
-    prompt: string;
-    worktreeId: string;
-    checkoutPath: string;
-    adapter: string;
-    model: string | null;
-  } | null>;
+  prepared(taskId: string): Promise<
+    | (SlotAgent & {
+        role: Role;
+        prompt: string;
+        worktreeId: string;
+        checkoutPath: string;
+      })
+    | null
+  >;
 }
 
 export interface Conveyor {
@@ -347,7 +357,7 @@ export function createConveyor(
      * olhando — que é o estado que esta feature inteira existe para não ter.
      */
     let checkout: PreparedCheckout;
-    let agent: { adapter: string; model: string | null; instructions: string };
+    let agent: SlotAgent & { instructions: string };
     try {
       checkout = await ports.prepareCheckout(entry);
       agent = await ports.agentFor({ taskId: entry.task.id, role: entry.role });
@@ -461,7 +471,9 @@ export function createConveyor(
       taskId: entry.task.id,
       role: entry.role,
       adapter: agent.adapter,
+      accountId: agent.accountId,
       model: agent.model,
+      effort: agent.effort,
       cwd: checkout.path,
       worktreeId: checkout.worktreeId,
     });
@@ -618,7 +630,9 @@ export function createConveyor(
         taskId,
         role: prepared.role,
         adapter: prepared.adapter,
+        accountId: prepared.accountId,
         model: prepared.model,
+        effort: prepared.effort,
         cwd: prepared.checkoutPath,
         worktreeId: prepared.worktreeId,
       });

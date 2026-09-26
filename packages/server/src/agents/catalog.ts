@@ -9,6 +9,8 @@ import {
   type NamedAgentRow,
 } from "../db/schema.js";
 import { DomainError } from "../errors.js";
+import { createAgentAccountRepository } from "../repositories/agentAccount.js";
+import { createAgentConfigRepository } from "../repositories/agentConfig.js";
 import { withConstraints } from "../repositories/base.js";
 
 /**
@@ -48,8 +50,16 @@ export interface ResolvedAgent {
   from: BindingScope | "default";
   /** O `AdapterSpec.id` a usar. Sempre presente: o default garante isso. */
   adapter: string;
-  /** `null` é *o que o adaptador escolher*. */
+  /** `null` é *o padrão da conta*, e, sem um, *o que o adaptador escolher*. */
   model: string | null;
+  /**
+   * A conta do encaixe (`034` T10). `null` é *a padrão do agente* — e `model` e
+   * `effort` nulos são *os padrões dessa conta*. A cascata não resolve herança:
+   * ela é pura, e a conta padrão mora no banco. Quem resolve é a costura que
+   * abre a sessão.
+   */
+  accountId: string | null;
+  effort: string | null;
   instructions: string;
 }
 
@@ -71,6 +81,8 @@ export function resolveFromBindings(
         from: scope,
         adapter: agent.adapter,
         model: agent.model,
+        accountId: agent.accountId,
+        effort: agent.effort,
         instructions: agent.instructions,
       };
     }
@@ -88,6 +100,8 @@ export function resolveFromBindings(
     from: "default",
     adapter: DEFAULT_ADAPTER_ID,
     model: null,
+    accountId: null,
+    effort: null,
     instructions: "",
   };
 }
@@ -98,6 +112,9 @@ export interface AgentCatalog {
     name: string;
     adapter: string;
     model?: string | null;
+    /** A conta do encaixe; tem que ser do agente do `adapter` (`034` T10). */
+    accountId?: string | null;
+    effort?: string | null;
     instructions?: string;
   }): Promise<NamedAgentRow>;
   listByWorkspace(workspaceId: string): Promise<NamedAgentRow[]>;
@@ -112,9 +129,31 @@ export interface AgentCatalog {
   resolve(input: { taskId: string; role: Role }): Promise<ResolvedAgent>;
 }
 
+/**
+ * A conta existe e é **deste** adaptador (`034` T10): um revisor do Claude
+ * apontado para uma conta do Codex subiria o Claude com o `CODEX_HOME` de outra
+ * conta — uma variável que o Claude nem lê.
+ */
+async function requireAccountOf(db: Db, adapter: string, accountId: string): Promise<void> {
+  const account = await createAgentAccountRepository(db).get(accountId);
+  if (!account) throw new DomainError("NOT_FOUND", `conta ${accountId} não existe`);
+  const config = await createAgentConfigRepository(db).findById(account.agentConfigId);
+  if (config?.name !== adapter) {
+    throw new DomainError("INVALID_ARGUMENT", `a conta ${account.label} não é de ${adapter}`);
+  }
+}
+
 export function createAgentCatalog(db: Db): AgentCatalog {
   return {
-    async create({ workspaceId, name, adapter, model = null, instructions = "" }) {
+    async create({
+      workspaceId,
+      name,
+      adapter,
+      model = null,
+      accountId = null,
+      effort = null,
+      instructions = "",
+    }) {
       /*
        * O adaptador é validado **aqui**, e não por estrangeiro: o catálogo
        * `ADAPTERS` é código do bundle, não tabela. Sem esta linha, um agente
@@ -126,12 +165,22 @@ export function createAgentCatalog(db: Db): AgentCatalog {
       }
       const trimmed = name.trim();
       if (trimmed === "") throw new DomainError("INVALID_ARGUMENT", "o agente precisa de nome");
+      if (accountId !== null) await requireAccountOf(db, adapter, accountId);
 
       const [row] = await withConstraints(
         () =>
           db
             .insert(namedAgent)
-            .values({ id: newId(), workspaceId, name: trimmed, adapter, model, instructions })
+            .values({
+              id: newId(),
+              workspaceId,
+              name: trimmed,
+              adapter,
+              model,
+              accountId,
+              effort,
+              instructions,
+            })
             .returning(),
         {
           "unique:named_agent.workspace_id,named_agent.name": {

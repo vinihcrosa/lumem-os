@@ -1546,8 +1546,21 @@ export const namedAgent = sqliteTable(
     name: text("name").notNull(),
     /** O `id` de um `AdapterSpec`: `claude`, `codex`. */
     adapter: text("adapter").notNull(),
-    /** `null` é *o que o adaptador escolher* — nem todo agente pede modelo. */
+    /**
+     * `null` é *herde da conta* (`034` T10): o modelo padrão da conta do encaixe,
+     * e, sem um, o que o adaptador escolher — nem todo agente pede modelo.
+     */
     model: text("model"),
+    /**
+     * Em que conta o encaixe roda (`034` T10). `null` é *a padrão do agente*.
+     *
+     * `SET NULL`, e não `RESTRICT`: apagar uma conta de vez não pode ficar preso
+     * a um agente nomeado que a citava — ele volta a herdar a padrão, que é o
+     * que o nulo já quer dizer.
+     */
+    accountId: text("account_id").references(() => agentAccount.id, { onDelete: "set null" }),
+    /** O effort do encaixe. `null` é *herde da conta*. */
+    effort: text("effort"),
     /**
      * O que este agente é, em texto.
      *

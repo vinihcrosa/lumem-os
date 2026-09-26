@@ -32,6 +32,7 @@ import { createMemoryPreamble } from "./memory/preamble.js";
 import { createBudgetSource } from "./tasks/budget-source.js";
 import { createConveyor } from "./tasks/conveyor.js";
 import { createConveyorPorts } from "./tasks/conveyor-ports.js";
+import { createConveyorSessionOpeners } from "./tasks/conveyor-sessions.js";
 import { runConveyorLoop } from "./tasks/conveyor-loop.js";
 import { createLinearHost } from "./tracker/LinearHost.js";
 import { createSecretStore } from "./secrets/SecretStore.js";
@@ -373,46 +374,14 @@ export async function bootstrap({
         const created = await api.worktree.create({ projectId, name, taskId });
         return { id: created.id, path: created.path };
       },
-      openAgentSession: async ({ taskId, role, adapter, model, cwd, worktreeId, agentMode }) => {
-        // `cwd` não é usado: a sessão da esteira é **de escopo**, e o escopo é a
-        // worktree — o daemon resolve o diretório dela, como faz para toda
-        // conversa aberta pela tela.
-        void cwd;
-        const configured = await configForAdapter(
-          openedDatabase.db,
-          adapter,
-          config.conveyorAgent,
-        );
-        const opened = await api.session.createAgent({
-          scopeType: "worktree",
-          scopeId: worktreeId,
-          agentConfigId: configured,
-          taskId,
-          // O encaixe que ela serve: é o que a deixa ser **reencontrada** na
-          // tentativa seguinte, em vez de a esteira abrir a sétima conversa
-          // sobre a mesma tarefa (Parte 7 — T57).
-          taskRole: role,
-          // Não há ninguém do outro lado. Ver a nota da procedure: é **nascer**
-          // liberada, e não trocar — o portão do `016` protege a troca.
-          autonomous: true,
-        });
-        /*
-         * O modo do agente é escolhido **depois** do handshake, e não podia ser
-         * antes: ele é uma `configOption` que o próprio adaptador declara, e o
-         * daemon só conhece a lista dela quando a sessão existe.
-         *
-         * Falhar aqui não derruba o turno — um adaptador que não tem aquele modo
-         * vai perguntar alguma coisa e o turno vai morrer, que é a tentativa
-         * gasta com o motivo, e não um erro de boot.
-         */
-        if (agentMode !== null) {
-          await acp.setConfig(opened.id, "mode", agentMode).catch(() => undefined);
-        }
-        if (model !== null) {
-          await acp.setConfig(opened.id, "model", model).catch(() => undefined);
-        }
-        return { sessionId: opened.id };
-      },
+      // A conta, o modelo e o effort do encaixe viram processo aqui (`034` T10).
+      ...createConveyorSessionOpeners({
+        db: openedDatabase.db,
+        api: () => api,
+        acp,
+        sessionStore,
+        conveyorAgent: config.conveyorAgent,
+      }),
       prompt: async ({ sessionId, text }) => {
         await acp.prompt(sessionId, text);
       },
@@ -429,33 +398,6 @@ export async function bootstrap({
        */
       closeSession: async (sessionId) => {
         await sessionStore.close(sessionId);
-      },
-      /*
-       * Retomar a conversa do encaixe (Parte 7 — T57).
-       *
-       * `resume` produz uma linha **nova** carregando o `acp_session_id` da
-       * velha: `session/load` sobe um adaptador e manda a conversa de volta, e
-       * não ressuscita o processo de ontem. É como o produto já faz *"retomar"*
-       * desde a `006`.
-       */
-      resumeSession: async ({ sessionId, agentMode, model }) => {
-        const row = await sessionStore.resume(sessionId);
-        /*
-         * O mesmo par do nascimento, e pelo mesmo motivo (Parte 7).
-         *
-         * `session/load` traz a conversa e **sobe um adaptador novo**, que nasce
-         * no modo padrão dele. Sem estas duas linhas a segunda vez de cada
-         * encaixe rodava perguntando permissão — e numa sessão de esteira não há
-         * ninguém do outro lado. Falhar aqui não derruba o turno, igual ao
-         * nascimento: o que sobra é o teto de tempo, com o motivo escrito.
-         */
-        if (agentMode !== null) {
-          await acp.setConfig(row.id, "mode", agentMode).catch(() => undefined);
-        }
-        if (model !== null) {
-          await acp.setConfig(row.id, "model", model).catch(() => undefined);
-        }
-        return { sessionId: row.id };
       },
       reproduce,
       liveTurns: () => acp.liveTurns(),

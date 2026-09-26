@@ -179,6 +179,12 @@ export const sessionRouter = router({
            * `autonomous`.
            */
           taskRole: z.enum(["implementador", "revisor", "testador"]).optional(),
+          /**
+           * Em que conta a conversa roda (`034` T10). Ausente, a padrão do
+           * agente. A escolha pela tela vem na Fase 2; hoje é a esteira quem
+           * a pede, pelo encaixe.
+           */
+          agentAccountId: z.string().min(1).optional(),
         })
         /*
          * Os dois opcionais no tipo e exclusivos aqui: um `union` do zod
@@ -201,6 +207,7 @@ export const sessionRouter = router({
           ...(input.config === undefined ? {} : { config: input.config }),
           ...(input.taskId === undefined ? {} : { taskId: input.taskId }),
           ...(input.taskRole === undefined ? {} : { taskRole: input.taskRole }),
+          ...(input.agentAccountId === undefined ? {} : { agentAccountId: input.agentAccountId }),
           autonomous: input.autonomous,
           ...(input.cols === undefined ? {} : { cols: input.cols }),
           ...(input.rows === undefined ? {} : { rows: input.rows }),

@@ -1,8 +1,8 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { newId } from "@lumem/shared";
+import { ADAPTERS_DIR_NAME, CLAUDE_ADAPTER, newId } from "@lumem/shared";
 import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -21,6 +21,16 @@ import { createTaskFindingRepository } from "../repositories/task-finding.js";
 import { createTaskReviewRepository } from "../repositories/task-review.js";
 import { createTaskRepository } from "../repositories/task.js";
 import { createTestCaller, type TestCaller } from "../testing/caller.js";
+import { AcpManager } from "../acp/AcpManager.js";
+import type { AcpSpawnRequest } from "../acp/process.js";
+import { createAgentCatalog } from "../agents/catalog.js";
+import { createAgentAccountRepository } from "../repositories/agentAccount.js";
+import { configForAdapter } from "../repositories/agentConfig.js";
+import { appRouter } from "../routers/index.js";
+import { fakeAgentProcess } from "../testing/acp-fake-agent.js";
+import { cleanupGitFixtures, createRepo } from "../testing/git-fixtures.js";
+import { createCallerFactory } from "../trpc.js";
+import { createConveyorSessionOpeners } from "./conveyor-sessions.js";
 
 import {
   createConveyorPorts,
@@ -46,6 +56,7 @@ let context: TestCaller;
 
 afterEach(async () => {
   await context?.cleanup();
+  cleanupGitFixtures();
 });
 
 /** O que a reprodução responde, quando o caso a exercita. */
@@ -652,6 +663,8 @@ describe("a conversa do encaixe volta na postura em que nasceu (Parte 7 — T57)
       role: "implementador",
       adapter: "claude",
       model: null,
+      accountId: null,
+      effort: null,
       cwd: "/wt/1",
       worktreeId: "wt-1",
     });
@@ -660,7 +673,7 @@ describe("a conversa do encaixe volta na postura em que nasceu (Parte 7 — T57)
     expect(base.resumed).toEqual([
       // O mesmo modo com que ela teria nascido: sai da `spec` do adaptador, e
       // nunca de uma string escrita aqui (Q41).
-      { sessionId: base.previous.id, agentMode: "bypassPermissions", model: null },
+      { sessionId: base.previous.id, agentMode: "bypassPermissions", model: null, effort: null },
     ]);
     // E não abriu uma segunda conversa: o contexto da primeira é o que a T57
     // existe para não pagar de novo.
@@ -675,6 +688,8 @@ describe("a conversa do encaixe volta na postura em que nasceu (Parte 7 — T57)
       role: "implementador",
       adapter: "claude",
       model: null,
+      accountId: null,
+      effort: null,
       cwd: "/wt/1",
       worktreeId: "wt-1",
     });
@@ -721,5 +736,110 @@ describe("os scripts do projeto têm o teto da esteira, e não o da remoção", 
     // portão não roda nada, e o caso passaria contra uma lista vazia.
     expect(base.scripts).toEqual([{ phase: "test", timeoutMs: TEST_TIMEOUT_MS }]);
     expect(TEST_TIMEOUT_MS).toBeGreaterThan(20_000);
+  });
+});
+
+/*
+ * A esteira escolhe conta (`034` T10): o encaixe amarrado a uma conta abre a
+ * conversa **no diretório dela**. Com as aberturas de verdade — as mesmas que o
+ * `bootstrap` liga — e um spawner que diz o que recebeu: é a única asserção que
+ * pega a conta errada, porque a linha diria a certa e o processo subiria na outra.
+ */
+describe("a conta do encaixe chega ao processo (034 T10)", () => {
+  async function accountScene() {
+    const requests: AcpSpawnRequest[] = [];
+    const acpManager = new AcpManager({
+      spawner: (request) => {
+        requests.push(request);
+        return fakeAgentProcess().process;
+      },
+      isAvailable: () => true,
+    });
+    context = createTestCaller({ SHELL: "/bin/sh" }, { acpManager });
+    const { api, db } = context;
+    const bin = join(context.config.stateDir, ADAPTERS_DIR_NAME, CLAUDE_ADAPTER.id, "node_modules", ".bin");
+    mkdirSync(bin, { recursive: true });
+    writeFileSync(join(bin, CLAUDE_ADAPTER.command), "#!/bin/sh\n");
+    chmodSync(join(bin, CLAUDE_ADAPTER.command), 0o755);
+
+    const space = await api.workspace.create({ name: `acme-${newId()}` });
+    const repo = await createRepo({ branch: "main" });
+    const added = await api.project.add({ workspaceId: space.id, path: repo, name: "acme" });
+    const checkout = await api.worktree.create({ projectId: added.id, name: "encaixe" });
+    const created = await createTaskRepository(db).create({
+      workspaceId: space.id,
+      projectId: added.id,
+      title: "o /orders devolve 500",
+    });
+
+    const configId = await configForAdapter(db, CLAUDE_ADAPTER.id);
+    const reviewerAccount = await createAgentAccountRepository(db).create({
+      agentConfigId: configId,
+      label: "revisor",
+      configDir: "/contas/revisor",
+    });
+    const agents = createAgentCatalog(db);
+    const reviewer = await agents.create({
+      workspaceId: space.id,
+      name: "revisor-do-trabalho",
+      adapter: CLAUDE_ADAPTER.id,
+      accountId: reviewerAccount.id,
+    });
+    await agents.bind({ scopeType: "workspace", scopeId: space.id, role: "revisor", agentId: reviewer.id });
+
+    // O chamador interno, como o do `bootstrap`: só ele abre sessão de esteira.
+    const internal = createCallerFactory(appRouter)({ ...context.ctx, internal: true });
+    const openers = createConveyorSessionOpeners({
+      db,
+      api: () => internal,
+      acp: acpManager,
+      sessionStore: context.sessionStore,
+      conveyorAgent: null,
+    });
+    const ports = createConveyorPorts({
+      db,
+      git: {} as never,
+      scripts: {} as never,
+      createWorktree: () => Promise.reject(new Error("não devia cortar worktree")),
+      ...openers,
+      prompt: () => Promise.reject(new Error("não devia mandar prompt")),
+      cancel: () => Promise.resolve(),
+      closeSession: () => Promise.resolve(),
+      reproduce: () => Promise.reject(new Error("não devia rerodar nada")),
+      liveTurns: () => [],
+      prVerdictOf: () => Promise.resolve(null),
+      prNumberOf: () => Promise.resolve(null),
+      prHost: {} as never,
+    });
+    return { ports, requests, db, taskId: created.id, checkout, reviewerAccount, configId };
+  }
+
+  it("o revisor amarrado a uma conta sobe no diretório dela", async () => {
+    const { ports, requests, db, taskId, checkout, reviewerAccount } = await accountScene();
+
+    const agent = await ports.agentFor({ taskId, role: "revisor" });
+    const { sessionId } = await ports.openSession({
+      taskId,
+      role: "revisor",
+      ...agent,
+      cwd: checkout.path,
+      worktreeId: checkout.id,
+    });
+
+    expect(agent.accountId).toBe(reviewerAccount.id);
+    expect(requests.at(-1)?.env?.["CLAUDE_CONFIG_DIR"]).toBe("/contas/revisor");
+    const [row] = await db.select().from(session).where(eq(session.id, sessionId));
+    expect(row?.agentAccountId).toBe(reviewerAccount.id);
+  });
+
+  it("o implementador sem amarração herda a conta padrão — a que sobe sem a variável", async () => {
+    const { ports, requests, taskId, checkout } = await accountScene();
+
+    const agent = await ports.agentFor({ taskId, role: "implementador" });
+    await ports.openSession({ taskId, role: "implementador", ...agent, cwd: checkout.path, worktreeId: checkout.id });
+
+    expect(agent.accountId).toBeNull();
+    expect(requests.at(-1)?.env?.["CLAUDE_CONFIG_DIR"]).toBeUndefined();
+    expect(requests.at(-1)?.unsetEnv).toContain("CLAUDE_CONFIG_DIR");
   });
 });
