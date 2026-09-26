@@ -245,6 +245,9 @@
  * com coluna empurraria a etiqueta, que é exatamente o que a Q3 da `030` não
  * deixa andar.
  */
+/* O grupo de um agente: existe para a árvore de acessibilidade, não para a grade. */
+.set__agent { display: contents; }
+
 .set__acct {
   display: grid;
   gap: var(--space-4);

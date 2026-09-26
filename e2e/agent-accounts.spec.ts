@@ -175,14 +175,16 @@ test("duas contas do Claude, lado a lado, cada uma gastando na sua", async ({ pa
    * Claude pode já ter a dele quando este roda; os dois caminhos chegam no mesmo
    * lugar.
    */
-  const adopt = page.getByRole("group", { name: "nenhuma conta do Claude Code" });
-  const principal = page.getByRole("group", { name: "conta principal" });
+  // Dentro do bloco do Claude: o Codex que outro spec conectou também tem uma `principal`.
+  const agent = page.getByRole("group", { name: "agente Claude Code" });
+  const adopt = agent.getByRole("group", { name: "nenhuma conta do Claude Code" });
+  const principal = agent.getByRole("group", { name: "conta principal" });
   await expect(adopt.or(principal)).toBeVisible({ timeout: 20_000 });
   if (await adopt.isVisible()) await adopt.getByRole("button", { name: "conectar Claude Code" }).click();
   await expect(principal).toContainText("conectada", { timeout: 20_000 });
 
   // Um `＋` por agente que já tem conta; o painel que abre diz de qual.
-  await page.getByRole("button", { name: "＋ conectar conta" }).first().click();
+  await agent.getByRole("button", { name: "＋ conectar conta" }).click();
   const connect = page.getByRole("group", { name: "conectar conta do Claude Code" });
   await expect(connect).toBeVisible();
   await connect.getByLabel("nome da conta").fill(WORK);
@@ -201,7 +203,7 @@ test("duas contas do Claude, lado a lado, cada uma gastando na sua", async ({ pa
   // Quem confirma é a conferência depois do terminal, não a pessoa.
   await expect(login.getByText("O adaptador confirmou o login desta conta.")).toBeVisible({ timeout: 30_000 });
 
-  const workRow = page.getByRole("group", { name: `conta ${WORK}` });
+  const workRow = agent.getByRole("group", { name: `conta ${WORK}` });
   await expect(workRow).toContainText("conectada", { timeout: 20_000 });
   // A identidade que a conferência leu, na segunda linha.
   await expect(workRow).toContainText("e2e@lumem.local");
@@ -213,7 +215,7 @@ test("duas contas do Claude, lado a lado, cada uma gastando na sua", async ({ pa
   expect(bare.label).toBe("principal");
   // O diretório é do Lumem, fora do git pela regra do `_system/`.
   expect(work.configDir).toBe(join(E2E_STATE_DIR, "_system", "agents", "claude", work.id));
-  await expect(page.getByRole("group", { name: `conta ${bare.label}` })).toContainText("conectada");
+  await expect(agent.getByRole("group", { name: `conta ${bare.label}` })).toContainText("conectada");
 
   // ── 2. Duas conversas, uma em cada conta ────────────────────────────────────
   // Pela API, e antes de a tela voltar: criar pela tela abriria uma conversa

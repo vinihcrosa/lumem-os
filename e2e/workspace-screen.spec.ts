@@ -172,7 +172,7 @@ test("um turno de verdade, e o consumo dele na tela do projeto que o gastou", as
   // Exato, porque só o meu turno rodou nesta worktree.
   await expect(row.locator(".spend__tok")).toHaveText("39,2k");
   await expect(row.locator(".spend__cost")).toContainText("US$ 0,2354");
-  await expect(row.locator(".spend__turns")).toHaveText("1 turnos");
+  await expect(row.locator(".spend__turns")).toHaveText("1 turno");
 
   // E o projeto que a gastou aparece na tela do workspace com o total dele — que
   // acumula os turnos dos outros specs, então a asserção é "não é zero".

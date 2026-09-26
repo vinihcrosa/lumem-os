@@ -92,8 +92,14 @@ function AgentAccounts({
   const [connecting, setConnecting] = useState(defaultConnecting);
   const loginAccount = accounts.find((account) => account.id === loginFor) ?? null;
 
+  /*
+   * Um grupo por agente, e `display: contents` para a grade da seção não
+   * mudar: com dois agentes, os dois têm uma conta `principal`, e "a conta
+   * principal" só é endereçável — por leitor de tela e por e2e — dentro do
+   * agente dela.
+   */
   return (
-    <>
+    <div className="set__agent" role="group" aria-label={`agente ${spec.label}`}>
       <SettingRow
         label={spec.label}
         description={
@@ -144,7 +150,7 @@ function AgentAccounts({
             ＋ conectar conta
           </button>
         ))}
-    </>
+    </div>
   );
 }
 
