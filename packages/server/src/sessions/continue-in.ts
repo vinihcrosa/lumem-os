@@ -1,4 +1,3 @@
-import { adapterById } from "@lumem/shared";
 import { eq } from "drizzle-orm";
 
 import { cutTranscript } from "../acp/transcript-cut.js";
@@ -103,7 +102,12 @@ export async function continueIn(
   return row;
 }
 
-/** `agente · conta`, o mesmo par que o cabeçalho da conversa desenha. */
+/**
+ * `agente · conta`, o mesmo par que o cabeçalho da conversa e a aba desenham —
+ * com o nome da `agent_config` (`claude`), e não o rótulo do catálogo
+ * (`Claude Code`): dentro da conversa, um vocabulário só. O `/settings` fala a
+ * língua do catálogo, e isso é dele.
+ */
 async function labelOf(
   ctx: Context,
   agentConfigId: string | null,
@@ -115,6 +119,6 @@ async function labelOf(
   const account = agentAccountId
     ? await createAgentAccountRepository(ctx.db).get(agentAccountId)
     : undefined;
-  const agent = config ? (adapterById(config.name)?.label ?? config.name) : "agente";
+  const agent = config?.name ?? "agente";
   return account ? `${agent} · ${account.label}` : agent;
 }

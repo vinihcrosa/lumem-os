@@ -1279,19 +1279,19 @@ describe("the mark between two conversations", () => {
         entry({
           type: "continued_from",
           sessionId: "origem",
-          label: "Claude Code · pessoal",
+          label: "claude · pessoal",
           messages: 12,
           approxTokens: 3400,
         }),
         entry({ type: "message", messageId: "m-1", role: "agent", text: "segui daqui" }),
-        entry({ type: "continued_in", sessionId: "outra", label: "Codex · trabalho" }),
+        entry({ type: "continued_in", sessionId: "outra", label: "codex · trabalho" }),
       ]),
     );
 
     const from = await screen.findByText(
-      "continuação de Claude Code · pessoal — levou 12 mensagens, ~3400 tokens",
+      "continuação de claude · pessoal — levou 12 mensagens, ~3400 tokens",
     );
-    const into = screen.getByText("continuada em Codex · trabalho →");
+    const into = screen.getByText("continuada em codex · trabalho →");
     expect(from).toHaveClass("meta--conversation");
     expect(into).toHaveClass("meta--conversation");
   });

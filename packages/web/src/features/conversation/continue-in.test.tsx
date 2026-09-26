@@ -127,8 +127,10 @@ describe("continuar em outra conta", () => {
     const menu = screen.getByRole("menu", { name: "continuar em outra conta" });
     const items = within(menu).getAllByRole("menuitem").map((item) => item.textContent);
     // A de agora e a desconectada ficam de fora; o agente de cada uma vai junto.
-    expect(items).toEqual(["Claude Code · trabalho", "Codex · chatgpt"]);
-    await user.click(within(menu).getByRole("menuitem", { name: "Codex · chatgpt" }));
+    // O nome da aba e do cabeçalho — o da configuração —, e não o do catálogo:
+    // dentro da conversa, um vocabulário só.
+    expect(items).toEqual(["claude · trabalho", "codex · chatgpt"]);
+    await user.click(within(menu).getByRole("menuitem", { name: "codex · chatgpt" }));
 
     expect(onContinue).toHaveBeenCalledWith("acct_codex");
   });
@@ -155,8 +157,8 @@ describe("continuar em outra conta", () => {
 
 describe("as linhas de vínculo", () => {
   const LINKED: AcpTranscriptEntry[] = [
-    { at: 1, event: { type: "continued_from", sessionId: "origem", label: "Claude Code · pessoal", messages: 3, approxTokens: 900 } },
-    { at: 2, event: { type: "continued_in", sessionId: "longe", label: "Codex · chatgpt" } },
+    { at: 1, event: { type: "continued_from", sessionId: "origem", label: "claude · pessoal", messages: 3, approxTokens: 900 } },
+    { at: 2, event: { type: "continued_in", sessionId: "longe", label: "codex · chatgpt" } },
   ];
 
   it("a que aponta para uma sessão deste escopo leva a ela; a outra fica texto", async () => {
@@ -165,11 +167,11 @@ describe("as linhas de vínculo", () => {
     const socket = mount({ sessionLink: (id) => (id === "origem" ? openOrigin : null) });
     socket.deliver(attached(LINKED));
 
-    const from = await screen.findByRole("button", { name: /continuação de Claude Code · pessoal/ });
+    const from = await screen.findByRole("button", { name: /continuação de claude · pessoal/ });
     await user.click(from);
 
     expect(openOrigin).toHaveBeenCalledOnce();
     expect(screen.queryByRole("button", { name: /continuada em Codex/ })).toBeNull();
-    expect(screen.getByText("continuada em Codex · chatgpt →")).toHaveClass("meta--conversation");
+    expect(screen.getByText("continuada em codex · chatgpt →")).toHaveClass("meta--conversation");
   });
 });

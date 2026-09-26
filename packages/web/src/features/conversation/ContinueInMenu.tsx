@@ -1,5 +1,3 @@
-import { adapterById } from "@lumem/shared";
-
 import { usePopover } from "../../hooks/usePopover.js";
 import { useAgentAccounts } from "../agent/index.js";
 import { Menu, MenuItem } from "../../ui/index.js";
@@ -65,7 +63,12 @@ export function ContinueInMenu({
                   onContinue(account.id);
                 }}
               >
-                {`${adapterById(account.adapterId)?.label ?? account.adapterId} · ${account.label}`}
+                {/*
+                  O nome que a aba e o cabeçalho usam — o da `agent_config`, que é
+                  o `adapterId` da conta —, e não o rótulo do catálogo: dentro da
+                  conversa, um vocabulário só, e é o mesmo das linhas de vínculo.
+                */}
+                {`${account.adapterId} · ${account.label}`}
               </MenuItem>
             ))}
           </Menu>

@@ -241,7 +241,7 @@ test("duas contas do Claude, lado a lado, cada uma gastando na sua", async ({ pa
   await gesture.click();
   const target = origin
     .getByRole("menu", { name: "continuar em outra conta" })
-    .getByRole("menuitem", { name: `Claude Code · ${WORK}` });
+    .getByRole("menuitem", { name: `claude · ${WORK}` });
   expect(await hitsItself(target)).toBe(true);
   await target.click();
 
@@ -249,16 +249,18 @@ test("duas contas do Claude, lado a lado, cada uma gastando na sua", async ({ pa
   const third = conversation(page);
   await expect(third.locator(".conv__who")).toHaveText(who(WORK), { timeout: 20_000 });
   // A linha de vínculo: de onde veio, e quanto levou (a pergunta e a resposta).
-  await expect(third.getByText(`continuação de Claude Code · ${bare.label} — levou 2 mensagens`)).toBeVisible();
+  // O nome da aba e do cabeçalho — `claude` —, e não o do catálogo: dentro da
+  // conversa, um vocabulário só.
+  await expect(third.getByText("continuação de claude · principal — levou 2 mensagens")).toBeVisible();
   // O processo novo subiu na conta de destino…
   await expect(third.getByText(`conta: ${work.configDir}`)).toBeVisible({ timeout: 20_000 });
   // …e o que ele recebeu é o corte da origem: a abertura e a pergunta de lá.
-  await expect(third).toContainText(`recebi: Continuação de uma conversa em Claude Code · ${bare.label}`);
+  await expect(third).toContainText("recebi: Continuação de uma conversa em claude · principal");
   await expect(third).toContainText(`${ASK}? primeira conversa`);
 
   // A origem ganhou a linha que aponta para a continuação, e segue viva.
   await tabs.nth(0).click();
-  await expect(conversation(page).getByText(`continuada em Claude Code · ${WORK} →`)).toBeVisible();
+  await expect(conversation(page).getByText(`continuada em claude · ${WORK} →`)).toBeVisible();
 
   // ── 5. O consumo cai na linha certa ─────────────────────────────────────────
   // Três turnos de 39,2k: um na conta sem diretório, dois no `trabalho` — a

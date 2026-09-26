@@ -1264,7 +1264,8 @@ describe("session.continueIn (034 T11)", () => {
     const target = spawned.at(-1)!;
     await vi.waitFor(() => expect(target.promptBlocks.length).toBeGreaterThan(0));
     const sent = target.promptBlocks[0]!.join("\n");
-    expect(sent).toContain("Continuação de uma conversa em Claude Code · ");
+    // O nome que a aba e o cabeçalho usam — o da `agent_config` —, e não o do catálogo.
+    expect(sent).toContain("Continuação de uma conversa em claude · principal.");
     expect(sent).toContain("O que foi dito até aqui:");
     expect(sent).toContain("conserta o /orders");
     expect(sent).toContain("Li o handler e achei o bug.");
@@ -1283,7 +1284,7 @@ describe("session.continueIn (034 T11)", () => {
     const fresh = ctx.acpManager.storedTranscript(continued.id).map((entry) => entry.event);
     const from = fresh.find((event) => event.type === "continued_from");
     expect(from).toMatchObject({ type: "continued_from", sessionId: source.id });
-    expect(from).toMatchObject({ label: expect.stringMatching(/^Claude Code · /) as unknown });
+    expect(from).toMatchObject({ label: "claude · principal" });
     expect(from && "messages" in from ? from.messages : 0).toBe(2);
     expect(from && "approxTokens" in from ? from.approxTokens : 0).toBeGreaterThan(0);
     // A linha vem antes do turno que leva o corte.
@@ -1293,7 +1294,7 @@ describe("session.continueIn (034 T11)", () => {
     );
 
     const origin = ctx.acpManager.storedTranscript(source.id).map((entry) => entry.event);
-    expect(origin.at(-1)).toEqual({ type: "continued_in", sessionId: continued.id, label: "Codex · trabalho" });
+    expect(origin.at(-1)).toEqual({ type: "continued_in", sessionId: continued.id, label: "codex · trabalho" });
   });
 
   it("a origem continua viva e aceitando prompt", async () => {

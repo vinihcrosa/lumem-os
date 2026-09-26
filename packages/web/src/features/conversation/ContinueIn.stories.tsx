@@ -33,10 +33,10 @@ const SAID: AcpTranscriptEntry[] = [
 const LINKED: AcpTranscriptEntry[] = [
   {
     at: Date.parse("2026-09-26T12:10:00Z"),
-    event: { type: "continued_from", sessionId: "origem", label: "Claude Code · pessoal", messages: 12, approxTokens: 3400 },
+    event: { type: "continued_from", sessionId: "origem", label: "claude · pessoal", messages: 12, approxTokens: 3400 },
   },
   ...SAID,
-  { at: Date.parse("2026-09-26T12:20:00Z"), event: { type: "continued_in", sessionId: "longe", label: "Codex · chatgpt" } },
+  { at: Date.parse("2026-09-26T12:20:00Z"), event: { type: "continued_in", sessionId: "longe", label: "codex · chatgpt" } },
 ];
 
 function attached(transcript: AcpTranscriptEntry[]): AcpServerMessage {
