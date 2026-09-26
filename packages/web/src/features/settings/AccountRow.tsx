@@ -5,7 +5,14 @@ import type { AdapterCatalogView } from "@lumem/shared";
 import { useAgentAccountMutations, type AgentAccountView } from "../agent/index.js";
 import { Button } from "../../ui/index.js";
 import { AccountTrio } from "./AccountTrio.js";
-import { accountStatus, identityLine, purgeSentence } from "./account-words.js";
+import { accountStatus, identityLine, purgeSentence, type AccountStatus } from "./account-words.js";
+
+/** O tom e a palavra de cada estado — a escala de três do rodapé. */
+const STATE_WORD: Record<AccountStatus, { tone: string; word: string }> = {
+  connected: { tone: "on", word: "conectada" },
+  "needs-login": { tone: "warn", word: "sem login" },
+  disconnected: { tone: "off", word: "desconectada" },
+};
 
 /**
  * Uma conta de um agente — sub-linha, e não coluna (`034` §6).
@@ -15,7 +22,9 @@ import { accountStatus, identityLine, purgeSentence } from "./account-words.js";
  * de largura fixa e alinhada à direita, então ela não anda.
  *
  * O trio padrão mora numa segunda faixa da mesma linha, porque ele é da conta —
- * e não num painel à parte, onde ninguém saberia de qual conta ele é.
+ * e não num painel à parte, onde ninguém saberia de qual conta ele é. Só com a
+ * conta conectada: antes do login a lista de modelos é a genérica do adaptador,
+ * e escolher nela é escolher no escuro.
  */
 export function AccountRow({
   account,
@@ -47,11 +56,13 @@ export function AccountRow({
         {state()}
       </span>
       <span className="own">máquina</span>
-      <AccountTrio
-        account={account}
-        reading={reading}
-        onSave={(defaults) => setDefaults.mutateAsync({ accountId: account.id, ...defaults })}
-      />
+      {status === "connected" && (
+        <AccountTrio
+          account={account}
+          reading={reading}
+          onSave={(defaults) => setDefaults.mutateAsync({ accountId: account.id, ...defaults })}
+        />
+      )}
       {confirmPurge && (
         <span className="set__confirm">
           <span>{purgeSentence(account.sessionCount)}</span>
@@ -76,20 +87,17 @@ export function AccountRow({
     </div>
   );
 
-  /** A palavra do estado — e, quando falta entrar, a palavra **é** o gesto. */
+  /**
+   * A palavra do estado, e só ela. Ela já foi o gesto (`● ENTRAR`), com a mesma
+   * cara de `● CONECTADA` — e ninguém adivinhava que dava para clicar. O gesto
+   * é o botão `entrar`, entre os outros da linha.
+   */
   function state() {
-    if (status === "needs-login") {
-      return (
-        <button type="button" className="set__st set__st--warn set__st--act focus-ring" onClick={onLogin}>
-          <span className="pip" aria-hidden="true" />
-          entrar
-        </button>
-      );
-    }
+    const { tone, word } = STATE_WORD[status];
     return (
-      <span className={`set__st set__st--${status === "connected" ? "on" : "off"}`}>
+      <span className={`set__st set__st--${tone}`}>
         <span className="pip" aria-hidden="true" />
-        {status === "connected" ? "conectada" : "desconectada"}
+        {word}
       </span>
     );
   }
@@ -102,6 +110,11 @@ export function AccountRow({
         {status === "connected" && !account.isDefault && (
           <Button size="sm" variant="ghost" disabled={setDefault.isPending} onClick={() => setDefault.mutate(account.id)}>
             tornar padrão
+          </Button>
+        )}
+        {status === "needs-login" && (
+          <Button size="sm" variant="ghost" onClick={onLogin}>
+            entrar
           </Button>
         )}
         {status === "disconnected" && (

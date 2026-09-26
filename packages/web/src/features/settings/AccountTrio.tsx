@@ -30,11 +30,8 @@ export function AccountTrio({
     return (
       <span className="set__trio">
         <span className="set__trio__k">conversa nova</span>
-        <span className="set__d">
-          {account.state === "connected"
-            ? "a lista de modelos chega na primeira conversa desta conta"
-            : "a lista de modelos chega quando a conta entrar"}
-        </span>
+        {/* Só a conectada tem trio (`AccountRow`): sem lista, é que ninguém a leu ainda. */}
+        <span className="set__d">a lista de modelos chega na primeira conversa desta conta</span>
       </span>
     );
   }

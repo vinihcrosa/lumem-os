@@ -239,6 +239,53 @@ describe("conta sem login", () => {
   });
 });
 
+/*
+ * `● ENTRAR` tinha a mesma cara de `● CONECTADA`, e ninguém adivinhava que era
+ * clicável. O estado é estado (`sem login`), e o gesto é um botão como os
+ * outros da linha.
+ */
+describe("a conta que pede login", () => {
+  it("o estado diz `sem login`, e `entrar` é um botão igual a `desconectar`", async () => {
+    trpc.adapterCatalog.list.query.mockResolvedValue([
+      { ...CLAUDE_VIEW, accountId: "acct_pessoal", authRequired: true },
+    ]);
+    render();
+
+    const pessoal = await accountGroup("pessoal");
+    expect(await within(pessoal).findByText("sem login")).toHaveClass("set__st");
+    const entrar = within(pessoal).getByRole("button", { name: "entrar" });
+    const desconectar = within(pessoal).getByRole("button", { name: "desconectar" });
+    expect(entrar.className).toBe(desconectar.className);
+  });
+
+  it("não mostra o trio: a lista antes do login é genérica, e é ruído", async () => {
+    trpc.agentAccount.list.query.mockResolvedValue([
+      accountRow(),
+      accountRow({ ...TRABALHO, state: "disconnected" }),
+    ]);
+    render();
+
+    const trabalho = await accountGroup("trabalho");
+    expect(within(trabalho).getByText("sem login")).toBeInTheDocument();
+    expect(within(trabalho).queryByRole("combobox")).toBeNull();
+    expect(within(trabalho).queryByText("conversa nova")).toBeNull();
+    // A conectada ao lado continua com o dela.
+    expect(await within(await accountGroup("pessoal")).findByRole("combobox", { name: "modelo padrão de pessoal" })).toBeInTheDocument();
+  });
+
+  it("a desconectada também não mostra o trio", async () => {
+    trpc.agentAccount.list.query.mockResolvedValue([
+      accountRow(),
+      accountRow({ ...TRABALHO, state: "disconnected", identity: { email: "x@y.z", plan: null } }),
+    ]);
+    render();
+
+    const trabalho = await accountGroup("trabalho");
+    expect(within(trabalho).getByText("desconectada")).toBeInTheDocument();
+    expect(within(trabalho).queryByText("conversa nova")).toBeNull();
+  });
+});
+
 describe("o trio padrão", () => {
   it("escolher o modelo grava na conta, e o effort que o modelo novo não tem cai", async () => {
     const user = userEvent.setup();

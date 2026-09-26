@@ -291,8 +291,8 @@
 
 /*
  * O estado da conta: ponto e palavra, na escala de três do rodapé — verde
- * conectada, âmbar entrar, cinza desconectada. `entrar` é verbo porque é
- * pendência com saída, e a saída é clicar nele.
+ * conectada, âmbar sem login, cinza desconectada. É estado, e não gesto: o
+ * gesto de cada um é um botão da linha (`entrar`, `reconectar`).
  */
 .set__st {
   display: inline-flex;
@@ -306,13 +306,6 @@
 .set__st--on { color: var(--color-daemon-online); }
 .set__st--warn { color: var(--color-text-warning); }
 .set__st--off { color: var(--color-text-tertiary); }
-.set__st--act {
-  padding: var(--space-2) 0;
-  border: 0;
-  background: none;
-  cursor: pointer;
-}
-.set__st--act:hover { text-decoration: underline; text-underline-offset: var(--space-2); }
 
 .set__trio {
   grid-column: 1 / 3;
