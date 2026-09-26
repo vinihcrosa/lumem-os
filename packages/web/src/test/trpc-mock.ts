@@ -185,6 +185,19 @@ function createTrpcMock() {
     adapterCatalog: {
       list: { query: vi.fn() },
     },
+    /**
+     * As contas de agente (`034`). Nenhuma tela as chama ainda; entram aqui
+     * junto com o contrato, e não no dia em que a seção de configuração
+     * quebrar cinco testes distantes por não achá-las.
+     */
+    agentAccount: {
+      list: { query: vi.fn() },
+      connect: { mutate: vi.fn() },
+      disconnect: { mutate: vi.fn() },
+      purge: { mutate: vi.fn() },
+      setDefault: { mutate: vi.fn() },
+      setDefaults: { mutate: vi.fn() },
+    },
     files: {
       listDir: { query: vi.fn() },
       read: { query: vi.fn() },

@@ -9,7 +9,7 @@ import { AcpManager } from "../acp/AcpManager.js";
 import type { AcpProcess, AcpSpawnRequest } from "../acp/process.js";
 import { agentAccount, agentConfig, session } from "../db/schema.js";
 import { createAgentAccountRepository } from "../repositories/agentAccount.js";
-import { createAgentConfigRepository } from "../repositories/agentConfig.js";
+import { configForAdapter, createAgentConfigRepository } from "../repositories/agentConfig.js";
 import { startAgentSession } from "../sessions/start-agent-session.js";
 import {
   FAKE_CONFIG_OPTIONS,
@@ -1041,5 +1041,135 @@ describe("removal blocked by live sessions", () => {
     await expect(ctx.api.project.remove({ id: projectId })).rejects.toThrow(
       /1 sessão\(ões\) rodando/,
     );
+  });
+});
+
+/*
+ * O trio padrão da conta (`034` T9, emenda da Q1): a conversa nova nasce no
+ * modelo e no effort que a conta guardou, quando quem abriu não escolheu outro.
+ */
+describe("session.createAgent — o trio padrão da conta (034 T9)", () => {
+  const MODEL = FAKE_CONFIG_OPTIONS[0]!;
+  const EFFORT = {
+    id: "effort",
+    name: "Effort",
+    category: "thought_level",
+    type: "select" as const,
+    currentValue: "high",
+    options: [
+      { value: "low", name: "Low" },
+      { value: "high", name: "High" },
+    ],
+  };
+
+  /** `sonnet` oferece effort; `opus[1m]` não — como no adaptador de verdade com `haiku`. */
+  function trioScript(): { script: FakeAgentScript; calls: string[] } {
+    const calls: string[] = [];
+    let model = "opus[1m]";
+    let effort = "high";
+    const options = () =>
+      [
+        { ...MODEL, currentValue: model },
+        ...(model === "sonnet" ? [{ ...EFFORT, currentValue: effort }] : []),
+      ] as unknown as typeof FAKE_CONFIG_OPTIONS;
+    return {
+      calls,
+      script: {
+        setConfigOption: (configId, value) => {
+          calls.push(`${configId}=${String(value)}`);
+          if (configId === "model") model = String(value);
+          if (configId === "effort") effort = String(value);
+          return options();
+        },
+      },
+    };
+  }
+
+  async function withDefaults(model: string | null, effort: string | null, script: FakeAgentScript) {
+    const { acpManager, spawner } = fakeAcp(script);
+    const { ctx, worktreeId } = await setup({ acpManager });
+    stageManagedAdapter(ctx.config.stateDir);
+    const configId = await configForAdapter(ctx.db, CLAUDE_ADAPTER.id);
+    const account = (await createAgentAccountRepository(ctx.db).defaultFor(configId))!;
+    await createAgentAccountRepository(ctx.db).setDefaults(account.id, { model, effort });
+    return { ctx, worktreeId, account, spawner };
+  }
+
+  it("nasce no modelo e no effort padrão da conta", async () => {
+    const { script, calls } = trioScript();
+    const { ctx, worktreeId } = await withDefaults("sonnet", "low", script);
+
+    const created = await ctx.api.session.createAgent({
+      scopeType: "worktree",
+      scopeId: worktreeId,
+      adapterId: CLAUDE_ADAPTER.id,
+    });
+
+    // O modelo primeiro: o effort só existe depois de escolher um modelo que o tenha.
+    expect(calls).toEqual(["model=sonnet", "effort=low"]);
+    expect(created.model).toBe("sonnet");
+  });
+
+  it("o effort não é aplicado num modelo que não o oferece", async () => {
+    const { script, calls } = trioScript();
+    const { ctx, worktreeId } = await withDefaults("opus[1m]", "low", script);
+
+    await ctx.api.session.createAgent({
+      scopeType: "worktree",
+      scopeId: worktreeId,
+      adapterId: CLAUDE_ADAPTER.id,
+    });
+
+    expect(calls).toEqual([]);
+  });
+
+  it("o que quem abriu escolheu ganha do padrão da conta", async () => {
+    const { script, calls } = trioScript();
+    const { ctx, worktreeId } = await withDefaults("sonnet", null, script);
+
+    await ctx.api.session.createAgent({
+      scopeType: "worktree",
+      scopeId: worktreeId,
+      adapterId: CLAUDE_ADAPTER.id,
+      config: { model: "opus[1m]" },
+    });
+
+    expect(calls).not.toContain("model=sonnet");
+  });
+
+  it("o modelo padrão sumiu: a conversa abre no do adaptador, diz na conversa, e a conta fica indisponível", async () => {
+    const { script, calls } = trioScript();
+    const { ctx, worktreeId, account } = await withDefaults("fable-9", "low", script);
+
+    const created = await ctx.api.session.createAgent({
+      scopeType: "worktree",
+      scopeId: worktreeId,
+      adapterId: CLAUDE_ADAPTER.id,
+    });
+
+    expect(created.state).toBe("running");
+    expect(created.model).toBe("opus[1m]");
+    expect(calls).toEqual([]);
+    expect(ctx.acpManager.transcript(created.id).map((entry) => entry.event)).toContainEqual({
+      type: "account_default_unavailable",
+      requested: "fable-9",
+      got: "opus[1m]",
+    });
+    const listed = (await ctx.api.agentAccount.list({ adapterId: "claude" })).find(
+      (row) => row.id === account.id,
+    );
+    expect(listed?.defaultsUnavailable).toBe(true);
+  });
+
+  it("a conta cujo modelo padrão está na lista não fica indisponível", async () => {
+    const { script } = trioScript();
+    const { ctx, worktreeId, account } = await withDefaults("sonnet", null, script);
+
+    await ctx.api.session.createAgent({ scopeType: "worktree", scopeId: worktreeId, adapterId: "claude" });
+
+    const listed = (await ctx.api.agentAccount.list({ adapterId: "claude" })).find(
+      (row) => row.id === account.id,
+    );
+    expect(listed?.defaultsUnavailable).toBe(false);
   });
 });

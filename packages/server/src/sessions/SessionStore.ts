@@ -281,13 +281,19 @@ export function createSessionStore({
    */
   async function recordHandshake(
     agentConfigId: string | null,
+    agentAccountId: string | null,
     configOptions: AcpSessionInfo["configOptions"],
   ): Promise<void> {
     if (!adapterCatalog) return;
     try {
       const adapterId = await adapterIdOf(agentConfigId);
       if (adapterId === undefined) return;
-      await adapterCatalog.recordOptions(adapterId, [...configOptions], { authRequired: false });
+      // Na conta da sessão (`034` T9): a lista de modelos é por conta.
+      await adapterCatalog.recordOptions(
+        { adapterId, accountId: agentAccountId },
+        [...configOptions],
+        { authRequired: false },
+      );
     } catch (error) {
       storeLog?.warn({ err: error }, "falha ao gravar as opções do adaptador no catálogo");
     }
@@ -528,7 +534,7 @@ export function createSessionStore({
          * Sem `optionsByModel`, de propósito: o catálogo preserva o que o probe
          * percorreu, e esta sessão só conhece um modelo.
          */
-        await recordHandshake(agentConfigId, agent.configOptions);
+        await recordHandshake(agentConfigId, agentAccountId, agent.configOptions);
         return row;
       }
 
@@ -897,7 +903,11 @@ export function createSessionStore({
               const adapterId = await adapterIdOf(row.agentConfigId);
               const projectId = await projectIdOf(row.scopeType, row.scopeId);
               if (adapterId === undefined || projectId === undefined) return;
-              await adapterCatalog.recordCommands(adapterId, projectId, event.commands);
+              await adapterCatalog.recordCommands(
+                { adapterId, accountId: row.agentAccountId },
+                projectId,
+                event.commands,
+              );
             })().catch((error: unknown) => {
               log?.warn({ session: sessionId, err: error }, "falha ao gravar os comandos no catálogo");
             });

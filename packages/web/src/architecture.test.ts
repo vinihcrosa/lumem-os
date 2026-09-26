@@ -472,7 +472,7 @@ const LARGE_FILE_CEILING: Readonly<Record<string, number>> = {
   "features/checkout/LocalPanel.tsx": 444,
   "features/checkout/RunDock.tsx": 587,
   "features/checkout/useFileBuffer.ts": 605,
-  "features/conversation/conversation-model.ts": 740,
+  "features/conversation/conversation-model.ts": 733,
   "features/settings/SettingsPanel.tsx": 632,
   "features/workspace/WorkspacePanel.tsx": 423,
 };

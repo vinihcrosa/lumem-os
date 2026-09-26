@@ -63,6 +63,7 @@ export const agentAccountRouter = router({
       domainSafeAsync(async () => {
         const accounts = createAgentAccountRepository(ctx.db);
         const configs = await createAgentConfigRepository(ctx.db).list();
+        const readings = ctx.adapterCatalog.view();
         const rows = [];
         for (const config of configs) {
           const adapterId = adapterById(config.name)?.id ?? config.name;
@@ -76,6 +77,19 @@ export const agentAccountRouter = router({
               // distingue, e ela não se apaga de vez.
               bare: account.configDir === null,
               sessionCount: await accounts.sessionCount(account.id),
+              /*
+               * O modelo padrão não está na última lista que esta conta viu
+               * (`034` T9, Q9) — derivado da leitura dela no catálogo, e não
+               * guardado: a próxima lista que o traga de volta desfaz sozinha.
+               * Sem leitura ainda, não há o que afirmar.
+               */
+              defaultsUnavailable: (() => {
+                if (account.defaultModel === null) return false;
+                const reading = readings.find((each) => each.accountId === account.id);
+                const model = reading?.configOptions.find((option) => option.id === "model");
+                if (model === undefined || model.choices.length === 0) return false;
+                return !model.choices.some((choice) => choice.value === account.defaultModel);
+              })(),
             });
           }
         }

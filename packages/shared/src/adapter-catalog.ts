@@ -16,6 +16,13 @@ export const adapterCatalogEntrySchema = z.object({
   /** `spec.id` — `claude`, `codex`. */
   adapterId: z.string().min(1),
   /**
+   * De qual conta é a leitura (`034` T9). A lista de modelos **é** por conta
+   * (§3.3 do estudo). Nulo é a leitura de antes de haver conta — o primeiro
+   * acesso, ou o arquivo de antes da `034`, que o `load` migra para a conta
+   * padrão do agente.
+   */
+  accountId: z.string().nullable().default(null),
+  /**
    * O `spec.pinnedVersion` no instante da captura, e a chave de validade: trocar
    * o pino invalida a entrada (Q5).
    *
@@ -49,9 +56,14 @@ export const adapterCatalogEntrySchema = z.object({
 });
 export type AdapterCatalogEntry = z.infer<typeof adapterCatalogEntrySchema>;
 
-/** O que a web recebe, um por adaptador. */
+/**
+ * O que a web recebe: uma leitura por conta de cada adaptador, a conta padrão
+ * primeiro (`034` T9) — e uma sem conta para o adaptador que nunca foi lido.
+ */
 export interface AdapterCatalogView {
   adapterId: string;
+  /** De qual conta; `null` quando a leitura não é de conta nenhuma. */
+  accountId: string | null;
   label: string;
   /** `adapterCommandFor` não lança. */
   installed: boolean;

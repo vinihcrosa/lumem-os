@@ -376,13 +376,16 @@ export const setupRouter = router({
          * modelo. E nunca derruba a resposta — o catálogo é cache.
          */
         //
-        // Só a conta padrão escreve aqui: o catálogo ainda é por adaptador, e a
-        // T9 o faz por conta. Gravar a leitura da conta 2 no lugar da padrão
-        // mentiria sobre a pílula de quem nunca escolheu a conta 2.
+        // Na conta que foi lida (`034` T9): a lista de modelos é por conta, e a
+        // leitura sem conta é a de antes de haver configuração.
         const spec = launch.spec;
-        if (spec !== null && (input?.args ?? []).length === 0 && input?.accountId === undefined) {
+        if (spec !== null && (input?.args ?? []).length === 0) {
           await ctx.adapterCatalog
-            .recordOptions(spec.id, report.configOptions, { authRequired: report.authRequired })
+            .recordOptions(
+              { adapterId: spec.id, accountId: launch.account?.id ?? null },
+              report.configOptions,
+              { authRequired: report.authRequired },
+            )
             .catch(() => undefined);
         }
         return report;

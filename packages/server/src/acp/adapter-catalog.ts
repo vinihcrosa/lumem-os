@@ -38,8 +38,36 @@ export interface RecordOptionsExtra {
   optionsByModel?: Record<string, AcpConfigOption[]>;
 }
 
+/**
+ * De quem é a leitura: o adaptador e a conta (`034` T9). Um `string` sozinho é
+ * a leitura **sem conta** — a de antes de haver configuração, e a forma que os
+ * chamadores de antes da `034` usavam.
+ */
+export type CatalogRef = string | { adapterId: string; accountId: string | null };
+
+function refOf(ref: CatalogRef): { adapterId: string; accountId: string | null } {
+  return typeof ref === "string" ? { adapterId: ref, accountId: null } : ref;
+}
+
+/**
+ * A chave no mapa e no arquivo: a conta, ou o adaptador para a leitura sem
+ * conta — que é a chave de antes da `034`, então essas entradas ficam idênticas
+ * no disco. Id de conta é UUID e não colide com id de adaptador.
+ */
+function keyOf({ adapterId, accountId }: { adapterId: string; accountId: string | null }): string {
+  return accountId ?? adapterId;
+}
+
 export interface AdapterCatalogOptions {
   stateDir: string;
+  /**
+   * A conta padrão de um adaptador, síncrona (`034` T9).
+   *
+   * Para duas coisas: a leitura do agente põe a padrão primeiro — é ela que a
+   * pílula de hoje lê —, e o `load` migra a entrada do arquivo de antes, que era
+   * por agente, para ela. Ausente: nenhuma conta é padrão, e nada migra.
+   */
+  defaultAccountOf?: (adapterId: string) => string | null;
   /** Injetável para o teste trocar o pino; o daemon usa `ADAPTERS`. */
   adapters?: readonly AdapterSpec[];
   now?: () => number;
@@ -51,6 +79,7 @@ export class AdapterCatalog {
   private readonly path: string;
   private readonly adapters: readonly AdapterSpec[];
   private readonly now: () => number;
+  private readonly defaultAccountOf: (adapterId: string) => string | null;
   private readonly listeners = new Set<Listener>();
   private entries = new Map<string, AdapterCatalogEntry>();
   /**
@@ -64,28 +93,33 @@ export class AdapterCatalog {
     this.path = join(options.stateDir, ADAPTER_CATALOG_FILE);
     this.adapters = options.adapters ?? ADAPTERS;
     this.now = options.now ?? Date.now;
+    this.defaultAccountOf = options.defaultAccountOf ?? (() => null);
   }
 
   async load(): Promise<void> {
     this.entries = new Map();
     const raw = await this.readRaw();
-    for (const [adapterId, candidate] of Object.entries(raw)) {
+    for (const candidate of Object.values(raw)) {
       const parsed = adapterCatalogEntrySchema.safeParse(candidate);
       if (!parsed.success) continue;
-      if (parsed.data.adapterId !== adapterId) continue;
+      const { adapterId } = parsed.data;
       // Pino trocado é adaptador outro (Q5): a lista de modelos dele pode não
       // ser a mesma, e o cache não tem como saber.
       if (parsed.data.adapterVersion !== this.pinOf(adapterId)) continue;
-      this.entries.set(adapterId, parsed.data);
+      // O arquivo de antes da `034` era por agente: a leitura é da conta que
+      // existia — a padrão —, e é para ela que vai.
+      const accountId = parsed.data.accountId ?? this.defaultAccountOf(adapterId);
+      const entry = { ...parsed.data, accountId };
+      this.entries.set(keyOf(entry), entry);
     }
   }
 
   async recordOptions(
-    adapterId: string,
+    ref: CatalogRef,
     configOptions: AcpConfigOption[],
     extra: RecordOptionsExtra,
   ): Promise<void> {
-    const current = this.entryOf(adapterId);
+    const current = this.entryOf(refOf(ref));
     await this.commit({
       ...current,
       configOptions,
@@ -94,8 +128,8 @@ export class AdapterCatalog {
     });
   }
 
-  async recordCommands(adapterId: string, projectId: string, commands: AcpCommand[]): Promise<void> {
-    const current = this.entryOf(adapterId);
+  async recordCommands(ref: CatalogRef, projectId: string, commands: AcpCommand[]): Promise<void> {
+    const current = this.entryOf(refOf(ref));
     await this.commit({
       ...current,
       commandsByProject: { ...current.commandsByProject, [projectId]: commands },
@@ -105,10 +139,9 @@ export class AdapterCatalog {
   /** Um por adaptador de `ADAPTERS`, nessa ordem, e depois os ids sem spec que já gravaram. */
   view(projectId?: string): AdapterCatalogReading[] {
     const known = this.adapters.map((spec) => spec.id);
-    const unknown = [...this.entries.keys()]
-      .filter((id) => !known.includes(id))
-      .sort((a, b) => a.localeCompare(b));
-    return [...known, ...unknown].map((adapterId) => this.readingOf(adapterId, projectId));
+    const adapterIds = new Set([...this.entries.values()].map((entry) => entry.adapterId));
+    const unknown = [...adapterIds].filter((id) => !known.includes(id)).sort((a, b) => a.localeCompare(b));
+    return [...known, ...unknown].flatMap((adapterId) => this.readingsOf(adapterId, projectId));
   }
 
   onChange(listener: Listener): () => void {
@@ -118,11 +151,31 @@ export class AdapterCatalog {
     };
   }
 
-  private readingOf(adapterId: string, projectId: string | undefined): AdapterCatalogReading {
-    const entry = this.entries.get(adapterId);
+  /**
+   * As leituras de um adaptador: a da conta padrão primeiro, as outras contas, e
+   * a sem conta por último. Nenhuma entrada: uma leitura vazia, sem conta.
+   */
+  private readingsOf(adapterId: string, projectId: string | undefined): AdapterCatalogReading[] {
+    const mine = [...this.entries.values()].filter((entry) => entry.adapterId === adapterId);
+    if (mine.length === 0) return [this.readingOf(adapterId, undefined, projectId)];
+    const preferred = this.defaultAccountOf(adapterId);
+    const rank = (entry: AdapterCatalogEntry) =>
+      entry.accountId === null ? 2 : entry.accountId === preferred ? 0 : 1;
+    return mine
+      .map((entry, index) => ({ entry, index }))
+      .sort((a, b) => rank(a.entry) - rank(b.entry) || a.index - b.index)
+      .map(({ entry }) => this.readingOf(adapterId, entry, projectId));
+  }
+
+  private readingOf(
+    adapterId: string,
+    entry: AdapterCatalogEntry | undefined,
+    projectId: string | undefined,
+  ): AdapterCatalogReading {
     const label = this.adapters.find((spec) => spec.id === adapterId)?.label ?? adapterId;
     return {
       adapterId,
+      accountId: entry?.accountId ?? null,
       label,
       authRequired: entry?.authRequired ?? null,
       configOptions: entry?.configOptions ?? [],
@@ -131,10 +184,12 @@ export class AdapterCatalog {
     };
   }
 
-  private entryOf(adapterId: string): AdapterCatalogEntry {
+  private entryOf(ref: { adapterId: string; accountId: string | null }): AdapterCatalogEntry {
+    const { adapterId, accountId } = ref;
     return (
-      this.entries.get(adapterId) ?? {
+      this.entries.get(keyOf(ref)) ?? {
         adapterId,
+        accountId,
         adapterVersion: this.pinOf(adapterId),
         configOptions: [],
         optionsByModel: {},
@@ -146,12 +201,12 @@ export class AdapterCatalog {
   }
 
   private async commit(candidate: AdapterCatalogEntry): Promise<void> {
-    const previous = this.entries.get(candidate.adapterId);
+    const previous = this.entries.get(keyOf(candidate));
     // `capturedAt` fora da comparação: ele muda a cada chamada, e com ele dentro
     // todo `session/new` repetido viraria um `catalog.changed` na tela.
     if (previous !== undefined && sameContent(previous, candidate)) return;
     const next = { ...candidate, adapterVersion: this.pinOf(candidate.adapterId), capturedAt: this.now() };
-    this.entries.set(next.adapterId, next);
+    this.entries.set(keyOf(next), next);
     await this.save();
     for (const listener of this.listeners) listener(next.adapterId);
   }

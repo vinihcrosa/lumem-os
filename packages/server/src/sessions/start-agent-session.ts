@@ -1,4 +1,4 @@
-import { adapterById } from "@lumem/shared";
+import { adapterById, type AcpConfigOption } from "@lumem/shared";
 import { eq } from "drizzle-orm";
 
 import { isCommandAvailable } from "../agents/availability.js";
@@ -60,6 +60,7 @@ export interface StartAgentSessionInput {
 }
 
 const MODE_OPTION = "mode";
+const MODEL_OPTION = "model";
 
 export async function startAgentSession(
   ctx: Context,
@@ -170,6 +171,7 @@ export async function startAgentSession(
   if (input.config !== undefined && Object.keys(input.config).length > 0) {
     row = await applyConfigOrClose(ctx, started, input.config, labelOf(config));
   }
+  row = await applyAccountDefaults(ctx, row, account, input.config ?? {});
 
   /*
    * A ligação com a tarefa é escrita **depois** do spawn — e depois da
@@ -282,6 +284,78 @@ async function applyConfigOrClose(
   const live = ctx.acpManager.get(row.id);
   if (live) {
     await createSessionRepository(ctx.db).setConfig(row.id, { mode: live.mode, model: live.model });
+  }
+  return (await ctx.sessionStore.findById(row.id)) ?? row;
+}
+
+/** A opção de effort de uma lista — `thought_level` nos dois adaptadores medidos. */
+function effortOptionOf(options: readonly AcpConfigOption[]): AcpConfigOption | undefined {
+  return options.find((option) => option.category === "thought_level" || option.category === "effort");
+}
+
+function offers(option: AcpConfigOption, value: string): boolean {
+  return option.choices.length === 0 || option.choices.some((choice) => choice.value === value);
+}
+
+/**
+ * O trio padrão da conta (`034` T9, emenda da Q1): modelo e effort em que a
+ * conversa nasce quando quem a abriu não escolheu outro.
+ *
+ * Conferido contra **esta** sessão, e não contra o catálogo — o catálogo é
+ * cache, e o handshake que acabou de acontecer é a resposta de hoje; o effort,
+ * contra as opções **depois** de escolher o modelo, porque é o modelo que diz se
+ * há effort (o `haiku` não tem).
+ *
+ * Ao contrário do pedido explícito, o padrão **não** fecha a sessão: um modelo
+ * que sumiu da lista abre no que o adaptador escolheu e diz isso na conversa
+ * (Q9). A conta fica indisponível por derivação — a leitura dela no catálogo não
+ * tem mais o modelo —, sem coluna nova para manter em dia.
+ */
+async function applyAccountDefaults(
+  ctx: Context,
+  row: SessionRow,
+  account: AgentAccountRow,
+  explicit: Readonly<Record<string, string>>,
+): Promise<SessionRow> {
+  const live = () => ctx.acpManager.get(row.id);
+  let touched = false;
+
+  const model = live()?.configOptions.find((option) => option.id === MODEL_OPTION);
+  if (account.defaultModel !== null && !(MODEL_OPTION in explicit) && model !== undefined) {
+    if (!offers(model, account.defaultModel)) {
+      ctx.acpManager.reportAccountDefaultUnavailable(row.id, account.defaultModel);
+    } else if (model.currentValue !== account.defaultModel) {
+      await ctx.acpManager
+        .setConfig(row.id, MODEL_OPTION, account.defaultModel)
+        .then(() => {
+          touched = true;
+        })
+        .catch(() => ctx.acpManager.reportAccountDefaultUnavailable(row.id, account.defaultModel!));
+    }
+  }
+
+  const effort = effortOptionOf(live()?.configOptions ?? []);
+  if (
+    account.defaultEffort !== null &&
+    effort !== undefined &&
+    !(effort.id in explicit) &&
+    effort.currentValue !== account.defaultEffort &&
+    offers(effort, account.defaultEffort)
+  ) {
+    // Um effort recusado não diz nada na conversa: é ajuste fino, e o modelo
+    // continua sendo o que a pessoa escolheu.
+    await ctx.acpManager
+      .setConfig(row.id, effort.id, account.defaultEffort)
+      .then(() => {
+        touched = true;
+      })
+      .catch(() => undefined);
+  }
+
+  if (!touched) return row;
+  const after = live();
+  if (after) {
+    await createSessionRepository(ctx.db).setConfig(row.id, { mode: after.mode, model: after.model });
   }
   return (await ctx.sessionStore.findById(row.id)) ?? row;
 }

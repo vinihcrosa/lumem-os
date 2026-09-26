@@ -60,6 +60,7 @@ function withModel(option: AcpConfigOption, model: string): AcpConfigOption {
 /** O Claude logado, no padrão desta máquina (`opus[1m]` · `xhigh`). */
 export const CLAUDE_VIEW: AdapterCatalogView = {
   adapterId: "claude",
+  accountId: null,
   label: "Claude Code",
   installed: true,
   authRequired: false,
@@ -111,6 +112,7 @@ function codexEffort(values: readonly string[]): AcpConfigOption {
 /** O Codex logado. */
 export const CODEX_VIEW: AdapterCatalogView = {
   adapterId: "codex",
+  accountId: null,
   label: "Codex",
   installed: true,
   authRequired: false,

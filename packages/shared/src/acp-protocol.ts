@@ -442,6 +442,19 @@ export const acpEventSchema = z.discriminatedUnion("type", [
    */
   z.object({ type: z.literal("model_unavailable"), model: z.string(), current: z.string() }),
   /**
+   * O modelo padrão da conta não está na lista desta sessão (`034` T9, Q9).
+   *
+   * Irmã da de cima, e separada dela: aquela é a **retomada** que não trouxe o
+   * modelo de ontem; esta é a **conta** cujo trio guardado envelheceu — o
+   * adaptador atualizou, ou a conta perdeu o plano. A sessão abre no que o
+   * adaptador escolheu (`got`) em vez de falhar ou trocar em silêncio.
+   */
+  z.object({
+    type: z.literal("account_default_unavailable"),
+    requested: z.string(),
+    got: z.string(),
+  }),
+  /**
    * O núcleo da memória entrou no prompt (workspace-memory, D2).
    *
    * Evento, e não silêncio: injeção invisível é o que o §12 do PRD proíbe por

@@ -38,6 +38,7 @@ import { createSecretStore } from "./secrets/SecretStore.js";
 import { runTrackerLoop } from "./tracker/loop.js";
 import { writeMark, type Mark } from "./tracker/marks.js";
 import { numberOfWorktree, verdictOfWorktree } from "./tasks/conveyor-wiring.js";
+import { defaultAccountIdOf } from "./repositories/agentAccount.js";
 import { configForAdapter } from "./repositories/agentConfig.js";
 import { reproduce } from "./tasks/reproduce.js";
 import { createCallerFactory } from "./trpc.js";
@@ -134,11 +135,15 @@ export async function bootstrap({
    * que vale — e o que falta é o que o aquecimento vai sondar depois do
    * `listen`.
    */
-  const adapterCatalog = new AdapterCatalog({ stateDir: config.stateDir });
-  await adapterCatalog.load();
-
   const owned = database === undefined;
   const openedDatabase = database ?? openDatabase({ path: config.databasePath });
+  // Depois do banco (`034` T9): o catálogo é por conta, e é a conta padrão de
+  // cada agente que decide a ordem da leitura e para onde vai o arquivo antigo.
+  const adapterCatalog = new AdapterCatalog({
+    stateDir: config.stateDir,
+    defaultAccountOf: (adapterId) => defaultAccountIdOf(openedDatabase.db, adapterId),
+  });
+  await adapterCatalog.load();
   const ownedTranscripts = transcripts === undefined;
   const openedTranscripts = transcripts ?? createTranscriptStore({ dir: config.transcriptsDir });
   // One bus, shared: the session store emits from the PTY exit callback and
@@ -705,7 +710,6 @@ interface WarmupTarget {
   spec: AdapterSpec;
   command: string;
   account: AgentAccountRow | null;
-  isDefault: boolean;
   catalogDue: boolean;
 }
 
@@ -747,8 +751,10 @@ function warmAdapterCatalog({
       // Não instalado: a tela de login já diz isso, com a versão do pino.
       return [];
     }
-    const catalogDue =
-      readings.find((reading) => reading.adapterId === spec.id)?.authRequired !== false;
+    /** A leitura daquela conta pede sondagem: nunca lida, ou lida sem login. */
+    const dueFor = (accountId: string | null) =>
+      readings.find((reading) => reading.adapterId === spec.id && reading.accountId === accountId)
+        ?.authRequired !== false;
     const config = db
       .select()
       .from(agentConfig)
@@ -764,15 +770,9 @@ function warmAdapterCatalog({
             .orderBy(asc(agentAccount.createdAt))
             .all();
     if (connected.length === 0) {
-      return catalogDue ? [{ spec, command, account: null, isDefault: true, catalogDue }] : [];
+      return dueFor(null) ? [{ spec, command, account: null, catalogDue: true }] : [];
     }
-    return connected.map((account) => ({
-      spec,
-      command,
-      account,
-      isDefault: account.id === config?.defaultAccountId,
-      catalogDue,
-    }));
+    return connected.map((account) => ({ spec, command, account, catalogDue: dueFor(account.id) }));
   });
 
   let stopped = false;
@@ -789,7 +789,9 @@ function warmAdapterCatalog({
   }
 
   void (async () => {
-    for (const { spec, command, account, isDefault, catalogDue } of plan) {
+    // Uma conta por vez: cada probe sobe um adaptador de centenas de MB, e o
+    // boot não pode disputar a máquina com a primeira conversa de alguém.
+    for (const { spec, command, account, catalogDue } of plan) {
       if (stopped) return;
       try {
         const launch =
@@ -804,19 +806,21 @@ function warmAdapterCatalog({
             ...(Object.keys(launch.env).length > 0 ? { env: launch.env } : {}),
             ...(launch.unsetEnv.length > 0 ? { unsetEnv: launch.unsetEnv } : {}),
           },
-          // Só a padrão percorre modelos, e só quando o catálogo pede: é a
-          // metade cara, e o catálogo ainda é por adaptador (T9).
-          { walkModels: isDefault && catalogDue, identity: spec.identity },
+          // Cada conta percorre os modelos dela quando a leitura dela pede
+          // (`034` T9): a lista é por conta, e a da padrão não vale para a 2.
+          { walkModels: catalogDue, identity: spec.identity },
         );
         if (stopped) return;
         await recordProbedIdentity(db, account, report);
         if (account !== null && report.loggedIn) onAccountChecked(spec.id);
-        if (isDefault && catalogDue) {
-          await catalog.recordOptions(spec.id, report.configOptions, {
+        await catalog.recordOptions(
+          { adapterId: spec.id, accountId: account?.id ?? null },
+          report.configOptions,
+          {
             authRequired: report.authRequired,
-            optionsByModel: report.optionsByModel,
-          });
-        }
+            ...(catalogDue ? { optionsByModel: report.optionsByModel } : {}),
+          },
+        );
       } catch (error) {
         log.warn(
           { adapter: spec.id, account: account?.id ?? null, err: error },

@@ -19,7 +19,8 @@ import { PtyManager } from "../pty/PtyManager.js";
 import { createScriptRunner, type ScriptRunner } from "../scripts/ScriptRunner.js";
 import { createSecretStore } from "../secrets/SecretStore.js";
 import { createSessionStore, type SessionStore } from "../sessions/SessionStore.js";
-import { adapterInvocationFor } from "../setup/adapter-command.js";
+import { adapterInvocationFor, catalogedAdapterOf } from "../setup/adapter-command.js";
+import { defaultAccountIdOf } from "../repositories/agentAccount.js";
 import { appRouter } from "../routers/index.js";
 import { createCallerFactory, type Context } from "../trpc.js";
 
@@ -127,6 +128,13 @@ export function createTestCaller(
   // O cofre do daemon de teste: um diretório descartável, como o resto. Antes
   // do store, porque a retomada de uma conta de chave lê dele (`034` T5).
   const secrets = createSecretStore({ stateDir: config.stateDir });
+  // O catálogo por conta, ligado ao store como o `bootstrap` liga (`034` T9):
+  // sem ele, o handshake de uma sessão não chega à leitura da conta, e o trio
+  // indisponível — derivado dela — nunca apareceria num teste de router.
+  const adapterCatalog = new AdapterCatalog({
+    stateDir: config.stateDir,
+    defaultAccountOf: (adapterId) => defaultAccountIdOf(database.db, adapterId),
+  });
   const sessionStore = createSessionStore({
     db: database.db,
     ptyManager,
@@ -135,6 +143,8 @@ export function createTestCaller(
     git,
     resolveInvocation: (agent, account) =>
       adapterInvocationFor({ config: agent, account, stateDir: config.stateDir, secrets }),
+    adapterCatalog,
+    catalogAdapterOf: (agent) => catalogedAdapterOf(agent, config.stateDir)?.id ?? null,
   });
   // Same wiring the daemon uses: without it a session that ends on its own
   // stays `running` and the removal rules read stale state.
@@ -169,7 +179,7 @@ export function createTestCaller(
     ptyManager,
     acpManager,
     // Sobre o `stateDir` descartável, e vazio: quem quer leitura grava pelo `ctx`.
-    adapterCatalog: new AdapterCatalog({ stateDir: config.stateDir }),
+    adapterCatalog,
     sessionStore,
     scripts,
     secrets,

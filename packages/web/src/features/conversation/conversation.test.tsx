@@ -1257,6 +1257,19 @@ describe("the mark between two conversations", () => {
     // A sessão se declarando, e não um evento que ninguém reconheceu.
     expect(line).toHaveClass("meta--conversation");
   });
+
+  it("diz quando o modelo padrão da conta não estava na lista (`034` T9)", async () => {
+    const { socket } = mount();
+
+    socket.deliver(
+      attached([entry({ type: "account_default_unavailable", requested: "fable-9", got: "opus[1m]" })]),
+    );
+
+    const line = await screen.findByText(
+      "o modelo padrão da conta — fable-9 — não está mais na lista; abriu em opus[1m]",
+    );
+    expect(line).toHaveClass("meta--conversation");
+  });
 });
 
 /**

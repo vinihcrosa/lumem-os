@@ -1455,7 +1455,12 @@ describe("o catálogo de adaptador", () => {
     const walked = {
       sonnet: [{ id: "model", name: "Model", category: "model", currentValue: "sonnet", choices: [] }],
     };
-    await catalog.recordOptions("claude", [], { authRequired: false, optionsByModel: walked });
+    // Na leitura da conta da sessão (`034` T9): é ela que o `start` regrava.
+    await catalog.recordOptions(
+      { adapterId: "claude", accountId: input.agentAccountId },
+      [],
+      { authRequired: false, optionsByModel: walked },
+    );
 
     await store.start(input);
 

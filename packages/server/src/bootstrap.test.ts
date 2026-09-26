@@ -466,6 +466,17 @@ describe("bootstrap", () => {
         "/contas/trabalho",
         null,
       ].sort());
+      // E cada uma ganha a leitura dela no catálogo (`034` T9): a lista é por
+      // conta, e a da padrão não vale para a conta `trabalho`.
+      await vi.waitFor(() => {
+        const saved = JSON.parse(readFileSync(join(stateDir, ADAPTER_CATALOG_FILE), "utf8")) as Record<
+          string,
+          { accountId: string | null }
+        >;
+        expect(Object.values(saved).map((entry) => entry.accountId)).toEqual(
+          expect.arrayContaining([work.id, config.defaultAccountId]),
+        );
+      });
     });
 
     it("sonda de novo quando a entrada gravada é de outro pino", async () => {

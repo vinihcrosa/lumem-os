@@ -1517,6 +1517,17 @@ export class AcpManager {
   }
 
   /**
+   * O modelo padrão da conta não está na lista desta sessão (`034` T9).
+   *
+   * Verbo próprio pela mesma razão do de cima: quem decide é quem abre a
+   * conversa, e a linha pertence à conversa — no disco e na aba aberta.
+   */
+  reportAccountDefaultUnavailable(id: string, requested: string): void {
+    const session = this.require(id);
+    this.emit(session, { type: "account_default_unavailable", requested, got: session.info.model });
+  }
+
+  /**
    * Everything an attaching client needs to catch up, in one frame.
    *
    * Read from the store, not from memory: the array this replaced grew for the life

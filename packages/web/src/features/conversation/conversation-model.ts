@@ -16,6 +16,8 @@ import type {
   LumemModeDefault,
 } from "@lumem/shared";
 
+import { unavailableText } from "./unavailable-text.js";
+
 /**
  * The conversation as data, before any of it is a component.
  *
@@ -458,20 +460,18 @@ export function reduceConversation(
       };
 
     case "model_unavailable":
+    case "account_default_unavailable":
       /*
        * Turno próprio e `meta`, como o teto e o núcleo da memória: é o daemon
-       * dizendo o que não conseguiu fazer por conta própria, e colar no bloco
-       * do agente faria parecer que ele trocou de modelo sozinho (`033` F6.2).
+       * dizendo o que não conseguiu aplicar — o modelo da retomada (`033` F6.2)
+       * ou o padrão da conta (`034` T9) —, e colar no bloco do agente faria
+       * parecer que ele trocou de modelo sozinho.
        */
       return {
         ...state,
         turns: [
           ...state.turns,
-          {
-            role: "agent",
-            blocks: [{ kind: "meta", text: modelUnavailableText(event.model, event.current) }],
-            at,
-          },
+          { role: "agent", blocks: [{ kind: "meta", text: unavailableText(event) }], at },
         ],
       };
 
@@ -587,13 +587,6 @@ function withoutTally(state: ConversationState): ConversationState {
       block.kind === "meta" && block.text.startsWith(TALLY_MARK) ? null : block,
     ),
   };
-}
-
-/** Qual modelo sumiu e em qual a conversa seguiu — as duas metades da F6.2. */
-function modelUnavailableText(model: string, current: string): string {
-  // Um agente que não relata modelo deixaria "continuou em " sem nada depois.
-  const where = current === "" ? "no modelo padrão dele" : `em ${current}`;
-  return `o modelo ${model} não existe mais neste agente — a conversa continuou ${where}`;
 }
 
 /**

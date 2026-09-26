@@ -1,5 +1,5 @@
 import { newId } from "@lumem/shared";
-import { and, asc, count, eq, ne } from "drizzle-orm";
+import { and, asc, count, eq, isNull, ne } from "drizzle-orm";
 
 import type { Db } from "../db/index.js";
 import {
@@ -304,4 +304,19 @@ export function createAgentAccountRepository(db: Db): AgentAccountRepository {
       });
     },
   };
+}
+
+/**
+ * A conta padrão de um adaptador, **síncrona** (`034` T9) — para o catálogo,
+ * que a pergunta dentro de um `load` e de uma leitura que não são assíncronos.
+ * Pela configuração viva com o nome do adaptador, que é a ponte do
+ * `configForAdapter`.
+ */
+export function defaultAccountIdOf(db: Db, adapterId: string): string | null {
+  const config = db
+    .select({ defaultAccountId: agentConfig.defaultAccountId })
+    .from(agentConfig)
+    .where(and(eq(agentConfig.name, adapterId), isNull(agentConfig.retiredAt)))
+    .get();
+  return config?.defaultAccountId ?? null;
 }
