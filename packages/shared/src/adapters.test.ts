@@ -48,6 +48,69 @@ describe("ADAPTERS", () => {
   });
 });
 
+describe("accounts", () => {
+  /*
+   * A conta é um diretório de config inteiro, passado por uma variável do
+   * próprio CLI (ADR de 2026-09-26). O que este bloco protege é a Q6: a
+   * variável muda **só** onde o CLI procura o login, e nunca o ambiente em que o
+   * agente roda comando no seu repositório.
+   */
+  it("every spec declares the three account fields", () => {
+    for (const spec of ADAPTERS) {
+      expect(spec.accountEnv, spec.id).toMatch(/^[A-Z][A-Z0-9_]*$/);
+      expect(spec.defaultConfigDir, spec.id).toMatch(/^\.[a-z]+$/);
+      expect(spec.inheritLinks.length, spec.id).toBeGreaterThan(0);
+      expect(spec.identity, spec.id).not.toBeNull();
+    }
+  });
+
+  it("never isolates by rewriting HOME or an XDG variable", () => {
+    // Q6 e a alternativa que o ADR recusou: um agente num `HOME` que não é o
+    // seu commita sem autor, dá `push` sem chave e roda outro `node`.
+    for (const spec of ADAPTERS) {
+      expect(spec.accountEnv, spec.id).not.toBe("HOME");
+      expect(spec.accountEnv ?? "", spec.id).not.toMatch(/^XDG_/);
+    }
+  });
+
+  it("links only relative behaviour items, never an identity file", () => {
+    // A identidade nunca é herdada (Q10): um link para a credencial faria duas
+    // contas serem a mesma, com duas linhas na tela.
+    const identityFiles = [".claude.json", ".credentials.json", "auth.json"];
+    for (const spec of ADAPTERS) {
+      for (const item of spec.inheritLinks) {
+        expect(item, spec.id).not.toMatch(/^\/|\.\./);
+        expect(identityFiles, `${spec.id}: ${item}`).not.toContain(item);
+      }
+    }
+  });
+
+  it("claude isolates by CLAUDE_CONFIG_DIR and confers by `--cli auth status`", () => {
+    expect(CLAUDE_ADAPTER).toMatchObject({
+      accountEnv: "CLAUDE_CONFIG_DIR",
+      defaultConfigDir: ".claude",
+      identity: "cli-auth-status",
+    });
+    expect(CLAUDE_ADAPTER.inheritLinks).toEqual([
+      "settings.json",
+      "CLAUDE.md",
+      "rules",
+      "skills",
+      "plugins",
+      "agents",
+    ]);
+  });
+
+  it("codex isolates by CODEX_HOME and confers by the auth notification", () => {
+    expect(CODEX_ADAPTER).toMatchObject({
+      accountEnv: "CODEX_HOME",
+      defaultConfigDir: ".codex",
+      identity: "auth-status-notification",
+    });
+    expect(CODEX_ADAPTER.inheritLinks).toEqual(["config.toml", "AGENTS.md", "skills"]);
+  });
+});
+
 describe("the claude spec", () => {
   it("carries the five strings that used to be constants", () => {
     // The reason this test is literal: the migration from constants to a
