@@ -49,6 +49,12 @@ export const CONTRAST_PAIRS: readonly ContrastPair[] = [
   { label: "agente conectado / painel", fg: "daemon/online", bg: "bg/panel", min: 4.5 },
   { label: "agente sem credencial / painel", fg: "text/warning", bg: "bg/panel", min: 4.5 },
   { label: "agente falhou / painel", fg: "text/danger", bg: "bg/panel", min: 4.5 },
+  /*
+   * A sub-linha de conta em `/settings` (`034` T13) pinta os três estados sobre
+   * bg/surface — a mesma escala do rodapé, noutro fundo. O âmbar e o terciário
+   * já estavam declarados sobre a superfície; o verde não.
+   */
+  { label: "conta conectada / superficie", fg: "daemon/online", bg: "bg/surface", min: 4.5 },
   // dominio: a sidebar pinta sobre bg/panel, o detalhe sobre bg/surface.
   { label: "sessao rodando / painel", fg: "session/running", bg: "bg/panel", min: 4.5 },
   { label: "sessao encerrada / painel", fg: "session/exited", bg: "bg/panel", min: 3.0 },
@@ -281,6 +287,9 @@ export const DISTINCTION_SETS: readonly DistinctionSet[] = [
     tokens: ["session/running", "session/exited", "session/failed", "session/shell", "session/agent"],
   },
   { label: "passos do plano", tokens: ["plan/pending", "plan/active", "plan/done"] },
+  // As contas de um agente, uma sob a outra em `/settings` (`034` T13): o ponto
+  // de cada uma diz conectada, entrar ou desconectada.
+  { label: "estado da conta, uma sob a outra", tokens: ["daemon/online", "text/warning", "text/tertiary"] },
   { label: "medidor de uso, na mesma linha", tokens: ["usage/quiet", "usage/warn", "usage/over", "usage/cost"] },
 ];
 

@@ -39,6 +39,7 @@ beforeEach(() => {
   trpc.task.settings.query.mockResolvedValue(settings());
   trpc.setup.agents.query.mockResolvedValue({ adapters: [] });
   trpc.secrets.list.query.mockResolvedValue([]);
+  trpc.adapterCatalog.list.query.mockResolvedValue([]);
 });
 
 function render() {

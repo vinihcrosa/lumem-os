@@ -1,12 +1,12 @@
-import { ADAPTERS } from "@lumem/shared";
 import { useState, type ReactNode } from "react";
 
-import { useSetupAgentsReport } from "../agent/index.js";
 import { askNoticePermission } from "../tasks/index.js";
 import { useSecrets } from "../agent/index.js";
 import { useTaskSettings } from "../tasks/index.js";
 import { useWorkspaceMutations } from "../workspace/index.js";
 import { Skeleton } from "../../ui/index.js";
+import { AccountsSection } from "./AccountsSection.js";
+import { SaveMark, type SaveState } from "./SaveMark.js";
 
 
 /**
@@ -102,21 +102,6 @@ export function SettingSection({ title, description, children }: SettingSectionP
       <p className="set__secd">{description}</p>
       {children}
     </section>
-  );
-}
-
-/** O que a linha diz sobre si mesma depois que você mexeu nela. */
-type SaveState = { kind: "clean" } | { kind: "saving" } | { kind: "saved" } | { kind: "failed"; why: string };
-
-function SaveMark({ state }: { state: SaveState }) {
-  if (state.kind === "clean") return null;
-  const label =
-    state.kind === "saving" ? "salvando…" : state.kind === "saved" ? "salvo" : "não deu para salvar";
-  return (
-    <span className={`set__save set__save--${state.kind}`} title={state.kind === "failed" ? state.why : undefined}>
-      <span className="set__save__dot" aria-hidden="true" />
-      {label}
-    </span>
   );
 }
 
@@ -279,7 +264,7 @@ export function SettingsPanel({ workspaceId, workspaceName }: SettingsPanelProps
       </header>
 
       <ConveyorSection workspaceId={workspaceId} />
-      <AgentsSection />
+      <AccountsSection />
       <IntegrationsSection />
       <DisplaySection />
     </div>
@@ -478,55 +463,6 @@ function ConveyorSection({ workspaceId }: { workspaceId: string }) {
         >
           <span className="set__val">{data.budget}</span>
         </SettingRow>
-      </div>
-    </SettingSection>
-  );
-}
-
-/**
- * Agentes — **leitura**, nesta feature.
- *
- * O login continua no rodapé da sidebar até a LUM-57, e a Q6 decidiu o que
- * acontece com ele lá: não sobra nada, o rodapé some inteiro. O que entra aqui
- * agora é o que já se sabe ler — quais agentes existem e qual versão o daemon
- * tem **no disco**, que é a regra do
- * [ADR de 2026-09-08](../../../../docs/adr/2026-09-08-0507-adapter-is-the-copy-the-daemon-owns.md):
- * o `PATH` não decide.
- */
-function AgentsSection() {
-  const agents = useSetupAgentsReport();
-
-  return (
-    <SettingSection
-      title="Agentes"
-      description={
-        <>
-          O adaptador é a cópia que o daemon instalou, e o <code>PATH</code> não decide. Conectar
-          vale para <b>todo workspace desta máquina</b> — por enquanto o login mora no rodapé da
-          coluna.
-        </>
-      }
-    >
-      <div className="set__rows">
-        {ADAPTERS.map((spec) => {
-          const found = agents.data?.adapters.find((row) => row.id === spec.id);
-          const installed = found?.adapter.version ?? null;
-          return (
-            <SettingRow
-              key={spec.id}
-              label={spec.label}
-              description={
-                <>
-                  {spec.package ?? spec.command} · pino <code>{spec.pinnedVersion}</code>
-                </>
-              }
-              owner="máquina"
-              readOnly
-            >
-              <span className="set__val">{installed ?? "não instalado"}</span>
-            </SettingRow>
-          );
-        })}
       </div>
     </SettingSection>
   );

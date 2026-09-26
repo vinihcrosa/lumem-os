@@ -186,9 +186,9 @@ function createTrpcMock() {
       list: { query: vi.fn() },
     },
     /**
-     * As contas de agente (`034`). Nenhuma tela as chama ainda; entram aqui
-     * junto com o contrato, e não no dia em que a seção de configuração
-     * quebrar cinco testes distantes por não achá-las.
+     * As contas de agente (`034`). Entraram junto com o contrato, antes da
+     * seção de configuração que as lê (T13), para ela não quebrar cinco testes
+     * distantes por não achá-las.
      */
     agentAccount: {
       list: { query: vi.fn() },
@@ -374,6 +374,8 @@ export function installTrpcDefaults(mock: TrpcMock = trpcMock): void {
   // O caso mais comum: worktree sem tarefa. Tarefa não é obrigatória (T1).
   mock.task.getByWorktree.query.mockResolvedValue(null);
   mock.secrets.list.query.mockResolvedValue([]);
+  // A seção Agentes de `/settings` lê as contas no `mount` (`034` T13).
+  mock.agentAccount.list.query.mockResolvedValue([]);
   /*
    * O quadro chama isto no `mount` para todo cartão que tem aviso (`028` T35).
    *

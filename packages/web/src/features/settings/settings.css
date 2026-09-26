@@ -231,3 +231,134 @@
   font: var(--text-body-sm);
   color: var(--color-text-secondary);
 }
+
+/* ---------------------------------------------------------------------------
+   as contas de um agente (`034` T13)
+   -------------------------------------------------------------------------- */
+
+/*
+ * Sub-linha, e não coluna: a conta mora embaixo do agente, recuada.
+ *
+ * O recuo é MARGEM à esquerda, e não padding nem uma quarta coluna: a borda
+ * direita da linha fica onde as outras estão, e a coluna de dono — fixa e
+ * alinhada à direita — continua no mesmo `x` da tela inteira. Um recuo feito
+ * com coluna empurraria a etiqueta, que é exatamente o que a Q3 da `030` não
+ * deixa andar.
+ */
+.set__acct {
+  display: grid;
+  gap: var(--space-4);
+  margin-left: var(--space-24);
+}
+
+/* A faixa do trio, da confirmação e da recusa ocupa a largura da linha, embaixo. */
+.set__row--sub { row-gap: var(--space-6); }
+
+/* `padrão` é texto com contorno, e não cor: marca é para CTA, não para estado. */
+.set__mark {
+  margin-left: var(--space-6);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xs);
+  font: var(--text-caption);
+  color: var(--color-text-secondary);
+}
+
+/*
+ * O estado da conta: ponto e palavra, na escala de três do rodapé — verde
+ * conectada, âmbar entrar, cinza desconectada. `entrar` é verbo porque é
+ * pendência com saída, e a saída é clicar nele.
+ */
+.set__st {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-label-xs);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.set__st--on { color: var(--color-daemon-online); }
+.set__st--warn { color: var(--color-text-warning); }
+.set__st--off { color: var(--color-text-tertiary); }
+.set__st--act {
+  padding: var(--space-2) 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.set__st--act:hover { text-decoration: underline; text-underline-offset: var(--space-2); }
+
+.set__trio {
+  grid-column: 1 / 3;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-6);
+}
+.set__trio__k { font: var(--text-caption); color: var(--color-text-tertiary); }
+
+/* O seletor do trio: da altura de um botão pequeno, e não do campo de formulário. */
+.set__sel {
+  height: var(--size-control-md);
+  padding: 0 var(--space-8);
+  font: var(--text-mono-sm);
+}
+
+.set__warn { font: var(--text-body-sm); color: var(--color-text-warning); }
+
+.set__wide { grid-column: 1 / -1; }
+
+.set__confirm {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+  font: var(--text-body-sm);
+  color: var(--color-text-secondary);
+}
+
+/* O login da conta: o painel do rodapé, com borda por estar solto na lista. */
+.set__login {
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.set__add {
+  justify-self: start;
+  margin-left: var(--space-24);
+  padding: var(--space-4) var(--space-10);
+  border: 1px dashed var(--color-border-default);
+  border-radius: var(--radius-md);
+  background: none;
+  font: var(--text-label-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+.set__add:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+
+.set__connect {
+  display: grid;
+  gap: var(--space-10);
+  justify-items: start;
+  margin-left: var(--space-24);
+  padding: var(--space-12) var(--space-10);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+.set__connect .field { margin-bottom: 0; }
+
+.set__inherit {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+.set__inherit code { font: var(--text-mono-sm); color: var(--color-text-code); }
+.set__inherit b { font-weight: 500; color: var(--color-text-secondary); }
+.set__terms { color: var(--color-text-warning); }

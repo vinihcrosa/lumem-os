@@ -252,24 +252,46 @@ export interface AgentAuthAttempt {
   message: string | null;
 }
 
+/**
+ * Em quem o login entra: uma configuração (o comando e os argumentos dela, o
+ * rodapé), ou **uma conta** de um agente do catálogo (`034`, `/settings`).
+ *
+ * A conta não leva comando: o daemon resolve a cópia gerenciada da spec e o
+ * diretório da conta, e é nele que o login grava.
+ */
+export type LoginTarget =
+  | { command: string; args: readonly string[] }
+  | { adapterId: string; accountId: string };
+
+function loginInput(target: LoginTarget) {
+  return "command" in target
+    ? { command: target.command, args: [...target.args] }
+    : { adapterId: target.adapterId, accountId: target.accountId };
+}
+
 export function useAgentLoginByCommand() {
   return useMutation({
-    mutationFn: (input: {
-      methodId: string;
-      command: string;
-      args: string[];
-    }): Promise<AgentLoginStarted> => trpc.setup.login.mutate(input),
+    mutationFn: ({ target, methodId }: { target: LoginTarget; methodId: string }): Promise<AgentLoginStarted> =>
+      trpc.setup.login.mutate({ methodId, ...loginInput(target) }),
   });
 }
 
 export function useAgentLoginByCall() {
   return useMutation({
-    mutationFn: (input: {
+    mutationFn: ({
+      target,
+      methodId,
+      apiKey,
+    }: {
+      target: LoginTarget;
       methodId: string;
       apiKey?: string;
-      command: string;
-      args: string[];
-    }): Promise<AgentAuthAttempt> => trpc.setup.authenticate.mutate(input),
+    }): Promise<AgentAuthAttempt> =>
+      trpc.setup.authenticate.mutate({
+        methodId,
+        ...(apiKey === undefined ? {} : { apiKey }),
+        ...loginInput(target),
+      }),
   });
 }
 

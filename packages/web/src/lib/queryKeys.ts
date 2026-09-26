@@ -265,6 +265,17 @@ export function adapterCatalogKey(projectId: string | null) {
   return ["adapterCatalog", "list", projectId ?? "-"] as const;
 }
 
+/**
+ * As contas de agente (`034`), de todos os agentes numa leitura só.
+ *
+ * Uma chave e não uma por agente: a seção Agentes de `/settings` desenha todos
+ * de uma vez, e a pílula filtra o do rascunho. O `account.changed` diz qual
+ * agente mudou, mas uma lista de poucas linhas não paga duas chaves.
+ */
+export function agentAccountsKey() {
+  return ["agentAccount", "list"] as const;
+}
+
 export function secretsKey() {
   return ["secrets"] as const;
 }
@@ -287,6 +298,17 @@ export const SETUP_PROBE_KEY = ["setup", "probe"] as const;
  */
 export function agentProbeKey(command: string, args: readonly string[]) {
   return ["setup", "probe", command, args.join(" ")] as const;
+}
+
+/**
+ * O probe de **uma conta** (`034`): o que o login dela pergunta ao adaptador.
+ *
+ * Sob `SETUP_PROBE_KEY` pelo mesmo motivo do `agentProbeKey`: o "verificar de
+ * novo" do painel de login invalida o prefixo, e é esse reprobe que confere o
+ * login e vira a conta `connected` no daemon.
+ */
+export function agentAccountProbeKey(accountId: string) {
+  return ["setup", "probe", "account", accountId] as const;
 }
 
 export const PREFLIGHT_KEY = ["setup", "preflight"] as const;
@@ -342,5 +364,7 @@ export const PROJECT_DETAIL_PREFIX = ["project", "detail"] as const;
 export const TASK_DETAIL_PREFIX = ["task", "get"] as const;
 export const TASK_BOARD_PREFIX = ["task", "board"] as const;
 export const TASK_SETTINGS_PREFIX = ["task", "settings"] as const;
+/** O começo de `agentAccountsKey`: o `account.changed` diz o agente, e a lista é uma só. */
+export const AGENT_ACCOUNT_PREFIX = ["agentAccount"] as const;
 /** O começo de `adapterCatalogKey`: o `catalog.changed` diz o ACP, não o projeto. */
 export const ADAPTER_CATALOG_PREFIX = ["adapterCatalog", "list"] as const;

@@ -52,7 +52,7 @@ export function AgentPanel({
     if (probe.data?.authRequired === true) {
       return (
         <LoginOptions
-          config={config}
+          target={{ command: config.command, args: config.args }}
           methods={probe.data.authMethods}
           onDone={() => void reprobe()}
         />

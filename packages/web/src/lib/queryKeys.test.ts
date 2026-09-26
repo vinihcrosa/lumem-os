@@ -33,6 +33,7 @@ const CLOSED_PREFIXES = [
   "usage",
   "pr",
   "agentConfig",
+  "agentAccount",
   "adapterCatalog",
   "secrets",
   "setup",

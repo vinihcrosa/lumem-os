@@ -17,6 +17,10 @@ import "../src/features/checkout/right-panel.css";
 // sessão, o compositor de nova worktree na do diálogo que ele substitui.
 import "../src/features/conversation/new-session.css";
 import "../src/features/workspace/create-worktree.css";
+// A seção Agentes de `/settings` com as contas (`034` T13): a folha da tela, e
+// a do login do rodapé, que o painel de entrar numa conta reusa.
+import "../src/features/settings/settings.css";
+import "../src/features/agent/agent-login.css";
 import "../src/ui/stories.css";
 
 import { mountAgentation } from "../src/lib/agentation.js";
