@@ -225,6 +225,9 @@ test("duas contas do Claude, lado a lado, cada uma gastando na sua", async ({ pa
   // ── 3. Cada cabeçalho diz a conta dele ──────────────────────────────────────
   const tabs = page.getByRole("tab", { name: /^claude/ });
   await expect(tabs).toHaveCount(2);
+  // A aba diz a conta também — senão seriam `claude` e `claude 2`.
+  await expect(tabs.nth(0)).toContainText("claude · principal");
+  await expect(tabs.nth(1)).toContainText(`claude · ${WORK}`);
   await expect(conversation(page).locator(".conv__who")).toHaveText(who(WORK));
   await tabs.nth(0).click();
   await expect(conversation(page).locator(".conv__who")).toHaveText(who("principal"));

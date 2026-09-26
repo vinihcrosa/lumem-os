@@ -40,6 +40,7 @@ function tab(overrides: Partial<SessionTab> = {}): SessionTab {
   return {
     sessionId: "se-1",
     label: "claude",
+    agentName: "claude",
     kind: "agent",
     state: "running",
     exitCode: null,

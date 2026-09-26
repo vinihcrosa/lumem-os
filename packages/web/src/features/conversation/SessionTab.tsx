@@ -125,7 +125,8 @@ export function SessionTabPanel({
             key={tab.sessionId}
             sessionId={tab.sessionId}
             // O mesmo nome que a aba mostra, da mesma fonte: a `agent_config`.
-            agentName={tab.label}
+            // Sem a conta: o cabeçalho a junta, e a aba já a tem no rótulo.
+            agentName={tab.agentName}
             // Só quando o agente tem mais de uma conta — o daemon decide.
             accountLabel={tab.accountLabel}
             {...(onContinueIn

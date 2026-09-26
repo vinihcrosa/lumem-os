@@ -58,6 +58,60 @@ describe("a aba e a conta", () => {
   });
 });
 
+describe("o rótulo da aba", () => {
+  /*
+   * Duas conversas do mesmo agente em contas diferentes eram `claude` e
+   * `claude 2` — a aba não dizia a conta que o cabeçalho diz. Com o agente em
+   * mais de uma conta, a aba é `agente · conta`, e a numeração dos homônimos
+   * conta o rótulo inteiro.
+   */
+  it("com o agente em mais de uma conta, a aba diz a conta, e contas diferentes não numeram", async () => {
+    vi.mocked(trpc.session.listByScope.query).mockResolvedValue([
+      row({ multiAccount: true }),
+      row({ id: "s2", agentAccountId: "acct_trabalho", agentAccountLabel: "trabalho", multiAccount: true }),
+    ] as never);
+
+    const { result } = renderHook(() => useWorktreeTabs(SCOPE), { wrapper });
+
+    await waitFor(() => expect(result.current.tabs).toHaveLength(2));
+    expect(result.current.tabs.map((tab) => [tab.label, tab.ordinal])).toEqual([
+      ["claude · pessoal", undefined],
+      ["claude · trabalho", undefined],
+    ]);
+    // O cabeçalho junta a conta sozinho: ele recebe o nome do agente, e não o da aba.
+    expect(result.current.tabs[1]).toMatchObject({ agentName: "claude", accountLabel: "trabalho" });
+  });
+
+  it("duas conversas na mesma conta numeram pelo rótulo inteiro", async () => {
+    vi.mocked(trpc.session.listByScope.query).mockResolvedValue([
+      row({ agentAccountLabel: "trabalho", multiAccount: true }),
+      row({ id: "s2", agentAccountLabel: "trabalho", multiAccount: true }),
+      row({ id: "s3", agentAccountLabel: "pessoal", multiAccount: true }),
+    ] as never);
+
+    const { result } = renderHook(() => useWorktreeTabs(SCOPE), { wrapper });
+
+    await waitFor(() => expect(result.current.tabs).toHaveLength(3));
+    expect(result.current.tabs.map((tab) => [tab.label, tab.ordinal])).toEqual([
+      ["claude · trabalho", undefined],
+      ["claude · trabalho", 2],
+      ["claude · pessoal", undefined],
+    ]);
+  });
+
+  it("com uma conta só, a aba é o nome do agente, como antes", async () => {
+    vi.mocked(trpc.session.listByScope.query).mockResolvedValue([row(), row({ id: "s2" })] as never);
+
+    const { result } = renderHook(() => useWorktreeTabs(SCOPE), { wrapper });
+
+    await waitFor(() => expect(result.current.tabs).toHaveLength(2));
+    expect(result.current.tabs.map((tab) => [tab.label, tab.ordinal])).toEqual([
+      ["claude", undefined],
+      ["claude", 2],
+    ]);
+  });
+});
+
 describe("continuar em outra conta", () => {
   it("manda a sessão e a conta, e abre a aba nova depois de a lista saber dela", async () => {
     vi.mocked(trpc.session.listByScope.query).mockResolvedValue([row()] as never);

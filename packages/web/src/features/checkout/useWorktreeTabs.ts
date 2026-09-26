@@ -9,7 +9,17 @@ import { useSessionsByScope, type Scope } from "./useSessionsByScope.js";
 
 export interface SessionTab {
   sessionId: string;
+  /**
+   * O que a faixa de abas escreve: o agente e, quando ele tem mais de uma
+   * conta, a conta (`034`) — senão duas conversas em contas diferentes eram
+   * `claude` e `claude 2`, e só o cabeçalho sabia qual era qual.
+   */
   label: string;
+  /**
+   * Quem fala, pelo nome da `agent_config` — o que o cabeçalho recebe, e junta
+   * à conta sozinho. `shell` para um shell.
+   */
+  agentName: string;
   kind: string;
   state: string;
   exitCode: number | null;
@@ -149,13 +159,18 @@ export function useWorktreeTabs(scope: Scope): WorktreeTabs {
     // labelled "claude-code 3" beside no 1 or 2 is a puzzle, not a hint.
     const seen = new Map<string, number>();
     return visible.map((session) => {
-      const label = session.agentName ?? "shell";
+      const agentName = session.agentName ?? "shell";
+      const accountLabel = session.multiAccount ? session.agentAccountLabel : null;
+      // A numeração conta o rótulo inteiro: `claude · trabalho` ao lado de
+      // `claude · pessoal` não é homônimo.
+      const label = accountLabel === null ? agentName : `${agentName} · ${accountLabel}`;
       const nth = (seen.get(label) ?? 0) + 1;
       seen.set(label, nth);
 
       return {
         sessionId: session.id,
         label,
+        agentName,
         kind: session.kind,
         state: session.state,
         exitCode: session.exitCode,
@@ -163,7 +178,7 @@ export function useWorktreeTabs(scope: Scope): WorktreeTabs {
         transport: session.transport === "acp" ? "acp" : "pty",
         ...(nth > 1 ? { ordinal: nth } : {}),
         accountId: session.agentAccountId ?? null,
-        accountLabel: session.multiAccount ? session.agentAccountLabel : null,
+        accountLabel,
       };
     });
   }, [list, reopened, dismissed]);
