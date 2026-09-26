@@ -53,7 +53,8 @@ describe("o trio de cada encaixe", () => {
     render();
 
     const revisor = await slot("revisor");
-    expect(await within(revisor).findByText("padrão do produto — Claude Code · pessoal · Opus · xhigh")).toBeInTheDocument();
+    // Uma linha: de onde vem e a conta. Agente, modelo e effort já estão nos seletores.
+    expect(await within(revisor).findByText("padrão do produto · pessoal")).toBeInTheDocument();
     expect(within(revisor).getByRole("combobox", { name: "conta do revisor" })).toHaveValue("claude:");
   });
 
@@ -76,8 +77,20 @@ describe("o trio de cada encaixe", () => {
     render();
 
     const revisor = await slot("revisor");
-    expect(await within(revisor).findByText("deste workspace — Codex · trabalho · gpt-5.5")).toBeInTheDocument();
+    expect(await within(revisor).findByText("deste workspace · trabalho")).toBeInTheDocument();
     expect(within(revisor).getByRole("combobox", { name: "conta do revisor" })).toHaveValue("codex:acct_codex");
+  });
+});
+
+describe("o grupo", () => {
+  it("os três encaixes vêm debaixo de `Quem faz cada papel`, separados do orçamento", async () => {
+    render();
+
+    const group = await screen.findByRole("group", { name: "Quem faz cada papel" });
+    expect(within(group).getByRole("heading", { name: "Quem faz cada papel", level: 3 })).toBeInTheDocument();
+    for (const role of ["implementador", "revisor", "testador"]) {
+      expect(await within(group).findByRole("group", { name: `encaixe ${role}` })).toBeInTheDocument();
+    }
   });
 });
 

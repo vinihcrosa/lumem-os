@@ -1,7 +1,8 @@
+import { useId } from "react";
+
 import { adapterById, type AdapterCatalogView } from "@lumem/shared";
 
 import { useAdapterCatalog, useAgentAccounts, type AgentAccountView } from "../agent/index.js";
-import { modelOptionOf } from "../conversation/index.js";
 import { useConveyorSlots, useWorkspaceMutations, type ConveyorSlot } from "../workspace/index.js";
 import { effortChoicesOf, modelChoicesOf, readingFor } from "./account-words.js";
 import { SettingRow } from "./SettingsPanel.js";
@@ -27,15 +28,22 @@ const ROLE_LABEL: Record<ConveyorSlot["role"], string> = {
  * Trocar a conta volta modelo e effort para *herdar da conta nova* (Q1a): o
  * trio é composto, e o modelo da conta de antes pode nem existir na lista da
  * nova.
+ *
+ * Eles moram na seção do orçamento, e sem legenda de grupo liam como mais três
+ * tetos: `Quem faz cada papel` os separa sem uma seção a mais.
  */
 export function ConveyorSlots({ workspaceId }: { workspaceId: string }) {
   const slots = useConveyorSlots(workspaceId).data ?? [];
   const accounts = useAgentAccounts().data ?? NO_ACCOUNTS;
   const catalog = useAdapterCatalog(null).data ?? NO_CATALOG;
   const { setSlot } = useWorkspaceMutations(workspaceId);
+  const headId = useId();
 
   return (
-    <>
+    <div className="set__rows" role="group" aria-labelledby={headId}>
+      <h3 className="set__group" id={headId}>
+        Quem faz cada papel
+      </h3>
       {slots.map((slot) => (
         <SlotRow
           key={slot.role}
@@ -50,7 +58,7 @@ export function ConveyorSlots({ workspaceId }: { workspaceId: string }) {
           {setSlot.error.message}
         </span>
       )}
-    </>
+    </div>
   );
 }
 
@@ -79,7 +87,7 @@ function SlotRow({
 
   return (
     <div role="group" aria-label={`encaixe ${role}`}>
-      <SettingRow label={ROLE_LABEL[role]} description={describe(slot, account, reading)} owner="workspace">
+      <SettingRow label={ROLE_LABEL[role]} description={describe(slot, account)} owner="workspace">
         <select
           className="input set__sel"
           aria-label={`conta do ${role}`}
@@ -155,15 +163,12 @@ function accountOptions(accounts: readonly AgentAccountView[], slot: ConveyorSlo
   });
 }
 
-/** O que o encaixe resolve hoje, com a herança aplicada — e de que degrau ele veio. */
-function describe(slot: ConveyorSlot, account: AgentAccountView | null, reading: AdapterCatalogView | null): string {
-  const agent = adapterById(slot.adapter)?.label ?? slot.adapter;
-  const model = slot.model ?? account?.defaultModel ?? null;
-  const modelName =
-    model === null
-      ? "o modelo do adaptador"
-      : (modelOptionOf(reading?.configOptions ?? [])?.choices.find((choice) => choice.value === model)?.name ?? model);
-  const effort = slot.effort ?? account?.defaultEffort ?? null;
-  const parts = [agent, account?.label ?? "sem conta conectada", modelName, ...(effort === null ? [] : [effort])];
-  return `${slot.from === "workspace" ? "deste workspace" : "padrão do produto"} — ${parts.join(" · ")}`;
+/**
+ * De que degrau o encaixe veio, e em que conta ele roda — uma linha. Agente,
+ * modelo e effort já estão nos seletores ao lado; repeti-los aqui quebrava a
+ * descrição em quatro linhas.
+ */
+function describe(slot: ConveyorSlot, account: AgentAccountView | null): string {
+  const origin = slot.from === "workspace" ? "deste workspace" : "padrão do produto";
+  return `${origin} · ${account?.label ?? "sem conta conectada"}`;
 }

@@ -251,6 +251,17 @@
   margin-left: var(--space-24);
 }
 
+/*
+ * A legenda de um grupo de linhas dentro de uma seção — os encaixes da esteira,
+ * que sem ela liam como mais três tetos do orçamento. Menor que o título da
+ * seção e sem borda: agrupa, não abre outra seção.
+ */
+.set__group {
+  margin: var(--space-12) 0 var(--space-2);
+  font: var(--text-label-sm);
+  color: var(--color-text-secondary);
+}
+
 /* A faixa do trio, da confirmação e da recusa ocupa a largura da linha, embaixo. */
 .set__row--sub { row-gap: var(--space-6); }
 

@@ -42,10 +42,9 @@ function Stage({ revisorNoCodex }: { revisorNoCodex: boolean }) {
   ]);
   return (
     <QueryClientProvider client={client}>
+      {/* Sem `.set__rows` em volta: o grupo traz o dele, com a legenda `Quem faz cada papel`. */}
       <div className="set">
-        <div className="set__rows">
-          <ConveyorSlots workspaceId={WORKSPACE} />
-        </div>
+        <ConveyorSlots workspaceId={WORKSPACE} />
       </div>
     </QueryClientProvider>
   );
