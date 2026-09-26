@@ -2,9 +2,13 @@ import { chmodSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 import { ADAPTERS_DIR_NAME, CLAUDE_ADAPTER } from "@lumem/shared";
+import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AcpManager } from "../acp/AcpManager.js";
+import { createAgentAccountRepository } from "../repositories/agentAccount.js";
+import { configForAdapter } from "../repositories/agentConfig.js";
+import { session } from "../db/schema.js";
 import { PROJECT_FILE } from "../memory/project-identity.js";
 import type { ScriptRunner } from "../scripts/ScriptRunner.js";
 import { SETUP_TIMEOUT_MS } from "../tasks/conveyor-ports.js";
@@ -211,6 +215,28 @@ describe("worktree.start", () => {
     });
 
     expect((await ctx.api.session.getDetail({ id: started.sessionId })).model).toBe("sonnet");
+  });
+
+  it("nasce na conta pedida, com o diretório dela no spawn (`034` T14)", async () => {
+    const { ctx, projectId, spawner } = await setup();
+    const agentConfigId = await configForAdapter(ctx.db, CLAUDE_ADAPTER.id);
+    const trabalho = await createAgentAccountRepository(ctx.db).create({
+      agentConfigId,
+      label: "trabalho",
+      configDir: "/contas/trabalho",
+    });
+
+    const started = await ctx.api.worktree.start({
+      projectId,
+      prompt: PROMPT,
+      adapterId: CLAUDE_ADAPTER.id,
+      agentAccountId: trabalho.id,
+    });
+
+    const request = spawner.mock.calls.at(-1) as unknown as [{ env?: Record<string, string> }];
+    expect(request[0].env?.[CLAUDE_ADAPTER.accountEnv!]).toBe("/contas/trabalho");
+    const [row] = await ctx.db.select().from(session).where(eq(session.id, started.sessionId));
+    expect(row?.agentAccountId).toBe(trabalho.id);
   });
 
   it("o nome dado ganha do derivado", async () => {

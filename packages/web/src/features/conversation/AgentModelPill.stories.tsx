@@ -3,12 +3,14 @@ import { useState } from "react";
 
 import type { AdapterCatalogView } from "@lumem/shared";
 
+import type { AgentAccountView } from "../agent/index.js";
 import {
   CLAUDE_TWENTY_MODELS_VIEW,
   CLAUDE_VIEW,
   CODEX_NO_LOGIN_VIEW,
   CODEX_VIEW,
 } from "../../test/adapter-catalog-fixtures.js";
+import { accountView } from "../../test/agent-account-fixtures.js";
 import type { AgentModelChoice } from "./agent-model.js";
 import { AgentModelPill } from "./AgentModelPill.js";
 
@@ -26,10 +28,12 @@ import { AgentModelPill } from "./AgentModelPill.js";
 
 function Stage({
   catalog,
+  accounts,
   initial,
   open = false,
 }: {
   catalog: readonly AdapterCatalogView[];
+  accounts?: readonly AgentAccountView[];
   initial: AgentModelChoice;
   open?: boolean;
 }) {
@@ -45,6 +49,7 @@ function Stage({
           <div className="composer__bar">
             <AgentModelPill
               catalog={catalog}
+              {...(accounts === undefined ? {} : { accounts })}
               value={choice}
               onChange={setChoice}
               defaultOpen={open}
@@ -104,5 +109,67 @@ export const SemEffort: Story = {
   name: "Sem effort (Haiku)",
   render: () => (
     <Stage catalog={[CLAUDE_VIEW, CODEX_VIEW]} initial={{ adapterId: "claude", config: { model: "haiku" } }} />
+  ),
+};
+
+const PESSOAL = accountView();
+const TRABALHO = accountView({
+  id: "acct_trabalho",
+  label: "trabalho",
+  isDefault: false,
+  bare: false,
+  defaultModel: "claude-fable-5-1[1m]",
+  defaultEffort: "medium",
+});
+
+/**
+ * Uma conta só (`034` T14): a pílula é a de antes — nem no botão nem no menu
+ * aparece conta. Comparar com *Claude + Codex*: é o mesmo pixel.
+ */
+export const UmaConta: Story = {
+  name: "Uma conta",
+  render: () => (
+    <Stage
+      catalog={[{ ...CLAUDE_VIEW, accountId: PESSOAL.id }, CODEX_VIEW]}
+      accounts={[PESSOAL]}
+      initial={{ adapterId: "claude", accountId: PESSOAL.id, config: {} }}
+      open
+    />
+  ),
+};
+
+/**
+ * Duas contas do Claude: a conta entra no botão e no topo do grupo, com a
+ * padrão marcada. Trocar para `trabalho` mostra o trio dela (Fable 5.1 · medium).
+ */
+export const DuasContas: Story = {
+  name: "Duas contas",
+  render: () => (
+    <Stage
+      catalog={[
+        { ...CLAUDE_VIEW, accountId: PESSOAL.id },
+        { ...CLAUDE_VIEW, accountId: TRABALHO.id },
+        CODEX_VIEW,
+      ]}
+      accounts={[PESSOAL, TRABALHO]}
+      initial={{ adapterId: "claude", accountId: PESSOAL.id, config: {} }}
+      open
+    />
+  ),
+};
+
+/** Duas contas, com a do trabalho escolhida: o botão diz a conta e o trio dela. */
+export const DuasContasTrabalho: Story = {
+  name: "Duas contas (trabalho escolhida)",
+  render: () => (
+    <Stage
+      catalog={[
+        { ...CLAUDE_VIEW, accountId: PESSOAL.id },
+        { ...CLAUDE_VIEW, accountId: TRABALHO.id },
+        CODEX_VIEW,
+      ]}
+      accounts={[PESSOAL, TRABALHO]}
+      initial={{ adapterId: "claude", accountId: TRABALHO.id, config: {} }}
+    />
   ),
 };

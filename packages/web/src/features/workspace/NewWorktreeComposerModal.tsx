@@ -91,7 +91,7 @@ function NewWorktreeComposerBody({
   const [heldBranch, setHeldBranch] = useState<HeldBranch | null>(null);
 
   const originChoice = useOriginChoice(projectId, { open: true, onSuggestName: setName });
-  const { catalog, choice, choose } = useAgentModelChoice(projectId);
+  const { catalog, accounts, choice, choose } = useAgentModelChoice(projectId);
   const { start } = useWorktreeMutations(projectId);
 
   function changePrompt(text: string): void {
@@ -138,6 +138,7 @@ function NewWorktreeComposerBody({
         prompt,
         adapterId: choice.adapterId,
         config: { ...choice.config },
+        ...(choice.accountId === undefined ? {} : { agentAccountId: choice.accountId }),
         name: name.trim() === "" ? undefined : name.trim(),
         from: fromOf(originChoice.active, originChoice.pick),
       },
@@ -204,6 +205,7 @@ function NewWorktreeComposerBody({
       name={name}
       onNameChange={setName}
       catalog={catalog}
+      accounts={accounts}
       choice={choice}
       onChoiceChange={choose}
       heldBy={heldBranch?.worktreeName ?? null}

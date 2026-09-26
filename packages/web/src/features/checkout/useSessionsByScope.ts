@@ -74,7 +74,7 @@ export function useSessionsByTask(taskId: string) {
  */
 export type CreateAgentInput =
   | { agentConfigId: string; taskId?: string }
-  | { adapterId: string; config?: Record<string, string>; taskId?: string };
+  | { adapterId: string; config?: Record<string, string>; agentAccountId?: string; taskId?: string };
 
 /**
  * `createShell`, `createAgent` e `close` — todas invalidando a lista deste

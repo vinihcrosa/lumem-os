@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 
 import { worktreeNameFromPrompt, type AdapterCatalogView } from "@lumem/shared";
 
+import type { AgentAccountView } from "../agent/index.js";
 import { AgentModelPill, SlashMenu, slashQuery, type AgentModelChoice } from "../conversation/index.js";
 import { Banner, Button, Field, Glyph, Input, Menu, MenuItem, Modal } from "../../ui/index.js";
 import { branchNameForIssue } from "./useOriginChoice.js";
@@ -52,6 +53,8 @@ export interface NewWorktreeComposerProps {
   name: string;
   onNameChange(name: string): void;
   catalog: readonly AdapterCatalogView[];
+  /** As contas lidas (`034` T14); a pílula só as mostra com duas ou mais. */
+  accounts?: readonly AgentAccountView[];
   choice: AgentModelChoice;
   onChoiceChange(next: AgentModelChoice): void;
   onLogin?(adapterId: string): void;
@@ -89,6 +92,7 @@ export function NewWorktreeComposer({
   name,
   onNameChange,
   catalog,
+  accounts,
   choice,
   onChoiceChange,
   onLogin,
@@ -231,6 +235,7 @@ export function NewWorktreeComposer({
         <div className="composer__bar">
           <AgentModelPill
             catalog={catalog}
+            {...(accounts === undefined ? {} : { accounts })}
             value={choice}
             onChange={onChoiceChange}
             disabled={creating}

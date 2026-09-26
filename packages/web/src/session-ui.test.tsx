@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App.js";
 import * as navigation from "./lib/navigation.js";
 import { CLAUDE_VIEW, CODEX_VIEW } from "./test/adapter-catalog-fixtures.js";
+import { accountRow } from "./test/agent-account-fixtures.js";
 import { renderWithProviders } from "./test/render.js";
 import { NO_PENDING_PROMPT, trpcMock as trpc } from "./test/trpc-mock.js";
 
@@ -497,6 +498,35 @@ describe("aba rascunho", () => {
     expect(screen.queryByRole("tab", { name: "rascunho" })).not.toBeInTheDocument();
 
     arriveSpy.mockRestore();
+  });
+
+  it("com duas contas, a escolhida na pílula vai junto no createAgent (`034` T14)", async () => {
+    const user = userEvent.setup();
+    trpc.agentAccount.list.query.mockResolvedValue([
+      accountRow(),
+      accountRow({ id: "acct_trabalho", label: "trabalho", isDefault: false, bare: false }),
+    ]);
+    trpc.session.createAgent.mutate.mockResolvedValue(
+      session({ id: "s9", kind: "agent", transport: "acp", agentConfigId: "ac1", agentName: "claude" }),
+    );
+
+    await selectWorktree(user);
+    await user.click(await screen.findByRole("button", { name: /nova sessão/ }));
+    await user.click(await screen.findByRole("menuitem", { name: /novo agente/ }));
+    await user.click(await screen.findByRole("button", { name: /^agente e modelo:.*pessoal/ }));
+    await user.click(screen.getByRole("menuitemradio", { name: "trabalho" }));
+    await user.type(screen.getByPlaceholderText("escreva, ou / para comandos"), "oi");
+    await user.click(screen.getByRole("button", { name: /enviar/ }));
+
+    await waitFor(() =>
+      expect(trpc.session.createAgent.mutate).toHaveBeenCalledWith({
+        scopeType: "worktree",
+        scopeId: "wt1",
+        adapterId: "claude",
+        config: {},
+        agentAccountId: "acct_trabalho",
+      }),
+    );
   });
 
   it("mantém o texto digitado quando criar falha", async () => {

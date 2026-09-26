@@ -725,6 +725,8 @@ export const worktreeRouter = router({
         prompt: z.string().trim().min(1, "escreva no que você quer trabalhar"),
         adapterId: z.string().min(1),
         config: z.record(z.string().min(1), z.string()).optional(),
+        /** Em que conta a conversa nasce (`034` T14). Ausente, a padrão do agente. */
+        agentAccountId: z.string().min(1).optional(),
       }),
     )
     .mutation(({ ctx, input }) =>
@@ -760,6 +762,7 @@ export const worktreeRouter = router({
             scopeId: created.id,
             agent: { adapterId: input.adapterId },
             ...(input.config === undefined ? {} : { config: input.config }),
+            ...(input.agentAccountId === undefined ? {} : { agentAccountId: input.agentAccountId }),
           });
         } catch (error) {
           // F4.8: a worktree nasceu para esta conversa, e sem ela é uma
