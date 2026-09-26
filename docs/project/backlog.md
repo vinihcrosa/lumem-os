@@ -192,6 +192,17 @@ responde `loggedIn` em ~0,6 s sem gastar token.
 a primeira task da [034](../features/034-agent-accounts/prd.md) que fizer a conferência de conta — ela
 conserta isto de graça — ou antes, se alguém instalar o Lumem numa máquina sem login do Claude.
 
+### O `tool_call` que já chega com saída perde a saída — `S`
+
+`packages/server/src/acp/translate.ts` ignora o `content` do `tool_call` **inicial**, e o schema do
+evento nem tem esse campo: só o `tool_call_update` carrega saída. Um adaptador que mande a saída já
+no `tool_call` perde essa saída no transcript do Lumem — e, com ele, no corte de *continuar em outra
+conta*, que lê o transcript.
+
+**De onde veio:** a T11 da [agent-accounts](../features/034-agent-accounts/tasks.md), escrevendo o
+teste do corte · **Volta quando:** um transcript mostrar ferramenta sem saída que o agente viu, ou
+um adaptador novo entrar no catálogo.
+
 ### Terceiro CLI de agente — `M`
 
 O **segundo** virou PRD em 2026-09-05 e a **C1 respondeu Codex**:
