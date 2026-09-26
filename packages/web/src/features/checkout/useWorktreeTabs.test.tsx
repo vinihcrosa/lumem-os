@@ -150,6 +150,88 @@ describe("continuar em outra conta", () => {
   });
 });
 
+/*
+ * A corrida que o e2e da `034` achou: o `onSuccess` do gesto termina antes de a
+ * lista de sessões na tela saber da sessão nova — o `invalidateQueries` resolve
+ * e a notificação do observador ainda não chegou ao React. Selecionar ali fazia
+ * o efeito de *"a aba ativa não existe"* devolver a seleção para o checkout, e
+ * a aba nova aparecia atrás. Aqui a lista chega **depois** de propósito: a
+ * primeira releitura ainda não traz a sessão, e só a seguinte traz.
+ */
+describe("a sessão nova é selecionada quando a lista chega, e não antes", () => {
+  function clientAndWrapper() {
+    const client = new QueryClient();
+    return {
+      client,
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      ),
+    };
+  }
+
+  it("continuar em outra conta", async () => {
+    const { client, wrapper: late } = clientAndWrapper();
+    vi.mocked(trpc.session.listByScope.query).mockResolvedValue([row()] as never);
+    vi.mocked(trpc.session.continueIn.mutate).mockResolvedValue(row({ id: "s9" }) as never);
+
+    const { result } = renderHook(() => useWorktreeTabs(SCOPE), { wrapper: late });
+    await waitFor(() => expect(result.current.tabs).toHaveLength(1));
+
+    act(() => result.current.continueIn("s1", "acct_trabalho"));
+    await waitFor(() => expect(trpc.session.continueIn.mutate).toHaveBeenCalled());
+    await waitFor(() => expect(result.current.continuing).toBeNull());
+    expect(result.current.activeId).toBeNull();
+
+    vi.mocked(trpc.session.listByScope.query).mockResolvedValue([
+      row(),
+      row({ id: "s9", agentAccountId: "acct_trabalho", continuedFromId: "s1" }),
+    ] as never);
+    await act(() => client.invalidateQueries());
+
+    await waitFor(() => expect(result.current.activeId).toBe("s9"));
+  });
+
+  it("↻ retomar", async () => {
+    const { client, wrapper: late } = clientAndWrapper();
+    vi.mocked(trpc.session.listByScope.query).mockResolvedValue([row({ state: "exited", exitCode: 0 })] as never);
+    vi.mocked(trpc.session.resume.mutate).mockResolvedValue(row({ id: "s7", resumedFromId: "s1" }) as never);
+
+    const { result } = renderHook(() => useWorktreeTabs(SCOPE), { wrapper: late });
+    await waitFor(() => expect(result.current.sessions.data).toHaveLength(1));
+
+    act(() => result.current.resume("s1"));
+    await waitFor(() => expect(trpc.session.resume.mutate).toHaveBeenCalled());
+    await waitFor(() => expect(result.current.resuming).toBeNull());
+    expect(result.current.activeId).toBeNull();
+
+    vi.mocked(trpc.session.listByScope.query).mockResolvedValue([
+      row({ state: "exited", exitCode: 0 }),
+      row({ id: "s7", resumedFromId: "s1" }),
+    ] as never);
+    await act(() => client.invalidateQueries());
+
+    await waitFor(() => expect(result.current.activeId).toBe("s7"));
+  });
+
+  it("escolher outra aba enquanto a lista não chega vale mais que a seleção pendente", async () => {
+    const { client, wrapper: late } = clientAndWrapper();
+    vi.mocked(trpc.session.listByScope.query).mockResolvedValue([row()] as never);
+    vi.mocked(trpc.session.continueIn.mutate).mockResolvedValue(row({ id: "s9" }) as never);
+
+    const { result } = renderHook(() => useWorktreeTabs(SCOPE), { wrapper: late });
+    await waitFor(() => expect(result.current.tabs).toHaveLength(1));
+    act(() => result.current.continueIn("s1", "acct_trabalho"));
+    await waitFor(() => expect(result.current.continuing).toBeNull());
+
+    act(() => result.current.select("s1"));
+    vi.mocked(trpc.session.listByScope.query).mockResolvedValue([row(), row({ id: "s9" })] as never);
+    await act(() => client.invalidateQueries());
+
+    await waitFor(() => expect(result.current.tabs).toHaveLength(2));
+    expect(result.current.activeId).toBe("s1");
+  });
+});
+
 describe("a linha de vínculo", () => {
   it("leva à aba da outra sessão, reabrindo a que já tinha saído", async () => {
     vi.mocked(trpc.session.listByScope.query).mockResolvedValue([

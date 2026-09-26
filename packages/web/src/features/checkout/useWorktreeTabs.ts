@@ -144,6 +144,11 @@ export function useWorktreeTabs(scope: Scope): WorktreeTabs {
   /** Exited sessions the user asked to see again, and ones they dismissed. */
   const [reopened, setReopened] = useState<ReadonlySet<string>>(new Set());
   const [dismissed, setDismissed] = useState<ReadonlySet<string>>(new Set());
+  /**
+   * A sessão que um gesto acabou de criar (`resume`, `continueIn`) e que ainda
+   * não está na lista — ela é selecionada quando chegar, e não antes.
+   */
+  const [pendingSelect, setPendingSelect] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<readonly DraftHandle[]>([]);
 
   const list = useMemo(() => sessions.data ?? [], [sessions.data]);
@@ -201,7 +206,24 @@ export function useWorktreeTabs(scope: Scope): WorktreeTabs {
     }
   }, [tabs, drafts, activeId]);
 
-  const select = useCallback((sessionId: string | null) => setActiveId(sessionId), []);
+  /*
+   * O espelho do efeito de `arrival` do `ScopePanel`: a aba da sessão nova vem
+   * para a frente quando ela **está** na lista. Selecionar no `onSuccess` perdia
+   * a corrida — o `invalidateQueries` resolve antes de a lista nova chegar ao
+   * render, e o efeito acima devolvia a seleção para o checkout, com a aba nova
+   * aparecendo atrás (o e2e da `034` pegou, 3 de 3).
+   */
+  useEffect(() => {
+    if (pendingSelect === null || !tabs.some((tab) => tab.sessionId === pendingSelect)) return;
+    setActiveId(pendingSelect);
+    setPendingSelect(null);
+  }, [tabs, pendingSelect]);
+
+  // Escolher uma aba vale mais que a seleção pendente de um gesto anterior.
+  const select = useCallback((sessionId: string | null) => {
+    setPendingSelect(null);
+    setActiveId(sessionId);
+  }, []);
 
   /*
    * `draft:<uuid>`, and not `newId()` (`@lumem/shared`): that helper mints an
@@ -268,19 +290,21 @@ export function useWorktreeTabs(scope: Scope): WorktreeTabs {
   }, []);
 
   /*
-   * The new session is selected in `onSuccess`, not optimistically.
+   * The new session is selected once the list knows it, not in `onSuccess`.
    *
-   * A tab only exists for a session the list knows about, so selecting an id before the
-   * refetch would set an active tab that is not in `tabs` — and the effect above would
-   * immediately bounce the selection back to the context tab.
+   * A tab only exists for a session the list knows about, so selecting an id before
+   * the list has it sets an active tab that is not in `tabs` — and the effect above
+   * bounces the selection back to the context tab. Awaiting the invalidation was not
+   * enough: it resolves before the new list reaches the render. `pendingSelect` waits
+   * for it instead.
    */
   const resumption = useMutation({
     mutationFn: (sessionId: string) => trpc.session.resume.mutate({ id: sessionId }),
     onSuccess: async (row) => {
+      setPendingSelect(row.id);
       await queryClient.invalidateQueries({
         queryKey: sessionsKey(scope.scopeType, scope.scopeId),
       });
-      setActiveId(row.id);
     },
   });
 
@@ -293,10 +317,10 @@ export function useWorktreeTabs(scope: Scope): WorktreeTabs {
   const continuation = useMutation({
     mutationFn: (input: { sessionId: string; agentAccountId: string }) => trpc.session.continueIn.mutate(input),
     onSuccess: async (row) => {
+      setPendingSelect(row.id);
       await queryClient.invalidateQueries({
         queryKey: sessionsKey(scope.scopeType, scope.scopeId),
       });
-      setActiveId(row.id);
     },
   });
 
