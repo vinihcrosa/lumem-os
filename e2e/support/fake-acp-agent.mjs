@@ -24,7 +24,7 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 
@@ -55,9 +55,11 @@ const PROFILE = process.env["LUMEM_FAKE_PROFILE"] === "codex" ? "codex" : "claud
  *   diretório **sem** `.fake-logged-in` — um diretório de conta novo é um CLI
  *   recém-instalado. Sem a variável é a conta que já existia, e ela está logada.
  */
+const ACCOUNT_VARIABLE = PROFILE === "codex" ? "CODEX_HOME" : "CLAUDE_CONFIG_DIR";
+
 function loggedIn() {
   if (process.env["LUMEM_FAKE_LOGGED_OUT"] === "1") return false;
-  const dir = process.env[PROFILE === "codex" ? "CODEX_HOME" : "CLAUDE_CONFIG_DIR"];
+  const dir = process.env[ACCOUNT_VARIABLE];
   if (dir === undefined || dir === "") return true;
   return existsSync(join(dir, ".fake-logged-in"));
 }
@@ -81,6 +83,24 @@ if (argv[0] === "--cli" && argv[1] === "auth" && argv[2] === "status") {
     : { loggedIn: false, authMethod: "none", apiProvider: "firstParty" };
   process.stdout.write(`${JSON.stringify(status)}\n`);
   process.exit(status.loggedIn ? 0 : 1);
+}
+
+/**
+ * `claude-agent-acp --cli auth login`: o comando que o método de login manda
+ * rodar (`034` T17). O de verdade abre o navegador e grava a credencial no
+ * diretório da variável de conta; este grava a marca que o `loggedIn` lê, no
+ * mesmo lugar — é o que faz *"entrar"* pela tela terminar numa conta conectada
+ * sem navegador e sem rede. Sem a variável não há o que gravar: a conta sem
+ * diretório já é a logada.
+ */
+if (argv[0] === "--cli" && argv[1] === "auth" && argv[2] === "login") {
+  const dir = process.env[ACCOUNT_VARIABLE];
+  if (dir !== undefined && dir !== "") {
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, ".fake-logged-in"), "");
+  }
+  process.stdout.write("login concluído\n");
+  process.exit(0);
 }
 
 /** Resolves when the client answers the permission request. */
@@ -274,6 +294,45 @@ async function runEcho(blocks) {
     });
     await sleep(10);
   }
+  return "end_turn";
+}
+
+/**
+ * A frase que pede a conta (`034` T17). Combinada com o spec, e com mais nada.
+ */
+const WHICH_ACCOUNT = "em que conta você está";
+
+/**
+ * Diz de qual conta este processo subiu, repete o que recebeu, e cobra o turno.
+ *
+ * A conta é lida **do próprio ambiente**, e é esse o ponto: o que o daemon
+ * afirma sobre a sessão está no banco; o que o adaptador recebeu está aqui, e
+ * só aqui dá para ver a conta sem diretório subir **sem** a variável — e não com
+ * o caminho padrão escrito nela, que é outra entrada do Keychain (ADR de
+ * 2026-09-26).
+ *
+ * O `recebi:` é o último bloco, o da pessoa (o núcleo da memória, quando há,
+ * vem antes como bloco próprio): é ele que prova que o corte de *continuar em
+ * outra conta* chegou do outro lado. E o consumo é o do perfil claude, sem
+ * pedido de permissão no caminho — duas conversas lado a lado não deveriam
+ * precisar de quatro cliques para gastar.
+ */
+async function runAccountTurn(blocks) {
+  const dir = process.env[ACCOUNT_VARIABLE];
+  const account = dir === undefined || dir === "" ? "sem variável de conta" : dir;
+  update({
+    sessionUpdate: "agent_message_chunk",
+    messageId: "conta",
+    content: { type: "text", text: `conta: ${account}\n\nrecebi: ${blocks.at(-1) ?? ""}` },
+  });
+  await sleep(10);
+  update({
+    sessionUpdate: "usage_update",
+    used: 39_200,
+    size: 1_000_000,
+    cost: { amount: 0.235433, currency: "USD" },
+  });
+  await sleep(10);
   return "end_turn";
 }
 
@@ -639,6 +698,45 @@ async function runTurn(text) {
   return "end_turn";
 }
 
+/**
+ * Os logins do Claude, com a regra do `0.75.1` (`dist/acp-agent.js`): só para
+ * quem declara `auth.terminal` ou `_meta["terminal-auth"]` em
+ * `clientCapabilities`, e com o **comando exato** só no segundo caso. Sem a
+ * marca no lugar certo o método volta sem `_meta` — `command: null`, que a tela
+ * recusa. Foi assim que o e2e da `034` achou o `initialize` do daemon mandando
+ * a marca no topo dos parâmetros.
+ *
+ * Diferente do de verdade num ponto, e de propósito: só **deslogado**. O de
+ * verdade oferece sempre, e o primeiro acesso conta os métodos para dizer se o
+ * adaptador *pede* autenticação — oferecer sempre mudaria o que aquele spec
+ * afirma, sem nada no produto ter mudado.
+ */
+function claudeLoginMethods(capabilities) {
+  const meta = capabilities?._meta?.["terminal-auth"] === true;
+  if (loggedIn() || (capabilities?.auth?.terminal !== true && !meta)) return [];
+  const args = ["--cli", "auth", "login", "--claudeai"];
+  return [
+    {
+      id: "claude-ai-login",
+      name: "Claude Subscription",
+      description: "Use Claude subscription",
+      type: "terminal",
+      args,
+      ...(meta
+        ? {
+            _meta: {
+              "terminal-auth": {
+                command: process.execPath,
+                args: [process.argv[1], ...args],
+                label: "Claude Login",
+              },
+            },
+          }
+        : {}),
+    },
+  ];
+}
+
 createInterface({ input: process.stdin }).on("line", (line) => {
   if (line.trim() === "") return;
 
@@ -695,8 +793,7 @@ createInterface({ input: process.stdin }).on("line", (line) => {
                 { id: "api-key", name: "API Key", description: "Use an API key to authenticate" },
                 { id: "chat-gpt", name: "ChatGPT", description: "Use ChatGPT to authenticate" },
               ]
-            : // Like the real adapter: it asks for nothing.
-              [],
+            : claudeLoginMethods(message.params?.clientCapabilities),
       });
       return;
 
@@ -824,6 +921,10 @@ createInterface({ input: process.stdin }).on("line", (line) => {
       }
       if (text.startsWith(DISTILL_OPENER)) {
         void runDistill().then((stopReason) => reply(message.id, { stopReason }));
+        return;
+      }
+      if (text.includes(WHICH_ACCOUNT)) {
+        void runAccountTurn(blocks).then((stopReason) => reply(message.id, { stopReason }));
         return;
       }
       if (text.includes(ECHO)) {

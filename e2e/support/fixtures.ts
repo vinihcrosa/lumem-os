@@ -110,6 +110,13 @@ export const E2E_GH_COMMENTS = join(E2E_FIXTURE_DIR, "gh-comments.jsonl");
 export const E2E_FIXTURE_GH = join(E2E_FIXTURE_DIR, "bin", "gh");
 export const E2E_FAKE_GH = fileURLToPath(new URL("./fake-gh.mjs", import.meta.url));
 
+/**
+ * O das contas (`034` T17): um projeto só dele, porque o spec afirma o consumo
+ * **por projeto** — e num projeto dividido com outro spec, os turnos daquele
+ * entrariam na conta que este lê.
+ */
+export const E2E_FIXTURE_REPO_ACCOUNTS = join(E2E_FIXTURE_DIR, "repo-accounts");
+
 /** Where the first-access spec makes its project. */
 export const E2E_FIXTURE_REPO_ONBOARDING = join(E2E_FIXTURE_DIR, "repo-onboarding");
 
@@ -211,6 +218,7 @@ export function createFixtures(): void {
     E2E_FIXTURE_REPO_SLOW_SETUP,
     E2E_FIXTURE_REPO_FAILING_SETUP,
     E2E_FIXTURE_REPO_PR,
+    E2E_FIXTURE_REPO_ACCOUNTS,
   ]) {
     mkdirSync(repo, { recursive: true });
     git(repo, "init", "--initial-branch", "main", ".");
