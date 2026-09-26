@@ -166,7 +166,7 @@ export function SpendList({ rows }: SpendListProps) {
                 <span className="spend__cost">{money(row.cost, row.currency)}</span>
               )}
               <span className="spend__turns">
-                {row.turns === 0 ? "nenhum turno" : `${String(row.turns)} turnos`}
+                {turnsText(row.turns)}
               </span>
             </div>
 
@@ -230,9 +230,15 @@ function Numbers({
       ) : (
         <span className="spend__cost">{money(part.cost, part.currency)}</span>
       )}
-      <span className="spend__turns">{part.turns === 0 ? "nenhum turno" : `${String(part.turns)} turnos`}</span>
+      <span className="spend__turns">{turnsText(part.turns)}</span>
     </>
   );
+}
+
+/** `nenhum turno`, `1 turno`, `N turnos` — as linhas e as sub-linhas dizem igual. */
+function turnsText(turns: number): string {
+  if (turns === 0) return "nenhum turno";
+  return turns === 1 ? "1 turno" : `${String(turns)} turnos`;
 }
 
 /** `US$ 12,4071`. Quatro casas, porque um turno custa menos que um centavo. */

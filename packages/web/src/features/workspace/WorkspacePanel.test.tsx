@@ -165,6 +165,24 @@ describe("WorkspacePanel", () => {
     expect(screen.getByText("nenhum turno")).toBeInTheDocument();
   });
 
+  it("um turno é singular, na linha do projeto e na sub-linha", async () => {
+    // `1 turnos` estava na tela desde a `010`.
+    trpc.agentConfig.list.query.mockResolvedValue([agent("a1", "claude"), agent("a2", "codex")]);
+    trpc.usage.byProject.query.mockResolvedValue([spend({ turns: 1 })]);
+    trpc.usage.byProjectAndAgent.query.mockResolvedValue([
+      byAgent({ turns: 1 }),
+      byAgent({ agentConfigId: "a2", name: "codex", tokens: 406_000, cost: null, currency: null, turns: 2 }),
+    ]);
+
+    render();
+    await userEvent.click(await screen.findByRole("button", { name: /abrir a divisão por agente/ }));
+    await screen.findByText("codex");
+
+    expect(screen.getAllByText("1 turno")).toHaveLength(2);
+    expect(screen.getByText("2 turnos")).toBeInTheDocument();
+    expect(screen.queryByText(/^1 turnos$/)).not.toBeInTheDocument();
+  });
+
   it("custo que ninguém reportou é dito, não vira zero", async () => {
     // Um agente que não informa dinheiro não pode parecer grátis.
     trpc.usage.byProject.query.mockResolvedValue([spend({ cost: null, currency: null })]);
