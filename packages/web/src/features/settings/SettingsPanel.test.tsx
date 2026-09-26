@@ -87,6 +87,15 @@ describe("as quatro seções", () => {
     expect(await screen.findByText(/ainda não tem alavanca/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "grande" })).toBeNull();
   });
+
+  it("o aviso de exibição não diz que o tokens.css é cópia do Open Design", async () => {
+    // O ADR de 2026-09-20 pôs o design no código: a frase ficou velha.
+    render();
+
+    const warning = (await screen.findByText(/ainda não tem alavanca/)).closest(".set__todo");
+    expect(warning).toHaveTextContent("111 valores em px e zero rem");
+    expect(warning).not.toHaveTextContent(/Open Design/);
+  });
 });
 
 /*

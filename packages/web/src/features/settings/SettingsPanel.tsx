@@ -537,11 +537,10 @@ function IntegrationsSection() {
 /**
  * Exibição — a seção que entra **sem o controle**, de propósito (Q7).
  *
- * O `tokens.css` tem 111 valores em `px` e zero `rem`, e é cópia do Open Design:
- * `html { font-size }` não move um pixel. A alavanca nasce no sistema de design,
- * não aqui. Desenhar o segmentado agora seria um botão que não faz nada, e a
- * diferença entre as duas coisas é o que separa uma tela honesta de uma que
- * promete.
+ * O `tokens.css` tem 111 valores em `px` e zero `rem`: `html { font-size }` não
+ * move um pixel. A alavanca nasce no sistema de design, não aqui. Desenhar o
+ * segmentado agora seria um botão que não faz nada, e a diferença entre as duas
+ * coisas é o que separa uma tela honesta de uma que promete.
  */
 function DisplaySection() {
   return (
@@ -558,7 +557,7 @@ function DisplaySection() {
         <span aria-hidden="true">⚠</span>
         <span>
           <b>Tamanho de fonte ainda não tem alavanca.</b> O <code>tokens.css</code> tem{" "}
-          <b>111 valores em px e zero rem</b>, e é cópia do Open Design — então{" "}
+          <b>111 valores em px e zero rem</b> — então{" "}
           <code>html {"{ font-size }"}</code> não move um pixel. O <code>rem</code> nasce no sistema
           de design, e a preferência chega quando ele chegar.
         </span>
