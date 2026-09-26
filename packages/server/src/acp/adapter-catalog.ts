@@ -105,7 +105,9 @@ export class AdapterCatalog {
   /** Um por adaptador de `ADAPTERS`, nessa ordem, e depois os ids sem spec que já gravaram. */
   view(projectId?: string): AdapterCatalogReading[] {
     const known = this.adapters.map((spec) => spec.id);
-    const unknown = [...this.entries.keys()].filter((id) => !known.includes(id)).sort();
+    const unknown = [...this.entries.keys()]
+      .filter((id) => !known.includes(id))
+      .sort((a, b) => a.localeCompare(b));
     return [...known, ...unknown].map((adapterId) => this.readingOf(adapterId, projectId));
   }
 
