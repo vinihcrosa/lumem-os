@@ -168,7 +168,20 @@ test("duas contas do Claude, lado a lado, cada uma gastando na sua", async ({ pa
   await page.getByRole("button", { name: /^Configurações/ }).click();
   await expect(page.getByRole("heading", { name: "Configurações", level: 1 })).toBeVisible();
 
-  // Um `＋` por agente que tem mais de uma conta; o painel que abre diz de qual.
+  /*
+   * Sem conta nenhuma, o gesto é **adotar** o login da máquina — ele entra como
+   * `principal` —, e o `＋ conectar conta` só existe depois: a conta de
+   * diretório próprio é a segunda (T18). Os specs dividem um daemon, então o
+   * Claude pode já ter a dele quando este roda; os dois caminhos chegam no mesmo
+   * lugar.
+   */
+  const adopt = page.getByRole("group", { name: "nenhuma conta do Claude Code" });
+  const principal = page.getByRole("group", { name: "conta principal" });
+  await expect(adopt.or(principal)).toBeVisible({ timeout: 20_000 });
+  if (await adopt.isVisible()) await adopt.getByRole("button", { name: "conectar Claude Code" }).click();
+  await expect(principal).toContainText("conectada", { timeout: 20_000 });
+
+  // Um `＋` por agente que já tem conta; o painel que abre diz de qual.
   await page.getByRole("button", { name: "＋ conectar conta" }).first().click();
   const connect = page.getByRole("group", { name: "conectar conta do Claude Code" });
   await expect(connect).toBeVisible();
