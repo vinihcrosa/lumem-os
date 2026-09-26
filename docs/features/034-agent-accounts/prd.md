@@ -22,7 +22,8 @@
 > invocação resolvida da spec a cada `spawn` — é onde a conta entra) e o
 > [ADR do cofre](../../adr/2026-09-13-1730-lumem-owns-the-keys-of-what-it-depends-on.md), que já disse
 > que **agentes entram numa feature posterior**. Esta pode ser ela
-> **Tasks:** [tasks.md](tasks.md) — 20 tasks em 4 fases. A fase 0 (a medição) está entregue
+> **Tasks:** [tasks.md](tasks.md) — 20 tasks em 4 fases, **19 entregues** em 2026-09-26. Falta a T19,
+> a segunda assinatura de verdade
 > **Desenho:** ~~vem do Open Design **antes** do React~~ — a regra de 2026-08-19 foi superada pelo
 > [ADR de 2026-09-20](../../adr/2026-09-20-2246-design-lives-in-the-code.md): o desenho mora no
 > código, e a galeria é o Storybook. Pelo gatilho dele (*"se o desenho estiver errado, o que se joga

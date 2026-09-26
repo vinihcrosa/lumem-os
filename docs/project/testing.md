@@ -666,6 +666,9 @@ com `FOREIGN KEY constraint failed`.
 A regra que sai daí: **toda migração que muda ação de estrangeiro por `ALTER TABLE` precisa de um
 caso que exerça a ação**, e não só a presença da coluna.
 
+**Voltou duas vezes na [`034`](../features/034-agent-accounts/tasks.md)**, na `0036` e na `0037`, as
+duas pegas pelo caso que exerce a ação.
+
 ### O `drizzle-kit` lê colunas que ainda não existem na tabela de origem
 
 A migração `0018` nasceu com `INSERT INTO __new_workspace(…, "budget_cost_per_task", …) SELECT …,
@@ -678,6 +681,9 @@ A migração `0018` nasceu com `INSERT INTO __new_workspace(…, "budget_cost_pe
 
 A regra que sai daí, e que vale para toda recriação de tabela: **leia o `SELECT` da migração gerada
 antes de rodá-la**, e tenha um caso num banco parado na revisão anterior **com linha dentro**.
+
+**Voltou na `0035`** ([`034`](../features/034-agent-accounts/tasks.md)): a recriação da `session`
+lia `agent_account_id` da tabela velha.
 
 ### Uma variante nova de evento quebra a tela, e isso é o contrato funcionando
 
@@ -1461,6 +1467,49 @@ commit, é como o defeito se esconde.** `packages/web/src/css-blocks.test.ts` (`
 estrutural: lê o `web` inteiro por `readdirSync`, sem lista de arquivo nenhuma — o preço é uma regra
 mais barata (o texto ao redor de um `${…}` precisa aparecer em algum nome de classe real, sem exigir
 o nome inteiro por extenso), mas ele nunca fica cego por um `git mv`.
+
+### O `gate:quick` não vê o teste que lê arquivo por caminho
+
+**Sintoma:** três vezes na [`034`](../features/034-agent-accounts/tasks.md), um commit passou no
+`gate:quick` e quebrou a suíte da tela inteira: um prefixo de cache novo sem leitor
+(`queryKeys.test.ts`), um arquivo que encolheu uma linha abaixo do teto registrado
+(`architecture.test.ts`), e o teste estático que exige o resolvedor de conta em todo `spawn` do
+server.
+
+**Causa:** o `gate:quick` escolhe os testes pelo grafo de importação dos arquivos mudados. Um teste
+que **lê o código como texto** — por `readFileSync` ou `readdirSync` — não importa o arquivo que
+audita, então mudar esse arquivo não o seleciona.
+
+**Regra:** mexeu em `lib/queryKeys.ts`, no tamanho de um arquivo que está no mapa de tetos, ou num
+ponto de `spawn`/`resume` do server? Rode a suíte do pacote inteiro antes do commit, e não só o
+`gate:quick`.
+
+### Um lote de consultas responde quando a mais lenta responde
+
+**Sintoma:** medido no app de verdade (`034` T18), `/settings` levava ~10 s para mostrar as contas e os
+encaixes da esteira, com o servidor respondendo cada consulta em 10 ms.
+
+**Causa:** o `httpBatchLink` do tRPC juntava na mesma requisição o `setup.probe` — que sobe o
+adaptador e leva de 4 a 9 s — com `workspace.slots`, `agentAccount.list` e as listas de sessão. O
+lote volta inteiro, então a tela esperava um adaptador que ela não tinha consultado. Nenhum teste de
+componente vê isso: o mock responde na hora.
+
+**Conserto:** o que sobe processo ou espera pessoa viaja por `httpLink`, fora do lote
+(`packages/web/src/lib/trpc.ts`, `travelsAlone`). A regra para procedimento novo: **se ele pode levar
+segundos, entra no `ALONE`**.
+
+### Contar os métodos de login não diz se há login
+
+**Sintoma:** com o login do Claude válido, o primeiro acesso passou a dizer *"o adaptador pede
+autenticação"*. Visto no app de verdade, e não na suíte.
+
+**Causa:** o conserto de `9947f01` fez o daemon pedir a marca `_meta["terminal-auth"]` onde o
+`claude-agent-acp@0.75.1` a lê, e o adaptador passou a oferecer os métodos **sempre**, logado ou não.
+A tela deduzia login de `authMethods.length === 0`. O fake do e2e só oferecia os métodos a uma conta
+deslogada, e por isso escondia a dedução.
+
+**Regra:** login se lê do `loggedIn` da conferência de identidade (`034` T6), e nunca da lista de
+métodos — ela diz **como** entrar, e não **se** já entrou.
 
 ## Convenções
 

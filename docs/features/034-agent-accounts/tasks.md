@@ -4,8 +4,9 @@
 **Decisão:** [ADR de 2026-09-26](../../adr/2026-09-26-0148-an-account-is-a-whole-agent-config-dir.md)
 
 **Status:** em execução
-**Histórico:** escrito em **2026-09-26**, depois da fase 0, e **reescrito no mesmo dia** depois do
-rebase no `main`. Quatro coisas tinham mudado por baixo:
+**Histórico:** **19 das 20 tasks entregues em 2026-09-26.** Falta só a T19, que precisa de uma
+segunda assinatura de verdade e de um navegador. Escrito depois da fase 0, e **reescrito no mesmo dia**
+depois do rebase no `main`. Quatro coisas tinham mudado por baixo:
 - a feature colidiu com a `030-settings` e virou `034`;
 - o desenho saiu do Open Design ([ADR de 2026-09-20](../../adr/2026-09-20-2246-design-lives-in-the-code.md));
 - o login de agentes tem casa marcada em `/settings`, e não no rodapé (Q6 da `030-settings`);
@@ -90,6 +91,7 @@ cada uma na pergunta de origem.
 **Done when**: os dois adaptadores declaram os três campos. Um teste diz que `accountEnv` nunca é
 `HOME` nem `XDG_*`.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue — `6dacef1`
 
 #### T4: `agent_account`, e a migração que não pede relogin
 
@@ -111,6 +113,7 @@ cada uma na pergunta de origem.
 conferidas **à mão no SQL gerado**, porque o `drizzle-kit` já errou as duas neste repositório: a ação
 do estrangeiro (a `022`), e `SELECT` lendo coluna que ainda não existe (a Parte 3 da `028`).
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue — `e39919f`. O `drizzle-kit` repetiu o `SELECT` de coluna que não existe; reescrito à mão, com caso vermelho de propósito
 
 #### T5: Um resolvedor de invocação por conta, e todo spawn passando por ele
 
@@ -134,6 +137,7 @@ Os caminhos que passam a chamar o resolvedor, todos:
   mudar.
 
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue — `fed0904`. O `spawn` só somava ao `process.env`, e nasceu `unsetEnv` para a variável ficar ausente de verdade; a Q11 (`c3526d6`) veio daqui
 
 #### T6: Conferir por identidade, e não pelo `session/new`
 
@@ -152,6 +156,7 @@ passam a receber conta e o env dela, e o aquecimento do boot confere cada conta.
 - o item *"O rodapé diz `conectado` para um Claude sem login"* sai do backlog.
 
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue — `364ea35`. Conserta de graça o `conectado` falso do rodapé
 
 #### T7: O contrato com o pino vira teste
 
@@ -162,6 +167,7 @@ pulado dizendo por quê quando não está
 **Done when**: passa contra o pino. Trocar o nome da variável o deixa **vermelho**, e isso é provado
 de propósito (a regra da `025` sobre gate que nasce verde).
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue — `90f8c34`, provado vermelho com o nome da variável errado
 
 #### T8: Conectar, desconectar, apagar de vez, e a conta padrão
 
@@ -186,6 +192,7 @@ de propósito (a regra da `025` sobre gate que nasce verde).
   arrastar `cli_auth_credentials_store`. **Se falhar, a herança vira cópia**, e a Q10 recebe a nota.
 
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue — `c084a72`. A herança da Q10 foi medida contra os binários reais; um plugin **carregar** por link continua não medido
 
 #### T9: O catálogo por conta, o trio padrão, e o modelo que sumiu
 
@@ -203,6 +210,7 @@ de propósito (a regra da `025` sobre gate que nasce verde).
 **Done when**: um teste com um modelo guardado que o fake não lista mostra a sessão abrindo, o
 evento no transcript e a conta indisponível.
 **Gate**: `pnpm gate:quick` e `pnpm gate:build`. Uma variante nova de `AcpEvent` derruba o typecheck
+**Status**: ✅ entregue — `2daacbf`, com os eventos de conta em `08d6d09` e `0178223`
 da tela e o mock compartilhado (Parte 3 da `028`)
 
 #### T10: A esteira escolhe conta
@@ -216,6 +224,7 @@ O `openAgentSession` e o `resumeSession` passam a conta adiante.
 `tasks/conveyor-ports.ts`, `bootstrap.ts`
 **Done when**: a cascata pura tem o caso *"encaixe diz só o adaptador → herda conta, modelo e effort"*.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue — `499b7ba`, e a retomada que fica no modelo da própria conversa em `3761100`
 
 #### T11: Continuar em outra conta
 
@@ -242,6 +251,7 @@ deixa o corte na linha, com `mandar assim mesmo`. Conversa em que nada foi dito 
 - a origem continua aceitando prompt.
 
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue — `0bfd4e6`. A entrada ficou `{ sessionId, agentAccountId }`: a conta já diz o agente
 
 #### T12: O consumo abre por conta
 
@@ -252,6 +262,7 @@ router.
 **Done when**: duas contas do mesmo agente somam separadas, e a soma das duas bate com a consulta por
 agente.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue — `1867d89`
 
 ---
 
@@ -274,6 +285,7 @@ caso em que se desenha antes, e desenhar é escrever a story com os dados semead
 **Done when**: as stories cobrem uma conta, duas contas, conta sem login, conta desconectada, trio
 indisponível e o painel de conectar. O teste de componente cobre as ações.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue — `197148d`
 
 #### T14: A pílula escolhe conta
 
@@ -286,6 +298,7 @@ conta.
 **Done when**: com uma conta, a pílula é a mesma de hoje, conferida pela story. Com duas, a story e o
 teste mostram a pré-seleção e a troca.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue — `0fedbc3`. O composer de worktree nova não aceitava conta no servidor, e passou a aceitar
 
 #### T15: O cabeçalho diz a conta, e o gesto de continuar
 
@@ -300,6 +313,7 @@ teste mostram a pré-seleção e a troca.
 **Done when**: duas conversas do mesmo agente em contas diferentes têm cabeçalhos diferentes, e a
 linha de vínculo leva à outra aba.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue — `c091a99`, e a corrida da aba nova em `cb7f4f2`
 
 #### T16: Consumo por conta, e a esteira na configuração
 
@@ -312,6 +326,7 @@ linha de vínculo leva à outra aba.
 **Done when**: as colunas continuam comparáveis na vertical com a sub-linha nova (a `021` achou 37px
 de diferença exatamente aqui), conferido no navegador.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue — `bcd6652`. Os encaixes não tinham rota nenhuma no servidor; nasceram `workspace.slots` e `workspace.setSlot`
 
 ---
 
@@ -329,6 +344,7 @@ lado.
 - *continuar em outra conta* abre a terceira aba com o corte.
 
 **Gate**: `pnpm gate:full`
+**Status**: ✅ entregue — `341d3f6`. O e2e achou que o daemon pedia o comando de login no lugar errado — ninguém entraria numa conta nova do Claude pela tela (`9947f01`)
 
 #### T18: O teste de design
 
@@ -338,6 +354,23 @@ contraste e distinção), e consertar o que estiver errado.
 **Where**: `.context/` para os prints
 **Done when**: cada tela tem print antes e depois, e cada conserto tem commit.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue. Rodado no app de verdade com um daemon isolado (o estado de dev é
+compartilhado com as outras worktrees, e as migrações desta branch o quebrariam), os logins reais do
+Claude e do Codex desta máquina, um turno de Haiku e uma continuação Claude → Codex de verdade. Os
+prints estão em `.context/034-t18/`. O que ele achou, e onde foi consertado:
+- **dois defeitos que nenhum teste via:** o primeiro acesso dizendo *"pede autenticação"* numa
+  máquina logada (`fc947b1`), e `/settings` levando ~10 s para mostrar as contas porque o
+  `setup.probe` viajava no mesmo lote das consultas rápidas (`2007cad`, medido: ~1 s);
+- **layout:** os encaixes da esteira com a descrição espremida em ~40px, uma palavra por linha
+  (`580c80e`);
+- **o que a tela dizia errado:** `claude · claude` no cabeçalho — a conta da máquina passou a nascer
+  `principal`, e renomeia (`7618e2f`) —, abas sem a conta (`8476320`), `1 turnos` (`cd72008`), dois
+  nomes para o agente na mesma conversa (`88522f8`), e `a padrão` (`d0afbcc`);
+- **o que a tela deixava fazer errado:** conectar o Codex criava um diretório vazio em vez de adotar o
+  login que já existe (`1db16d8`); `ENTRAR` parecia etiqueta (`3280b54`); dois seletores sem dizer qual
+  é modelo e qual é effort (`848917f`); a pílula abria conversa numa conta sem login (`f336ac6`);
+- **o que o `gate:full` achou depois:** com dois agentes, `conta principal` era ambígua — cada bloco
+  de agente virou um grupo nomeado (`4c30f1f`)
 
 #### T19: Uma segunda conta de verdade
 
@@ -349,6 +382,8 @@ contraste e distinção), e consertar o que estiver errado.
 **Where**: a máquina de quem tem as duas contas
 **Done when**: o §2.3 do [estudo](../../project/agent-accounts-measurements.md) ganha a linha medida.
 **Gate**: nenhum. **Precisa do Vinicius**: navegador e duas assinaturas
+**Status**: pendente — é a única. O login pela tela funciona desde `9947f01`: em `/settings` →
+Agentes, `＋ conectar conta` no Claude, e o login abre sozinho
 
 #### T20: Fechar a feature
 
@@ -361,3 +396,5 @@ contraste e distinção), e consertar o que estiver errado.
 **Where**: `docs/`, `CLAUDE.md`
 **Done when**: `pnpm docs:check` e `pnpm gate:full` verdes.
 **Gate**: `pnpm gate:full`
+**Status**: entregue exceto o `Status: completa`, que espera a T19. Índice, `CLAUDE.md`, backlog e
+as armadilhas do [testing.md](../../project/testing.md) estão atualizados

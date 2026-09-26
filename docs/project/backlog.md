@@ -174,7 +174,8 @@ propriedade de **(agente, conta)**.
 **De onde veio:** [pty-vs-acp A2](pty-vs-acp.md) · **Volta quando:** você precisar rodar trabalho e
 pessoal na mesma máquina sem trocar login na mão.
 
-**Virou PRD em 2026-09-25:** [agent-accounts](../features/034-agent-accounts/prd.md), em execução desde 2026-09-26.
+**Virou PRD em 2026-09-25:** [agent-accounts](../features/034-agent-accounts/prd.md), e **implementada em 2026-09-26** — falta a
+T19, uma segunda assinatura de verdade.
 
 ### ~~O rodapé diz `conectado` para um Claude sem login~~ — **resolvido em 2026-09-26**
 
