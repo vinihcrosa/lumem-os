@@ -261,17 +261,32 @@ describe("contas", () => {
     expect(screen.getByRole("button", { name: "agente e modelo: Claude Code · Opus" })).toBeTruthy();
   });
 
-  it("a conta que ainda não entrou aparece, e o grupo diz o que falta", async () => {
+  /*
+   * A conta que pede login era escolhível, e a conversa morria no primeiro
+   * prompt. Ela aparece — é o que diz que ela existe —, mas desabilitada, com o
+   * motivo no rótulo e o caminho no `title`.
+   */
+  it("a conta que ainda não entrou aparece desabilitada, com `· sem login`, e não se escolhe", async () => {
     catalogIs([PESSOAL_VIEW, CODEX_VIEW]);
     accountsAre([PESSOAL, { ...TRABALHO, state: "disconnected", identity: null }]);
     render(<Parent />);
 
-    let menu = await openMenu();
-    await userEvent.click(within(menu).getByRole("menuitemradio", { name: "trabalho" }));
-    menu = await openMenu();
+    const menu = await openMenu();
+    const chip = within(menu).getByRole("menuitemradio", { name: "trabalho · sem login" });
+    expect(chip).toBeDisabled();
+    expect(chip).toHaveAttribute("title", "entre em Configurações → Agentes");
+    await userEvent.click(chip);
 
-    const claude = within(menu).getByRole("group", { name: /^Claude Code/ });
-    expect(within(claude).getByText("sem login")).toBeTruthy();
-    expect(within(claude).queryByRole("menuitemradio", { name: /^opus/ })).toBeNull();
+    expect(choice()).toEqual({ adapterId: "claude", accountId: "acct_pessoal", config: {} });
+  });
+
+  it("a conta conectada cujo adaptador pede login também fica desabilitada", async () => {
+    catalogIs([PESSOAL_VIEW, { ...CLAUDE_VIEW, accountId: TRABALHO.id, authRequired: true }, CODEX_VIEW]);
+    accountsAre([PESSOAL, TRABALHO]);
+    render(<Parent />);
+
+    const menu = await openMenu();
+    expect(within(menu).getByRole("menuitemradio", { name: "trabalho · sem login" })).toBeDisabled();
+    expect(within(menu).getByRole("menuitemradio", { name: "pessoal" })).toBeEnabled();
   });
 });

@@ -173,3 +173,20 @@ export const DuasContasTrabalho: Story = {
     />
   ),
 };
+
+/**
+ * Duas contas, e a do trabalho ainda sem login: o chip dela aparece — é o que
+ * diz que ela existe —, mas desabilitado, com `· sem login` e o caminho no
+ * `title`. Escolhê-la dava uma conversa que morria no primeiro prompt.
+ */
+export const DuasContasUmaSemLogin: Story = {
+  name: "Duas contas (uma sem login)",
+  render: () => (
+    <Stage
+      catalog={[{ ...CLAUDE_VIEW, accountId: PESSOAL.id }, CODEX_VIEW]}
+      accounts={[PESSOAL, { ...TRABALHO, state: "disconnected", identity: null }]}
+      initial={{ adapterId: "claude", accountId: PESSOAL.id, config: {} }}
+      open
+    />
+  ),
+};

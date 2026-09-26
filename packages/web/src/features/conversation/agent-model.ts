@@ -34,6 +34,21 @@ export function pickableAccounts(accounts: readonly AgentAccountView[], adapterI
 }
 
 /**
+ * Se a conta pede login antes de uma conversa nascer nela (`034` T18): a que
+ * nunca entrou, ou a conectada cujo adaptador respondeu `authRequired`. A
+ * pílula a mostra desabilitada — escolhê-la dava uma conversa que morria no
+ * primeiro prompt. A leitura é a mesma que a escolha usaria (`viewForChoice`).
+ */
+export function accountNeedsLogin(
+  catalog: readonly AdapterCatalogView[],
+  account: AgentAccountView,
+  accounts: readonly AgentAccountView[],
+): boolean {
+  const view = viewForChoice(catalog, { adapterId: account.adapterId, accountId: account.id, config: {} }, accounts);
+  return view?.authRequired === true;
+}
+
+/**
  * A escolha com a conta padrão do agente dela (Q1a). Sem padrão, sem conta: o
  * daemon decide, e é ele quem diz *"conecte uma conta"* quando não há nenhuma.
  */

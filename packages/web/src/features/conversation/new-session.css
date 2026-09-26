@@ -137,7 +137,9 @@
   color: var(--color-text-secondary);
   cursor: pointer;
 }
-.agent-menu__acct:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.agent-menu__acct:hover:not(:disabled) { background: var(--color-bg-hover); color: var(--color-text-primary); }
+/* A conta sem login: está lá, e diz por que não se escolhe. */
+.agent-menu__acct:disabled { color: var(--color-text-disabled); cursor: not-allowed; }
 .agent-menu__acct--on {
   background: var(--color-bg-active);
   border-color: var(--color-border-default);

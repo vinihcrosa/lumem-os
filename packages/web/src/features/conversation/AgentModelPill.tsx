@@ -4,6 +4,7 @@ import type { AdapterCatalogView } from "@lumem/shared";
 
 import { useAdapterCatalog, useAgentAccounts, type AgentAccountView } from "../agent/index.js";
 import {
+  accountNeedsLogin,
   chooseAccount,
   chooseModel,
   effortOptionOf,
@@ -133,6 +134,7 @@ export function AgentModelPill({
                 view={entry}
                 chosen={entry.adapterId === value.adapterId ? model : null}
                 accounts={entry.adapterId === value.adapterId && choosable.length > 1 ? choosable : []}
+                needsLogin={(account) => accountNeedsLogin(catalog, account, accounts)}
                 chosenAccount={value.accountId ?? null}
                 onLogin={onLogin}
                 onChooseAccount={(accountId) => {
@@ -217,6 +219,8 @@ interface AdapterGroupProps {
   /** As contas a escolher neste grupo — vazio quando não há o que escolher. */
   accounts: readonly AgentAccountView[];
   chosenAccount: string | null;
+  /** A conta que pede login antes: aparece, mas não se escolhe. */
+  needsLogin(account: AgentAccountView): boolean;
   onChoose(model: string): void;
   onChooseAccount(accountId: string): void;
   onLogin?(adapterId: string): void;
@@ -228,6 +232,7 @@ function AdapterGroup({
   chosen,
   accounts,
   chosenAccount,
+  needsLogin,
   onChoose,
   onChooseAccount,
   onLogin,
@@ -246,18 +251,24 @@ function AdapterGroup({
       {/* Só o rótulo, que é seu (Q2): o e-mail mora em `/settings`. */}
       {accounts.length > 0 && (
         <div className="agent-menu__accts" role="group" aria-label={`conta do ${view.label}`}>
-          {accounts.map((account) => (
-            <button
-              type="button"
-              role="menuitemradio"
-              aria-checked={account.id === chosenAccount}
-              className={`agent-menu__acct focus-ring${account.id === chosenAccount ? " agent-menu__acct--on" : ""}`}
-              key={account.id}
-              onClick={() => onChooseAccount(account.id)}
-            >
-              {account.label}
-            </button>
-          ))}
+          {accounts.map((account) => {
+            // Aparece, porque existe; não se escolhe, porque a conversa morreria no primeiro prompt.
+            const locked = needsLogin(account);
+            return (
+              <button
+                type="button"
+                role="menuitemradio"
+                aria-checked={account.id === chosenAccount}
+                className={`agent-menu__acct focus-ring${account.id === chosenAccount ? " agent-menu__acct--on" : ""}`}
+                key={account.id}
+                disabled={locked}
+                {...(locked ? { title: "entre em Configurações → Agentes" } : {})}
+                onClick={() => onChooseAccount(account.id)}
+              >
+                {locked ? `${account.label} · sem login` : account.label}
+              </button>
+            );
+          })}
         </div>
       )}
 
