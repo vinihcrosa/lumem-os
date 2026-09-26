@@ -582,6 +582,17 @@ deles, e a v1 do fluxo não implementa nenhum.
 | Internacionalizar a interface | `G` | toda a interface é português escrito à mão, sem camada de tradução. A intenção foi declarada em **2026-09-14**, respondendo ao nome da tela do quadro, e já **pagou uma decisão antecipada**: o [caminho da aplicação em inglês](../../CLAUDE.md), adotado agora porque hoje custa zero — o app não tem rota nenhuma — e depois custa um link que alguém guardou. O resto (extrair as strings, escolher a biblioteca, plural e data) não foi discutido | você querer o produto na mão de alguém que não fala português — ou o app ganhar URL de verdade, que é quando a regra do caminho passa a ser cobrada |
 | ~~Rotas de verdade na aplicação~~ — **virou issue em 2026-09-17** ([LUM-63](https://linear.app/lumem-os/issue/LUM-63/rotas-de-verdade-workspace-projeto-e-checkout-na-url-o-n3-que-a-030)) | `M` | saiu daqui pela [`030`](../features/030-settings/prd.md), que pôs **três endereços à mão** — `/`, `/tasks`, `/settings` — e parou aí de propósito. O que restou é o **N3**: workspace, projeto e checkout na URL, e é lá que as ADRs de roteamento nascem. Histórico: o aplicativo **não tinha rota nenhuma**: o `/styleguide` é a única lida, e só em DEV — tudo o mais é estado React, e o daemon devolve o mesmo shell para qualquer caminho. O idioma já está decidido (inglês); a **forma** era pergunta que ninguém tinha aberto, e a [Q2 da `030`](../features/030-settings/open-questions.md) a abriu com os três custos medidos: `react-router@7` são **4,79 MB** e duas dependências, `wouter` **77 KB** e nenhuma, e à mão são `pathname` + `pushState` + `popstate` | **aconteceu**, em duas etapas: a `030` entregou o N1, e o N3 tem issue |
 
+### Promover o painel de erros ao Open Design — `P`
+
+O registro de erros (o gatilho na topbar e a gaveta) nasceu **aqui**, montado a partir de primitivas do
+design system e só com `var(--token)` — não foi desenhado no Open Design, que o [ADR de
+2026-08-19](../adr/) diz ser onde o visual se decide. A dívida é pequena de propósito: nenhum componente
+visual novo, nada de cor ou espaço à mão. O que falta é o desenho da gaveta virar tela lá, para deixar
+de ser derivado de decisões tomadas no código.
+
+**De onde veio:** [PR #79](https://github.com/vinihcrosa/lumem-os/pull/79), revisão · **Volta quando:** o
+painel ganhar um segundo consumidor, ou aparecer a primeira reclamação de leitura.
+
 ---
 
 ## H. Distribuição e projeto

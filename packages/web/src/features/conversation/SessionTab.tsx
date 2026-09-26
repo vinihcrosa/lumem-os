@@ -27,6 +27,8 @@ export interface SessionTabPanelProps {
   onResume?: () => void;
   /** True while this session's resume is in flight. */
   resuming?: boolean;
+  /** The daemon's reason for refusing this session's resume, or null. */
+  resumeError?: string | null;
   /** A fresh session was started from this record — open its tab. */
   onStarted: (sessionId: string) => void;
 }
@@ -53,6 +55,7 @@ export function SessionTabPanel({
   viewer = null,
   onResume,
   resuming = false,
+  resumeError = null,
   onStarted,
 }: SessionTabPanelProps) {
   const agent = tab.kind === "agent";
@@ -116,6 +119,7 @@ export function SessionTabPanel({
             active={active}
             {...(onResume ? { onResume } : {})}
             resuming={resuming}
+            {...(resumeError ? { resumeError } : {})}
           />
         ) : (
           <Terminal key={tab.sessionId} sessionId={tab.sessionId} readOnly={record} />

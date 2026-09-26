@@ -1,6 +1,6 @@
 import type { AcpServerMessage } from "@lumem/shared";
 
-import { Button, Glyph } from "../../ui/index.js";
+import { Banner, Button, Glyph } from "../../ui/index.js";
 import { type AcpConnect } from "./acp-socket.js";
 import { Composer } from "./Composer.js";
 import { Transcript } from "./Transcript.js";
@@ -47,6 +47,13 @@ export interface ConversationProps {
   /** True while the resume is in flight, so the button can say so. */
   resuming?: boolean;
   /**
+   * The daemon's reason for refusing the resume, or null (F1.6).
+   *
+   * Launching a fresh adapter to continue the conversation can be refused, and a
+   * refusal that only flipped the button back read as the click doing nothing.
+   */
+  resumeError?: string | null;
+  /**
    * False enquanto outra aba está aberta.
    *
    * As abas ficam **montadas** quando escondidas (`SessionTab`), então o atalho
@@ -66,6 +73,7 @@ export function Conversation({
   load,
   onResume,
   resuming = false,
+  resumeError = null,
   active = true,
 }: ConversationProps) {
   const { state, attached, readOnly, send, cancel, answer, setMode, setConfig } = useConversationSession(
@@ -99,6 +107,15 @@ export function Conversation({
           </Button>
         )}
       </div>
+
+      {/* The daemon's reason for refusing the resume, right under the button that
+          asked for it (F1.6). Without it the refusal was silent and the click read
+          as doing nothing. */}
+      {resumeError && (
+        <div className="conv__banner">
+          <Banner tone="danger">{resumeError}</Banner>
+        </div>
+      )}
 
       <Transcript conversation={conversation} session={session} failure={failure} readOnly={readOnly} answer={answer} />
 

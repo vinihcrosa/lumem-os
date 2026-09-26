@@ -76,7 +76,7 @@ export function ScopePanel({
   context,
   cwd,
 }: ScopePanelProps) {
-  const { tabs, activeId, select, close, reopen, resume, resuming, sessions } =
+  const { tabs, activeId, select, close, reopen, resume, resuming, resumeError, sessions } =
     useWorktreeTabs(scope);
   const awaiting = useAwaitingPermission();
   const openFiles = useOpenFiles();
@@ -315,6 +315,11 @@ export function ScopePanel({
           // `session/load` is something only an ACP adapter has (D1).
           {...(tab.transport === "acp" ? { onResume: () => resume(tab.sessionId) } : {})}
           resuming={resuming === tab.sessionId}
+          // The daemon's reason for refusing this session's resume, so the click
+          // is never silent — the same promise `close` already keeps.
+          {...(resumeError?.sessionId === tab.sessionId
+            ? { resumeError: resumeError.message }
+            : {})}
         />
       ))}
     </section>

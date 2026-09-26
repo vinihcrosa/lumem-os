@@ -473,6 +473,67 @@ describe("aba de sessão", () => {
     expect(screen.getByRole("tab", { name: /shell/ })).toBeInTheDocument();
   });
 
+  it("shows the daemon's reason when a resume is refused, instead of nothing", async () => {
+    // The bug: clicking "retomar" did nothing. The resume launches a fresh adapter
+    // and that can be refused, and the refusal had no surface at all — unlike every
+    // other session action, which shows the daemon's sentence.
+    const user = userEvent.setup();
+    const ended = session({
+      kind: "agent",
+      agentName: "claude-code",
+      agentConfigId: "ac1",
+      command: "claude-agent-acp",
+      transport: "acp",
+      acpSessionId: "acp-1",
+      state: "exited",
+      exitCode: 0,
+    });
+    trpc.session.listByScope.query.mockImplementation(async ({ scopeType }) =>
+      scopeType === "worktree" ? [ended] : [],
+    );
+    // The read path a finished conversation takes when its tab is reopened.
+    trpc.session.transcript.query.mockResolvedValue({
+      type: "attached",
+      sessionId: "s1",
+      state: "exited",
+      acpSessionId: "acp-1",
+      model: "opus",
+      mode: "default",
+      configOptions: [],
+      transcript: [],
+    });
+    trpc.session.resume.mutate.mockRejectedValue(
+      new Error("o adaptador claude-agent-acp não sabe retomar conversa: não declara loadSession"),
+    );
+
+    await selectWorktree(user);
+    await user.click(await screen.findByRole("button", { name: /reabrir/ }));
+    await user.click(await screen.findByRole("button", { name: /retomar/ }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("não sabe retomar conversa");
+  });
+
+  it("keeps a real failure in the topbar's error log, not only in a banner", async () => {
+    // The banner is gone the moment you look away. The log is what survives, so a
+    // real bug can be copied out later — and it is fed by the same failed call.
+    // A server defect (INTERNAL_SERVER_ERROR), not a domain refusal: the log is
+    // for bugs, and the daemon's ordinary "no" stays out of it.
+    const user = userEvent.setup();
+    trpc.session.listByScope.query.mockImplementation(async ({ scopeType }) =>
+      scopeType === "worktree" ? [session()] : [],
+    );
+    trpc.session.close.mutate.mockRejectedValue(
+      Object.assign(new Error("o daemon caiu ao fechar"), { data: { code: "INTERNAL_SERVER_ERROR" } }),
+    );
+
+    await selectWorktree(user);
+    await user.click(await screen.findByRole("button", { name: "fechar shell" }));
+
+    const trigger = await screen.findByRole("button", { name: /registro de erros/ });
+    await user.click(trigger);
+    expect(within(screen.getByRole("dialog")).getByText("o daemon caiu ao fechar")).toBeInTheDocument();
+  });
+
   it("keeps every tab's terminal mounted while another one is open", async () => {
     // The regression this whole change could most easily cause. Unmounting on
     // switch would reconnect the socket and repaint from the daemon's buffer

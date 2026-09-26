@@ -53,6 +53,9 @@
 .conv__who { display: inline-flex; align-items: center; gap: var(--space-8); font: var(--text-label-md); }
 .conv__adapter { font: var(--text-mono-sm); color: var(--color-text-tertiary); }
 
+/* O motivo de o daemon recusar a retomada, logo abaixo do botão que pediu. */
+.conv__banner { flex: none; padding: var(--space-12) var(--space-20) 0; }
+
 .conv__scroll {
   flex: 1;
   min-height: 0;

@@ -6,6 +6,8 @@
  * conteúdo e o terminal perde a altura que ele precisa medir.
  */
 
+@import "./error-log.css";
+
 /* Coluna flex, não grid de linhas fixas: a faixa de daemon inacessível entra e
    sai do meio da pilha, e um `grid-template-rows` com duas linhas jogava o
    corpo numa terceira linha implícita quando ela aparecia. */
