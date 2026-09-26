@@ -49,13 +49,16 @@ export function createConveyorSessionOpeners({
    * não um erro de boot.
    *
    * O effort vem **depois** do modelo, porque é o modelo que diz se há effort.
-   * Sem effort no encaixe mas com modelo, vale o effort padrão da conta: o
-   * `startAgentSession` já aplicou o trio dela, e trocar o modelo por cima pode
-   * ter levado o effort junto.
+   * Sem effort no encaixe mas com modelo, vale o effort padrão da conta — só
+   * numa conversa **nova** (`fresh`): o `startAgentSession` já aplicou o trio
+   * dela, e trocar o modelo por cima pode ter levado o effort junto. Na
+   * retomada, não: *"trocar o padrão não mexe em sessão aberta"* (Q1), e o
+   * modelo da própria conversa o `SessionStore.resume` já devolveu.
    */
   async function applySlot(
     sessionId: string,
     slot: { agentMode: string | null; model: string | null; effort: string | null },
+    fresh: boolean,
   ): Promise<void> {
     if (slot.agentMode !== null) {
       await acp.setConfig(sessionId, "mode", slot.agentMode).catch(() => undefined);
@@ -65,7 +68,7 @@ export function createConveyorSessionOpeners({
     }
 
     let effort = slot.effort;
-    if (effort === null && slot.model !== null) {
+    if (effort === null && slot.model !== null && fresh) {
       const row = await sessionStore.findById(sessionId);
       const account = row?.agentAccountId
         ? await createAgentAccountRepository(db).get(row.agentAccountId)
@@ -111,7 +114,7 @@ export function createConveyorSessionOpeners({
         // liberada, e não trocar — o portão do `016` protege a troca.
         autonomous: true,
       });
-      await applySlot(opened.id, { agentMode, model, effort });
+      await applySlot(opened.id, { agentMode, model, effort }, true);
       return { sessionId: opened.id };
     },
 
@@ -123,10 +126,15 @@ export function createConveyorSessionOpeners({
      * conta do encaixe de hoje não entra aqui. Modo, modelo e effort, sim —
      * `session/load` sobe um adaptador novo, no modo padrão dele, e sem eles a
      * segunda vez de cada encaixe rodava perguntando permissão a ninguém.
+     *
+     * Encaixe sem modelo não é *"o padrão da conta"*: é o modelo **da conversa**
+     * (`session.model`), que o `resume` reaplica antes de devolver a linha. O
+     * effort a sessão não grava, então sem um no encaixe ele fica no que o
+     * adaptador trouxer.
      */
     resumeSession: async ({ sessionId, agentMode, model, effort }) => {
       const row = await sessionStore.resume(sessionId);
-      await applySlot(row.id, { agentMode, model, effort });
+      await applySlot(row.id, { agentMode, model, effort }, false);
       return { sessionId: row.id };
     },
   };

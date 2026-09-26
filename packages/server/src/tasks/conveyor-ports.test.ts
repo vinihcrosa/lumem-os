@@ -27,7 +27,7 @@ import { createAgentCatalog } from "../agents/catalog.js";
 import { createAgentAccountRepository } from "../repositories/agentAccount.js";
 import { configForAdapter } from "../repositories/agentConfig.js";
 import { appRouter } from "../routers/index.js";
-import { fakeAgentProcess } from "../testing/acp-fake-agent.js";
+import { FAKE_CONFIG_OPTIONS, fakeAgentProcess } from "../testing/acp-fake-agent.js";
 import { cleanupGitFixtures, createRepo } from "../testing/git-fixtures.js";
 import { createCallerFactory } from "../trpc.js";
 import { createConveyorSessionOpeners } from "./conveyor-sessions.js";
@@ -745,13 +745,40 @@ describe("os scripts do projeto têm o teto da esteira, e não o da remoção", 
  * `bootstrap` liga — e um spawner que diz o que recebeu: é a única asserção que
  * pega a conta errada, porque a linha diria a certa e o processo subiria na outra.
  */
+const EFFORT_OPTION = {
+  id: "effort",
+  name: "Effort",
+  category: "effort",
+  type: "select" as const,
+  currentValue: "medium",
+  options: [
+    { value: "medium", name: "medium" },
+    { value: "high", name: "high" },
+  ],
+} as unknown as (typeof FAKE_CONFIG_OPTIONS)[number];
+
 describe("a conta do encaixe chega ao processo (034 T10)", () => {
   async function accountScene() {
     const requests: AcpSpawnRequest[] = [];
+    // O que cada adaptador ouviu de `set_config_option`, e um fake que devolve o
+    // valor pedido como o corrente — senão a retomada não teria o que conferir.
+    const configCalls: { configId: string; value: string | boolean }[] = [];
     const acpManager = new AcpManager({
       spawner: (request) => {
         requests.push(request);
-        return fakeAgentProcess().process;
+        // Com effort, para a retomada ter um effort que **poderia** mexer.
+        let options = [...FAKE_CONFIG_OPTIONS, EFFORT_OPTION];
+        return fakeAgentProcess({
+          newSession: () => ({ configOptions: options }),
+          loadSession: () => ({ configOptions: options }),
+          setConfigOption: (configId, value) => {
+            configCalls.push({ configId, value });
+            options = options.map((option) =>
+              option.id === configId ? ({ ...option, currentValue: value } as typeof option) : option,
+            );
+            return options;
+          },
+        }).process;
       },
       isAvailable: () => true,
     });
@@ -811,7 +838,18 @@ describe("a conta do encaixe chega ao processo (034 T10)", () => {
       prNumberOf: () => Promise.resolve(null),
       prHost: {} as never,
     });
-    return { ports, requests, db, taskId: created.id, checkout, reviewerAccount, configId };
+    return {
+      ports,
+      openers,
+      acpManager,
+      requests,
+      configCalls,
+      db,
+      taskId: created.id,
+      checkout,
+      reviewerAccount,
+      configId,
+    };
   }
 
   it("o revisor amarrado a uma conta sobe no diretório dela", async () => {
@@ -841,5 +879,60 @@ describe("a conta do encaixe chega ao processo (034 T10)", () => {
     expect(agent.accountId).toBeNull();
     expect(requests.at(-1)?.env?.["CLAUDE_CONFIG_DIR"]).toBeUndefined();
     expect(requests.at(-1)?.unsetEnv).toContain("CLAUDE_CONFIG_DIR");
+  });
+
+  /*
+   * O padrão da conta é de conversa **nova** (Q1: *"trocar o padrão não mexe em
+   * sessão aberta"*). Retomar é continuar a mesma, e o `session/load` devolve o
+   * padrão **local** do adaptador — sem o modelo da própria linha, o encaixe sem
+   * modelo voltava calado no `opus[1m]` do fake.
+   */
+  it("a retomada sem modelo no encaixe volta no modelo da conversa, e não no do adaptador", async () => {
+    const { ports, openers, acpManager, configCalls, db, taskId, checkout } = await accountScene();
+    const agent = await ports.agentFor({ taskId, role: "implementador" });
+    const { sessionId } = await ports.openSession({
+      taskId,
+      role: "implementador",
+      ...agent,
+      cwd: checkout.path,
+      worktreeId: checkout.id,
+    });
+    acpManager.kill(sessionId);
+    await db.update(session).set({ model: "sonnet", state: "exited" }).where(eq(session.id, sessionId));
+    configCalls.length = 0;
+
+    const resumed = await openers.resumeSession({
+      sessionId,
+      agentMode: null,
+      model: null,
+      effort: null,
+    });
+    if (resumed === null) throw new Error("a retomada não devolveu sessão");
+
+    expect(configCalls).toEqual([{ configId: "model", value: "sonnet" }]);
+    expect(acpManager.get(resumed.sessionId)?.model).toBe("sonnet");
+    const [row] = await db.select().from(session).where(eq(session.id, resumed.sessionId));
+    expect(row?.model).toBe("sonnet");
+  });
+  it("a retomada não herda o effort padrão da conta, mesmo quando o encaixe troca o modelo", async () => {
+    const { ports, openers, acpManager, configCalls, db, taskId, checkout, reviewerAccount } =
+      await accountScene();
+    const agent = await ports.agentFor({ taskId, role: "revisor" });
+    const { sessionId } = await ports.openSession({
+      taskId,
+      role: "revisor",
+      ...agent,
+      cwd: checkout.path,
+      worktreeId: checkout.id,
+    });
+    acpManager.kill(sessionId);
+    await db.update(session).set({ state: "exited" }).where(eq(session.id, sessionId));
+    // O padrão mudou **depois** de a conversa existir: é de conversa nova.
+    await createAgentAccountRepository(db).setDefaults(reviewerAccount.id, { model: null, effort: "high" });
+    configCalls.length = 0;
+
+    await openers.resumeSession({ sessionId, agentMode: null, model: "sonnet", effort: null });
+
+    expect(configCalls.filter((call) => call.configId === "effort")).toEqual([]);
   });
 });
