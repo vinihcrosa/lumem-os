@@ -176,7 +176,11 @@ pessoal na mesma máquina sem trocar login na mão.
 
 **Virou PRD em 2026-09-25:** [agent-accounts](../features/034-agent-accounts/prd.md), em execução desde 2026-09-26.
 
-### O rodapé diz `conectado` para um Claude sem login — `S`
+### ~~O rodapé diz `conectado` para um Claude sem login~~ — **resolvido em 2026-09-26**
+
+Saiu do backlog pela T6 da [034](../features/034-agent-accounts/tasks.md) (*feat(server): check
+account login by identity, not by session/new*): o probe confere por `--cli auth status`, e
+`authRequired` passou a ser `!loggedIn`. O registro abaixo fica porque ele descreve o defeito.
 
 Desde o pino `0.75.1`, o `session/new` do `claude-agent-acp` **fecha sem credencial nenhuma**, e o
 `-32000` só chega no primeiro `session/prompt`. O probe do `AcpManager` deriva `authRequired` do

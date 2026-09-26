@@ -4,7 +4,11 @@ import { join } from "node:path";
 import { ADAPTERS_DIR_NAME, CLAUDE_ADAPTER } from "@lumem/shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { AcpManager } from "../acp/AcpManager.js";
+import { AcpManager, type AcpCliRunner } from "../acp/AcpManager.js";
+import type { AcpSpawnRequest } from "../acp/process.js";
+import { agentAccount } from "../db/schema.js";
+import { createAgentAccountRepository } from "../repositories/agentAccount.js";
+import { createAgentConfigRepository } from "../repositories/agentConfig.js";
 import { fakeAgentProcess } from "../testing/acp-fake-agent.js";
 import { createTestCaller, type TestCaller } from "../testing/caller.js";
 import { cleanupGitFixtures, tempDir } from "../testing/git-fixtures.js";
@@ -31,6 +35,19 @@ function stageManagedAdapter(stateDir: string): string {
   mkdirSync(bin, { recursive: true });
   writeFileSync(join(bin, CLAUDE_ADAPTER.command), "");
   return join(bin, CLAUDE_ADAPTER.command);
+}
+
+/**
+ * O `--cli auth status` de um Claude logado (`034` T6).
+ *
+ * Todo probe do Claude passa a conferir a identidade por ele, e o binário
+ * encenado aqui é um arquivo vazio: quem responde é este runner.
+ */
+function loggedInCli(json: Record<string, unknown> = {}): AcpCliRunner {
+  return vi.fn(async () => ({
+    stdout: JSON.stringify({ loggedIn: true, email: "e2e@lumem.local", subscriptionType: "max", ...json }),
+    exitCode: 0,
+  }));
 }
 
 let context: TestCaller | undefined;
@@ -83,7 +100,7 @@ describe("setup.probe", () => {
     const stateDir = tempDir("lumem-state-");
     stageManagedAdapter(stateDir);
     const fake = fakeAgentProcess();
-    const acpManager = new AcpManager({ spawner: () => fake.process, isAvailable: () => true });
+    const acpManager = new AcpManager({ spawner: () => fake.process, isAvailable: () => true, runCli: loggedInCli() });
     context = createTestCaller({ LUMEM_STATE_DIR: stateDir }, { acpManager });
 
     const report = await context.api.setup.probe();
@@ -101,7 +118,7 @@ describe("setup.probe", () => {
     const stateDir = tempDir("lumem-state-");
     stageManagedAdapter(stateDir);
     const fake = fakeAgentProcess();
-    const acpManager = new AcpManager({ spawner: () => fake.process, isAvailable: () => true });
+    const acpManager = new AcpManager({ spawner: () => fake.process, isAvailable: () => true, runCli: loggedInCli() });
     context = createTestCaller({ LUMEM_STATE_DIR: stateDir }, { acpManager });
 
     await context.api.setup.probe();
@@ -114,7 +131,7 @@ describe("setup.probe", () => {
 
   it("refuses a missing adapter with a sentence naming it", async () => {
     const fake = fakeAgentProcess();
-    const acpManager = new AcpManager({ spawner: () => fake.process, isAvailable: () => false });
+    const acpManager = new AcpManager({ spawner: () => fake.process, isAvailable: () => false, runCli: loggedInCli() });
     context = createTestCaller({ LUMEM_STATE_DIR: tempDir("lumem-state-") }, { acpManager });
 
     await expect(context.api.setup.probe()).rejects.toThrow(/claude-agent-acp/);
@@ -133,7 +150,7 @@ describe("setup.probe", () => {
     const stateDir = tempDir("lumem-state-");
     const managed = stageManagedAdapter(stateDir);
     const fake = fakeAgentProcess();
-    const acpManager = new AcpManager({ spawner: () => fake.process, isAvailable: () => true });
+    const acpManager = new AcpManager({ spawner: () => fake.process, isAvailable: () => true, runCli: loggedInCli() });
     context = createTestCaller({ LUMEM_STATE_DIR: stateDir }, { acpManager });
 
     const report = await context.api.setup.probe();
@@ -154,7 +171,7 @@ describe("setup.probe", () => {
      * que dizia "1M context". A recusa diz o que falta; o fallback não dizia nada.
      */
     const fake = fakeAgentProcess();
-    const acpManager = new AcpManager({ spawner: () => fake.process, isAvailable: () => true });
+    const acpManager = new AcpManager({ spawner: () => fake.process, isAvailable: () => true, runCli: loggedInCli() });
     context = createTestCaller({ LUMEM_STATE_DIR: tempDir("lumem-state-") }, { acpManager });
 
     await expect(context.api.setup.probe()).rejects.toThrow(/não serve/);
@@ -166,6 +183,7 @@ describe("setup.probe", () => {
     const acpManager = new AcpManager({
       spawner: () => fakeAgentProcess().process,
       isAvailable: () => true,
+      runCli: loggedInCli(),
     });
     context = createTestCaller({ LUMEM_STATE_DIR: stateDir }, { acpManager });
     await context.ctx.adapterCatalog.recordOptions("claude", [], { authRequired: true });
@@ -181,6 +199,7 @@ describe("setup.probe", () => {
     const acpManager = new AcpManager({
       spawner: () => fakeAgentProcess().process,
       isAvailable: () => true,
+      runCli: loggedInCli(),
     });
     context = createTestCaller({ LUMEM_STATE_DIR: tempDir("lumem-state-") }, { acpManager });
 
@@ -191,13 +210,148 @@ describe("setup.probe", () => {
 
   it("accepts another command, for the agent that is not Claude", async () => {
     const fake = fakeAgentProcess();
-    const acpManager = new AcpManager({ spawner: () => fake.process, isAvailable: () => true });
+    const acpManager = new AcpManager({ spawner: () => fake.process, isAvailable: () => true, runCli: loggedInCli() });
     context = createTestCaller({ LUMEM_STATE_DIR: tempDir("lumem-state-") }, { acpManager });
 
     const report = await context.api.setup.probe({ command: "gemini-acp", args: ["--stdio"] });
 
     expect(report.command).toBe("gemini-acp");
     expect(report.args).toEqual(["--stdio"]);
+  });
+  describe("por conta (`034` T6)", () => {
+    function accountHarness(runCli: AcpCliRunner = loggedInCli()) {
+      const stateDir = tempDir("lumem-state-");
+      const managed = stageManagedAdapter(stateDir);
+      const requests: AcpSpawnRequest[] = [];
+      const acpManager = new AcpManager({
+        spawner: (request) => {
+          requests.push(request);
+          return fakeAgentProcess().process;
+        },
+        isAvailable: () => true,
+        runCli,
+      });
+      context = createTestCaller({ LUMEM_STATE_DIR: stateDir }, { acpManager });
+      return { ctx: context, managed, requests, runCli };
+    }
+
+    async function claudeWithSecondAccount(ctx: TestCaller) {
+      const config = await createAgentConfigRepository(ctx.db).create({
+        name: "claude",
+        command: "claude-agent-acp",
+        adapterVersion: CLAUDE_ADAPTER.pinnedVersion,
+      });
+      const second = await createAgentAccountRepository(ctx.db).create({
+        agentConfigId: config.id,
+        label: "trabalho",
+        configDir: "/contas/trabalho",
+      });
+      return { config, second };
+    }
+
+    it("confere a conta pedida com o env dela, e grava o que leu", async () => {
+      const { ctx, runCli, requests } = accountHarness(
+        loggedInCli({ email: "trabalho@exemplo.com", subscriptionType: "team" }),
+      );
+      const { second } = await claudeWithSecondAccount(ctx);
+
+      const report = await ctx.api.setup.probe({ accountId: second.id });
+
+      expect(requests[0]?.env?.CLAUDE_CONFIG_DIR).toBe("/contas/trabalho");
+      expect(runCli).toHaveBeenCalledWith(
+        expect.objectContaining({ env: expect.objectContaining({ CLAUDE_CONFIG_DIR: "/contas/trabalho" }) }),
+      );
+      expect(report).toMatchObject({
+        loggedIn: true,
+        identity: { email: "trabalho@exemplo.com", plan: "team" },
+      });
+      const stored = await createAgentAccountRepository(ctx.db).get(second.id);
+      expect(stored?.identity).toMatchObject({
+        email: "trabalho@exemplo.com",
+        plan: "team",
+        checkedAt: expect.any(Number),
+      });
+    });
+
+    it("sem conta pedida, confere a padrão — a que sobe sem a variável", async () => {
+      const { ctx, requests } = accountHarness();
+      await claudeWithSecondAccount(ctx);
+
+      await ctx.api.setup.probe();
+
+      expect(requests[0]?.env?.CLAUDE_CONFIG_DIR).toBeUndefined();
+      expect(requests[0]?.unsetEnv).toEqual(["CLAUDE_CONFIG_DIR"]);
+    });
+
+    it("um Claude sem login aparece sem login, mesmo com o `session/new` fechando", async () => {
+      /*
+       * O item do backlog *"o rodapé diz `conectado` para um Claude sem login"*:
+       * desde o `0.75.1` o `session/new` fecha sem credencial, e o catálogo
+       * gravava `authRequired: false` — a pílula e o rodapé diziam conectado.
+       */
+      const { ctx, managed } = accountHarness(
+        vi.fn(async () => ({ stdout: JSON.stringify({ loggedIn: false, authMethod: "none" }), exitCode: 1 })),
+      );
+
+      const report = await ctx.api.setup.probe({ command: managed });
+
+      expect(report).toMatchObject({ loggedIn: false, authRequired: true });
+      const claude = ctx.ctx.adapterCatalog.view().find((reading) => reading.adapterId === "claude");
+      expect(claude?.authRequired).toBe(true);
+    });
+
+    it("deslogado não apaga o e-mail da última leitura — é o que a tela usa para dizer qual reconectar", async () => {
+      const { ctx } = accountHarness(
+        vi.fn(async () => ({ stdout: JSON.stringify({ loggedIn: false }), exitCode: 1 })),
+      );
+      const { second } = await claudeWithSecondAccount(ctx);
+      const before = { email: "trabalho@exemplo.com", plan: "team", checkedAt: 1 };
+      await ctx.db.update(agentAccount).set({ identity: before });
+
+      await ctx.api.setup.probe({ accountId: second.id });
+
+      expect((await createAgentAccountRepository(ctx.db).get(second.id))?.identity).toEqual(before);
+    });
+
+    it("o login por terminal roda no diretório da conta", async () => {
+      const TERMINAL = {
+        id: "claude-ai-login",
+        name: "Claude Subscription",
+        type: "terminal",
+        args: ["--cli"],
+        _meta: { "terminal-auth": { command: "/bin/echo", args: ["entrando"], label: "Login" } },
+      };
+      const stateDir = tempDir("lumem-state-");
+      stageManagedAdapter(stateDir);
+      const acpManager = new AcpManager({
+        spawner: () => fakeAgentProcess({ initialize: () => ({ authMethods: [TERMINAL] }) }).process,
+        isAvailable: () => true,
+      });
+      context = createTestCaller({ LUMEM_STATE_DIR: stateDir }, { acpManager });
+      const { second } = await claudeWithSecondAccount(context);
+      const spawn = vi.spyOn(context.ptyManager, "spawn");
+
+      await context.api.setup.login({ methodId: "claude-ai-login", accountId: second.id });
+
+      expect(spawn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          command: "/bin/echo",
+          env: expect.objectContaining({ CLAUDE_CONFIG_DIR: "/contas/trabalho" }),
+        }),
+      );
+    });
+
+    it("o `authenticate` sobe o adaptador no diretório da conta", async () => {
+      const { ctx } = accountHarness();
+      const { second } = await claudeWithSecondAccount(ctx);
+      const authenticate = vi.spyOn(ctx.acpManager, "authenticate").mockResolvedValue();
+
+      await ctx.api.setup.authenticate({ methodId: "chat-gpt", accountId: second.id });
+
+      expect(authenticate).toHaveBeenCalledWith(
+        expect.objectContaining({ env: expect.objectContaining({ CLAUDE_CONFIG_DIR: "/contas/trabalho" }) }),
+      );
+    });
   });
 });
 

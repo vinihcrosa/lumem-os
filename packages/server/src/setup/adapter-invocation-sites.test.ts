@@ -29,10 +29,16 @@ const RESOLVED_SITES: Readonly<Record<string, string>> = {
 };
 
 /*
- * `probe` e `authenticate` passam a receber a conta na T6 (`034`): até lá eles
- * sobem a conta que já existia, sem variável, e é isso que a lista diz.
+ * `probe` e `authenticate` sobem a conta **desconectada** também — é conectando
+ * que ela deixa de estar —, então não passam pelo `adapterInvocationFor`, que a
+ * recusa. Passam pelo ambiente da conta (`034` T6), e é isso que cada um tem que
+ * conter: o router e o boot resolvem a conta; o serviço de login repassa o env.
  */
-const PROBE_AND_LOGIN_SITES = new Set(["bootstrap.ts", "routers/setup.ts", "setup/agent-auth.ts"]);
+const PROBE_AND_LOGIN_SITES: Readonly<Record<string, string>> = {
+  "bootstrap.ts": "accountEnvFor",
+  "routers/setup.ts": "accountLaunchFor",
+  "setup/agent-auth.ts": "unsetEnv",
+};
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -66,9 +72,12 @@ describe("quem lança um adaptador", () => {
     }
   });
 
-  it("`probe` e `authenticate` só nos lugares que a T6 vai apontar para a conta", () => {
+  it("`probe` e `authenticate` sobem com o ambiente da conta", () => {
     const sites = callSites(/\bacpManager\s*\.(probe|authenticate)\(|\.acpManager\.probe\(|\n\s*\.authenticate\(/);
 
-    expect([...sites.keys()].sort()).toEqual([...PROBE_AND_LOGIN_SITES].sort());
+    expect([...sites.keys()].sort()).toEqual(Object.keys(PROBE_AND_LOGIN_SITES).sort());
+    for (const [file, text] of sites) {
+      expect(text, `${file} confere ou entra sem a conta`).toContain(PROBE_AND_LOGIN_SITES[file]);
+    }
   });
 });

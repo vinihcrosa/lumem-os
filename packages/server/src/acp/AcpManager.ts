@@ -22,6 +22,7 @@ import {
   type AcpToolKind,
   type AcpToolLocation,
   type AcpTranscriptEntry,
+  type AdapterIdentity,
   type LumemMode,
   type LumemModeDefault,
 } from "@lumem/shared";
@@ -34,7 +35,14 @@ import { createFileService, type FileService } from "../files/FileService.js";
 import { createFsBridge, type FsBridge } from "./fs-bridge.js";
 import { createTerminalBridge, type TerminalBridge } from "./terminal-bridge.js";
 import type { PtyManager } from "../pty/PtyManager.js";
-import { spawnAcpProcess, type AcpProcess, type AcpProcessSpawner } from "./process.js";
+import {
+  runCliProcess,
+  spawnAcpProcess,
+  type AcpCliRequest,
+  type AcpCliResult,
+  type AcpProcess,
+  type AcpProcessSpawner,
+} from "./process.js";
 import { createMemoryTranscriptStore, type TranscriptStore } from "./TranscriptStore.js";
 import { decidePermission } from "./permission-policy.js";
 import type { TurnFailureSink } from "./turn-failures.js";
@@ -49,6 +57,30 @@ const LUMEM_CLIENT_VERSION = "0.1.0";
 
 /** How long the handshake may take before it is called a failure. */
 export const DEFAULT_HANDSHAKE_TIMEOUT_MS = 15_000;
+
+/**
+ * Quanto a conferência de conta do Claude pode levar (`034` T6). Medido em
+ * 0,57 s na fase 0; dez vezes isso ainda é uma resposta, e não um processo
+ * pendurado.
+ */
+export const AUTH_STATUS_TIMEOUT_MS = 10_000;
+
+/**
+ * Quanto o probe espera o `_auth/status_update` do Codex depois do
+ * `session/new`. **Não medido**: o estudo mediu o conteúdo da notificação, e não
+ * se ela chega antes ou depois da resposta. Curto, e resolvido assim que ela
+ * chega; sem ela, a conta confere presença e fica sem e-mail.
+ */
+export const AUTH_STATUS_GRACE_MS = 1_000;
+
+/** Quem roda o `--cli` do adaptador. Injetável porque o binário de teste não tem um. */
+export type AcpCliRunner = (request: AcpCliRequest) => Promise<AcpCliResult>;
+
+/** O que a conferência leu da conta. */
+export interface AcpAccountIdentity {
+  email: string | null;
+  plan: string | null;
+}
 
 export type AcpSessionState = "running" | "exited";
 
@@ -251,8 +283,21 @@ export interface AcpProbeReport {
    * reported here as unusable rather than drawn as a button that fails.
    */
   authMethods: readonly AcpAuthMethod[];
-  /** `session/new` refused with `auth_required`: there is no usable credential. */
+  /**
+   * `!loggedIn`, mantido pela tela que já o lê.
+   *
+   * Até a `034` T6 era *"o `session/new` recusou com `auth_required`"* — e o do
+   * Claude `0.75.1` fecha sem credencial nenhuma, então o rodapé dizia
+   * `conectado` numa máquina sem login.
+   */
   authRequired: boolean;
+  /**
+   * Há login nesta conta — conferido pela leitura de identidade do adaptador
+   * (`AdapterSpec.identity`), e pelo `session/new` só quando não há uma.
+   */
+  loggedIn: boolean;
+  /** Qual conta: e-mail e plano, quando a leitura os trouxe. */
+  identity: AcpAccountIdentity | null;
   capabilities: readonly string[];
   /** The test session's id. It is dead by the time this is read. */
   acpSessionId: string;
@@ -318,6 +363,10 @@ interface Session {
   info: AcpSessionInfo;
   process: AcpProcess;
   connection: ClientConnection;
+  /** O último `_auth/status_update`, cru (`034` T6). Só o probe lê. */
+  authStatus: unknown;
+  /** Quem espera por ele, quando alguém espera. */
+  onAuthStatus: (() => void) | undefined;
   /**
    * Para onde vai um `elicitation/create`, quando há para onde ir.
    *
@@ -467,6 +516,11 @@ export interface AcpManagerOptions {
    */
   preamble?: AcpPreambleSource;
   /**
+   * Quem roda o `--cli auth status` do adaptador (`034` T6). O padrão é o
+   * processo de verdade; um teste cujo binário é um arquivo vazio passa o seu.
+   */
+  runCli?: AcpCliRunner;
+  /**
    * O teto do workspace, conferido antes de o turno custar (`028` Parte 3, T16).
    *
    * Injetado, e não um repositório aqui dentro, pela mesma direção de dependência
@@ -561,6 +615,7 @@ export class AcpManager {
   private readonly preamble: AcpPreambleSource | undefined;
   private readonly budget: AcpBudgetSource | undefined;
   private readonly turnFailures: TurnFailureSink | undefined;
+  private readonly runCli: AcpCliRunner;
 
   constructor({
     spawner = spawnAcpProcess,
@@ -574,6 +629,7 @@ export class AcpManager {
     preamble,
     budget,
     turnFailures,
+    runCli = runCliProcess,
   }: AcpManagerOptions = {}) {
     this.spawner = spawner;
     this.handshakeTimeoutMs = handshakeTimeoutMs;
@@ -586,6 +642,7 @@ export class AcpManager {
     this.preamble = preamble;
     this.budget = budget;
     this.turnFailures = turnFailures;
+    this.runCli = runCli;
   }
 
   /**
@@ -801,7 +858,16 @@ export class AcpManager {
    */
   async probe(
     options: AcpSpawnOptions,
-    { walkModels = false }: { walkModels?: boolean } = {},
+    {
+      walkModels = false,
+      identity: reading = null,
+      authStatusGraceMs = AUTH_STATUS_GRACE_MS,
+    }: {
+      walkModels?: boolean;
+      /** Como conferir a conta (`AdapterSpec.identity`). Nulo: só o `session/new`. */
+      identity?: AdapterIdentity | null;
+      authStatusGraceMs?: number;
+    } = {},
   ): Promise<AcpProbeReport> {
     const startedAt = this.now();
     const { session, child } = this.launch(options, { probe: true });
@@ -845,6 +911,11 @@ export class AcpManager {
       }
       const createdAt = this.now();
 
+      const account =
+        created === null
+          ? { loggedIn: false, identity: null }
+          : await this.checkAccount(session, options, reading, authStatusGraceMs);
+
       // From the response, not from a notification: waiting for one would be
       // waiting for something the adapter never promised to send.
       const configOptions =
@@ -866,7 +937,9 @@ export class AcpManager {
       return {
         command: options.command,
         args: [...(options.args ?? [])],
-        authRequired: created === null,
+        authRequired: !account.loggedIn,
+        loggedIn: account.loggedIn,
+        identity: account.identity,
         agentInfo:
           initialize.agentInfo === undefined || initialize.agentInfo === null
             ? null
@@ -905,6 +978,72 @@ export class AcpManager {
       this.probing.delete(child);
       child.kill();
     }
+  }
+
+  /**
+   * *Há login?* e *qual conta?*, pela leitura que o adaptador declara (`034` T6).
+   *
+   * Chamado só depois de o `session/new` fechar: um `-32000` já respondeu que
+   * não há login, e é a única resposta que o `session/new` dá com certeza.
+   */
+  private async checkAccount(
+    session: Session,
+    options: AcpSpawnOptions,
+    reading: AdapterIdentity | null,
+    graceMs: number,
+  ): Promise<{ loggedIn: boolean; identity: AcpAccountIdentity | null }> {
+    if (reading === "cli-auth-status") return this.cliAuthStatus(options);
+    if (reading === "auth-status-notification") {
+      if (session.authStatus === undefined && graceMs > 0) {
+        await new Promise<void>((resolve) => {
+          const timer = setTimeout(resolve, graceMs);
+          session.onAuthStatus = () => {
+            clearTimeout(timer);
+            resolve();
+          };
+        });
+        session.onAuthStatus = undefined;
+      }
+      return { loggedIn: true, identity: identityFromAuthStatus(session.authStatus) };
+    }
+    return { loggedIn: true, identity: null };
+  }
+
+  /**
+   * `<adaptador> --cli auth status`, com o ambiente da conta.
+   *
+   * O `--cli` é do próprio adaptador — o mesmo que os `authMethods` mandam rodar
+   * para entrar —, então conferir não reintroduz um `claude` do PATH (ADR de
+   * 2026-09-08). Uma resposta que não é JSON **não** vira *"deslogado"*: seria o
+   * produto afirmando o que não leu.
+   */
+  private async cliAuthStatus(
+    options: AcpSpawnOptions,
+  ): Promise<{ loggedIn: boolean; identity: AcpAccountIdentity | null }> {
+    const result = await this.runCli({
+      command: options.command,
+      args: ["--cli", "auth", "status"],
+      cwd: options.cwd,
+      ...(options.env ? { env: options.env } : {}),
+      ...(options.unsetEnv ? { unsetEnv: options.unsetEnv } : {}),
+      timeoutMs: AUTH_STATUS_TIMEOUT_MS,
+    });
+    const parsed = parseAuthStatus(result.stdout);
+    if (parsed === null) {
+      throw new DomainError(
+        "SPAWN_FAILED",
+        `a conferência de login do adaptador (--cli auth status) não respondeu JSON` +
+          ` (saiu com ${result.exitCode ?? "sinal"}): ${result.stdout.trim().slice(0, 200)}`,
+      );
+    }
+    if (parsed["loggedIn"] !== true) return { loggedIn: false, identity: null };
+    return {
+      loggedIn: true,
+      identity: {
+        email: stringOrNull(parsed["email"]),
+        plan: stringOrNull(parsed["subscriptionType"]),
+      },
+    };
   }
 
   /**
@@ -1010,6 +1149,8 @@ export class AcpManager {
       },
       process: child,
       connection: undefined as unknown as ClientConnection,
+      authStatus: undefined,
+      onAuthStatus: undefined,
       elicit: undefined,
       elicitDone: undefined,
       listeners: new Set(),
@@ -1623,6 +1764,19 @@ export class AcpManager {
       .onNotification("elicitation/complete", ({ params }) => {
         session.elicitDone?.(params.elicitationId);
       })
+      /*
+       * Qual conta o Codex está usando (`034` T6): o `_auth/status_update` do
+       * handshake traz e-mail e plano no login ChatGPT, e só `api_key` na chave.
+       * Guardado cru; quem traduz é o probe, que é o único que pergunta.
+       */
+      .onNotification(
+        "_auth/status_update",
+        (params: unknown) => params,
+        ({ params }) => {
+          session.authStatus = params;
+          session.onAuthStatus?.();
+        },
+      )
       .onRequest("session/request_permission", ({ params }) => {
         const requestId = newId();
         const options = params.options.map((option) => ({
@@ -2410,6 +2564,40 @@ export function codeIn(message: string): string | null {
  * By code, not by message: the text is the adapter's and may be translated or
  * reworded, while `-32000` is the protocol's (`RequestError.authRequired`).
  */
+/** O objeto JSON que o `auth status` escreveu, ou `null` se não há um. */
+function parseAuthStatus(stdout: string): Record<string, unknown> | null {
+  const start = stdout.indexOf("{");
+  const end = stdout.lastIndexOf("}");
+  if (start === -1 || end < start) return null;
+  try {
+    const value: unknown = JSON.parse(stdout.slice(start, end + 1));
+    return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+function stringOrNull(value: unknown): string | null {
+  return typeof value === "string" && value !== "" ? value : null;
+}
+
+/**
+ * A identidade de um `_auth/status_update`, nas duas formas que aparecem:
+ * embrulhada em `authStatus` e solta. `null` quando não há nada a ler.
+ */
+function identityFromAuthStatus(params: unknown): AcpAccountIdentity | null {
+  if (typeof params !== "object" || params === null) return null;
+  const record = params as Record<string, unknown>;
+  const status = (typeof record["authStatus"] === "object" && record["authStatus"] !== null
+    ? record["authStatus"]
+    : record) as Record<string, unknown>;
+  const account =
+    typeof status["account"] === "object" && status["account"] !== null
+      ? (status["account"] as Record<string, unknown>)
+      : {};
+  return { email: stringOrNull(account["email"]), plan: stringOrNull(account["plan"]) };
+}
+
 function isAuthRequired(error: unknown): boolean {
   const code = (error as { code?: unknown }).code;
   return code === ACP_AUTH_REQUIRED_CODE;

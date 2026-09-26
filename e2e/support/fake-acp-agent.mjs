@@ -24,7 +24,7 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { writeFileSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 
@@ -42,6 +42,46 @@ const SESSION_ID = "e2e-acp-session";
  * copiadas.
  */
 const PROFILE = process.env["LUMEM_FAKE_PROFILE"] === "codex" ? "codex" : "claude";
+
+/**
+ * Há login aqui? (`034` T6) — a pergunta que o `session/new` do `0.75.1` **não**
+ * responde: ele fecha sem credencial nenhuma, e este fake também.
+ *
+ * Logado por padrão, porque é o que toda a suíte espera do adaptador. Deslogado
+ * em dois casos, e o segundo é o que o adaptador de verdade faz:
+ *
+ * - `LUMEM_FAKE_LOGGED_OUT=1`;
+ * - a variável de conta (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`) aponta para um
+ *   diretório **sem** `.fake-logged-in` — um diretório de conta novo é um CLI
+ *   recém-instalado. Sem a variável é a conta que já existia, e ela está logada.
+ */
+function loggedIn() {
+  if (process.env["LUMEM_FAKE_LOGGED_OUT"] === "1") return false;
+  const dir = process.env[PROFILE === "codex" ? "CODEX_HOME" : "CLAUDE_CONFIG_DIR"];
+  if (dir === undefined || dir === "") return true;
+  return existsSync(join(dir, ".fake-logged-in"));
+}
+
+/**
+ * `claude-agent-acp --cli auth status`: o JSON que a fase 0 da `034` mediu, e
+ * sai. É como o daemon confere a conta do Claude, pelo `--cli` do próprio
+ * adaptador — o mesmo que os `authMethods` mandam rodar para entrar.
+ */
+const argv = process.argv.slice(2);
+if (argv[0] === "--cli" && argv[1] === "auth" && argv[2] === "status") {
+  const status = loggedIn()
+    ? {
+        loggedIn: true,
+        authMethod: "claude.ai",
+        apiProvider: "firstParty",
+        email: "e2e@lumem.local",
+        orgName: "Lumem E2E",
+        subscriptionType: "max",
+      }
+    : { loggedIn: false, authMethod: "none", apiProvider: "firstParty" };
+  process.stdout.write(`${JSON.stringify(status)}\n`);
+  process.exit(status.loggedIn ? 0 : 1);
+}
 
 /** Resolves when the client answers the permission request. */
 let resolvePermission = null;
@@ -661,6 +701,28 @@ createInterface({ input: process.stdin }).on("line", (line) => {
       return;
 
     case "session/new":
+      /*
+       * O Codex confere presença pelo `session/new` (`034` §3.3): sem login ele
+       * recusa com `-32000`, e com login manda quem é pelo `_auth/status_update`.
+       * O Claude fecha de qualquer jeito — é o `0.75.1`.
+       */
+      if (PROFILE === "codex") {
+        if (!loggedIn()) {
+          write({
+            jsonrpc: "2.0",
+            id: message.id,
+            error: { code: -32000, message: "Authentication required" },
+          });
+          return;
+        }
+        notify("_auth/status_update", {
+          authStatus: {
+            kind: "account",
+            label: "ChatGPT Plus",
+            account: { email: "e2e@lumem.local", plan: "plus" },
+          },
+        });
+      }
       /*
        * Um adaptador que **não relata modos** (`session-mode`).
        *

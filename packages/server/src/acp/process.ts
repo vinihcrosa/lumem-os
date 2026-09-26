@@ -84,3 +84,52 @@ export function spawnAcpProcess({
     },
   };
 }
+
+/** Um comando curto do próprio adaptador, fora do protocolo (`034` T6). */
+export interface AcpCliRequest {
+  command: string;
+  args: readonly string[];
+  cwd: string;
+  env?: Readonly<Record<string, string>>;
+  unsetEnv?: readonly string[];
+  timeoutMs: number;
+}
+
+export interface AcpCliResult {
+  stdout: string;
+  /** `null` quando o processo morreu por sinal ou pelo teto de tempo. */
+  exitCode: number | null;
+}
+
+/**
+ * Roda `<adaptador> --cli …` e devolve o que ele escreveu.
+ *
+ * É a conferência de conta do Claude (`--cli auth status`), e passa pelo mesmo
+ * ambiente da conta que o `spawn` — o `unsetEnv` inclusive, pelo mesmo motivo.
+ * O código de saída **não** decide nada aqui: o `auth status` deslogado sai com
+ * erro e escreve o JSON que diz isso, e quem lê o JSON é quem decide.
+ */
+export function runCliProcess({
+  command,
+  args,
+  cwd,
+  env,
+  unsetEnv = [],
+  timeoutMs,
+}: AcpCliRequest): Promise<AcpCliResult> {
+  const merged: Record<string, string> = { ...(process.env as Record<string, string>), ...env };
+  for (const name of unsetEnv) delete merged[name];
+
+  return new Promise((resolve) => {
+    const child = spawn(command, [...args], { cwd, env: merged, stdio: ["ignore", "pipe", "ignore"] });
+    const chunks: Buffer[] = [];
+    const timer = setTimeout(() => child.kill("SIGKILL"), timeoutMs);
+    child.stdout.on("data", (chunk: Buffer) => chunks.push(chunk));
+    const done = (exitCode: number | null) => {
+      clearTimeout(timer);
+      resolve({ stdout: Buffer.concat(chunks).toString("utf8"), exitCode });
+    };
+    child.once("close", (code) => done(code));
+    child.once("error", () => done(null));
+  });
+}

@@ -1,12 +1,14 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 
-import { ADAPTERS, ADAPTERS_DIR_NAME } from "@lumem/shared";
+import { ADAPTERS, ADAPTERS_DIR_NAME, type AdapterSpec } from "@lumem/shared";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import type { FastifyBaseLogger, FastifyInstance } from "fastify";
 
 import { reconcileOnBoot } from "./boot/reconcile.js";
 import type { ServerConfig } from "./config.js";
-import { openDatabase, type Database_ } from "./db/index.js";
+import { openDatabase, type Database_, type Db } from "./db/index.js";
+import { agentAccount, agentConfig, type AgentAccountRow } from "./db/schema.js";
 import { createEventBus } from "./events.js";
 import { AcpManager } from "./acp/AcpManager.js";
 import { AdapterCatalog } from "./acp/adapter-catalog.js";
@@ -18,7 +20,9 @@ import { trackPlaybookLoads } from "./memory/playbook-tracking.js";
 import { trackSessionUsage } from "./usage/record.js";
 import { trackTaskProgress } from "./tasks/progress.js";
 import { createAgentAuthService } from "./setup/agent-auth.js";
+import { recordProbedIdentity } from "./setup/account-launch.js";
 import {
+  accountEnvFor,
   adapterCommandFor,
   adapterInvocationFor,
   catalogedAdapterOf,
@@ -667,6 +671,8 @@ export async function bootstrap({
   stopWarmup = warmAdapterCatalog({
     catalog: adapterCatalog,
     acpManager: acp,
+    db: openedDatabase.db,
+    secrets,
     stateDir: config.stateDir,
     log: app.log,
   });
@@ -693,31 +699,80 @@ export async function bootstrap({
  * Falha de probe vira log e o laço segue — o catálogo é cache, e o adaptador
  * que não subiu aqui vai dizer por quê na primeira sessão.
  */
+/** Uma conferência do aquecimento: a conta, ou nenhuma quando ainda não há configuração. */
+interface WarmupTarget {
+  spec: AdapterSpec;
+  command: string;
+  account: AgentAccountRow | null;
+  isDefault: boolean;
+  catalogDue: boolean;
+}
+
 function warmAdapterCatalog({
   catalog,
   acpManager,
+  db,
+  secrets,
   stateDir,
   log,
 }: {
   catalog: AdapterCatalog;
   acpManager: AcpManager;
+  db: Db;
+  secrets: { read(id: string): string | null };
   stateDir: string;
   log: Pick<FastifyBaseLogger, "warn">;
 }): () => void {
   const readings = catalog.view();
-  const due = ADAPTERS.flatMap((spec) => {
-    const known = readings.find((reading) => reading.adapterId === spec.id)?.authRequired;
-    if (known === false) return [];
+  /*
+   * Cada conta conectada é conferida (`034` T6), e com o env dela: o login de
+   * uma conta pode ter vencido fora do Lumem, e a identidade gravada é o que a
+   * tela mostra. A desconectada não — o login dela foi desfeito de propósito
+   * (Q8). Sem configuração ainda, sobra a conferência de antes: uma, na
+   * variável ausente, só quando o catálogo pede.
+   *
+   * O plano é montado **síncrono**, pelas leituras do `better-sqlite3`: o
+   * primeiro probe tem que sair antes de o `bootstrap` devolver, e um `await`
+   * antes dele o empurraria para depois.
+   */
+  const plan = ADAPTERS.flatMap((spec): WarmupTarget[] => {
+    let command: string;
     try {
-      return [{ spec, command: adapterCommandFor(spec, stateDir) }];
+      command = adapterCommandFor(spec, stateDir);
     } catch {
       // Não instalado: a tela de login já diz isso, com a versão do pino.
       return [];
     }
+    const catalogDue =
+      readings.find((reading) => reading.adapterId === spec.id)?.authRequired !== false;
+    const config = db
+      .select()
+      .from(agentConfig)
+      .where(and(eq(agentConfig.name, spec.id), isNull(agentConfig.retiredAt)))
+      .get();
+    const connected =
+      config === undefined
+        ? []
+        : db
+            .select()
+            .from(agentAccount)
+            .where(and(eq(agentAccount.agentConfigId, config.id), eq(agentAccount.state, "connected")))
+            .orderBy(asc(agentAccount.createdAt))
+            .all();
+    if (connected.length === 0) {
+      return catalogDue ? [{ spec, command, account: null, isDefault: true, catalogDue }] : [];
+    }
+    return connected.map((account) => ({
+      spec,
+      command,
+      account,
+      isDefault: account.id === config?.defaultAccountId,
+      catalogDue,
+    }));
   });
 
   let stopped = false;
-  if (due.length === 0) return () => {};
+  if (plan.length === 0) return () => {};
 
   // Síncrono de propósito: o mesmo diretório vazio que o `setup.probe` usa, e o
   // primeiro probe sai antes de o `bootstrap` devolver.
@@ -730,20 +785,38 @@ function warmAdapterCatalog({
   }
 
   void (async () => {
-    for (const { spec, command } of due) {
+    for (const { spec, command, account, isDefault, catalogDue } of plan) {
       if (stopped) return;
       try {
+        const launch =
+          account === null
+            ? { env: {}, unsetEnv: spec.accountEnv === null ? [] : [spec.accountEnv] }
+            : accountEnvFor(spec, account, {}, secrets);
         const report = await acpManager.probe(
-          { command, cwd, adapterVersion: spec.pinnedVersion },
-          { walkModels: true },
+          {
+            command,
+            cwd,
+            adapterVersion: spec.pinnedVersion,
+            ...(Object.keys(launch.env).length > 0 ? { env: launch.env } : {}),
+            ...(launch.unsetEnv.length > 0 ? { unsetEnv: launch.unsetEnv } : {}),
+          },
+          // Só a padrão percorre modelos, e só quando o catálogo pede: é a
+          // metade cara, e o catálogo ainda é por adaptador (T9).
+          { walkModels: isDefault && catalogDue, identity: spec.identity },
         );
         if (stopped) return;
-        await catalog.recordOptions(spec.id, report.configOptions, {
-          authRequired: report.authRequired,
-          optionsByModel: report.optionsByModel,
-        });
+        await recordProbedIdentity(db, account, report);
+        if (isDefault && catalogDue) {
+          await catalog.recordOptions(spec.id, report.configOptions, {
+            authRequired: report.authRequired,
+            optionsByModel: report.optionsByModel,
+          });
+        }
       } catch (error) {
-        log.warn({ adapter: spec.id, err: error }, `aquecimento do catálogo: o probe de ${spec.id} falhou`);
+        log.warn(
+          { adapter: spec.id, account: account?.id ?? null, err: error },
+          `aquecimento do catálogo: o probe de ${spec.id} falhou`,
+        );
       }
     }
   })();

@@ -18,6 +18,12 @@ export interface SpawnOptions {
   cwd: string;
   /** Merged over the daemon's own environment. */
   env?: Readonly<Record<string, string>>;
+  /**
+   * What the process must **not** inherit from the daemon (`034` T6): the login
+   * of the account that runs without the CLI variable has to run without it,
+   * even when the daemon was started from a shell that exported one.
+   */
+  unsetEnv?: readonly string[];
   cols?: number;
   rows?: number;
 }
@@ -83,7 +89,15 @@ export class PtyManager {
   }
 
   spawn(options: SpawnOptions): SessionInfo {
-    const { command, args = [], cwd, env, cols = DEFAULT_COLS, rows = DEFAULT_ROWS } = options;
+    const {
+      command,
+      args = [],
+      cwd,
+      env,
+      unsetEnv = [],
+      cols = DEFAULT_COLS,
+      rows = DEFAULT_ROWS,
+    } = options;
 
     if (command.trim() === "") {
       throw new DomainError("INVALID_ARGUMENT", "command must not be empty");
@@ -98,6 +112,8 @@ export class PtyManager {
     }
 
     const id = newId();
+    const merged: Record<string, string> = { ...(process.env as Record<string, string>), ...env };
+    for (const name of unsetEnv) delete merged[name];
     let pty: IPty;
     try {
       pty = spawnPty(command, [...args], {
@@ -105,7 +121,7 @@ export class PtyManager {
         cols,
         rows,
         name: "xterm-256color",
-        env: { ...(process.env as Record<string, string>), ...env },
+        env: merged,
       });
     } catch (error) {
       // node-pty rarely throws synchronously — a missing binary exits with

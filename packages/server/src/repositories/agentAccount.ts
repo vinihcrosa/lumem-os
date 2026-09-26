@@ -48,6 +48,10 @@ export interface AgentAccountRepository {
    * pelo repositório, ganha a conta na primeira sessão em vez de a sessão falhar.
    */
   ensureDefault(agentConfigId: string): Promise<AgentAccountRow>;
+  /** O que a conferência leu (`034` T6). Só com login: deslogado não apaga o e-mail. */
+  recordIdentity(id: string, identity: AgentAccountIdentity): Promise<void>;
+  /** As contas conectadas de um agente — as que o aquecimento do boot confere. */
+  listConnected(agentConfigId: string): Promise<AgentAccountRow[]>;
 }
 
 function conflicts(label: string): ConstraintMap {
@@ -117,6 +121,21 @@ export function createAgentAccountRepository(db: Db): AgentAccountRepository {
     get,
     create,
     defaultFor,
+
+    async recordIdentity(id, identity) {
+      await db
+        .update(agentAccount)
+        .set({ identity, updatedAt: new Date() })
+        .where(eq(agentAccount.id, id));
+    },
+
+    listConnected(agentConfigId) {
+      return db
+        .select()
+        .from(agentAccount)
+        .where(and(eq(agentAccount.agentConfigId, agentConfigId), eq(agentAccount.state, "connected")))
+        .orderBy(asc(agentAccount.createdAt));
+    },
 
     async ensureDefault(agentConfigId) {
       const current = await defaultFor(agentConfigId);
