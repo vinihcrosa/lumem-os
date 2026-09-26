@@ -35,8 +35,8 @@ import {
 /**
  * These assert behaviour and semantics, not appearance.
  *
- * What a primitive looks like is checked by rendering `/styleguide` and looking
- * at it; a test that asserted class names would fail on every restyle without
+ * What a primitive looks like is checked by opening its story in Storybook and
+ * looking at it; a test that asserted class names would fail on every restyle without
  * ever catching a real defect. What is worth pinning down is the part a
  * screenshot cannot show: that the disabled item refuses the click, that the
  * twist and the label are two separate targets, that the error is announced.

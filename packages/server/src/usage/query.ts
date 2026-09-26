@@ -1,7 +1,7 @@
 import { and, eq, gte, sql } from "drizzle-orm";
 
 import type { Db } from "../db/index.js";
-import { agentConfig, project, sessionUsage, worktree } from "../db/schema.js";
+import { agentConfig, project, session, sessionUsage, task, worktree } from "../db/schema.js";
 
 /**
  * O que cada escopo consumiu numa janela de tempo (`workspace-screen`, W4).
@@ -93,7 +93,25 @@ const SUM = {
    * contaria **ela** — o projeto sem consumo reportava "1 turno". `count` de uma
    * coluna ignora nulo, que é exatamente a pergunta.
    */
-  turns: sql<number>`count(${sessionUsage.id})`,
+  /*
+   * Turno, e não linha (`028` Parte 7).
+   *
+   * Era `count(id)`, e uma linha é um `usage_update` — o adaptador do Claude
+   * manda dezenas por turno (97 num só, medido). O número aparecia na tela como
+   * *"quantos turnos entraram na conta"* e alimentava o teto de
+   * `turnsPerSession`, que por causa disso disparava **dentro do primeiro
+   * turno** e parava a esteira falando de turnos que não aconteceram.
+   *
+   * A chave é o **par** sessão e turno, e não o turno sozinho: esta soma cruza
+   * sessões — por projeto, por tarefa, por agente —, e o turno `0` de uma
+   * sessão não é o turno `0` da outra. Contar só o número colapsaria duas
+   * primeiras voltas em uma.
+   *
+   * `distinct` ignora nulo, que é o que mantém a razão do `count(id)` de antes:
+   * a linha de projeto sem consumo, vinda do `LEFT JOIN`, continua contando
+   * zero em vez de um.
+   */
+  turns: sql<number>`count(distinct ${sessionUsage.sessionId} || ':' || ${sessionUsage.turn})`,
 };
 
 /**
@@ -247,4 +265,132 @@ export function usageOutsideWorktrees(
     .all();
 
   return row ?? { tokens: 0, cost: null, currency: null, turns: 0 };
+}
+
+export interface TaskUsage {
+  taskId: string;
+  tokens: number;
+  cost: number | null;
+  currency: string | null;
+  turns: number;
+}
+
+/**
+ * O consumo por tarefa (`022-workspace-tasks` F5).
+ *
+ * **É a resposta mais barata que o modelo dá de graça**: `session_usage` já
+ * tinha sessão, e a sessão passou a ter tarefa. Nenhuma coluna nova, nenhum
+ * contador — uma junção.
+ *
+ * `LEFT JOIN` a partir da tarefa, pelo mesmo motivo do consumo por projeto: a
+ * pergunta é "o que cada tarefa gastou", e uma tarefa que ninguém começou
+ * continua sendo uma tarefa. Sumir dali faria a lista esconder exatamente o que
+ * está esperando alguém.
+ *
+ * E conta os três `kind` de sessão: se você subiu a aplicação numa `shell` para
+ * conferir o que o agente fez, aquilo foi trabalho desta tarefa — mesmo que não
+ * tenha custado token nenhum.
+ */
+export function usageByTask(
+  db: Db,
+  {
+    workspaceId,
+    period,
+    now,
+  }: { workspaceId: string; period: UsageWindow | "all"; now?: Date },
+): TaskUsage[] {
+  /*
+   * `"all"` existe porque o cartão do quadro pergunta outra coisa (`028` §4.2).
+   *
+   * A tela do workspace pergunta *"quanto isto gastou nos últimos 7 dias"*, e a
+   * janela é o ponto. O cartão pergunta **"custo até aqui"** — o total de uma
+   * tarefa, que é um número que não tem janela: uma tarefa aberta há dez dias
+   * não ficou mais barata por isso.
+   *
+   * Aqui, e não uma segunda consulta: ter dois lugares somando custo por tarefa
+   * é ter dois números que podem discordar, e o dia em que discordarem ninguém
+   * saberá qual acreditar.
+   */
+  const since = period === "all" ? new Date(0) : windowStart(period, now);
+
+  return db
+    .select({
+      taskId: task.id,
+      tokens: SUM.tokens,
+      cost: SUM.cost,
+      currency: SUM.currency,
+      turns: SUM.turns,
+    })
+    .from(task)
+    .leftJoin(session, eq(session.taskId, task.id))
+    .leftJoin(
+      sessionUsage,
+      // O corte de tempo no join, e não no `where`: no `where` ele eliminaria a
+      // linha da tarefa que não gastou nada na janela.
+      and(eq(sessionUsage.sessionId, session.id), gte(sessionUsage.createdAt, since)),
+    )
+    .where(eq(task.workspaceId, workspaceId))
+    .groupBy(task.id)
+    .all();
+}
+
+/**
+ * O que os três tetos do workspace precisam saber (`028` Parte 3, T15).
+ *
+ * **Nenhum contador guardado**, e é o mesmo argumento do selo do §4.1: um número
+ * somado na hora não pode divergir do que aconteceu, e um contador incrementado
+ * pode — basta um turno que morreu entre o gasto e o incremento.
+ *
+ * Os três saem de `session_usage`, que já tem projeto, worktree, agente, tarefa
+ * (pela sessão) e tempo. Nenhuma tabela nova.
+ */
+export interface BudgetSpend {
+  /** O que esta tarefa já gastou, **sem janela** — uma tarefa velha não ficou mais barata. */
+  taskCost: number | null;
+  taskTokens: number;
+  /** O que este workspace gastou **hoje**, com a janela resolvida aqui. */
+  dayCost: number | null;
+  dayTokens: number;
+  /** Quantos turnos esta sessão teve. O chão que todo adaptador informa. */
+  sessionTurns: number;
+}
+
+export function budgetSpend(
+  db: Db,
+  {
+    workspaceId,
+    taskId,
+    sessionId,
+    now,
+  }: { workspaceId: string; taskId: string | null; sessionId: string; now?: Date },
+): BudgetSpend {
+  const task =
+    taskId === null
+      ? undefined
+      : usageByTask(db, { workspaceId, period: "all" }).find((row) => row.taskId === taskId);
+
+  // A janela do dia é resolvida **no daemon**, como a `010` decidiu: o corte não
+  // pode vir do relógio do cliente, senão duas telas abertas em máquinas
+  // diferentes dão respostas diferentes para a mesma pergunta.
+  const since = windowStart("1d", now);
+  const [day] = db
+    .select({ cost: SUM.cost, tokens: SUM.tokens })
+    .from(sessionUsage)
+    .innerJoin(project, eq(project.id, sessionUsage.projectId))
+    .where(and(eq(project.workspaceId, workspaceId), gte(sessionUsage.createdAt, since)))
+    .all();
+
+  const [session_] = db
+    .select({ turns: SUM.turns })
+    .from(sessionUsage)
+    .where(eq(sessionUsage.sessionId, sessionId))
+    .all();
+
+  return {
+    taskCost: task?.cost ?? null,
+    taskTokens: task?.tokens ?? 0,
+    dayCost: day?.cost ?? null,
+    dayTokens: day?.tokens ?? 0,
+    sessionTurns: session_?.turns ?? 0,
+  };
 }

@@ -4,6 +4,7 @@ import { cleanup } from "@testing-library/react";
 import { afterEach } from "vitest";
 
 import { clearErrors } from "../lib/errorLog.js";
+import { resetNavigationForTests } from "../lib/navigation.js";
 
 /**
  * What jsdom does not implement and xterm.js insists on.
@@ -59,6 +60,10 @@ afterEach(() => {
   // The error log is a module-level store shared across a file's tests, and the
   // query cache feeds it every intentional failure. Reset it so one test's
   // errors never show up in the next one's topbar.
-  window.localStorage.clear();
+  globalThis.window?.localStorage?.clear();
   clearErrors();
+  // O store de `lib/navigation.ts` é module-level de propósito (T21) — o que o
+  // faz chamável de qualquer lugar sem contexto é exatamente o que o faz vazar
+  // seleção e chegada de um teste para o próximo, dentro do mesmo arquivo.
+  resetNavigationForTests();
 });

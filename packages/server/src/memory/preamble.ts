@@ -27,6 +27,20 @@ export interface MemoryPreambleOptions {
   stateDir: string;
   /** De onde o agente pergunta — o daemon é quem sabe a porta dele. */
   askUrl: string;
+  /**
+   * A porta de tarefas, e o teto dela (`022` T14).
+   *
+   * Opcional: sem ela o parágrafo não entra, e o preâmbulo custa exatamente o
+   * que custava antes desta feature.
+   */
+  tasks?: { url: string; budget: number };
+  /**
+   * A base da porta de parecer (`028` Parte 7 — T53).
+   *
+   * O daemon passa a raiz; o parágrafo só nasce quando **esta** sessão serve uma
+   * tarefa que está em `review` — que é o único momento em que ela existe.
+   */
+  reviewBaseUrl?: string;
   log?: Pick<FastifyBaseLogger, "warn">;
 }
 
@@ -34,6 +48,8 @@ export function createMemoryPreamble({
   db,
   stateDir,
   askUrl,
+  tasks,
+  reviewBaseUrl,
   log,
 }: MemoryPreambleOptions): AcpPreambleSource {
   return async (session): Promise<AcpPreamble | null> => {
@@ -45,18 +61,43 @@ export function createMemoryPreamble({
      * pedir que ela obedecesse regras sobre um trabalho que não está fazendo —
      * pagando o núcleo de novo, para nada.
      */
-    if ((await createSessionRepository(db).findById(session.id)) === undefined) return null;
+    const row = await createSessionRepository(db).findById(session.id);
+    if (row === undefined) return null;
 
     const memory = new MemoryService({ db, stateDir, ...(log ? { log } : {}) });
     const scope = await memoryScopeOfSession(db, session.id);
     const core = await memory.core(scope);
 
-    // Nada fixado **e** nada no acervo: não existe porta para apontar, e um
-    // bloco explicando uma memória vazia é custo puro em toda sessão. Assim que
-    // a primeira memória existe, a diretiva e a skill passam a valer — mesmo sem
-    // nada fixado, porque a porta passou a existir.
+    /*
+     * A porta do parecer só aparece **no turno de revisão**.
+     *
+     * Derivada, e não configurada: a sessão aponta para a tarefa, e a tarefa diz
+     * a etapa. Um parágrafo sobre como reprovar numa conversa de implementação
+     * seria custo em toda sessão para instruir ninguém.
+     */
+    const serving =
+      reviewBaseUrl === undefined || row.taskId === null
+        ? undefined
+        : await db.query.task.findFirst({ where: (one, { eq }) => eq(one.id, row.taskId!) });
+    const review =
+      serving?.status === "review"
+        ? { url: `${reviewBaseUrl}/${serving.id}/findings` }
+        : undefined;
+
+    /*
+     * Nada fixado **e** nada no acervo: não existe porta de memória para
+     * apontar, e um bloco explicando uma memória vazia é custo puro em toda
+     * sessão. Assim que a primeira memória existe, a diretiva e a skill passam a
+     * valer — mesmo sem nada fixado, porque a porta passou a existir.
+     *
+     * **Menos quando há parecer a entregar** (`028` Parte 7), e este `&&` é o
+     * defeito que quase foi para produção: a porta do revisor viajava dentro do
+     * preâmbulo de memória, então um workspace **sem memória nenhuma** — que é
+     * todo workspace novo — deixava o revisor sem saber que ela existe. Ele
+     * escreveria o parecer na conversa, como antes, e o portão não leria nada.
+     */
     const acervo = memory.visible(scope).visible.length;
-    if (core.entries.length === 0 && acervo === 0) return null;
+    if (core.entries.length === 0 && acervo === 0 && review === undefined) return null;
 
     // Só os projetos do workspace da sessão: o mapa é do que ela enxerga, e
     // listar projeto de outro workspace seria a lista crescendo por um motivo
@@ -68,9 +109,23 @@ export function createMemoryPreamble({
             (project) => project.name,
           );
 
-    const parts = [MEMORY_DIRECTIVE];
+    /*
+     * Com memória vazia e parecer a entregar, a diretiva de memória sai: ela
+     * manda consultar um acervo que não existe. O que fica é a porta.
+     */
+    const vazia = core.entries.length === 0 && acervo === 0;
+    const parts = vazia ? [] : [MEMORY_DIRECTIVE];
     if (core.text !== "") parts.push(core.text.trimEnd());
-    parts.push(memorySkill({ askUrl, sessionId: session.id, projects }).trimEnd());
+    parts.push(
+      memorySkill({
+        askUrl,
+        sessionId: session.id,
+        projects,
+        ...(tasks === undefined ? {} : { tasks }),
+        ...(review === undefined ? {} : { review }),
+        hasMemory: !vazia,
+      }).trimEnd(),
+    );
 
     return { text: `${parts.join("\n\n")}\n`, entries: core.entries.length };
   };

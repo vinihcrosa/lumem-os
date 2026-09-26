@@ -99,6 +99,139 @@
       "when": 1788744928956,
       "tag": "0013_consumo_por_agente",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1789187632351,
+      "tag": "0014_tarefa_como_entidade",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1789252325443,
+      "tag": "0015_quadro_de_sete_colunas",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1789254642893,
+      "tag": "0016_ordem_na_coluna",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1789255374319,
+      "tag": "0017_relogio_do_encalhe",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1789274334110,
+      "tag": "0018_tetos_do_workspace",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1789282747709,
+      "tag": "0019_comentario_de_tarefa",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1789283063529,
+      "tag": "0020_esteira_tentativa_e_autonomia",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1789283325662,
+      "tag": "0021_catalogo_de_agentes",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "6",
+      "when": 1789284691425,
+      "tag": "0022_interruptor_da_esteira",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1789285221167,
+      "tag": "0023_prompt_preparado",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1789286774775,
+      "tag": "0024_motivo_do_bloqueio",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1789322008397,
+      "tag": "0025_aviso_uma_vez",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1789322685016,
+      "tag": "0026_pr_mesclada_sempre_remove",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "6",
+      "when": 1789326110247,
+      "tag": "0027_issue_como_identidade",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "6",
+      "when": 1789326225387,
+      "tag": "0028_marcos_no_tracker",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "6",
+      "when": 1789425520164,
+      "tag": "0029_parecer_do_revisor",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "6",
+      "when": 1789427468718,
+      "tag": "0030_papel_da_sessao_e_vaivem",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "6",
+      "when": 1789446936562,
+      "tag": "0031_recibo_do_parecer",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1789501762791,
+      "tag": "0032_turno_do_consumo",
+      "breakpoints": true
     }
   ]
 }

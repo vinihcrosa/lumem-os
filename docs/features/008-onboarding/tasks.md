@@ -55,7 +55,7 @@ respeita a linha:
 
 O motivo de não jogar tudo em `setup/`: metade dessas classes é o vocabulário da **tela de
 preferências** que não existe ainda, e do diagnóstico de qualquer dia. Nascer em `ui/` com entrada no
-[`Styleguide`](../../../packages/web/src/ui/Styleguide.tsx) é o que evita a segunda pintura quando essa
+[`Styleguide`](../../../packages/web/src/ui/Primitives.stories.tsx) é o que evita a segunda pintura quando essa
 tela chegar.
 
 ### D2 — Nada do fluxo escreve estado próprio
@@ -113,8 +113,8 @@ achou a falta.
 
 ### D8 — Os passos 5, 6 e 7 reusam o que já existe
 
-`FirstRun`, [`AddProjectDialog`](../../../packages/web/src/components/AddProjectDialog.tsx) e
-[`CreateWorktreeDialog`](../../../packages/web/src/components/CreateWorktreeDialog.tsx) já têm o
+`FirstRun`, [`AddProjectDialog`](../../../packages/web/src/features/workspace/AddProjectDialog.tsx) e
+[`CreateWorktreeDialog`](../../../packages/web/src/features/workspace/CreateWorktreeDialog.tsx) já têm o
 formulário, a validação e o erro-do-daemon de cada um desses três passos. A task **extrai** o miolo e o
 usa nos dois lugares; o que não der para reusar é nomeado na própria task, com o motivo.
 
@@ -214,7 +214,7 @@ CSS que o `lumem-ds.css` desenhou.
       ao `⏎`) e `.key__link` (o "voltar ao fluxo" dentro de uma linha do recibo). Não é divergência de
       porte, é markup que o React precisou e o HTML solto não
 - [x] A auditoria de porte segue o padrão da
-      [`conversation-css.test.ts`](../../../packages/web/src/components/conversation-css.test.ts):
+      [`conversation-css.test.ts`](../../../packages/web/src/features/conversation/conversation-css.test.ts):
       **toda classe que um componente do fluxo pede existe no stylesheet**, e classe definida que
       ninguém pede é apontada
 - [x] **Verificado por mutação**: apagar `.tri__g` do `setup.css` fez o teste falhar nomeando
@@ -621,7 +621,7 @@ de entrar.
 #### T18: O balão da primeira permissão ✅
 
 **What**: Explicar o modo `Auto` na primeira vez que ele para e pergunta.
-**Where**: `packages/web/src/components/Conversation.tsx`,
+**Where**: `packages/web/src/features/conversation/Conversation.tsx`,
 `packages/web/src/hooks/useFirstPermissionCoach.ts` + testes, `setup.css` (`coach--after`)
 **Depends on**: T1
 
@@ -630,7 +630,7 @@ de entrar.
       responder
 - [x] Some com **entendi**; **não mostrar de novo** grava no `localStorage`
       ([O16](open-questions.md)), com o mesmo cuidado do
-      [`useActiveWorkspace`](../../../packages/web/src/hooks/useActiveWorkspace.ts) para navegador com
+      [`useActiveWorkspace`](../../../packages/web/src/features/workspace/useActiveWorkspace.ts) para navegador com
       storage desligado
 - [x] Só na **primeira** permissão da máquina, não na primeira de cada sessão
 - [x] Não bloqueia o composer — o pedido de permissão já bloqueia, e dois bloqueios pela mesma razão é

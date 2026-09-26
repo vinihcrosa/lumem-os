@@ -183,14 +183,14 @@ Três telas (5, 6, 7) têm um sufixo `escolher…` no campo de caminho.
 
 Ele não pode existir: o daemon pode estar em outra máquina, e o `<input type=file>` do navegador
 entrega **arquivo**, não caminho de servidor. A regra já está escrita em BEHAVIOUR §6 e o
-[`AddProjectDialog`](../../../packages/web/src/components/AddProjectDialog.tsx) já a segue.
+[`AddProjectDialog`](../../../packages/web/src/features/workspace/AddProjectDialog.tsx) já a segue.
 
 **Ganha o produto.** O sufixo sai do desenho.
 
 ### Divergência 4 — a tela 9 promete três atalhos que não existem
 
 Ela lista `⌘K`, `⌘⇧N`, `⌘⏎` e `⌥⇧P`. Existe **um**: `⌘⏎` envia o turno
-([`Conversation.tsx`](../../../packages/web/src/components/Conversation.tsx)).
+([`Conversation.tsx`](../../../packages/web/src/features/conversation/Conversation.tsx)).
 
 **Ganha o produto.** A tela lista o que existe; os outros três vão para o
 [backlog](../../project/backlog.md). Tela de boas-vindas que ensina atalho inexistente é a pior lição

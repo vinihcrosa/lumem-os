@@ -7,6 +7,7 @@ import { worktreeAddArgs, type AddWorktreeSource } from "../git/GitService.js";
 import { DomainError } from "../errors.js";
 import { tryRecordSignal } from "../memory/signals.js";
 import { createProjectRepository } from "../repositories/project.js";
+import { createTaskRepository } from "../repositories/task.js";
 import { createWorktreeRepository } from "../repositories/worktree.js";
 import { domainSafeAsync, publicProcedure, router, type Context } from "../trpc.js";
 import { releasePort } from "../scripts/ports.js";
@@ -297,7 +298,21 @@ export const worktreeRouter = router({
    * the first time a flag changes.
    */
   plan: publicProcedure
-    .input(z.object({ projectId: z.string().min(1), name: nameSchema, from: fromSchema.optional() }))
+    .input(
+      z.object({
+        projectId: z.string().min(1),
+        name: nameSchema,
+        from: fromSchema.optional(),
+        /**
+         * A tarefa para a qual esta worktree existe (`022` F2).
+         *
+         * Opcional, e o default continua sendo nenhuma: tarefa **não** é
+         * obrigatória (T1), e o caminho "nova worktree" da sidebar não passa por
+         * aqui com uma.
+         */
+        taskId: z.string().min(1).optional(),
+      }),
+    )
     .query(({ ctx, input }) =>
       domainSafeAsync(async () => {
         const project = await requireProject(ctx, input.projectId);
@@ -477,7 +492,21 @@ export const worktreeRouter = router({
     ),
 
   create: publicProcedure
-    .input(z.object({ projectId: z.string().min(1), name: nameSchema, from: fromSchema.optional() }))
+    .input(
+      z.object({
+        projectId: z.string().min(1),
+        name: nameSchema,
+        from: fromSchema.optional(),
+        /**
+         * A tarefa para a qual esta worktree existe (`022` F2).
+         *
+         * Opcional, e o default continua sendo nenhuma: tarefa **não** é
+         * obrigatória (T1), e o caminho "nova worktree" da sidebar não passa por
+         * aqui com uma.
+         */
+        taskId: z.string().min(1).optional(),
+      }),
+    )
     .mutation(({ ctx, input }) =>
       domainSafeAsync(async () => {
         const project = await requireProject(ctx, input.projectId);
@@ -525,6 +554,17 @@ export const worktreeRouter = router({
             path,
           });
           ctx.events.emit({ type: "worktree.changed", projectId: project.id });
+
+          // A tarefa passa a apontar para o checkout. Depois do registro, e não
+          // antes: uma tarefa apontando para uma worktree que o banco ainda não
+          // tem é um ponteiro que o estrangeiro recusa.
+          if (input.taskId !== undefined) {
+            const linked = await createTaskRepository(ctx.db).attachWorktree(
+              input.taskId,
+              created.id,
+            );
+            ctx.events.emit({ type: "task.changed", workspaceId: linked.workspaceId });
+          }
 
           // O setup do projeto, se houver (project-scripts S3).
           //

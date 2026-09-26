@@ -3,11 +3,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { newId } from "@lumem/shared";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { openDatabase, type Db, type Database_ } from "./index.js";
-import { agentConfig, memoryProposal, project, session, workspace, worktree } from "./schema.js";
+import { agentConfig, memoryProposal, project, session, task, workspace, worktree } from "./schema.js";
 
 const open: Database_[] = [];
 const dirs: string[] = [];
@@ -607,5 +607,122 @@ describe("state constraints", () => {
 
     expect(row?.args).toEqual(["--verbose"]);
     expect(row?.env).toEqual({ ANTHROPIC_LOG: "debug" });
+  });
+});
+
+/**
+ * Tarefa como entidade (`022-workspace-tasks` T4).
+ *
+ * O que este bloco prova não é "a tabela existe": é que as três regras que o
+ * §3.1 da PRD pôs **no banco** recusam de verdade, e que as duas exceções à
+ * regra do RESTRICT fazem o que dizem. A mais frágil delas é a última — o
+ * `drizzle-kit` perde a ação do FK no caminho de `ALTER TABLE`, e sem o teste a
+ * coluna nasceria NO ACTION sem ninguém notar.
+ */
+describe("tarefa", () => {
+  async function seedWorktree(db: Db, projectId: string, name = "feat"): Promise<string> {
+    const id = newId();
+    await db.insert(worktree).values({ id, projectId, name, branch: name, path: `/wt/${id}` });
+    return id;
+  }
+
+  async function seedShell(db: Db, scopeId: string, taskId?: string): Promise<string> {
+    const id = newId();
+    await db.insert(session).values({
+      id,
+      kind: "shell",
+      scopeType: "worktree",
+      scopeId,
+      cwd: "/wt",
+      command: "bash",
+      taskId,
+    });
+    return id;
+  }
+
+  async function seedTask(db: Db, values: Record<string, unknown> = {}) {
+    const workspaceId = (values.workspaceId as string | undefined) ?? (await seedWorkspace(db));
+    const projectId = (values.projectId as string | undefined) ?? (await seedProject(db, workspaceId));
+    const id = newId();
+    await db.insert(task).values({ id, workspaceId, projectId, title: "consertar o /orders", ...values });
+    return { id, workspaceId, projectId };
+  }
+
+  it("recusa um estado que nenhum leitor sabe interpretar", async () => {
+    const { db } = freshDatabase();
+
+    await expect(seedTask(db, { status: "quase" })).rejects.toThrow(/CHECK/i);
+  });
+
+  it("recusa tarefa de agente sem a sessão que a propôs", async () => {
+    const { db } = freshDatabase();
+
+    // Proveniência é o que separa proposta de lixo: sem ela, a triagem não tem
+    // como responder "quem propôs isto, e de onde".
+    await expect(seedTask(db, { createdBy: "agent" })).rejects.toThrow(/CHECK/i);
+  });
+
+  it("recusa tarefa sua carregando uma sessão", async () => {
+    const { db } = freshDatabase();
+
+    await expect(seedTask(db, { createdBy: "human", createdBySession: newId() })).rejects.toThrow(
+      /CHECK/i,
+    );
+  });
+
+  it("recusa done sem data de fechamento, e data com a tarefa aberta", async () => {
+    const { db } = freshDatabase();
+
+    const workspaceId = await seedWorkspace(db, "acme");
+    const projectId = await seedProject(db, workspaceId);
+
+    await expect(seedTask(db, { workspaceId, projectId, status: "done" })).rejects.toThrow(/CHECK/i);
+    await expect(
+      seedTask(db, { workspaceId, projectId, status: "open", closedAt: new Date() }),
+    ).rejects.toThrow(/CHECK/i);
+  });
+
+  it("recusa remover um projeto que ainda tem tarefas", async () => {
+    const { db } = freshDatabase();
+    const { projectId } = await seedTask(db);
+
+    // RESTRICT, como todo FK deste schema. A cascata é a ordem de dois deletes
+    // numa transação — do repositório, não do banco.
+    await expect(db.delete(project).where(eq(project.id, projectId))).rejects.toThrow(
+      /FOREIGN KEY/i,
+    );
+  });
+
+  it("perder a worktree não muda o estado da tarefa", async () => {
+    const { db } = freshDatabase();
+    const workspaceId = await seedWorkspace(db);
+    const projectId = await seedProject(db, workspaceId);
+    const worktreeId = await seedWorktree(db, projectId);
+    const { id } = await seedTask(db, { workspaceId, projectId, worktreeId, status: "in_progress" });
+
+    await db.delete(worktree).where(eq(worktree.id, worktreeId));
+
+    const [row] = await db.select().from(task).where(eq(task.id, id));
+    expect(row?.worktreeId).toBeNull();
+    // Voltar para `open` apagaria o fato de que alguém trabalhou nela — e o
+    // custo, que continua somado, diria o contrário da coluna de estado.
+    expect(row?.status).toBe("in_progress");
+  });
+
+  it("a sessão sobrevive à tarefa, com o ponteiro nulo", async () => {
+    const { db } = freshDatabase();
+    const workspaceId = await seedWorkspace(db);
+    const projectId = await seedProject(db, workspaceId);
+    const worktreeId = await seedWorktree(db, projectId);
+    const { id } = await seedTask(db, { workspaceId, projectId });
+    const sessionId = await seedShell(db, worktreeId, id);
+
+    // O `ON DELETE SET NULL` que o `drizzle-kit` apagou do ALTER TABLE. Sem a
+    // ação, este delete falharia com FOREIGN KEY em vez de anular a coluna.
+    await db.delete(task).where(eq(task.id, id));
+
+    const [row] = await db.select().from(session).where(eq(session.id, sessionId));
+    expect(row).toBeDefined();
+    expect(row?.taskId).toBeNull();
   });
 });

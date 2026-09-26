@@ -4,6 +4,7 @@ import { isAbsolute, join, resolve } from "node:path";
 import { DEFAULT_SERVER_PORT } from "@lumem/shared";
 
 import { parsePortRange, type PortRange } from "./scripts/ports.js";
+import { DEFAULT_TASK_BUDGET } from "./tasks/http.js";
 
 export interface ServerConfig {
   /** TCP port the HTTP server binds to. */
@@ -76,6 +77,15 @@ export interface ServerConfig {
   /** Quantas perguntas de uma sessão podem subir agente. O orçamento do §5.4. */
   autoLearnBudget: number;
   /**
+   * Quantas tarefas uma **tarefa** pode criar pela porta do agente (`022` T8).
+   *
+   * Por tarefa e não por sessão: a esteira da `028` dá três sessões a cada
+   * tarefa, e "cinco por sessão" viraria quinze sem ninguém ter decidido isso.
+   * Ele protege a sua atenção, não o banco — e aparece na tela do workspace,
+   * porque teto que você não vê é teto que parece bug quando recusa.
+   */
+  taskBudget: number;
+  /**
    * De onde saem as portas que cada checkout reserva para rodar (S5).
    *
    * Configurável porque a faixa boa depende da máquina — quem tem um serviço
@@ -83,6 +93,22 @@ export interface ServerConfig {
    * mudar vira um bug que só aparece na máquina de alguém.
    */
   runPortRange: PortRange;
+  /**
+   * A configuração de agente com que a esteira abre sessão (`028` Parte 2).
+   *
+   * `null` é o default, e aí a esteira resolve pelo **id do adaptador** que o
+   * catálogo de agentes nomeados devolveu — `claude`, `codex` —, criando a
+   * linha na primeira vez.
+   *
+   * Existe para o mesmo caso que o
+   * [ADR de 2026-09-08](../../../docs/adr/2026-09-08-0507-adapter-is-the-copy-the-daemon-owns.md)
+   * já abre exceção: **um adaptador que não está no catálogo**. Quem aponta o
+   * daemon para um binário específico — um adaptador compilado localmente, um
+   * agente ainda não catalogado — está nomeando exatamente um arquivo, e o que
+   * o ADR proíbe é *o PATH escolher*, não isso. O e2e da esteira é o primeiro
+   * usuário, e não é o único possível.
+   */
+  conveyorAgent: string | null;
 }
 
 /** Only the variables this module reads. Keeps tests from touching process.env. */
@@ -97,6 +123,8 @@ export type ConfigEnv = Partial<
     | "LUMEM_MEMORY_DISTILL"
     | "LUMEM_MEMORY_AUTO_LEARN"
     | "LUMEM_MEMORY_AUTO_LEARN_BUDGET"
+  | "LUMEM_TASKS_BUDGET"
+  | "LUMEM_CONVEYOR_AGENT"
     | "LUMEM_RUN_PORT_RANGE"
     | "SHELL",
     string
@@ -147,8 +175,8 @@ function absoluteDir(raw: string): string {
  * subir por causa de um número torto numa variável opcional, e o default é
  * conservador — três perguntas por sessão.
  */
-function readBudget(raw: string | undefined): number {
-  if (raw === undefined || !/^\d+$/.test(raw.trim())) return 3;
+function readBudget(raw: string | undefined, fallback = 3): number {
+  if (raw === undefined || !/^\d+$/.test(raw.trim())) return fallback;
   return Number.parseInt(raw.trim(), 10);
 }
 
@@ -174,6 +202,8 @@ export function loadConfig(env: ConfigEnv = process.env): ServerConfig {
     distill: env.LUMEM_MEMORY_DISTILL === "1" || env.LUMEM_MEMORY_DISTILL === "true",
     autoLearn: env.LUMEM_MEMORY_AUTO_LEARN === "1" || env.LUMEM_MEMORY_AUTO_LEARN === "true",
     autoLearnBudget: readBudget(env.LUMEM_MEMORY_AUTO_LEARN_BUDGET),
+    taskBudget: readBudget(env.LUMEM_TASKS_BUDGET, DEFAULT_TASK_BUDGET),
     runPortRange: parsePortRange(env.LUMEM_RUN_PORT_RANGE),
+    conveyorAgent: env.LUMEM_CONVEYOR_AGENT ?? null,
   };
 }

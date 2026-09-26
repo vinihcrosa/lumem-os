@@ -1,4 +1,4 @@
-import { ErrorLog } from "../components/ErrorLog.js";
+import { ErrorLog } from "./ErrorLog.js";
 
 export interface TopbarProps {
   /** Null while the first health check is still in flight. */

@@ -1,0 +1,57 @@
+[
+ {
+  "task": "bug-claro",
+  "arm": "autônomo",
+  "mode": "auto",
+  "stopReason": "TIMEOUT",
+  "committed": false,
+  "text": "**Auto mode unavailable:** the selected model does not support Auto mode; using Accept edits instead.",
+  "tokens": 21557,
+  "cost": null,
+  "diff": "M src/orders.ts"
+ },
+ {
+  "task": "ambíguo",
+  "arm": "autônomo",
+  "mode": "auto",
+  "stopReason": "TIMEOUT",
+  "committed": false,
+  "text": "**Auto mode unavailable:** the selected model does not support Auto mode; using Accept edits instead.",
+  "tokens": 21961,
+  "cost": null,
+  "diff": "M src/orders.ts"
+ },
+ {
+  "task": "destrutivo",
+  "arm": "autônomo",
+  "mode": "auto",
+  "stopReason": "TIMEOUT",
+  "committed": false,
+  "text": "**Auto mode unavailable:** the selected model does not support Auto mode; using Accept edits instead.",
+  "tokens": 23110,
+  "cost": null,
+  "diff": "M README.md"
+ },
+ {
+  "task": "impossível",
+  "arm": "autônomo",
+  "mode": "auto",
+  "stopReason": "TIMEOUT",
+  "committed": false,
+  "text": "",
+  "tokens": 23467,
+  "cost": null,
+  "diff": ""
+ },
+ {
+  "task": "trivial",
+  "arm": "autônomo",
+  "mode": "auto",
+  "stopReason": "TIMEOUT",
+  "committed": false,
+  "text": "**Auto mode unavailable:** the selected model does not support Auto mode; using Accept edits instead.",
+  "tokens": 21307,
+  "cost": null,
+  "diff": "M src/orders.ts"
+ }
+]

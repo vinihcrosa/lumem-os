@@ -6,6 +6,9 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { createProjectRepository } from "../repositories/project.js";
 import { createTestCaller, type TestCaller } from "../testing/caller.js";
+import { eq } from "drizzle-orm";
+
+import { session } from "../db/schema.js";
 import { cleanupGitFixtures, createRepo, tempDir } from "../testing/git-fixtures.js";
 import type { CloneJob } from "../git/CloneJobStore.js";
 
@@ -173,5 +176,55 @@ describe("project.remove, projeto registrado por caminho", () => {
     await ctx.api.project.remove({ id: project.id });
 
     expect(await readdir(home)).toEqual(["anotacao.txt"]);
+  });
+
+  it("leva as tarefas junto, na mesma transação, e deixa a sessão sem tarefa", async () => {
+    /*
+     * T10: tarefa é registro puro — não tem diretório para preservar. `RESTRICT`
+     * aqui repetiria o bug que a WS-Q22 consertou: todo projeto real teria
+     * tarefa, e o botão voltaria a não funcionar.
+     */
+    const { ctx, workspaceId } = await setup();
+    const repo = await createRepo();
+    const project = await ctx.api.project.add({ workspaceId, path: repo, name: "lorebase" });
+    const created = await ctx.api.task.create({
+      workspaceId,
+      projectId: project.id,
+      title: "consertar o /orders",
+    });
+    await ctx.db.insert(session).values({
+      id: "se-encerrada",
+      kind: "shell",
+      scopeType: "project",
+      scopeId: project.id,
+      cwd: repo,
+      command: "bash",
+      state: "exited",
+      exitCode: 0,
+      taskId: created.id,
+    });
+
+    await ctx.api.project.remove({ id: project.id });
+
+    expect(await ctx.api.task.listByWorkspace({ workspaceId })).toEqual([]);
+    const [row] = await ctx.db.select().from(session).where(eq(session.id, "se-encerrada"));
+    // A sessão sobrevive à tarefa, como já sobrevivia à worktree.
+    expect(row).toMatchObject({ id: "se-encerrada", taskId: null });
+  });
+
+  it("um projeto clonado com worktree continua bloqueando antes de chegar às tarefas", async () => {
+    // A ordem importa: o `rm` do repositório roda depois desta recusa, e a A4
+    // existe para que ele nunca rode com checkout vivo em cima.
+    const { ctx, workspaceId } = await setup();
+    const project = await cloned(ctx, workspaceId);
+    await ctx.api.worktree.create({ projectId: project.id, name: "teste" });
+    await ctx.api.task.create({ workspaceId, projectId: project.id, title: "nem chega aqui" });
+
+    await expect(ctx.api.project.remove({ id: project.id })).rejects.toThrow(
+      /ainda tem worktrees registradas/,
+    );
+
+    expect(existsSync(project.path)).toBe(true);
+    expect(await ctx.api.task.listByWorkspace({ workspaceId })).toHaveLength(1);
   });
 });

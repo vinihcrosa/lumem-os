@@ -31,6 +31,8 @@ export const E2E_WEB_PORT = required("e2eWeb");
  * (F7.3, F7.4) that cannot be checked without restarting something.
  */
 export const E2E_RESTART_PORT = required("e2eRestart");
+/** A esteira sobe daemon próprio: ela precisa de `LUMEM_CONVEYOR_AGENT`. */
+export const E2E_CONVEYOR_PORT = required("e2eConveyor");
 
 /**
  * The daemon serving the built web on its own, with no vite anywhere.

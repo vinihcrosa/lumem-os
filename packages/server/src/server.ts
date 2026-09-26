@@ -20,8 +20,11 @@ import { registerAcpWebSocket } from "./acp/websocket.js";
 import type { PtyManager } from "./pty/PtyManager.js";
 import { createAutoLearn } from "./memory/auto-learn.js";
 import { registerMemoryHttp } from "./memory/http.js";
+import { registerTaskHttp } from "./tasks/http.js";
 import { registerPtyWebSocket } from "./pty/websocket.js";
 import { createScriptRunner, type ScriptRunner } from "./scripts/ScriptRunner.js";
+import type { Conveyor } from "./tasks/conveyor.js";
+import { createSecretStore, type SecretStore } from "./secrets/SecretStore.js";
 import { createSessionStore, type SessionStore } from "./sessions/SessionStore.js";
 import { registerWeb, resolveWebRoot } from "./web/static.js";
 import { appRouter, type AppRouter } from "./routers/index.js";
@@ -106,6 +109,16 @@ export interface CreateServerOptions {
    * guardam — o último instantâneo e a execução em voo — é o que faz oito
    * worktrees custarem um processo, e um cache por requisição não guarda nada.
    */
+  /**
+   * A esteira (`028` Parte 2), quando o daemon tem uma.
+   *
+   * Sem default, e é a única opção do servidor que não tem: montá-la aqui
+   * exigiria montar as portas dela, e as portas chamam **este** router — a
+   * ordem certa é o `bootstrap` construir as duas e entregar.
+   */
+  conveyor?: Conveyor;
+  /** O cofre. Default próprio para um servidor de teste não precisar dar um. */
+  secrets?: SecretStore;
   prHost?: PrHost;
   pr?: PrCache;
   /** As issues do host, por projeto. Sem poll: quem pergunta é um diálogo. */
@@ -133,6 +146,8 @@ export async function createServer({
   }),
   git = createGitService(),
   clones = createCloneJobStore(),
+  conveyor,
+  secrets = createSecretStore({ stateDir: config.stateDir }),
   prHost = createGhHost(),
   pr = createPrCache({
     host: prHost,
@@ -157,6 +172,8 @@ export async function createServer({
     db,
     ptyManager,
     acpManager,
+    conveyor,
+    secrets,
     sessionStore,
     scripts,
     git,
@@ -183,6 +200,11 @@ export async function createServer({
 
   // Fora do `/trpc`: é a porta que o prompt do agente ensina, e o que entra no
   // prompt tem que ser copiável sem raciocínio.
+  // A porta do agente para criar tarefa e dizer "acho que terminei" (`022` F3).
+  // Fora do `/trpc` pelo mesmo motivo da memória, e por isso o `DAEMON_PREFIXES`
+  // conhece `/tasks`: sem o prefixo, o web servido na mesma porta engole a rota.
+  registerTaskHttp({ app, db, events, budget: config.taskBudget });
+
   registerMemoryHttp({
     app,
     db,

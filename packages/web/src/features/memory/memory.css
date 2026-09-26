@@ -1,0 +1,330 @@
+/*
+ * Memória — as quatro vistas.
+ *
+ * **Só `var()`, e agora é verdade.** A primeira linha deste arquivo dizia isso
+ * desde o começo e ele tinha 21 literais: `font-size` em 10, 11, 12 e 18px,
+ * padding em 1, 2, 3 e 7px, uma altura de 220px e uma grade de 96px por 14px.
+ * A tela é anterior à decisão de 2026-08-19 que moveu o design para o Open
+ * Design, foi feita sob o regime antigo, e ninguém a revisitou depois — é por
+ * isso que ela tinha 11px onde o resto do app tem `--text-caption`.
+ *
+ * Cada tamanho aqui saiu de um token que já existia. Nenhum token novo foi
+ * preciso, o que é a prova de que a escala dava conta desde o início.
+ *
+ * As duas exceções são as que o repositório já declara: o fio ótico de 1–2px, e
+ * nada mais.
+ */
+
+.mem-panel { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+
+.mem-head {
+  display: flex; align-items: center; gap: var(--space-8);
+  padding: var(--space-8) var(--space-12);
+  border-bottom: var(--border-width-thin) solid var(--color-border-subtle);
+  background: var(--color-bg-raised);
+}
+
+/* As quatro vistas. Estado ativo por classe, como `tab-item--active`: sem ele
+   nenhuma das quatro aparenta estar aberta.
+
+   Sem mudança de peso entre ativa e inativa: o fundo e a cor já dizem qual é, e
+   um peso a mais era o único lugar do arquivo que pedia uma tipografia sem
+   token. */
+.mem-tabs {
+  display: inline-flex;
+  background: var(--color-bg-inset);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+  gap: var(--space-2);
+}
+.mem-tab {
+  font: var(--text-label-xs);
+  padding: var(--space-4) var(--space-10);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+}
+.mem-tab:hover { color: var(--color-text-primary); }
+.mem-tab--active { background: var(--color-bg-surface); color: var(--color-text-primary); }
+
+.mem-body { flex: 1; min-height: 0; overflow: auto; }
+
+.mem-item {
+  padding: var(--space-10) var(--space-12);
+  border-bottom: var(--border-width-thin) solid var(--color-border-subtle);
+}
+.mem-item:last-child { border-bottom: 0; }
+/*
+ * Sombreada, sem `opacity`.
+ *
+ * `opacity: .55` era o único jeito de o arquivo produzir uma cor que o gate de
+ * contraste não sabe verificar — o par declarado é token contra token, e uma
+ * transparência por cima sai de fora da conta. O apagado agora é um token, e o
+ * risco no nome é o que diz que ela perdeu a precedência sem escondê-la.
+ */
+.mem-item.is-shadowed .mem-name { color: var(--color-text-disabled); text-decoration: line-through; }
+.mem-item.is-shadowed .mem-desc { color: var(--color-text-disabled); }
+
+.mem-row { display: flex; align-items: baseline; gap: var(--space-8); }
+.mem-name { font: var(--text-label-sm); color: var(--color-text-primary); }
+.mem-desc { color: var(--color-text-secondary); font: var(--text-body-sm); margin-top: var(--space-2); }
+.mem-meta {
+  color: var(--color-text-tertiary); font: var(--text-caption); margin-top: var(--space-4);
+  display: flex; gap: var(--space-10); flex-wrap: wrap;
+}
+
+/* Escopo responde "onde vale"; tipo responde "o que é". Formas diferentes, porque
+   a primeira renderização do protótipo provou que peso igual apaga a distinção. */
+.mem-scope {
+  font: var(--text-label-xs);
+  padding: var(--space-2) var(--space-6);
+  border-radius: var(--radius-full);
+  border: var(--border-width-thin) solid transparent;
+  white-space: nowrap;
+}
+.mem-scope[data-scope="global"] {
+  background: var(--color-bg-neutral-subtle); color: var(--color-text-secondary);
+  border-color: var(--color-border-subtle);
+}
+.mem-scope[data-scope="workspace"] {
+  background: var(--color-bg-brand-subtle); color: var(--color-scope-workspace);
+  border-color: var(--color-border-brand);
+}
+.mem-scope[data-scope="project"] {
+  background: var(--color-bg-success-subtle); color: var(--color-scope-worktree);
+  border-color: var(--color-border-default);
+}
+.mem-kind {
+  font: var(--text-mono-sm); color: var(--color-text-tertiary);
+  letter-spacing: var(--tracking-label-xs); text-transform: uppercase;
+}
+
+/* O núcleo, portado do `lumem-memory.css` do Open Design.
+   Fixar é o gesto mais caro da tela — o que entra é cobrado em toda sessão —,
+   então o custo fica ao lado do botão, e fixado é estado (`aria-pressed`), não
+   ícone. Em 360px o botão é a primeira coisa que precisa continuar clicável, e
+   por isso ele não encolhe. */
+.mem-pin {
+  font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs);
+  padding: var(--space-2) var(--space-8); border-radius: var(--radius-full);
+  border: var(--border-width-thin) solid var(--color-border-default);
+  background: none; color: var(--color-text-tertiary);
+  white-space: nowrap; cursor: pointer; flex-shrink: 0;
+}
+.mem-pin:hover:enabled { color: var(--color-text-secondary); border-color: var(--color-border-strong); }
+.mem-pin:disabled { cursor: default; }
+.mem-pin[aria-pressed="true"] {
+  background: var(--color-bg-brand-subtle); color: var(--color-text-brand);
+  border-color: var(--color-border-brand);
+}
+.mem-pin-cost { font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+
+.mem-shadow-note {
+  font: var(--text-caption); color: var(--color-text-tertiary);
+  /* Fio ótico: a exceção que o repositório declara. */
+  border-left: 2px solid var(--color-border-strong);
+  padding-left: var(--space-8); margin-top: var(--space-6);
+}
+
+/* Propostas */
+.mem-evidence {
+  margin-top: var(--space-8); padding: var(--space-8) var(--space-10);
+  border-radius: var(--radius-md); background: var(--color-bg-inset);
+  color: var(--color-text-secondary); font: var(--text-body-sm);
+}
+.mem-evidence code { font: var(--text-mono-sm); }
+.mem-actions { display: flex; gap: var(--space-8); margin-top: var(--space-10); flex-wrap: wrap; }
+
+/* Pendentes × resolvidas. Recusar é histórico, e o histórico precisa de porta. */
+.mem-seg {
+  display: inline-flex; margin: var(--space-10) var(--space-12) 0;
+  background: var(--color-bg-inset); border-radius: var(--radius-md);
+  padding: var(--space-2); gap: var(--space-2);
+}
+.mem-seg__item {
+  font: var(--text-label-xs);
+  padding: var(--space-4) var(--space-10);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+}
+.mem-seg__item--active { background: var(--color-bg-surface); color: var(--color-text-primary); }
+
+/* O corpo é o que vira arquivo: ele aparece antes de qualquer aprovação.
+
+   O teto é o mesmo do resultado de ferramenta, e pelo mesmo motivo: um corpo de
+   duas mil linhas não pode empurrar os botões de decisão fora da tela. */
+.mem-body-text {
+  margin-top: var(--space-8); padding: var(--space-8) var(--space-10);
+  border-radius: var(--radius-md); background: var(--color-bg-inset);
+  border: var(--border-width-thin) solid var(--color-border-subtle);
+  font: var(--text-mono-sm); color: var(--color-text-primary);
+  white-space: pre-wrap; word-break: break-word;
+  max-height: var(--size-tool-output-max); overflow: auto;
+}
+
+.mem-form { margin-top: var(--space-10); }
+.mem-form .input { width: 100%; }
+.mem-textarea {
+  width: 100%; padding: var(--space-8) var(--space-10);
+  font: var(--text-mono-sm); resize: vertical;
+}
+
+.mem-verdict {
+  font: var(--text-label-xs);
+  padding: var(--space-2) var(--space-6);
+  border-radius: var(--radius-full);
+  text-transform: uppercase; letter-spacing: var(--tracking-label-xs);
+}
+.mem-verdict[data-status="approved"] {
+  background: var(--color-bg-success-subtle); color: var(--color-text-success);
+}
+.mem-verdict[data-status="rejected"] {
+  background: var(--color-bg-danger-subtle); color: var(--color-text-danger);
+}
+
+/* Linha do tempo */
+/* O `<ol>` sem regra ficava com marcador e recuo do navegador — a auditoria de
+   porte pegou, e é exatamente o defeito que o jsdom não vê. */
+.mem-tl { list-style: none; margin: 0; padding: var(--space-4) 0; }
+.mem-tl-item {
+  display: grid;
+  /* A coluna da hora cabe `20 ago 09:41`; a do marcador é um glifo. */
+  grid-template-columns: calc(var(--space-64) + var(--space-32)) var(--size-icon-sm) 1fr;
+  gap: var(--space-8);
+  padding: var(--space-6) var(--space-12); align-items: baseline;
+}
+.mem-tl-when { color: var(--color-text-tertiary); font: var(--text-caption); text-align: right; }
+.mem-tl-dot { color: var(--color-text-tertiary); text-align: center; }
+.mem-tl-verb { font: var(--text-label-sm); color: var(--color-text-primary); }
+.mem-tl-item[data-outcome="rejected"] .mem-tl-verb { color: var(--color-text-danger); }
+.mem-tl-item[data-outcome="noop"] { color: var(--color-text-tertiary); }
+
+/* Números */
+.mem-stats {
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  /* Fio ótico entre as células, e é o fundo que o desenha. */
+  gap: 1px; background: var(--color-border-subtle);
+}
+.mem-stat { background: var(--color-bg-surface); padding: var(--space-12); }
+.mem-stat .n {
+  font: var(--text-heading-lg); letter-spacing: var(--tracking-heading-lg);
+  color: var(--color-text-primary);
+}
+.mem-stat .l { font: var(--text-caption); color: var(--color-text-tertiary); margin-top: var(--space-2); }
+/* A terceira linha do cartão: o que o número quer dizer. É o `.hint` do desenho,
+   e é onde a variação da marca d'água mora. */
+.mem-stat .hint { font: var(--text-caption); color: var(--color-text-tertiary); margin-top: var(--space-6); }
+.mem-stat--warn .n { color: var(--color-text-warning); }
+
+/* Um grupo por escopo. O chip que estava em toda linha vive aqui, dito uma vez —
+   e a ordem é a da precedência: projeto vence workspace, que vence global. */
+.mem-group__t {
+  display: flex; align-items: center; gap: var(--space-6);
+  margin: 0; padding: var(--space-8) var(--space-12) var(--space-4);
+  background: var(--color-bg-panel);
+  border-bottom: var(--border-width-thin) solid var(--color-border-subtle);
+  position: sticky; top: 0; z-index: 1;
+}
+.mem-group__n { margin-left: auto; font: var(--text-caption); color: var(--color-text-disabled); }
+.mem-list { list-style: none; margin: 0; padding: 0; }
+
+/* Playbooks, portado do `lumem-memory.css` do Open Design.
+
+   Playbook não é memória (§6 do PRD), e a lista mostra isso: o que importa aqui
+   não é escopo e precedência, é **uso**. Quantas vezes foi carregado e quando —
+   porque é disso que o ciclo de vida é derivado. */
+.pb { border-bottom: var(--border-width-thin) solid var(--color-border-subtle); padding: var(--space-10) var(--space-12); }
+.pb:last-child { border-bottom: 0; }
+.pb__row { display: flex; align-items: baseline; gap: var(--space-8); }
+.pb__class { font: var(--text-label-sm); color: var(--color-text-primary); }
+.pb__desc { color: var(--color-text-secondary); font: var(--text-body-sm); margin-top: var(--space-2); }
+.pb__use {
+  color: var(--color-text-tertiary); font: var(--text-caption); margin-top: var(--space-4);
+  display: flex; gap: var(--space-10); flex-wrap: wrap; align-items: baseline;
+}
+/* Mono porque este número é para ser comparado de olho, linha a linha. */
+.pb__loads { font: var(--text-mono-sm); color: var(--color-text-secondary); }
+
+/* O estado tem três valores, e só um pede ação. */
+.life {
+  font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs);
+  padding: var(--space-2) var(--space-6); border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+.life[data-life="active"] { background: var(--color-bg-success-subtle); color: var(--color-text-success); }
+.life[data-life="stale"] { background: var(--color-bg-warning-subtle); color: var(--color-text-warning); }
+.life[data-life="archived"] { background: var(--color-bg-neutral-subtle); color: var(--color-text-tertiary); }
+
+/* A sugestão fica ao lado do gesto: o texto diz por que, o botão faz. */
+.pb__suggest { font: var(--text-caption); color: var(--color-text-warning); margin-top: var(--space-4); }
+.pb__act {
+  font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs);
+  padding: var(--space-2) var(--space-8); border-radius: var(--radius-full);
+  border: var(--border-width-thin) solid var(--color-border-default);
+  background: none; color: var(--color-text-tertiary);
+  white-space: nowrap; cursor: pointer; flex-shrink: 0;
+}
+.pb__act:hover:enabled { color: var(--color-text-secondary); border-color: var(--color-border-strong); }
+.pb__act:disabled { cursor: default; }
+
+/* Conflito no mesmo escopo, portado do `lumem-memory.css` do Open Design.
+
+   O shadow resolve cruzamento de escopos; isto é o mesmo escopo se contradizendo,
+   que é bug de curadoria. As duas lado a lado, e nada de merge: concatenar dois
+   textos produz um terceiro que ninguém escreveu. */
+.mem-conflict {
+  margin-top: var(--space-10); padding: var(--space-10);
+  background: var(--color-bg-inset); border-radius: var(--radius-md);
+}
+.mem-conflict__t {
+  display: flex; align-items: center; gap: var(--space-8);
+  font: var(--text-caption); color: var(--color-text-tertiary);
+}
+.mem-warn {
+  font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs);
+  padding: var(--space-2) var(--space-6); border-radius: var(--radius-full);
+  background: var(--color-bg-warning-subtle); color: var(--color-text-warning);
+  white-space: nowrap;
+}
+/* Duas colunas quando cabe; uma quando o painel está em 360px — comparar em duas
+   colunas de 160px é pior que comparar em duas linhas.
+
+   O mínimo é o `--size-panel-right-min`, e não um token novo: ele é exatamente a
+   pergunta "qual é a largura mínima em que um texto deste painel ainda se lê", e
+   ela já tem resposta. Token novo nasce no Open Design, não aqui. */
+.mem-split {
+  display: grid; gap: var(--space-10); margin-top: var(--space-8);
+  grid-template-columns: repeat(auto-fit, minmax(var(--size-panel-right-min), 1fr));
+}
+.mem-split strong { font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs); color: var(--color-text-secondary); }
+
+/* Busca, portada do `lumem-memory.css` do Open Design.
+
+   O `why` de cada achado é o `WhyRecalled` do Compozy: sem ele o resultado é uma
+   lista que apareceu por magia, e ninguém consegue contestar a ordem. */
+.mem-find { padding: var(--space-8) var(--space-12); }
+.mem-find input {
+  width: 100%; box-sizing: border-box; min-width: 0;
+  padding: var(--space-6) var(--space-10);
+  font: var(--text-body-sm); color: var(--color-text-primary);
+  background: var(--color-bg-inset);
+  border: var(--border-width-thin) solid var(--color-border-default);
+  border-radius: var(--radius-md);
+}
+.mem-find input::placeholder { color: var(--color-text-tertiary); }
+.mem-find input:focus-visible { border-color: var(--color-border-brand); }
+
+.mem-why {
+  font: var(--text-caption); color: var(--color-text-tertiary); margin-top: var(--space-2);
+  display: flex; gap: var(--space-6); flex-wrap: wrap;
+}
+.mem-why span { font: var(--text-mono-sm); }
+
+/* O índice atrasado é sinal, não recusa: o resultado vale, e pode estar curto. */
+.mem-stale {
+  margin: var(--space-8) var(--space-12) 0;
+  font: var(--text-caption); color: var(--color-text-warning);
+}
+
+/* A tarefa que a sessão daquela decisão servia (`022` F6). Discreta: é contexto,
+   não é o assunto da linha. */
+.mem-tl-task { color: var(--color-text-tertiary); }

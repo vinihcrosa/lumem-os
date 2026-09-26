@@ -40,6 +40,8 @@ interface World {
     agentConfigId: string | null;
     tokens: number;
     cost: number | null;
+    /** Em que turno da sessão esta linha entrou. */
+    turn: number;
   }[];
   /** O id da configuração que as sessões deste mundo usam. */
   agentConfigId: string;
@@ -144,6 +146,7 @@ async function world(): Promise<World> {
           agentConfigId: row.agentConfigId,
           tokens: row.tokens,
           cost: row.cost,
+          turn: row.turn,
         }));
     },
     agentConfigId: config.id,
@@ -161,6 +164,27 @@ describe("trackSessionUsage", () => {
     // Somar `used` daria 124.700 — o mesmo contexto contado três vezes.
     expect(app.rows().map((row) => row.tokens)).toEqual([39_200, 1_800, 3_500]);
     expect(app.rows().reduce((total, row) => total + row.tokens, 0)).toBe(44_500);
+  });
+
+  it("os updates de um turno são **um** turno, e do seguinte são outro", async () => {
+    /*
+     * `usage_update` não é um por turno: o adaptador do Claude manda dezenas
+     * dentro do mesmo — **97 num turno só**, medido na `LUM-51`. A conta de
+     * turnos era `count(id)`, então o teto de `turnsPerSession` do workspace
+     * disparava dentro do primeiro turno e parava a esteira falando de turnos
+     * que nunca aconteceram.
+     */
+    const app = await world();
+    const session = await app.spawn();
+
+    await app.turn(session.id, [{ used: 1_000 }, { used: 2_000 }, { used: 3_000 }]);
+    await vi.waitFor(() => expect(app.rows()).toHaveLength(3));
+    await app.turn(session.id, [{ used: 4_000 }, { used: 5_000 }]);
+    await vi.waitFor(() => expect(app.rows()).toHaveLength(5));
+
+    expect(app.rows().map((row) => row.turn)).toEqual([0, 0, 0, 1, 1]);
+    // É isto que o teto lê, e é o número de turnos — não o de relatos.
+    expect(new Set(app.rows().map((row) => row.turn)).size).toBe(2);
   });
 
   it("janela que encolheu não vira consumo negativo", async () => {

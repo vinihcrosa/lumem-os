@@ -227,11 +227,12 @@ PTY que você queira que alimente memória — e só nesse caso.
 
 ## C. Tarefas e orquestração
 
-### ~~Tarefas de workspace atravessando projetos~~ — virou PRD em 2026-09-05
+### ~~Tarefas de workspace atravessando projetos~~ — entregue em 2026-09-12
 
-Saiu do backlog: [workspace-tasks](../features/022-workspace-tasks/prd.md). O gatilho — a memória de workspace
-de pé — foi atingido. O PRD é atribuição manual e `done` humano; a **fila com lease**, abaixo,
-continua aqui.
+Saiu do backlog: [workspace-tasks](../features/022-workspace-tasks/prd.md), **completa**. O gatilho —
+a memória de workspace de pé — foi atingido em 2026-09-05, e a feature em 2026-09-12: atribuição
+manual, `done` humano, `in_progress` derivado do primeiro prompt, e o agente criando tarefa por
+`POST /tasks`. A **fila com lease**, abaixo, continua aqui.
 
 ### Fila com lease e múltiplos agentes puxando trabalho — `G`
 
@@ -239,7 +240,26 @@ Lease com deadline, heartbeat, fencing por sessão e recuperação por expiraç�
 Compozy tem e que só se paga com múltiplos agentes autônomos.
 
 **De onde veio:** [questions.md Q068](questions.md) · **Volta quando:** existir tarefa como entidade
-e mais de um agente rodando sem você olhando.
+e mais de um agente rodando sem você olhando. **A primeira metade caiu** em 2026-09-12 — a tarefa
+existe. A segunda é a [`028`](../features/028-autonomous-orchestration/prd.md), que empilha em cima
+desta e cujo §11 já lista lease, heartbeat e recuperação como a peça técnica que sustenta o selo do
+§4.1.
+
+### `conveyor.spec.ts:371` intermitente — `P`
+
+Review independente da `032` (2026-09-21) achou o teste *"parar interrompe sem apagar a worktree"*
+flaky: `task.stop`, lê `attempts`, espera 20 s, exige o mesmo número — e uma vez recebeu `+1`. Entre
+o `stop` e a leitura seguinte, uma passada da esteira incrementou a tentativa de um cartão com
+`autonomy: "off"`. Ou a esteira já tinha o cartão em mão quando o `stop` chegou e contou a tentativa
+mesmo assim, ou a fila releu antes de ver o `off`. O `testing.md` já registra *"contar a tentativa
+antes de saber se vai haver turno"* como armadilha da `028`; esta parece a irmã dela — contar a
+tentativa de um cartão que acabou de ser parado. Não é da `032` (o diff dela no servidor é só tipo e
+`toWireCard`); rodado isolado depois, passou em 38 s.
+
+**De onde veio:** review independente de fases 3-8 da [`032`](../features/032-web-architecture/prd.md),
+seção "Fora da feature, mas achado por ela" · **Volta quando:** alguém abrir uma issue própria para
+a `028` com o `trace.zip` que o Playwright deixou em `test-results/`, ou quando o teste falhar de
+novo no CI e valer a pena investigar a corrida com log adicional.
 
 ---
 
@@ -505,16 +525,13 @@ pior que uma div rotulada. Precisa de `treeitem`, `aria-expanded` nas linhas que
 não casa · **Volta quando:** alguém navegar o app por teclado, ou na primeira passada de
 acessibilidade.
 
-### Tela de preferências — a configuração de agente não é do workspace — `M`
+### ~~Tela de preferências — a configuração de agente não é do workspace~~ — **virou PRD em 2026-09-17**
 
-`agent_config` é **global** e mora no rodapé da sidebar, que é do workspace. A `agent-login` já nomeia
-a mentira (A16); a [tela do workspace](../features/010-workspace-screen/prd.md) recusou herdá-la, porque
-misturar global com workspace numa tela nova é repetir o erro em outro lugar.
-
-O lugar certo é uma tela de preferências, que não existe.
-
-**De onde veio:** A16 da `agent-login`, e o §4 do PRD da tela do workspace · **Volta quando:** existir
-uma segunda coisa global para configurar — política de permissão é a candidata óbvia.
+Saiu do backlog: [settings](../features/030-settings/prd.md). O gatilho era *"quando existir uma
+segunda coisa global para configurar"*, e o que o disparou foi maior: o produto acumulou **quatro**
+donos de configuração — workspace, máquina, repositório e navegador — e nenhum lugar que os diga. A
+mentira que a A16 da [`021`](../features/021-second-agent/prd.md) nomeou continua de pé, e a PRD nova
+é quem a desfaz.
 
 ### ~~Autenticação do daemon~~ — virou PRD em 2026-09-05
 
@@ -558,9 +575,12 @@ deles, e a v1 do fluxo não implementa nenhum.
 | `⌘⇧N` (nova tarefa) e `⌥⇧P` (trocar o modo) | `P` | prometidos pela mesma tela, e são dois atalhos para ações que já existem em botão | os dois botões virarem caminho longo demais |
 | Caminho das worktrees editável | `P` | hoje é `LUMEM_STATE_DIR`, global; editar pede coluna, migração e "e as que já estão no caminho antigo?" | o `~/.lumem` ficar no disco errado para alguém |
 | Padrão de modelo e modo por workspace | `P` | a tela 4 oferece o seletor e não há coluna onde guardar; a conversa já escolhe por sessão | repetir a mesma troca em toda sessão nova incomodar |
-| Tela de preferências | `M` | é onde `agent_config` deveria morar (buraco nº 1 do `FEATURES.md` do Open Design, e a [A16](../features/006-acp-sessions/open-questions.md)); as primitivas do fluxo são o que ela vai reusar | existir a segunda coisa global para configurar |
+| ~~Tela de preferências~~ — **virou PRD em 2026-09-17** | — | saiu do backlog: [settings](../features/030-settings/prd.md). Era onde `agent_config` deveria morar (buraco nº 1 do `FEATURES.md` do Open Design, e a [A16](../features/006-acp-sessions/open-questions.md)) | — |
+| Notificações | `M` | **onde aparece o que falhou sem você estar olhando** — agente caído, credencial faltando, script de setup que não rodou. Nasceu da [Q6a da `030`](../features/030-settings/open-questions.md), e o argumento que a criou é de **escala**: o rodapé da sidebar mostrava uma linha por agente (73px com um, 105px com dois, **+28px cada**), e com seis agentes isso é mais de um terço da coluna. Dar barra de rolagem ao bloco seria pior — um sinal que você precisa **rolar** para ver deixa de ser sinal passivo, que é a única coisa que ele fazia. A saída é uma superfície que **agrega**, e não uma lista que cresce | os agentes passarem de poucos — ou a esteira em `autônomo` parar um cartão por configuração e ninguém descobrir até abrir o quadro |
 | Renomear e remover workspace pela tela | `P` | buraco nº 2 do `FEATURES.md`: o fluxo **cria** workspace, e nada administra | você ter mais de dois workspaces |
 | Pré-voo em Linux e Windows | `P` | as cinco checagens são as de macOS; Linux provavelmente passa e ninguém verificou | o Lumem rodar em outra máquina que não a sua |
+| Internacionalizar a interface | `G` | toda a interface é português escrito à mão, sem camada de tradução. A intenção foi declarada em **2026-09-14**, respondendo ao nome da tela do quadro, e já **pagou uma decisão antecipada**: o [caminho da aplicação em inglês](../../CLAUDE.md), adotado agora porque hoje custa zero — o app não tem rota nenhuma — e depois custa um link que alguém guardou. O resto (extrair as strings, escolher a biblioteca, plural e data) não foi discutido | você querer o produto na mão de alguém que não fala português — ou o app ganhar URL de verdade, que é quando a regra do caminho passa a ser cobrada |
+| ~~Rotas de verdade na aplicação~~ — **virou issue em 2026-09-17** ([LUM-63](https://linear.app/lumem-os/issue/LUM-63/rotas-de-verdade-workspace-projeto-e-checkout-na-url-o-n3-que-a-030)) | `M` | saiu daqui pela [`030`](../features/030-settings/prd.md), que pôs **três endereços à mão** — `/`, `/tasks`, `/settings` — e parou aí de propósito. O que restou é o **N3**: workspace, projeto e checkout na URL, e é lá que as ADRs de roteamento nascem. Histórico: o aplicativo **não tinha rota nenhuma**: o `/styleguide` é a única lida, e só em DEV — tudo o mais é estado React, e o daemon devolve o mesmo shell para qualquer caminho. O idioma já está decidido (inglês); a **forma** era pergunta que ninguém tinha aberto, e a [Q2 da `030`](../features/030-settings/open-questions.md) a abriu com os três custos medidos: `react-router@7` são **4,79 MB** e duas dependências, `wouter` **77 KB** e nenhuma, e à mão são `pathname` + `pushState` + `popstate` | **aconteceu**, em duas etapas: a `030` entregou o N1, e o N3 tem issue |
 
 ### Promover o painel de erros ao Open Design — `P`
 
@@ -725,6 +745,45 @@ tipo pega — `no-floating-promises` à frente, num daemon cheio de `async` disp
 **De onde veio:** [dev-harness T9](../features/024-dev-harness/tasks.md) · **Volta quando:** a medição da Q2
 apontar `oxlint`, ou quando aparecer o primeiro bug de promessa não-aguardada em produção.
 
+### Eventos do daemon para `agent_config` e `secrets` — `P`
+
+O `invalidateFor` do web não conhece `agentConfig` nem `secrets` porque o daemon não emite
+`agent_config.changed` nem `secret.changed`. Hoje o login e a credencial só alcançam as outras telas
+pela invalidação manual de quem escreveu — que a fase 1 da `032` centraliza, mas não substitui. Uma
+segunda aba **não** vê o login feito na primeira.
+
+**De onde veio:** [032 fase 1, T5](../features/032-web-architecture/tasks.md) · **Volta quando:** a
+primeira tela que precisar ver um login feito em outra aba, ou o primeiro relato de *"conectei e a
+lista de agentes não mudou"*.
+
+### CSS Modules no web — `M`
+
+A [Q2 da `032`](../features/032-web-architecture/open-questions.md) escolheu a cascata organizada —
+teste de bloco duplicado e de classe órfã — contra CSS Modules. Modules ganharia colisão e órfã como
+erro de compilação; perdeu porque três leitoras dependem do nome estável da classe: os dez
+`*-css.test.ts`, o `contrast.ts` (119 pares) e o agentation. Se um dia for, **vira ADR**: passa nos
+três testes.
+
+**De onde veio:** [032 Q2](../features/032-web-architecture/open-questions.md) · **Volta quando:**
+uma segunda equipe ou um segundo tema no `web`, ou a primeira colisão de bloco que o sensor da T32
+não pegar.
+
+### `trpc-mock.ts` continua vivo — a metade B da Q5 não saiu — `M`
+
+A [Q5 da `032`](../features/032-web-architecture/open-questions.md) decidiu "B para tela, A para
+hook": teste de tela mockaria o hook, e `trpc-mock.ts` sumiria no fecho da fase 3. Só a metade A saiu
+(`test/trpc-proxy.ts`, para teste de hook). **33 arquivos** de teste de tela ainda mockam
+`trpc-mock.ts` diretamente — cinco deles (`AgentLogin`, `SettingsPanel`, `TaskDetail`,
+`WorkspacePanel`, `PrBar`) num componente que **já não importa `trpc`**. A armadilha que a Q5 existia
+para matar — *"tela nova derruba teste cujo mock não a conhece"* — continua viva: qualquer tela nova
+que consulte no `mount` ainda exige um default novo no mock de 342 linhas.
+
+**De onde veio:** review independente de fases 3-8 da [`032`](../features/032-web-architecture/prd.md),
+achado 1 · emenda na [Q5](../features/032-web-architecture/open-questions.md) · **Volta quando:** o
+primeiro teste de tela nova quebrar por default ausente no `trpc-mock.ts` compartilhado, ou quando
+alguém decidir pagar a tarde por recurso (cinco recursos, começando pelos que já não importam
+`trpc`) antes disso.
+
 ### O adaptador como dependência do pacote publicado — `G`
 
 O [ADR de 2026-09-08](../adr/2026-09-08-0507-adapter-is-the-copy-the-daemon-owns.md) fez o daemon ser
@@ -754,3 +813,110 @@ mesmo tamanho que a [016-session-mode](../features/016-session-mode/prd.md) teve
 **De onde veio:** [027 Q5](../features/027-adapter-provenance/open-questions.md) · **Volta quando:** alguém
 quiser trocar esforço sem sair do Lumem, ou quando uma persona do repositório for o motivo de abrir a
 conversa.
+
+### ~~A gramática de `Status:` não sabe dizer "esta lista acabou, a PRD não"~~ — **resolvido em 2026-09-13**
+
+> **Não era da gramática, era de como eu fatiei.** Ao abrir a Parte 3 da `028`, a decisão foi **um
+> `tasks.md` por feature, com uma seção por parte** — porque o gate do `025` só olha `prd.md` e
+> `tasks.md`, e um arquivo irmão ficaria sem verificação nenhuma. Com todas as partes no mesmo
+> arquivo, `completa` volta a querer dizer *"a feature acabou"*, que é o que a PRD também diria, e o
+> contrato funciona como foi desenhado. O registro abaixo fica porque ele descreve o beco.
+
+
+
+O [`025`](../features/025-docs-contract/prd.md) fechou a gramática em quatro valores — `proposta`,
+`em execução`, `completa`, `superada por` — e o `gate:full` cobra que a PRD e o `tasks.md`
+**concordem**. Isso pressupõe **um** `tasks.md` por PRD, e a [`028`](../features/028-autonomous-orchestration/tasks.md)
+é a primeira a quebrar a suposição: a PRD tem seis partes, o `tasks.md` executa **uma**, e as 12
+tasks dela estão entregues.
+
+Com `completa` no `tasks.md`, a PRD é obrigada a dizer `completa` também — afirmando que a esteira
+existe. A saída de hoje é deixar os dois em `em execução` e pôr o estado da fatia no §Histórico, que
+é honesto e **não é verificável pelo gate**: uma fatia entregue e uma fatia abandonada escrevem a
+mesma linha.
+
+As saídas possíveis, nenhuma medida: um `tasks.md` por fatia em subpasta (`f1/tasks.md`), um campo
+`Cobre:` no cabeçalho, ou um quinto valor que diga *"a lista acabou"* sem falar pela PRD.
+
+**De onde veio:** a fase 4 da [`028`](../features/028-autonomous-orchestration/tasks.md), ao tentar
+fechar o arquivo · **Volta quando:** a segunda PRD for fatiada em dois `tasks.md` — aí já são duas, e
+a lacuna deixa de ser anedota.
+
+### O Lumem define a interface, e os providers se adaptam a ela — `G`
+
+Direção dada na [Q41 da `028`](../features/028-autonomous-orchestration/open-questions.md):
+
+> *"Como os providers são diferentes entre si, a gente precisa definir a nossa interface e adaptar os
+> providers a ela. E quando tiver um provider, podem ter features habilitadas ou não; isso deve ser
+> uma cultura geral do Lumem, assim não ficamos limitados ao que um provider ou outro podem oferecer."*
+
+**É candidata a ADR e não está escrita como uma**, porque tem alternativa real e nomeada: é o que a
+[`016-session-mode`](../features/016-session-mode/prd.md) escolheu para o seletor de modo — *"o modo é
+do agente quando ele relata modos, e o Lumem **não interpreta** o valor"*. Seguir o vocabulário do
+agente e definir o nosso são duas direções, e hoje o produto tem uma de cada.
+
+O [catálogo `ADAPTERS`](../features/021-second-agent/prd.md) já é a primeira parcela do lado "nossa
+interface": uma `spec` que cada adaptador preenche. O que falta é a parte que a frase acrescenta —
+**capacidade declarada por provider**, para o produto perguntar *"este agente sabe fazer X?"* em vez
+de descobrir no turno.
+
+**De onde veio:** [028 Q41](../features/028-autonomous-orchestration/open-questions.md) · **Volta
+quando:** um terceiro provider entrar (o OpenRouter é o citado), ou quando a F2 precisar da postura de
+permissão de um agente que não é o Claude — aí a interface deixa de ser cultura e vira código.
+
+### O log do daemon não vai para arquivo — `P`
+
+O daemon usa o logger do Fastify sem destino em disco, e o binário `lumem` não redireciona: tudo vai
+para `stdout`. Numa sessão de `pnpm dev` isso é o terminal; num daemon instalado, é o que quer que
+tenha iniciado o processo.
+
+**O caso que tornou isso concreto:** a [Q46 da `028`](../features/028-autonomous-orchestration/open-questions.md)
+respondeu *"guarde o retrato da falha para reconhecer a recusa por cota depois"* — e o retrato só é
+útil se alguém o achar. A cota fecha durante trabalho autônomo, que é exatamente quando ninguém está
+olhando o terminal. O conserto pontual (escrever o retrato em `~/.lumem/_system/turn-failures.jsonl`)
+é da própria `028`; **este item é o geral**: log de daemon que não persiste é diagnóstico que só
+existe para quem estava presente.
+
+Pede decisão sobre destino, rotação e tamanho — e sobre o que **não** pode ir para o disco, porque o
+log atravessa caminho de arquivo e prompt.
+
+**De onde veio:** [028 Q46](../features/028-autonomous-orchestration/open-questions.md) ·
+**Volta quando:** o primeiro defeito relatado por alguém que não conseguiu dizer o que o daemon fez.
+
+### Trazer agentes, GitHub e GitLab para o cofre — `P`
+
+O [ADR de 2026-09-13](../adr/2026-09-13-1730-lumem-owns-the-keys-of-what-it-depends-on.md) decidiu que
+**o Lumem guarda as chaves dos serviços de que depende**, e aplicou isso **só ao tracker**. Os outros
+dois caminhos continuam como estavam, e os dois por decisão e não por esquecimento:
+
+- **os adaptadores** leem `ANTHROPIC_API_KEY` e `CODEX_API_KEY`/`OPENAI_API_KEY` do ambiente do daemon
+  (o `apiKeyEnv` da [`021`](../features/021-second-agent/prd.md)). Mudar isso é mexer no login da
+  [`009`](../features/009-agent-login/prd.md) inteiro — e o caminho de login dela **não é chave**: é
+  `authenticate` mais `elicitation/*`, com um passo que espera uma pessoa;
+- **o `gh`** resolve o status da PR com a autenticação que ele já tem no keychain, pelo
+  [ADR de 2026-08-30](../adr/2026-08-30-0416-pr-status-comes-from-your-own-gh.md). Trazer GitHub e
+  GitLab para o cofre **contradiz aquele ADR de frente**, e por isso precisa ser escrito lá — não aqui.
+
+**De onde veio:** a decisão do Vinicius em 2026-09-13 — *"em uma feature posterior isso será feito
+para os providers de agentes e para o github e gitlab também"* · **Volta quando:** alguém precisar
+trocar de credencial sem mexer em `.zshrc`, ou quando o produto rodar num lugar onde o `gh` não está.
+
+### `gate:quick` some de novo — arquivo novo sem teste dependente, `--changed` acha zero e reprova — `P`
+
+A `032` T33 acrescentou cinco `.stories.tsx` e um `test/query-seed.ts` sem nenhum `.test.ts`/`.test.tsx`
+importando qualquer um deles — de propósito: a verificação deles é `build-storybook`, não Vitest.
+`pnpm gate:quick` roteia os `.ts`/`.tsx` mudados para `vitest run --changed <base>
+--passWithNoTests=false`, e para este diff específico o Vitest respondeu **os dois lados** em
+execuções sucessivas e idênticas na mesma árvore: duas vezes rodou a suíte inteira (4002 testes) e,
+depois de commitado, três vezes seguidas devolveu `No test files found, exiting with code 1` para os
+cinco projetos — com o mesmo comando, a mesma base, a mesma árvore. Isso é a quinta família da mesma
+doença que `testing.md` já registra três vezes (cache do Turborepo, `LUMEM_GATE_BASE` numérica, `e2e/**`
+fora do grafo): o `--changed` do Vitest, e não a lógica de `gate-quick.ts`, é quem decide, e ele não é
+determinístico aqui. Contornado nesta task medindo com `pnpm exec vitest run` sem `--changed` (verde,
+4002/4002, reproduzido à vontade) e com `LUMEM_GATE_BASE` apontando para o commit imediatamente
+anterior, que classifica o diff como `no-change` em vez de rotear para o Vitest.
+
+**De onde veio:** `032` T33/T34, ao rodar `pnpm gate:quick` para o commit de galeria · **Volta quando:**
+`gate:quick` reprovar de novo um commit cujo `vitest run` completo passa — é o sinal de que a próxima
+task de arquivo `.stories.tsx`, ou qualquer arquivo cuja verificação não é Vitest por desenho, vai
+precisar de uma categoria própria em `gate-quick.ts`, do mesmo jeito que `e2e/**` já tem uma.

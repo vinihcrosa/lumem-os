@@ -58,6 +58,16 @@ export interface CreateSessionInput {
   /** Mode and model as the protocol reported them at creation. */
   mode?: string | null;
   model?: string | null;
+  /**
+   * A política do Lumem com que ela **nasce** (`016` D9, `028` Parte 7).
+   *
+   * Escrita aqui, e não só pelo `watchConfig`: aquele existe para a linha
+   * **seguir** o manager quando alguém troca alguma coisa, e uma sessão que
+   * nasce liberada e nunca troca de nada não troca nada — a linha ficava no
+   * default da coluna dizendo `perguntar tudo` sobre uma conversa que o daemon
+   * tratava como liberada.
+   */
+  lumemMode?: LumemMode;
   /** The session this one continues, when it was born by resuming (D12). */
   resumedFromId?: string | null;
 }

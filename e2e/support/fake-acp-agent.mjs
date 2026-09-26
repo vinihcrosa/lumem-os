@@ -23,6 +23,9 @@
  * offers, a terminal it asks the *client* to open, and what the turn cost.
  */
 
+import { execFileSync } from "node:child_process";
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { createInterface } from "node:readline";
 
 const SESSION_ID = "e2e-acp-session";
@@ -196,6 +199,117 @@ async function runEcho(blocks) {
   return "end_turn";
 }
 
+/**
+ * Os três encaixes da esteira, num turno curto (`028` Parte 7 — T59).
+ *
+ * Ligado por variável de ambiente, como o `LUMEM_FAKE_NO_MODES` já era — e aqui
+ * o motivo é mais forte que *"é outro adaptador"*: o turno roteirizado **não
+ * commita**, e o e2e da Parte 2 depende disso (o portão responde *"o turno
+ * acabou sem commit"*, e é o caso dele). Um fake que commitasse sempre passaria
+ * aquele teste a dizer outra coisa sem ninguém ter mudado uma linha do produto.
+ *
+ * O que ele faz é o mínimo que o portão lê de cada papel: implementador e
+ * testador **commitam de verdade** — `git` não é dublado neste repositório —, e
+ * o revisor **posta o parecer** pela porta que o preâmbulo descreve.
+ */
+const CONVEYOR = process.env["LUMEM_FAKE_CONVEYOR"] === "1";
+
+/** O parecer, no corpo que a porta aceita. O default é o parecer vazio. */
+const REVIEW = process.env["LUMEM_FAKE_REVIEW"] ?? '{"findings":[]}';
+
+/**
+ * A porta do parecer, lida **do próprio prompt**.
+ *
+ * Não de uma variável de ambiente, e é de propósito: assim o caso prova que o
+ * endereço e o id da sessão **chegaram ao agente pelo preâmbulo**. Foi
+ * exatamente isso que faltou em produção — a porta viajava dentro do bloco de
+ * memória, e um workspace sem acervo não a recebia.
+ */
+const DOOR = /curl -sX POST '([^']*\/findings)\?session=([^']+)'/;
+
+/** Qual encaixe este prompt é, pela frase da missão que o daemon escreveu. */
+function roleOf(text) {
+  if (text.includes("poste o parecer")) return "revisor";
+  if (text.includes("Implemente a tarefa abaixo")) return "implementador";
+  return "testador";
+}
+
+/** Um commit de verdade no checkout em que o adaptador foi aberto. */
+function commitAs(role) {
+  const cwd = process.cwd();
+  /*
+   * O conteúdo muda a cada turno, e isso **não** é enfeite: com texto fixo, a
+   * segunda passada do mesmo encaixe não teria o que commitar, o `git commit`
+   * sairia com erro e o turno morreria no meio — o cartão ficaria parado com o
+   * portão dizendo, corretamente, que não houve commit.
+   */
+  writeFileSync(join(cwd, `${role}.txt`), `${role} esteve aqui\n${new Date().toISOString()}\n`);
+  const env = {
+    ...process.env,
+    GIT_AUTHOR_NAME: "Lumem E2E",
+    GIT_AUTHOR_EMAIL: "e2e@lumem.local",
+    GIT_COMMITTER_NAME: "Lumem E2E",
+    GIT_COMMITTER_EMAIL: "e2e@lumem.local",
+  };
+  execFileSync("git", ["add", "-A"], { cwd, env });
+  execFileSync("git", ["commit", "-m", `o ${role} passou por aqui`], { cwd, env });
+}
+
+async function runConveyorTurn(text) {
+  const role = roleOf(text);
+
+  if (role === "revisor") {
+    const found = DOOR.exec(text);
+    if (found === null) {
+      // Dito na conversa, e não engolido: sem a porta no prompt o portão vai
+      // responder "o revisor não deixou parecer", e sem esta linha ninguém
+      // saberia que a causa foi o preâmbulo e não o revisor.
+      update({
+        sessionUpdate: "agent_message_chunk",
+        messageId: "esteira",
+        content: { type: "text", text: "não achei a porta do parecer no prompt" },
+      });
+      return "end_turn";
+    }
+    const [, url, session] = found;
+    const answer = await fetch(`${url}?session=${session}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: REVIEW,
+    }).then((response) => response.text());
+    update({
+      sessionUpdate: "agent_message_chunk",
+      messageId: "esteira",
+      content: { type: "text", text: `parecer postado: ${answer.trim()}` },
+    });
+    return "end_turn";
+  }
+
+  /*
+   * O que falhar aqui **acaba o turno mesmo assim**.
+   *
+   * Uma exceção solta deixaria o `session/prompt` sem resposta, e o daemon
+   * esperaria os 30 minutos do teto — o sintoma de um `git` que reclamou é um
+   * cartão dizendo `implementando` a manhã inteira, que não fala de git nenhum.
+   */
+  try {
+    commitAs(role);
+  } catch (error) {
+    update({
+      sessionUpdate: "agent_message_chunk",
+      messageId: "esteira",
+      content: { type: "text", text: `${role}: não deu para commitar — ${String(error)}` },
+    });
+    return "end_turn";
+  }
+  update({
+    sessionUpdate: "agent_message_chunk",
+    messageId: "esteira",
+    content: { type: "text", text: `${role}: commitado` },
+  });
+  return "end_turn";
+}
+
 async function runTurn(text) {
   // The plan, reissued whole as it advances — which is what the card's "one card
   // that rewrites itself" has to survive.
@@ -334,7 +448,14 @@ async function runTurn(text) {
     locations: [],
   });
 
-  const outcome = await new Promise((resolve) => {
+  /*
+   * Em `bypassPermissions`, **não há pedido** — é o que o modo quer dizer, e é
+   * o que o adaptador de verdade faz. Com pedido, quem espera é o daemon, e numa
+   * sessão de esteira não há ninguém do outro lado para responder.
+   */
+  const outcome = currentMode === "bypassPermissions"
+    ? { outcome: "selected", optionId: "allow" }
+    : await new Promise((resolve) => {
     resolvePermission = resolve;
     write({
       jsonrpc: "2.0",
@@ -523,6 +644,11 @@ createInterface({ input: process.stdin }).on("line", (line) => {
             { id: "auto", name: "Auto", description: "Use a model classifier" },
             { id: "default", name: "Default", description: "Standard behavior" },
             { id: "plan", name: "Plan Mode", description: "No actual tool execution" },
+            // O modo que **não pergunta**, como o adaptador de verdade tem: a
+            // Q43 mediu que dos cinco do Claude só ele fecha o laço, e a esteira
+            // o escolhe pela `spec`. Sem ele aqui, o e2e da esteira só poderia
+            // provar o caminho do teto de tempo — nunca o do cartão que anda.
+            { id: "bypassPermissions", name: "Bypass", description: "Bypass all permission checks" },
           ],
         },
         // `value`, not `id` — the shape the real adapter sends, and the one the
@@ -550,6 +676,11 @@ createInterface({ input: process.stdin }).on("line", (line) => {
             { id: "auto", name: "Auto", description: "Use a model classifier" },
             { id: "default", name: "Default", description: "Standard behavior" },
             { id: "plan", name: "Plan Mode", description: "No actual tool execution" },
+            // O modo que **não pergunta**, como o adaptador de verdade tem: a
+            // Q43 mediu que dos cinco do Claude só ele fecha o laço, e a esteira
+            // o escolhe pela `spec`. Sem ele aqui, o e2e da esteira só poderia
+            // provar o caminho do teto de tempo — nunca o do cartão que anda.
+            { id: "bypassPermissions", name: "Bypass", description: "Bypass all permission checks" },
           ],
         },
         configOptions: configOptions(),
@@ -582,6 +713,13 @@ createInterface({ input: process.stdin }).on("line", (line) => {
       }
       if (text.includes(ECHO)) {
         void runEcho(blocks).then((stopReason) => reply(message.id, { stopReason }));
+        return;
+      }
+      // O turno da esteira, quando o spec o ligou. Antes do roteirizado pelo
+      // mesmo motivo dos três acima: o roteiro pede terminal e permissão, e o
+      // que este caso mede é o portão — commit e parecer.
+      if (CONVEYOR) {
+        void runConveyorTurn(text).then((stopReason) => reply(message.id, { stopReason }));
         return;
       }
       void runTurn(text).then((stopReason) => reply(message.id, { stopReason }));

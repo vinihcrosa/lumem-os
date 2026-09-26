@@ -1,0 +1,127 @@
+name: SonarQube
+
+# Análise estática hospedada, ao lado do `ci.yml` e **não dentro dele**.
+#
+# Dois jobs separados porque eles respondem a perguntas diferentes e falham por
+# motivos diferentes: o `ci.yml` diz *"isto funciona"* e é o portão de merge; este
+# diz *"isto é sustentável"*, e depende de um serviço de terceiro e de um segredo.
+# Juntos, uma indisponibilidade do SonarQube apareceria como a suíte quebrada.
+#
+# O gatilho segue o do `ci.yml` no que importa: **PR sem filtro de branch**, porque
+# PR encadeada — feature que sai de outra feature ainda não mergeada — passaria sem
+# análise nenhuma, e ausência de check não é vermelho, é silêncio.
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# Um push novo na mesma PR cancela o run anterior, como no `ci.yml`: a análise do
+# commit que deixou de ser o topo não interessa a ninguém.
+concurrency:
+  group: sonarqube-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sonarqube:
+    name: SonarQube
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          # Shallow clones should be disabled for a better relevancy of analysis.
+          #
+          # É o que dá ao Sonar o *blame*: sem histórico ele não sabe quais linhas
+          # são novas, e "código novo" — que é onde o quality gate morde — vira o
+          # arquivo inteiro.
+          fetch-depth: 0
+
+      # -----------------------------------------------------------------------
+      # A cobertura é gerada **aqui**, e não recebida do `ci.yml`.
+      #
+      # O caminho óbvio seria o `ci.yml` subir o `lcov.info` como artefato e este
+      # workflow baixá-lo — uma execução da suíte por PR em vez de duas. Ele não
+      # funciona, e o motivo não é preferência:
+      #
+      # - `actions/download-artifact` não cruza *workflow run*. Precisaria de
+      #   `run-id` mais token, e os dois workflows disparam **em paralelo** no
+      #   mesmo commit: quando este chegasse no passo, o `ci.yml` ainda estaria
+      #   rodando e o artefato não existiria.
+      # - Fazer esperar pede o gatilho `workflow_run`, que roda no contexto da
+      #   **branch default**. Isso quebra a decoração de PR do Sonar — que é o
+      #   ponto do workflow — e faria toda análise ser de `main`.
+      #
+      # O preço é uma execução extra da suíte por PR (~+90 s de suíte medidos na
+      # máquina, sobre um runner que já paga o `install`). O que ela compra é a
+      # propriedade que o `testing.md` nomeia: os dois workflows continuam
+      # **independentes**, e o Sonar fora do ar não se parece com a suíte quebrada.
+      # -----------------------------------------------------------------------
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Escreve `coverage/lcov.info`, que é o arquivo nomeado pelo
+      # `sonar.javascript.lcov.reportPaths`. Os caminhos dentro dele são
+      # relativos à raiz do repositório, que é onde o scanner roda.
+      #
+      # **Os dois ajustes abaixo existem por uma falha medida, não por gosto.**
+      # A primeira execução deste passo morreu com os 3371 testes verdes e a
+      # cobertura já escrita:
+      #
+      #     Error: [vitest-worker]: Timeout calling "onTaskUpdate"
+      #
+      # O timeout do RPC é **60 s fixos** no bundle do vitest 3.2.7
+      # (`DEFAULT_TIMEOUT = 6e4`, e `createForksRpcOptions` não passa `timeout`),
+      # então não há o que afrouxar: um worker esperou a thread principal por um
+      # minuto e desistiu. Pelo relógio do log, foi no meio da corrida e não no
+      # fim — thread principal **faminta**, não travada.
+      #
+      # O runner tem 4 vCPU. Sem `LUMEM_TEST_WORKERS`, o `vitest.config.ts` usa
+      # 4 workers, que ocupam os quatro núcleos — e a instrumentação de cobertura
+      # é trabalho a mais *na thread principal*, que passa a não ter onde rodar.
+      # O `ci.yml` roda a mesma suíte no mesmo runner sem falhar porque não paga
+      # essa parcela.
+      #
+      # - `LUMEM_TEST_WORKERS=2` devolve dois núcleos à thread principal. O
+      #   knob já existia no config exatamente para o CI ajustar sem editá-lo.
+      # - `--reporter=dot` corta o custo do outro lado: o relatório padrão
+      #   re-renderiza uma árvore viva a cada `onTaskUpdate`, e é essa renderização
+      #   que ocupa a thread que o worker está esperando.
+      - run: pnpm test:coverage --reporter=dot
+        env:
+          LUMEM_TEST_WORKERS: 2
+
+      # O relatório existir é **condição do passo seguinte**, e um passo que
+      # depende de um arquivo sem conferir que ele está lá falha do jeito pior:
+      # verde. Foi exatamente o que aconteceu no primeiro run com cobertura — o
+      # scan passou, o job ficou verde, e o SonarCloud registrou
+      # `new_lines_to_cover=0`. Ausência de dado não é vermelho: é silêncio.
+      - name: o lcov existe, e tem linha dentro
+        run: |
+          test -s coverage/lcov.info || { echo "::error::coverage/lcov.info ausente ou vazio"; exit 1; }
+          records=$(grep -c '^SF:' coverage/lcov.info)
+          lines=$(grep -c '^DA:' coverage/lcov.info)
+          echo "lcov: $records arquivos, $lines linhas instrumentadas, $(wc -c < coverage/lcov.info) bytes"
+          echo "primeiro registro: $(grep -m1 '^SF:' coverage/lcov.info)"
+          # Caminho relativo à raiz é o que o Sonar casa com os arquivos que ele
+          # indexou. Um `SF:` absoluto casaria com nada, em silêncio.
+          grep -q '^SF:packages/' coverage/lcov.info || { echo "::error::caminhos do lcov não são relativos à raiz"; exit 1; }
+          test "$records" -gt 200 || { echo "::error::só $records arquivos no lcov — esperado ~264"; exit 1; }
+          # O `lcov` estar certo no disco **não** foi suficiente: a primeira
+          # análise tinha este arquivo exato e mesmo assim publicou
+          # `new_lines_to_cover=0`, porque sem `sonar.sources` a árvore inteira
+          # foi indexada como teste e o sensor de cobertura foi pulado. A linha
+          # abaixo confere a causa, e não o sintoma.
+          grep -q '^sonar.sources=' sonar-project.properties || { echo "::error::sonar.sources ausente — com sonar.tests definido, tudo vira teste e a cobertura é descartada em silêncio"; exit 1; }
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995 # v8.1.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

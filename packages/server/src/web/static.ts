@@ -23,7 +23,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
  * the client would receive `<!doctype html>` where it expected JSON, and report
  * a parse error instead of the 404 that actually happened.
  */
-export const DAEMON_PREFIXES = ["/trpc", "/pty", "/acp", "/memory"] as const;
+export const DAEMON_PREFIXES = ["/trpc", "/pty", "/acp", "/memory", "/tasks"] as const;
 
 /**
  * Where the built web lives, or `null` when it was not built.

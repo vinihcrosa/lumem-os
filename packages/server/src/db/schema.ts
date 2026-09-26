@@ -1,5 +1,15 @@
 import { sql } from "drizzle-orm";
-import { check, index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import {
+  check,
+  index,
+  integer,
+  real,
+  sqliteTable,
+  text,
+  unique,
+  uniqueIndex,
+  type AnySQLiteColumn,
+} from "drizzle-orm/sqlite-core";
 
 /**
  * The daemon's state, as PRD §6 describes it.
@@ -41,10 +51,86 @@ export const workspace = sqliteTable(
      * modo de falha que ninguém percebe.
      */
     defaultLumemMode: text("default_lumem_mode").notNull().default("ask"),
+    /**
+     * Os três tetos do workspace (`028` §6, Parte 3 — T14).
+     *
+     * **`NULL` é *sem teto*, e `0` é *bloqueia tudo*.** São coisas diferentes e
+     * as duas são escrevíveis de propósito: um workspace que nunca pediu teto
+     * não pode ganhar um na migração — o §6 da PRD já diz que os interruptores
+     * que gastam token nascem desligados —, e quem quer parar tudo por um
+     * momento tem como dizer isso sem apagar o número que configurou.
+     *
+     * Um único `DEFAULT NULL` é o que faz a migração não mudar o comportamento
+     * de ninguém. Um teto que nasce valendo transformaria o produto de todo
+     * mundo num produto que recusa trabalho.
+     *
+     * **Duas unidades, e não uma** (T13): dinheiro só é cobrável contra um
+     * adaptador que o relata, e a fase 0 da `021` mediu o Codex atravessando um
+     * turno inteiro com `cost: null`. Token e turno chegam sempre — no evento
+     * `usage`, `used` e `size` são obrigatórios e só `cost` é `nullish`. Um
+     * produto que só soubesse cobrar em dólar deixaria um workspace com Codex
+     * rodando **sem teto nenhum**, sem nada na tela dizendo isso.
+     */
+    budgetCostPerTask: real("budget_cost_per_task"),
+    budgetCostPerDay: real("budget_cost_per_day"),
+    /** O chão que todo adaptador informa, e o único que não depende de moeda. */
+    budgetTurnsPerSession: integer("budget_turns_per_session"),
+    /**
+     * O interruptor da esteira (`028` §6, Parte 2 — T29).
+     *
+     * **Nasce em `manual`**, que é o Lumem de hoje e o default do produto — um
+     * `~/.lumem` que atravessa a migração continua não andando sozinho. O
+     * `assistido` é o degrau que torna a feature adotável: ele prepara tudo e
+     * **para antes de enviar**, e a
+     * [Q51](../../../../docs/features/028-autonomous-orchestration/open-questions.md)
+     * decidiu que *preparar* não inclui subir o adaptador.
+     */
+    autonomy: text("autonomy").notNull().default("manual"),
+    /**
+     * Quantas de uma vez (`028` Parte 2, T25 · Q52).
+     *
+     * **`NOT NULL`, ao contrário dos três tetos acima**, e a diferença é a
+     * decisão: `NULL` lá quer dizer *sem teto*, e uma fila sem teto de
+     * paralelismo é como se gasta tudo num minuto. `0` continua querendo dizer
+     * *bloqueia tudo* — o mesmo vocabulário da Parte 3 —, o que dá um jeito de
+     * pausar a esteira sem desligar a autonomia de cada tarefa.
+     *
+     * O default é **2**, que é o número que a folha do Open Design já desenha.
+     */
+    autonomyMaxParallel: integer("autonomy_max_parallel").notNull().default(2),
+    /**
+     * *"PR mesclada sempre remove a worktree"* (`028` Parte 4, T40 · Q27).
+     *
+     * **Nasce desligado.** Ligado, ele estende para o checkout **sujo** o que já
+     * vale para o limpo — e é aí que ele fica claro: você está dizendo *"pode
+     * apagar rascunho meu"*, o que é uma escolha legítima e precisa estar
+     * escrita nesses termos.
+     *
+     * Ele existe porque a alternativa é pior: a Q27 recusou o modal que aparece
+     * **sempre**, *"que se aprende a clicar sem ler"*. Um interruptor que você
+     * liga uma vez, lendo, protege mais que um diálogo que você fecha cem vezes
+     * sem ler.
+     */
+    mergedAlwaysRemoves: integer("merged_always_removes", { mode: "boolean" })
+      .notNull()
+      .default(false),
     ...timestamps,
   },
   (table) => [
     check("workspace_default_lumem_mode", sql`${table.defaultLumemMode} IN ('ask', 'auto')`),
+    check("workspace_autonomy", sql`${table.autonomy} IN ('manual', 'assistido', 'autonomo')`),
+    // Sem acento na coluna e sem acento no CHECK: o valor é dado, e dado do
+    // Lumem é inglês-ou-ascii pela convenção do repositório. Quem traduz é a
+    // tela, que já traduz `manual` para a mesma palavra por coincidência.
+    check("workspace_autonomy_max_parallel", sql`${table.autonomyMaxParallel} >= 0`),
+    // Negativo não é "sem teto" — `NULL` é. Um número negativo aqui seria um
+    // teto que nunca passa escrito de um jeito que ninguém lê como isso.
+    check(
+      "workspace_budget_not_negative",
+      sql`(${table.budgetCostPerTask} IS NULL OR ${table.budgetCostPerTask} >= 0)
+        AND (${table.budgetCostPerDay} IS NULL OR ${table.budgetCostPerDay} >= 0)
+        AND (${table.budgetTurnsPerSession} IS NULL OR ${table.budgetTurnsPerSession} >= 0)`,
+    ),
   ],
 );
 
@@ -228,6 +314,38 @@ export const session = sqliteTable(
      * lives in the session store, which is also the only thing that can write this.
      */
     resumedFromId: text("resumed_from_id"),
+    /**
+     * A tarefa que esta sessão serve (workspace-tasks §3.1).
+     *
+     * Nula, e `ON DELETE SET NULL`: **uma sessão pertence a no máximo uma
+     * tarefa**, e uma tarefa tem N sessões. Vale para os três `kind` — se você
+     * subiu a aplicação numa `shell` para conferir o que o agente fez, aquilo
+     * foi trabalho desta tarefa, e o custo dela tem que contar.
+     *
+     * É a única coluna deste schema com `SET NULL`, e a exceção se paga: a
+     * sessão sobrevive à tarefa como já sobrevive à worktree, e sem ela um
+     * `task.remove` ficaria preso a um histórico que ninguém quer preservar por
+     * causa do ponteiro.
+     */
+    // A referência é preguiçosa porque `task` é declarada depois — `session`
+    // veio antes dela por três features.
+    taskId: text("task_id").references((): AnySQLiteColumn => task.id, { onDelete: "set null" }),
+    /**
+     * Qual encaixe esta sessão serve (`028` Parte 7 — T57).
+     *
+     * Nula em tudo que não é a esteira — uma conversa que você abriu não tem
+     * papel, e inventar um seria o produto afirmando o que não sabe.
+     *
+     * Existe para a esteira **reencontrar a própria conversa**: a segunda
+     * tentativa do implementador retoma a sessão dele em vez de abrir outra. A
+     * `LUM-51` produziu seis sessões para uma tarefa, e cada uma pagou o
+     * contexto do zero — 453 884 tokens ao todo.
+     *
+     * **Coluna, e não dedução:** o `kind` não diz papel, o `agent_config` é
+     * compartilhado entre os três, e derivar da etapa em que a tarefa está hoje
+     * responderia errado sobre uma sessão de ontem.
+     */
+    taskRole: text("task_role"),
     ...timestamps,
   },
   (table) => [
@@ -625,6 +743,21 @@ export const sessionUsage = sqliteTable(
     /** A variação da janela de contexto neste turno. Nunca negativa. */
     tokens: integer("tokens").notNull().default(0),
     /**
+     * Qual turno da sessão gravou esta linha (`028` Parte 7).
+     *
+     * **Ela existe porque o `usage_update` não é um por turno.** O adaptador do
+     * Claude manda dezenas dentro do mesmo turno — 97 num turno só, medido —, e
+     * a conta de *"quantos turnos esta sessão teve"* era `count(id)`. O teto de
+     * `turnsPerSession` do workspace, que a Parte 3 desenhou para ser a proteção
+     * de quem **não relata dinheiro**, disparava dentro do primeiro turno e
+     * parava a esteira com uma frase sobre turnos que nunca aconteceram.
+     *
+     * Sequencial por sessão, e o zero das linhas gravadas antes desta coluna diz
+     * a verdade que se pode dizer sobre elas: eram todas do mesmo turno ou não,
+     * e ninguém sabe — contá-las como **um** erra menos que contá-las como 97.
+     */
+    turn: integer("turn").notNull().default(0),
+    /**
      * O custo do turno, na moeda que o agente reportou.
      *
      * `null` quando ele não reporta dinheiro — e a diferença entre `null` e `0`
@@ -752,6 +885,619 @@ export const memoryProposal = sqliteTable(
   ],
 );
 
+/**
+ * Tarefa como entidade do workspace (`022-workspace-tasks` §3.1).
+ *
+ * O produto chamava de tarefa uma coisa que não existia: o nome da worktree era
+ * o único rastro da intenção, e ele sumia com o checkout. Aqui ela tem corpo,
+ * estado, proveniência e custo — e é o que a `028` precisa para ter o que
+ * orquestrar.
+ *
+ * Três regras moram no banco porque em código elas seriam esquecidas:
+ *
+ * - **`project_id` é obrigatório** (T2). Tarefa sem projeto não tem onde virar
+ *   worktree, e "escolha o projeto depois" é um estado a mais em toda tela.
+ *   Tornar nulo depois é uma migração de uma linha; preencher o que nasceu nulo
+ *   não volta.
+ * - **`status` e `created_by` são CHECK**, como todo enum deste schema.
+ * - **`worktree_id` é `ON DELETE SET NULL`**, e é uma das duas exceções à regra
+ *   do RESTRICT neste arquivo. Remover a worktree **não** remove a tarefa: ela
+ *   perde o checkout e **fica no estado em que estava**. Voltar para `open`
+ *   apagaria o fato de que alguém trabalhou nela — e o custo, que continua
+ *   somado, diria o contrário da coluna de estado.
+ */
+export const task = sqliteTable(
+  "task",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspace.id, { onDelete: "restrict" }),
+    /**
+     * Obrigatório (T2). O projeto pertence ao workspace — regra do repositório,
+     * porque nenhum FK expressa "a coluna A e a coluna B concordam".
+     *
+     * RESTRICT, e a cascata é o que a WS-Q22 fez para as worktrees: a ordem de
+     * dois deletes dentro de uma transação, que satisfaz a restrição em vez de
+     * afrouxá-la.
+     */
+    projectId: text("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "restrict" }),
+    title: text("title").notNull(),
+    /** Markdown. Vazio é um corpo legítimo — nem toda tarefa precisa de um. */
+    body: text("body").notNull().default(""),
+    /**
+     * As sete colunas do quadro (`028-autonomous-orchestration` §4), mais os
+     * dois que não são coluna: `proposed` mora na fila de Propostas e `dropped`
+     * sai do quadro e vira arquivo.
+     *
+     * **`backlog` e `open` são estados separados, e isso é a decisão desta
+     * coluna.** As duas parecem "não começou", e colapsá-las apagaria a única
+     * fronteira que o quadro tem: To-Do (`open`) é *onde mora a autorização* —
+     * entrar na fila é consentimento —, e Backlog é *existe, ainda não é para
+     * fazer*. Com um estado só, uma tarefa que o tracker despejou viraria
+     * trabalho autorizado sem ninguém ter consentido.
+     *
+     * O default continua `open`: quem cria pela tela está dizendo que é para
+     * fazer, e nenhuma tarefa escrita antes desta migração muda de coluna.
+     */
+    status: text("status").notNull().default("open"),
+    createdBy: text("created_by").notNull().default("human"),
+    /**
+     * De qual sessão ela nasceu — e **sem foreign key**, de propósito.
+     *
+     * Isto é proveniência, não dependência, e o precedente é o
+     * `session.resumed_from_id` logo acima: apagar a sessão de ontem não pode
+     * ficar preso ao fato de que ela propôs uma tarefa. Com RESTRICT, todo
+     * `session.remove` de uma sessão que já propôs alguma coisa falharia; com
+     * SET NULL, a pergunta *"quem propôs isto?"* perderia a resposta no dia da
+     * limpeza. Um id que ficou órfão ainda diz mais que uma coluna nula.
+     *
+     * A PRD §3.1 escreveu `FK session`; a nota de por que não está lá.
+     */
+    createdBySession: text("created_by_session"),
+    worktreeId: text("worktree_id").references(() => worktree.id, { onDelete: "set null" }),
+    /**
+     * A prioridade, e ela é a posição na coluna (`028` §4.3).
+     *
+     * *"Se você quiser outra ordem, arrasta"* — e é por isso que não existe
+     * campo de prioridade: arrastar é um gesto que o quadro já tem, e um campo
+     * seria vocabulário novo para dizer a mesma coisa pior. Uma coluna guardada,
+     * e não derivada, porque **derivada não se arrasta**: o `STATUS_RANK` da
+     * `022` ordena por estado, e ninguém reordena um `CASE`.
+     *
+     * Escopo é `(workspace_id, status)` — a coluna do quadro. Sem estrangeira
+     * que expresse isso, então o índice é a única coisa que o banco sabe.
+     *
+     * Ordinal contíguo dentro da coluna de destino, renumerado na transação do
+     * arrasto. Buraco na coluna de **origem** é permitido e não se conserta:
+     * ninguém lê o número, só a ordem dele.
+     */
+    position: integer("position").notNull().default(0),
+    /** JSON de URLs — ClickUp, Jira, PR. **Referência por link, e só** (Q013). */
+    links: text("links").notNull().default("[]"),
+    /**
+     * Por que foi `dropped`.
+     *
+     * Sem motivo, `dropped` é indistinguível de esquecimento — e o arquivo
+     * existe justamente para quem foi procurar de propósito.
+     */
+    reason: text("reason"),
+    /**
+     * Quando ela entrou **nesta** coluna (`028` §4.2 e §6/F4).
+     *
+     * O cartão diz *há quanto tempo está nesta coluna*, e esse é o sinal de
+     * encalhe do produto — 30 min/2 h nas etapas da máquina, 4 h/1 dia no fim
+     * da esteira.
+     *
+     * **Coluna própria, e não `updated_at`.** Aquele muda com qualquer escrita:
+     * corrigir o título de uma tarefa parada há duas horas a faria parecer
+     * recém-chegada, e o relógio de encalhe existe justamente para as que
+     * ninguém tocou. Um sinal que se apaga quando alguém passa perto é pior que
+     * nenhum sinal.
+     */
+    /**
+     * Quantas vezes a esteira abriu sessão para esta tarefa **nesta etapa**
+     * (`028` Parte 2, T22).
+     *
+     * É a **única** peça do lease do Compozy que atravessou inteira, e o
+     * [ADR](../../../../docs/adr/2026-09-13-0412-the-conveyor-has-no-lease.md)
+     * diz por quê: quem está com a tarefa é derivado do turno em voo e não
+     * pode mentir; quantas vezes já se tentou **não está em lugar nenhum**
+     * depois que o processo morreu. Sem este número, uma tarefa que mata a
+     * sessão toda vez volta à fila para sempre, gastando em cada volta — e três
+     * dos treze turnos gravados neste repositório morreram no meio do trabalho.
+     *
+     * **Zera na mudança de etapa**, porque mudar de etapa *é* a conclusão
+     * bem-sucedida daquela etapa. É a regra do *unblock-loop breaker* de lá —
+     * *"só zera em conclusão bem-sucedida, nunca em unblock ou expiry"* — com o
+     * nosso vocabulário. O efeito é deliberado: falhar revisando não é o mesmo
+     * defeito que falhar implementando, e cada etapa tem o seu orçamento.
+     */
+    attempts: integer("attempts").notNull().default(0),
+    /**
+     * Quantas vezes o revisor devolveu esta tarefa (`028` Parte 7 — T58).
+     *
+     * **Separada de `attempts`, e é o que impede o vaivém infinito.** `attempts`
+     * zera na mudança de etapa, porque mudar de etapa *é* a conclusão daquela
+     * etapa — e é justamente isso que faria o ciclo
+     * `implementador → revisor → implementador` nunca acabar: cada volta zera o
+     * contador do outro lado.
+     *
+     * Ela conta **a volta**, não a tentativa, e não zera sozinha. É o teto que
+     * responde ao medo que originou a Parte 7: *"toda vez que você pede um
+     * review, o agente acha alguma coisa"* — se ele achar sempre, o cartão para
+     * com o motivo escrito em vez de circular para sempre.
+     */
+    bounces: integer("bounces").notNull().default(0),
+    /**
+     * Se a esteira pode pegar **esta** tarefa (`028` Parte 2, T22).
+     *
+     * Dois valores, e o default é `inherit`: a tarefa segue o interruptor do
+     * workspace. `off` é o que **assumir** o volante escreve — o §6, Parte 4 já
+     * definia *"abre a conversa e desliga a autonomia daquela tarefa"* —, e a
+     * [Q40](../../../../docs/features/028-autonomous-orchestration/open-questions.md)
+     * decidiu que arrastar um cartão para uma coluna da máquina é um **segundo
+     * caminho para o mesmo interruptor**.
+     *
+     * Ele **não** zera na mudança de etapa, e é a diferença entre ele e o
+     * contador acima: tentativa é sobre a etapa, e autonomia é sobre a tarefa.
+     * Você desligou porque quer fazer aquilo na mão, e mover de coluna não
+     * desfaz essa intenção.
+     */
+    autonomy: text("autonomy").notNull().default("inherit"),
+    /**
+     * O prompt que o `assistido` montou e **não** enviou (`028` Parte 2, T30).
+     *
+     * Guardado, e não recalculado na leitura, por uma razão que é a promessa do
+     * degrau: *"você vê o que ele **ia** fazer"*. Um prompt remontado na hora de
+     * pintar a tela poderia diferir do que foi preparado — o corpo da tarefa
+     * mudou, a worktree ficou suja — e aí o que você aprovou não é o que vai. O
+     * texto preparado é a **proposta**, e proposta se guarda.
+     *
+     * `NULL` é o caso comum: nada preparado. Some quando o cartão anda, porque
+     * o prompt é de uma etapa e não da tarefa.
+     */
+    preparedPrompt: text("prepared_prompt"),
+    /** Para qual encaixe. Sem isto, enviar não saberia que sessão abrir. */
+    preparedRole: text("prepared_role"),
+    /**
+     * Por que a esteira parou nesta tarefa (`028` §4, Parte 2 — T28).
+     *
+     * **É o único estado do selo que não é derivável, e por isso ele é guardado.**
+     * Os outros quatro saem de fatos que continuam existindo — turno em voo,
+     * cota relatada, coluna —, e por isso *"o selo não pode divergir da
+     * realidade"*. O bloqueio é diferente: ele é o registro de uma **decisão que
+     * o daemon tomou** — tentativa esgotada, portão vermelho —, e uma decisão
+     * tomada não está em lugar nenhum depois do processo.
+     *
+     * Bloquear **não** muda a coluna: situação é selo, etapa é coluna (§4), e
+     * mover a tarefa por causa de um bloqueio apagaria onde ela parou, que é a
+     * informação de que alguém precisa para retomá-la.
+     *
+     * Some quando a etapa muda, como a tentativa e o preparo: o bloqueio é
+     * daquela etapa.
+     */
+    blockedReason: text("blocked_reason"),
+    /**
+     * Quando você já foi avisado sobre o estado atual desta tarefa
+     * (`028` Parte 4, T35 · Q55).
+     *
+     * **O registro é do daemon, e a notificação é da aba** — e essa divisão é a
+     * resposta inteira da Q55. A aba é quem sabe notificar (a `Notification` do
+     * navegador, com permissão que ele governa); o daemon é quem sabe dizer *"já
+     * avisei"*. Sem esta coluna, duas abas abertas avisariam duas vezes e um
+     * `F5` renotificaria tudo — que é o oposto de *"uma vez, sem repetir"*.
+     *
+     * `NULL` é *não avisado*. Ela é **apagada na mudança de etapa**, como a
+     * tentativa e o preparo: o aviso é sobre o estado em que a tarefa está, e
+     * uma tarefa que andou tem um estado novo para avisar.
+     */
+    notifiedAt: integer("notified_at", { mode: "timestamp_ms" }),
+    /**
+     * De qual tracker esta tarefa veio (`028` Parte 5, T43 · Q61).
+     *
+     * `linear`, e é o `TrackerHost.id`. `NULL` é o caso comum: tarefa criada
+     * por você ou por um agente.
+     */
+    externalSource: text("external_source"),
+    /**
+     * O id **opaco** da issue no host, e não a URL.
+     *
+     * O `links` da [`022`](../../../../docs/features/022-workspace-tasks/prd.md)
+     * já guarda a URL, e é dela que o cartão tira o `↗ ACME-142` — mas ele é uma
+     * lista livre, e nada impede duas tarefas de citarem a mesma. Uma coluna com
+     * índice único é a diferença entre *"aponta para"* e **é**.
+     *
+     * E é a mesma chave que a escrita de volta usa: sem ela, o comentário não
+     * saberia em qual issue escrever sem reparsear a URL.
+     */
+    externalId: text("external_id"),
+    /**
+     * O que a issue era quando o daemon a leu (`028` Parte 5, T45 · Q63).
+     *
+     * Três campos, e o §6 é quem pede os três: *"reatribuída, fechada,
+     * descrição editada — bloqueia, com o motivo dizendo **qual das três** foi"*.
+     * Um hash sozinho responderia *"mudou"*, que é o aviso que não diz o que
+     * fazer.
+     *
+     * **O corpo vai como hash e os outros dois inteiros**, e a assimetria é
+     * deliberada: o corpo é texto livre de tamanho arbitrário, e guardá-lo aqui
+     * duplicaria a descrição da tarefa dentro da própria tarefa.
+     */
+    externalState: text("external_state"),
+    externalAssignee: text("external_assignee"),
+    externalBodyHash: text("external_body_hash"),
+    /**
+     * Quais marcos já foram escritos na issue (`028` Parte 6, T46 · Q64).
+     *
+     * JSON de uma lista de nomes — `["taken","pr","blocked","ready"]` —, e não
+     * quatro colunas, porque a pergunta é sempre *"este já foi?"* e a lista
+     * responde as quatro com a mesma leitura. Quatro colunas seriam quatro
+     * migrações no dia em que o §6 ganhar um quinto marco.
+     *
+     * A regra é a mesma do `notified_at` da Parte 4: a condição mora no `WHERE`,
+     * não num `if` antes — senão duas passadas escrevem o mesmo comentário na
+     * issue de alguém, que é a única parte disto que é irreversível.
+     */
+    externalMarks: text("external_marks").notNull().default("[]"),
+    statusChangedAt: integer("status_changed_at", { mode: "timestamp_ms" })
+      .notNull()
+      // `DEFAULT 0` no banco e o relógio na aplicação, e **não** o `NOW` que o
+      // resto da tabela usa: o SQLite recusa `ALTER TABLE ADD COLUMN` com
+      // default não-constante, e este é o primeiro carimbo de tempo do produto
+      // a chegar numa tabela que já existia. O zero nunca é lido — as três
+      // escritas de coluna passam um valor —, ele só existe para o `ALTER`
+      // ser aceito.
+      .default(sql`0`)
+      .$defaultFn(() => new Date()),
+    /** Quando saiu do fluxo: `done` ou `dropped`. */
+    closedAt: integer("closed_at", { mode: "timestamp_ms" }),
+    ...timestamps,
+  },
+  (table) => [
+    check(
+      "task_status",
+      sql`${table.status} IN ('proposed', 'backlog', 'open', 'in_progress', 'review', 'testing', 'ready_to_merge', 'done', 'dropped')`,
+    ),
+    check("task_created_by", sql`${table.createdBy} IN ('human', 'agent')`),
+    check("task_autonomy", sql`${table.autonomy} IN ('inherit', 'off')`),
+    // Tentativa negativa não quer dizer nada, e a coluna é escrita por
+    // incremento — um `- 1` em algum lugar viraria um contador que anda para
+    // trás sem ninguém notar.
+    check("task_attempts_not_negative", sql`${table.attempts} >= 0`),
+    check("task_bounces_not_negative", sql`${table.bounces} >= 0`),
+    // Os dois sentidos: prompt sem papel não sabe que sessão abrir, e papel sem
+    // prompt é um preparo que não preparou nada.
+    check(
+      "task_prepared_pair",
+      sql`(${table.preparedPrompt} IS NULL AND ${table.preparedRole} IS NULL)
+        OR (${table.preparedPrompt} IS NOT NULL AND ${table.preparedRole} IS NOT NULL)`,
+    ),
+    // Os dois sentidos, como o `session_agent_config`: tarefa de agente sem
+    // sessão é proposta sem proveniência — e proveniência é o que separa
+    // proposta de lixo —, e uma tarefa "criada por você" carregando sessão
+    // estaria mentindo sobre quem decidiu.
+    check(
+      "task_agent_provenance",
+      sql`(${table.createdBy} = 'agent' AND ${table.createdBySession} IS NOT NULL)
+        OR (${table.createdBy} = 'human' AND ${table.createdBySession} IS NULL)`,
+    ),
+    // `closed_at` é derivado do estado, e um dos dois sozinho é um registro que
+    // nenhum leitor sabe interpretar: tarefa `done` sem data não entra em "o que
+    // este workspace fez", e data com estado aberto contradiz a própria coluna.
+    check(
+      "task_closed_at",
+      sql`(${table.status} IN ('done', 'dropped') AND ${table.closedAt} IS NOT NULL)
+        OR (${table.status} NOT IN ('done', 'dropped') AND ${table.closedAt} IS NULL)`,
+    ),
+    // A lista é lida por workspace e filtrada por status e projeto (F1) — os
+    // três filtros da mesma consulta.
+    index("task_by_workspace").on(table.workspaceId, table.status),
+    // A leitura do quadro: uma coluna, em ordem. Sem isto toda pintura de
+    // cartão ordena em memória.
+    index("task_by_position").on(table.workspaceId, table.status, table.position),
+    index("task_by_project").on(table.projectId),
+    /*
+     * Uma issue, uma tarefa — **por workspace**.
+     *
+     * Por workspace e não global porque a mesma issue pode legitimamente virar
+     * tarefa em dois workspaces da mesma máquina: são dois contextos de trabalho
+     * diferentes, e o produto não tem por que decidir que só um deles pode
+     * acompanhá-la.
+     *
+     * O índice é parcial por construção: `NULL` não colide com `NULL` no SQLite,
+     * então toda tarefa que **não** veio de tracker fica de fora sem precisar de
+     * cláusula nenhuma.
+     */
+    unique("task_external_in_workspace").on(
+      table.workspaceId,
+      table.externalSource,
+      table.externalId,
+    ),
+  ],
+);
+
+/**
+ * O que foi dito sobre uma tarefa (`028` Parte 2, T21).
+ *
+ * **Entidade nova, e ela é pré-requisito da esteira.** A `022` entregou `body`,
+ * `links` e `reason`, e nada mais — não havia onde o implementador deixar o
+ * resumo nem o revisor deixar o parecer, e a
+ * [Q47](../../../../docs/features/028-autonomous-orchestration/open-questions.md)
+ * fechou a lista do que passa de uma sessão para outra **contando com isto**.
+ *
+ * A regra que a Q47 protege é sobre **canal**, não sobre conteúdo: a sessão A
+ * não briefa a sessão B. A tarefa, sim — ela é registro, e você a lê também.
+ * Por isso o resumo do implementador é um comentário como outro qualquer, sem
+ * campo próprio: um `implementerSummary` faria o produto tratar agente como
+ * categoria de autor, e a pergunta seguinte seria *"e o campo do revisor?"*.
+ */
+export const taskComment = sqliteTable(
+  "task_comment",
+  {
+    id: text("id").primaryKey(),
+    /**
+     * `cascade`, e é a única relação desta tabela que o é.
+     *
+     * Um comentário sem tarefa não é nada — ele não tem leitura própria, não
+     * aparece em lugar nenhum sozinho, e mantê-lo vivo depois da tarefa seria
+     * guardar uma frase sem assunto. É o contrário do ponteiro da sessão logo
+     * abaixo, que existe **porque** a sessão pode sumir antes do que ela disse.
+     */
+    taskId: text("task_id")
+      .notNull()
+      .references(() => task.id, { onDelete: "cascade" }),
+    body: text("body").notNull(),
+    createdBy: text("created_by").notNull().default("human"),
+    /**
+     * Qual sessão escreveu, quando foi agente. **Sem estrangeiro**, e a razão é
+     * a mesma que a `022` escreveu para `task.created_by_session` — mas aqui
+     * ela foi **provada por um teste que ficou vermelho**, e vale registrar
+     * como isso aconteceu.
+     *
+     * Escrevi a coluna com `references(session, onDelete: "set null")`, que
+     * parece o certo: apagar uma sessão não pode ser recusado por causa do que
+     * ela disse. Aí o `CHECK` abaixo derrubou o `DELETE`: a ação do estrangeiro
+     * **é um `UPDATE`**, e `created_by = 'agent'` com sessão nula viola a
+     * proveniência. As duas restrições se contradizem, e o efeito é o pior dos
+     * dois mundos — apagar a sessão passa a ser **impossível** depois que um
+     * agente comentou.
+     *
+     * `RESTRICT` seria a mesma prisão dita em voz alta, e é o que a `022`
+     * recusou. Então: **id solto**. Um id que ficou órfão ainda diz mais que
+     * uma coluna nula, e a proveniência continua sendo obrigatória na escrita,
+     * que é onde ela importa.
+     */
+    createdBySession: text("created_by_session"),
+    ...timestamps,
+  },
+  (table) => [
+    check("task_comment_created_by", sql`${table.createdBy} IN ('human', 'agent')`),
+    /*
+     * Os dois sentidos, como o `task_agent_provenance` da `022`: um comentário
+     * de agente **sem** sessão não tem proveniência, e um de pessoa **com** uma
+     * é uma mentira sobre quem escreveu. A Q50 decidiu que comentário não passa
+     * pelo portão da inbox — então a proveniência é tudo o que resta da regra, e
+     * ela não pode ser opcional.
+     */
+    check(
+      "task_comment_provenance",
+      sql`(${table.createdBy} = 'agent' AND ${table.createdBySession} IS NOT NULL)
+        OR (${table.createdBy} = 'human' AND ${table.createdBySession} IS NULL)`,
+    ),
+    // A leitura é sempre "os comentários desta tarefa, em ordem de escrita".
+    index("task_comment_by_task").on(table.taskId, table.createdAt),
+  ],
+);
+
+/**
+ * O que o revisor achou (`028` Parte 7 — T53).
+ *
+ * **Existe porque o parecer do revisor não existia para a máquina.** O portão
+ * lia quatro fatos — commit, `test`, se há `test`, e o check da PR — e nenhum
+ * vinha dele: o revisor escrevia `Reprovo` com mutante e cenário de falha, e o
+ * daemon registrava `portão verde`. Medido em 2026-09-14, contra uma tarefa de
+ * verdade.
+ *
+ * **Dois baldes, e o que os separa não é a verdade do achado — é quem consegue
+ * resolver a discussão** ([Q67](../../../../docs/features/028-autonomous-orchestration/open-questions.md)):
+ *
+ * - `blocks` exige **reprodução** (comando e saída esperada). O daemon reroda,
+ *   e quem arbitra é a máquina. Não reproduziu, o achado **cai** — e o registro
+ *   fica, porque um revisor que afirma o que não se sustenta é um sinal;
+ * - `notes` é julgamento — *"fere a direção de dependência"*, *"duplica uma
+ *   regra"* — e **não segura o cartão**. Quem arbitra é uma pessoa, na PR.
+ *
+ * O `notes` existe porque nem todo achado bom é reproduzível. Forçá-los pelo
+ * balde do comando os apagaria; deixá-los bloquear entregaria a esteira a uma
+ * discussão de arquitetura entre dois agentes **sem árbitro**.
+ */
+export const taskFinding = sqliteTable(
+  "task_finding",
+  {
+    id: text("id").primaryKey(),
+    taskId: text("task_id")
+      .notNull()
+      .references(() => task.id, { onDelete: "cascade" }),
+    /**
+     * Qual sessão achou, e **sem estrangeiro**.
+     *
+     * Mesma razão do `task_comment.created_by_session`: a ação do estrangeiro é
+     * um `UPDATE`, e uma coluna obrigatória com `SET NULL` seria a contradição
+     * que já foi paga uma vez. Id solto diz mais que nulo.
+     */
+    foundBySession: text("found_by_session").notNull(),
+    /** Em que etapa ele foi achado. É o que o cartão mostra ao lado. */
+    role: text("role").notNull(),
+    bucket: text("bucket").notNull(),
+    title: text("title").notNull(),
+    detail: text("detail").notNull().default(""),
+    /** O comando que demonstra. Obrigatório em `blocks`, ausente em `notes`. */
+    command: text("command"),
+    /** O que o comando deve mostrar. É contra isto que a reprodução é lida. */
+    expected: text("expected"),
+    /**
+     * O que aconteceu quando o daemon rerodou.
+     *
+     * `pending` é *ainda não rodei*; `reproduced` segura o cartão; `refuted` é o
+     * achado que **caiu** — e ele fica na tabela de propósito, porque apagar
+     * apagaria o sinal de que o revisor afirmou o que não se sustenta.
+     */
+    verification: text("verification").notNull().default("pending"),
+    /** A saída real da reprodução, truncada. É o que se lê para discordar. */
+    output: text("output"),
+    ...timestamps,
+  },
+  (table) => [
+    check("task_finding_bucket", sql`${table.bucket} IN ('blocks', 'notes')`),
+    check(
+      "task_finding_verification",
+      sql`${table.verification} IN ('pending', 'reproduced', 'refuted', 'skipped')`,
+    ),
+    /*
+     * **`blocks` sem comando é um bloqueio sem árbitro**, que é exatamente o que
+     * a Q67 recusou — e `notes` com comando seria um achado reproduzível se
+     * escondendo no balde que não segura. Os dois sentidos, como o
+     * `task_comment_provenance`.
+     */
+    check(
+      "task_finding_reproduction",
+      sql`(${table.bucket} = 'blocks' AND ${table.command} IS NOT NULL)
+        OR (${table.bucket} = 'notes' AND ${table.command} IS NULL)`,
+    ),
+    index("task_finding_by_task").on(table.taskId, table.createdAt),
+  ],
+);
+
+/**
+ * O **parecer** — o recibo de que uma revisão aconteceu (`028` Parte 7).
+ *
+ * Ele existe porque o achado não consegue dizer *"olhei e não achei nada"*: um
+ * parecer vazio não grava linha nenhuma em `task_finding`, e sem recibo o
+ * portão lia isso como *"o revisor não deixou parecer"* — exatamente o
+ * contrário. O e2e da T59 pegou o cartão parado em `In Review` para sempre,
+ * **com o revisor acertando**.
+ *
+ * O parecer é o evento; os achados são o conteúdo dele. Zero em ambos os baldes
+ * é a resposta mais valiosa que esta feature pode receber, e é a que o relato
+ * que abriu a Parte 7 dizia nunca acontecer.
+ */
+export const taskReview = sqliteTable(
+  "task_review",
+  {
+    id: text("id").primaryKey(),
+    taskId: text("task_id")
+      .notNull()
+      .references(() => task.id, { onDelete: "cascade" }),
+    /** Quem entregou, e **sem estrangeiro** — a mesma razão do achado. */
+    bySession: text("by_session").notNull(),
+    /** Em que etapa ele foi entregue. */
+    role: text("role").notNull(),
+    /** Quantos vieram de cada balde. Zero nos dois é uma aprovação. */
+    blocks: integer("blocks").notNull().default(0),
+    notes: integer("notes").notNull().default(0),
+    ...timestamps,
+  },
+  (table) => [
+    check(
+      "task_review_counts_not_negative",
+      sql`${table.blocks} >= 0 AND ${table.notes} >= 0`,
+    ),
+    index("task_review_by_session").on(table.bySession, table.createdAt),
+  ],
+);
+
+/**
+ * Um agente **nomeado** (`028` §5.1, Parte 2 — T23).
+ *
+ * **Agente não é adaptador**, e a
+ * [Q35](../../../../docs/features/028-autonomous-orchestration/open-questions.md)
+ * comprou essa distinção com uma palavra: o rodapé da sidebar passou a dizer
+ * *Adaptadores*, que é por onde o agente fala (`claude`, `codex`), e **agente**
+ * é o que você nomeia, instrui e dá orçamento (`revisor-severo`). Sem os dois
+ * substantivos, a cascata do §5.1 é impossível de escrever em português.
+ *
+ * Ele aponta para um `id` do catálogo `ADAPTERS` da
+ * [`021`](../../../../docs/features/021-second-agent/prd.md) — que é código, não
+ * tabela —, então a coluna é **texto solto de propósito**: um estrangeiro para
+ * uma constante do bundle não existe, e validar na escrita é trabalho do
+ * repositório.
+ */
+export const namedAgent = sqliteTable(
+  "named_agent",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspace.id, { onDelete: "restrict" }),
+    /** `revisor-severo`. Único **dentro do workspace**, não no mundo. */
+    name: text("name").notNull(),
+    /** O `id` de um `AdapterSpec`: `claude`, `codex`. */
+    adapter: text("adapter").notNull(),
+    /** `null` é *o que o adaptador escolher* — nem todo agente pede modelo. */
+    model: text("model"),
+    /**
+     * O que este agente é, em texto.
+     *
+     * É o que separa `revisor-severo` de `revisor-rapido` sem que nenhum dos
+     * dois seja código. A forma do Compozy, que o §5.1 cita como a melhor
+     * referência de extensibilidade: lá o agente é um arquivo com prompt.
+     */
+    instructions: text("instructions").notNull().default(""),
+    ...timestamps,
+  },
+  (table) => [
+    // Dois `revisor-severo` no mesmo workspace seriam dois agentes que a
+    // cascata não consegue distinguir por nome — que é como ela é escrita.
+    unique("named_agent_name_in_workspace").on(table.workspaceId, table.name),
+  ],
+);
+
+/**
+ * Qual agente faz qual papel, e **onde** (`028` §5.1, Parte 2 — T23).
+ *
+ * Uma tabela, e não três colunas por nível. A cascata é **tarefa → projeto →
+ * workspace → default**, e escrevê-la como colunas daria três colunas em três
+ * tabelas — nove lugares para a mesma pergunta, e nenhum jeito de acrescentar
+ * um nível sem migração.
+ *
+ * O quarto degrau — o default — **não mora aqui**: ele é o que sobra quando
+ * nenhuma linha responde, e guardá-lo seria guardar a ausência.
+ */
+export const roleBinding = sqliteTable(
+  "role_binding",
+  {
+    id: text("id").primaryKey(),
+    /**
+     * `workspace` | `project` | `task`. Polimórfico, como o escopo da sessão já
+     * é — e pelo mesmo motivo: nenhum estrangeiro expressa *"aponta para uma
+     * destas três tabelas"*, e inventar três colunas nulas seria descrever a
+     * exclusão mútua sem conseguir cobrá-la.
+     */
+    scopeType: text("scope_type").notNull(),
+    scopeId: text("scope_id").notNull(),
+    /** `implementador` | `revisor` | `testador` — os três encaixes do §5.1. */
+    role: text("role").notNull(),
+    agentId: text("agent_id")
+      .notNull()
+      .references(() => namedAgent.id, { onDelete: "cascade" }),
+    ...timestamps,
+  },
+  (table) => [
+    check("role_binding_scope_type", sql`${table.scopeType} IN ('workspace', 'project', 'task')`),
+    check(
+      "role_binding_role",
+      sql`${table.role} IN ('implementador', 'revisor', 'testador')`,
+    ),
+    // Um papel por escopo. Dois `revisor` no mesmo projeto seriam a cascata
+    // tendo que escolher entre dois degraus do mesmo nível, que é uma pergunta
+    // sem resposta certa.
+    unique("role_binding_one_per_scope").on(table.scopeType, table.scopeId, table.role),
+  ],
+);
+
 export const schema = {
   workspace,
   project,
@@ -768,6 +1514,11 @@ export const schema = {
   playbook,
   sessionUsage,
   checkoutPort,
+  task,
+  taskComment,
+  taskFinding,
+  namedAgent,
+  roleBinding,
 };
 
 export type WorkspaceRow = typeof workspace.$inferSelect;
@@ -785,3 +1536,9 @@ export type MemoryAccessRow = typeof memoryAccess.$inferSelect;
 export type MemorySignalRow = typeof memorySignal.$inferSelect;
 export type MemoryUsageRow = typeof memoryUsage.$inferSelect;
 export type MemoryProposalRow = typeof memoryProposal.$inferSelect;
+export type TaskRow = typeof task.$inferSelect;
+export type TaskCommentRow = typeof taskComment.$inferSelect;
+export type TaskFindingRow = typeof taskFinding.$inferSelect;
+export type TaskReviewRow = typeof taskReview.$inferSelect;
+export type NamedAgentRow = typeof namedAgent.$inferSelect;
+export type RoleBindingRow = typeof roleBinding.$inferSelect;

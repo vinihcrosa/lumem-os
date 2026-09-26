@@ -81,30 +81,45 @@ Apaga automático? Arquiva? Deixa pra você limpar manual? Merge automático? E 
 
 ## C. Tarefas
 
-### [ ] Q011 — Tarefa é a unidade central do sistema, ou é acessório?
+### [x] Q011 — Tarefa é a unidade central do sistema, ou é acessório?
 Tudo passa por uma tarefa (agente nunca roda sem tarefa), ou dá pra só "abrir um agente e conversar" sem cerimônia? O segundo caso é o que mais se usa no dia a dia; o primeiro é o que dá rastreabilidade.
 
-**R:**
+**R:** acessório, e de propósito — [T1 da `022`](../features/022-workspace-tasks/open-questions.md),
+entregue em 2026-09-12. Tarefa é para o trabalho que você quer **acompanhar**; conversa é conversa. E
+o produto **mede**: `sessões com tarefa ÷ sessões` aparece na tela, e o esperado é que **não seja
+100%** — se for, todo mundo está criando tarefa para agradar o daemon, e o lugar da tarefa está
+errado.
 
-### [ ] Q012 — Tarefa criada por agente para outro projeto: entra direto ou passa por você?
+### [x] Q012 — Tarefa criada por agente para outro projeto: entra direto ou passa por você?
 Você citou o fluxo "agente percebe que outro projeto precisa mudar e cria a tarefa lá". Isso vai direto pro backlog do outro projeto, ou cai numa fila de triagem sua? Sem triagem, o backlog vira lixão de sugestões de LLM.
 
-**R:**
+**R:** passa por você — **escrever para cima é proposta**, a mesma regra da memória, reusada palavra
+por palavra. Para o **próprio** projeto entra `open`; para **outro**, `proposed`, e cai na fila de
+Propostas do topo da tela do workspace, com quem propôs e de qual sessão. Mais um teto de criação
+(cinco por tarefa) que protege a sua atenção, e não o banco.
 
-### [ ] Q013 — Tarefas do Lumem substituem ou espelham ClickUp/Jira/Linear?
+### [x] Q013 — Tarefas do Lumem substituem ou espelham ClickUp/Jira/Linear?
 Você já usa ClickUp. Duas fontes de verdade é uma dor conhecida. Opções: (a) Lumem é a fonte de verdade; (b) Lumem espelha/sincroniza; (c) Lumem só referencia por link.
 
-**R:**
+**R:** (c) na `022` — `task.links` é JSON de URLs, e só. A
+[`028`](../features/028-autonomous-orchestration/prd.md) escreve de volta em dois níveis (comentário,
+e estado atrás de um mapa explícito por projeto), mas **espelho de mão dupla continua fora**: é onde
+mora a dor de duas fontes de verdade, e nada no caso de uso pede por ele.
 
-### [ ] Q014 — Existe dependência entre tarefas?
+### [x] Q014 — Existe dependência entre tarefas?
 "Task B só começa quando A mergear" — precisa disso no v1, ou é over-engineering agora?
 
-**R:**
+**R:** não. Nem dependência, nem prioridade, nem prazo, nem estimativa
+([T3](../features/022-workspace-tasks/open-questions.md)). O que existe é **ordem**, derivada do
+estado, e o campo `links` aponta para o gerenciador que tem esses campos.
 
 ### [ ] Q015 — Quem escolhe qual agente pega qual tarefa?
 (a) você aponta manualmente; (b) fila e o primeiro agente livre pega; (c) roteamento por tipo de tarefa/skill do agente.
 
-**R:**
+**R:** na `022`, **(a)**: *trabalhar nesta tarefa* pergunta onde e quem, nessa ordem. A **(b)** é a
+[`028`](../features/028-autonomous-orchestration/prd.md), que empilha em cima — e a **(c)** ela
+recusa por escrito: encaixe é configuração sua, não adivinhação do Lumem. **Fica aberta** até a `028`
+sair de proposta, porque é ela que responde a parte que importa.
 
 ---
 
@@ -488,14 +503,21 @@ Compozy separa: `create` grava intenção, `publish/start/approve` enfileira. Es
 #### [ ] Q068 — Fila com lease, ou atribuição manual? `[cz]`
 Fila exige lease com deadline, heartbeat, fencing por sessão e recuperação de expiração. Atribuição manual não exige nada disso. Compozy suporta os dois com o invariante duro de **1 lease ativo por sessão**. *(responde Q015)*
 
-**R:**
+**R:** **atribuição manual** na [`022`](../features/022-workspace-tasks/prd.md), entregue em
+2026-09-12 — e de propósito: ela não paga nada da mecânica de lease. A fila é a
+[`028`](../features/028-autonomous-orchestration/prd.md), cujo §11 lista lease, heartbeat e
+recuperação como a peça técnica que sustenta o selo do §4.1. **Fica aberta** até aquela decidir.
 
 #### [ ] Q069 — DAG persistido ou convenção de prompt? E **qual o sinal canônico de conclusão**? `[ss]`
 O Superset faz por convenção: o coordenador procura a string `SUPERSET_WORKER_DONE` num snapshot de tela, e a própria skill admite que *"não são eventos duráveis"*. Sem DAG não há retry, estado, nem recuperação.
 Se for DAG, a pergunta difícil é o sinal de conclusão: exit code do processo? arquivo de resultado escrito pelo agente? comando de verificação rodado pelo servidor? hook `Stop`?
 ⚠️ O hook `Stop` do Claude Code é fim de **turno**, não de **tarefa** — usar ele é a armadilha óbvia.
 
-**R:**
+**R:** **aberta de propósito**, e a `022` a deixou aberta com dado do lado dela. O que ela
+entregou é o caminho barato: o agente marca `review` por `POST /tasks/:id/review`, ensinado num
+parágrafo da skill — *"`review` é o que você sabe dizer; `done` é de uma pessoa"* —, e `turn_end`
+nunca é usado, que é a armadilha nomeada aqui. Se na prática o agente nunca chamar, o dado diz isso e
+*"você marca"* é o que sobra sem custo nenhum. O sinal canônico continua sendo esta pergunta.
 
 #### [ ] Q070 — O agente pode declarar **por que** travou, de forma processável? `[cz]`
 Blocks tipados mudam o que o sistema faz sozinho: `transient` se auto-limpa, `needs_input` te notifica, `capability` pede credencial. Vale o modelo, ou "status: blocked + texto livre" resolve?

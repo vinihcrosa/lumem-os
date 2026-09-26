@@ -1,8 +1,8 @@
 /**
  * `tokens.css` → `tokens.ts`.
  *
- * O design é feito no Open Design, e `tokens.css` chega de lá pelo `design:sync`. Só
- * que CSS não serve para o tema do `xterm`, do CodeMirror e do Shiki: os três precisam
+ * `tokens.css` é a fonte, e mora neste repositório. Só que CSS não serve para o tema
+ * do `xterm`, do CodeMirror e do Shiki: os três precisam
  * do hexadecimal em JavaScript, e `var(--token)` não é um valor que eles saibam ler.
  *
  * Então `tokens.ts` é **derivado**, e derivado é diferente de gerado: nada aqui decide
@@ -13,10 +13,10 @@
  */
 
 /** Famílias de primitiva, na ordem em que o CSS as declara. */
-const FAMILIES = ["brand", "accent", "neutral", "success", "warning", "danger", "info"] as const;
+const FAMILIES = ["brand", "accent", "agent", "neutral", "success", "warning", "danger", "info"] as const;
 
 export const DERIVED_HEADER =
-  "// Design tokens — DERIVADO de tokens.css por scripts/design-sync.ts. Nao edite a mao.";
+  "// Design tokens — DERIVADO de tokens.css por scripts/design-derive.ts. Nao edite a mao.";
 
 interface Parsed {
   primitives: Map<string, Map<string, string>>;

@@ -17,6 +17,47 @@ export function worktreesKey(projectId: string) {
 }
 
 /**
+ * As tarefas de um workspace (`022-workspace-tasks`).
+ *
+ * Prefixo por workspace, e os filtros depois: o evento `task.changed` é por
+ * workspace — a lista atravessa projetos —, e invalidar o prefixo alcança as N
+ * chaves filtradas de uma vez.
+ */
+export function tasksKey(workspaceId: string, filter?: { status?: string; projectId?: string }) {
+  const key = ["task", "listByWorkspace", workspaceId] as const;
+  return filter === undefined ? key : ([...key, filter] as const);
+}
+
+export function taskDetailKey(taskId: string) {
+  return ["task", "get", taskId] as const;
+}
+
+/**
+ * O quadro de um workspace, opcionalmente de um projeto só (`028` Parte 1).
+ *
+ * Sob o prefixo `["task", "board"]` para o `task.changed` alcançar as duas
+ * formas de uma vez — a do workspace inteiro e a filtrada. Sem isso o quadro é a
+ * única tela de tarefa que **não** reage ao daemon: selo, relógio de encalhe e
+ * a contagem de *precisa de mim* congelam enquanto a esteira anda, que é
+ * exatamente o caso que a Parte 4 existe para cobrir.
+ */
+export function boardKey(workspaceId: string, projectId: string | null) {
+  return ["task", "board", workspaceId, projectId] as const;
+}
+
+/**
+ * Os interruptores de tarefa do workspace — teto, autonomia e limpeza.
+ *
+ * Chave própria, e **não** um sufixo de `tasksKey`: ela não é uma lista
+ * filtrada, e invalidar `["task", "listByWorkspace", ws]` não a alcança. Os
+ * controles que a leem são controlados pela resposta, então uma invalidação que
+ * erra o prefixo aparece como um clique que volta sozinho.
+ */
+export function taskSettingsKey(workspaceId: string) {
+  return ["task", "settings", workspaceId] as const;
+}
+
+/**
  * As origens de uma worktree nova, em duas chaves.
  *
  * Duas porque são duas leituras de custo diferente: as branches são disco (10 ms
@@ -63,6 +104,17 @@ export function scriptsKey(scopeType: string, scopeId: string) {
  */
 export function fileListKey(scopeType: string, scopeId: string, path: string) {
   return ["files", "listDir", scopeType, scopeId, path] as const;
+}
+
+/**
+ * A mesma listagem, sob o teto de itens da tela.
+ *
+ * Sob o prefixo de `fileListKey`, e não ao lado: quem invalida `["files"]` ou a
+ * listagem sem teto precisa alcançar esta também, e prefixo é o que faz isso sem
+ * conhecer o parâmetro extra.
+ */
+export function fileListingKey(scopeType: string, scopeId: string, path: string, limit: number | undefined) {
+  return [...fileListKey(scopeType, scopeId, path), limit ?? "default"] as const;
 }
 
 export function fileReadKey(scopeType: string, scopeId: string, path: string) {
@@ -184,3 +236,88 @@ export function prMarksKey(projectId: string) {
 export function prDraftKey(worktreeId: string) {
   return ["pr", "draft", worktreeId] as const;
 }
+
+export const HEALTH_KEY = ["health"] as const;
+
+/** A lista de agentes configurados — lida em oito telas, invalidada em uma. */
+export function agentConfigsKey() {
+  return ["agentConfig", "list"] as const;
+}
+
+export function secretsKey() {
+  return ["secrets"] as const;
+}
+
+export function setupAgentsKey() {
+  return ["setup", "agents"] as const;
+}
+
+/**
+ * O probe do primeiro acesso (um agente, um handshake) — e o prefixo que
+ * `agentProbeKey` mora sob, para uma invalidação alcançar todas as
+ * configurações de uma vez.
+ */
+export const SETUP_PROBE_KEY = ["setup", "probe"] as const;
+
+/**
+ * O probe por configuração do rodapé. A chave precisa do par comando+argumentos
+ * para dois agentes não dividirem a resposta de um só — duas funções em vez de
+ * um argumento opcional no fim, que é a armadilha que o `testing.md` já registra.
+ */
+export function agentProbeKey(command: string, args: readonly string[]) {
+  return ["setup", "probe", command, args.join(" ")] as const;
+}
+
+export const PREFLIGHT_KEY = ["setup", "preflight"] as const;
+
+export function authStateKey(loginId: string) {
+  return ["setup", "authState", loginId] as const;
+}
+
+export function projectInspectKey(path: string) {
+  return ["project", "inspect", path] as const;
+}
+
+export function worktreePlanKey(projectId: string, name: string) {
+  return ["worktree", "plan", projectId, name] as const;
+}
+
+export function parseSourceKey(workspaceId: string, source: string, name: string) {
+  return ["project", "parseSource", workspaceId, source, name] as const;
+}
+
+export function taskByWorktreeKey(worktreeId: string) {
+  return ["task", "getByWorktree", worktreeId] as const;
+}
+
+export function sessionsByTaskKey(taskId: string) {
+  return ["session", "byTask", taskId] as const;
+}
+
+export function usageByTaskKey(workspaceId: string) {
+  return ["usage", "byTask", workspaceId] as const;
+}
+
+/**
+ * Os prefixos de invalidação em massa (`032` T5).
+ *
+ * Cada um é o que o `invalidateFor` do `useLiveState` manda quando o daemon avisa
+ * — e o mesmo texto que outros escritores (um `⟳`, um formulário) mandavam à mão
+ * em nove arquivos diferentes. Nomeados aqui para o prefixo que se invalida e a
+ * chave que se lê serem o mesmo texto: `PROJECT_DETAIL_PREFIX` é o começo de
+ * `projectDetailKey`, `TASK_DETAIL_PREFIX` o de `taskDetailKey`, e assim por
+ * diante — quem mexer numa função e não no prefixo vê `queryKeys.test.ts`
+ * reprovar, comparando o prefixo **inteiro** e não só o primeiro elemento,
+ * antes de reprovar em produção.
+ */
+export const MEMORY_PREFIX = ["memory"] as const;
+export const PR_PREFIX = ["pr"] as const;
+export const FILES_PREFIX = ["files"] as const;
+export const CHANGES_PREFIX = ["changes"] as const;
+export const WORKTREE_PREFIX = ["worktree"] as const;
+export const SESSION_PREFIX = ["session"] as const;
+export const SECRETS_PREFIX = ["secrets"] as const;
+export const PROJECT_DETAIL_PREFIX = ["project", "detail"] as const;
+export const TASK_DETAIL_PREFIX = ["task", "get"] as const;
+export const TASK_BOARD_PREFIX = ["task", "board"] as const;
+export const TASK_SETTINGS_PREFIX = ["task", "settings"] as const;

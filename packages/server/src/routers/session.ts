@@ -4,7 +4,11 @@ import { isCommandAvailable } from "../agents/availability.js";
 import { adapterCommandForConfig } from "../setup/adapter-command.js";
 import type { SessionRow } from "../db/schema.js";
 import { DomainError } from "../errors.js";
+import { asc, eq } from "drizzle-orm";
+
+import { session } from "../db/schema.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
+import { createTaskRepository } from "../repositories/task.js";
 import { resolveScope } from "../scope.js";
 import { domainSafeAsync, publicProcedure, router, type Context } from "../trpc.js";
 
@@ -79,10 +83,82 @@ export const sessionRouter = router({
     }),
   ),
 
+  /**
+   * As sessões de uma tarefa (`022` F1).
+   *
+   * Uma tarefa tem N sessões e uma sessão tem no máximo uma tarefa, então a
+   * ligação já existe na coluna: isto é a leitura dela, não um índice novo. E
+   * conta os três `kind` — a `shell` que subiu a aplicação para conferir o que o
+   * agente fez foi trabalho desta tarefa.
+   */
+  listByTask: publicProcedure
+    .input(z.object({ taskId: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
+      const rows = await ctx.db
+        .select()
+        .from(session)
+        .where(eq(session.taskId, input.taskId))
+        .orderBy(asc(session.createdAt));
+      return Promise.all(rows.map((row) => toView(ctx, row)));
+    }),
+
   createAgent: publicProcedure
-    .input(scopeSchema.merge(sizeSchema).extend({ agentConfigId: z.string().min(1) }))
+    .input(
+      scopeSchema.merge(sizeSchema).extend({
+        agentConfigId: z.string().min(1),
+        /**
+         * Para qual tarefa esta conversa existe (`022` F2).
+         *
+         * Opcional: tarefa não é obrigatória para abrir uma sessão (T1), e o
+         * caminho `＋ nova sessão` continua sem nenhuma.
+         */
+        taskId: z.string().min(1).optional(),
+        /**
+         * A sessão **nasce** sem ninguém para responder permissão (`028` Parte 2).
+         *
+         * É a esteira, e só ela: uma conversa que você abre tem você do outro
+         * lado, e é por isso que ninguém nasce liberado — a
+         * [`016`](../../../../docs/features/016-session-mode/prd.md) é explícita.
+         * Aqui não há lado de lá, e o daemon parado em `ask` pendura o turno
+         * para sempre.
+         *
+         * **Nascer, e não trocar**: o portão do `016` continua valendo inteiro
+         * para mudar o modo de uma sessão viva, que é o que ele protege.
+         *
+         * **E só o daemon liga**, o que é conferido abaixo e não afirmado aqui:
+         * escrito como comentário, ele não impedia um `curl` na porta local de
+         * abrir uma conversa que auto-aprova toda ferramenta — contornando por
+         * fora o portão por sessão que a `016` existe para impor.
+         */
+        autonomous: z.boolean().default(false),
+        /**
+         * Qual encaixe da esteira esta sessão serve (`028` Parte 7 — T57).
+         *
+         * Ausente em tudo que não é a esteira, e é o que a deixa ser
+         * **reencontrada**: a segunda tentativa do implementador retoma a
+         * conversa dele. Só o daemon o preenche, pelo mesmo portão do
+         * `autonomous`.
+         */
+        taskRole: z.enum(["implementador", "revisor", "testador"]).optional(),
+      }),
+    )
     .mutation(({ ctx, input }) =>
       domainSafeAsync(async () => {
+        /*
+         * O `autonomous` é do daemon, e a conferência é aqui.
+         *
+         * Não é autenticação — o produto é local e toda procedure é pública —, e
+         * é o que separa a porta que a esteira usa da porta que a tela usa: a
+         * tela **nunca** abre uma conversa que nasce liberada, e agora isso é
+         * uma recusa em vez de uma convenção.
+         */
+        if ((input.autonomous || input.taskRole !== undefined) && ctx.internal !== true) {
+          throw new DomainError(
+            "BLOCKED",
+            "só a esteira abre uma sessão que nasce sem quem responda permissão",
+          );
+        }
+
         const config = await createAgentConfigRepository(ctx.db).findById(input.agentConfigId);
         if (!config) {
           throw new DomainError("NOT_FOUND", `configuração ${input.agentConfigId} não existe`);
@@ -137,9 +213,38 @@ export const sessionRouter = router({
           // thing in the row and another in the manager.
           transport: config.transport === "acp" ? "acp" : "pty",
           adapterVersion: config.adapterVersion,
+          // Nasce liberada só quando quem chamou disse que não há ninguém do
+          // outro lado. O default é `false`, então toda conversa que a tela
+          // abre continua herdando o workspace — e nenhum workspace é `free`.
+          // Duas coisas, e são duas de propósito: a política com que ela nasce
+          // (não há ninguém para responder permissão) e **quem a empurra**, que
+          // é o que faz o teto do workspace parar em vez de avisar (Q45).
+          ...(input.autonomous
+            ? { lumemMode: "free" as const, driver: "conveyor" as const }
+            : {}),
           ...(input.cols === undefined ? {} : { cols: input.cols }),
           ...(input.rows === undefined ? {} : { rows: input.rows }),
         });
+        /*
+         * A ligação com a tarefa é escrita **depois** do spawn, e é de propósito.
+         *
+         * Uma linha com `task_id` de uma sessão que não chegou a existir seria a
+         * tarefa dizendo que alguém trabalhou nela quando ninguém trabalhou — e
+         * `in_progress` é derivado justamente daqui. O `start` é quem pode
+         * falhar; a coluna não.
+         */
+        if (input.taskId !== undefined) {
+          await ctx.db
+            .update(session)
+            .set({
+              taskId: input.taskId,
+              ...(input.taskRole === undefined ? {} : { taskRole: input.taskRole }),
+            })
+            .where(eq(session.id, row.id));
+          const linked = await createTaskRepository(ctx.db).get(input.taskId);
+          if (linked) ctx.events.emit({ type: "task.changed", workspaceId: linked.workspaceId });
+        }
+
         ctx.events.emit({
           type: "session.changed",
           scopeType: input.scopeType,

@@ -72,7 +72,7 @@ function snapshotOf(pulls: GhPullRequest[]): PrSnapshot {
 
 interface FakeHost {
   host: PrHost;
-  writes: Array<{ verb: "merge" | "create"; input: unknown }>;
+  writes: Array<{ verb: "merge" | "create" | "comment"; input: unknown }>;
   reads: number;
 }
 
@@ -93,6 +93,10 @@ function fakeHost(read: () => PrRead, write: PrWrite = { ok: true, url: "" }): F
       },
       merge: (input) => {
         state.writes.push({ verb: "merge", input });
+        return Promise.resolve(write);
+      },
+      comment: (input) => {
+        state.writes.push({ verb: "comment", input });
         return Promise.resolve(write);
       },
       issues: () => Promise.resolve({ ok: true, issues: [] }),

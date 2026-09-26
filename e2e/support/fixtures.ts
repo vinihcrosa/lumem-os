@@ -90,6 +90,16 @@ export const E2E_FIXTURE_REPO_PR = join(E2E_FIXTURE_DIR, "repo-pr");
  */
 export const E2E_GH_STATE = join(E2E_FIXTURE_DIR, "gh-state.json");
 
+/**
+ * O que o `gh` de mentira **escreveu**, uma linha por comentário.
+ *
+ * A leitura tem estado; a escrita não tinha onde deixar rastro, e sem rastro
+ * *"a anotação chegou à PR"* (`028` Parte 7 — T55) não é uma pergunta que um
+ * e2e possa fazer — o `gh pr comment` responderia zero e ninguém saberia com o
+ * quê.
+ */
+export const E2E_GH_COMMENTS = join(E2E_FIXTURE_DIR, "gh-comments.jsonl");
+
 /** O `gh` de mentira, no mesmo diretório de bin que o adaptador. */
 export const E2E_FIXTURE_GH = join(E2E_FIXTURE_DIR, "bin", "gh");
 export const E2E_FAKE_GH = fileURLToPath(new URL("./fake-gh.mjs", import.meta.url));
@@ -391,4 +401,6 @@ export function createFixtures(): void {
 
   // Começa sem PR nenhuma. O spec escreve o resto.
   writeFileSync(E2E_GH_STATE, JSON.stringify({ pulls: [] }), "utf8");
+  // E sem comentário nenhum escrito no host.
+  writeFileSync(E2E_GH_COMMENTS, "", "utf8");
 }

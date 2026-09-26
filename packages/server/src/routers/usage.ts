@@ -4,6 +4,7 @@ import { publicProcedure, router } from "../trpc.js";
 import {
   usageByProject,
   usageByProjectAndAgent,
+  usageByTask,
   usageByWorktree,
   usageByWorktreeAndAgent,
   usageOutsideWorktrees,
@@ -58,6 +59,19 @@ export const usageRouter = router({
    * do que a tela do workspace já lê. A tela só pede isto quando há **mais de um
    * agente** — com um, a coluna não existe e a chamada não acontece (C5).
    */
+  /**
+   * O que cada tarefa do workspace gastou (`022` F5).
+   *
+   * Uma chamada para a lista inteira, e não uma por linha: a lista já tem N
+   * tarefas na tela, e N requisições para somar N números é o desenho que faz
+   * uma tela de sete linhas parecer lenta.
+   */
+  byTask: publicProcedure
+    .input(z.object({ workspaceId: z.string().min(1), period }))
+    .query(({ ctx, input }) =>
+      usageByTask(ctx.db, { workspaceId: input.workspaceId, period: input.period }),
+    ),
+
   byProjectAndAgent: publicProcedure
     .input(z.object({ workspaceId: z.string().min(1), period }))
     .query(({ ctx, input }) =>

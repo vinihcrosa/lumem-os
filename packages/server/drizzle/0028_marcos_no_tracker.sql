@@ -1,0 +1,1 @@
+ALTER TABLE `task` ADD `external_marks` text DEFAULT '[]' NOT NULL;
