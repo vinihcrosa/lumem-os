@@ -722,7 +722,7 @@ cuja sessão nasce no primeiro envio.
 
 ---
 
-### [agent-accounts/](features/030-agent-accounts/) — mais de uma conta por agente · **proposta**
+### [agent-accounts/](features/030-agent-accounts/) — mais de uma conta por agente · **em execução**
 
 Duas ou mais contas do mesmo agente conectadas, e a conversa escolhendo de qual sai — *"Opus 5 na
 conta 1 para uma coisa, Fable na conta 2 para outra"*. Tira do [backlog](project/backlog.md) o item
@@ -731,8 +731,9 @@ que estava lá desde a pty-vs-acp: a credencial deixa de ser do **agente** e pas
 
 | Arquivo | O quê |
 |---|---|
-| [prd.md](features/030-agent-accounts/prd.md) | o §4 era a medição que faltava antes de qualquer código, e ela foi feita em 2026-09-26: o **Keychain não colide**, a variável do CLI se sustenta e **não é cirúrgica** — ela leva a configuração inteira do agente —, e o `session/new` não confere login. Desenho e `tasks.md` ainda não existem |
+| [prd.md](features/030-agent-accounts/prd.md) | o §4 era a medição que faltava antes de qualquer código, e ela foi feita em 2026-09-26: o **Keychain não colide**, a variável do CLI se sustenta e **não é cirúrgica** — ela leva a configuração inteira do agente —, e o `session/new` não confere login. O desenho ainda não existe |
 | [open-questions.md](features/030-agent-accounts/open-questions.md) | 13 perguntas, **13 respondidas**, 3 contra a proposta e 2 emendadas: a sessão escolhe, pré-selecionada com um **trio padrão** — a conta padrão do agente, e o modelo e effort padrão da conta —, não troca — *continua* numa sessão nova com o contexto levado —, e o Lumem **não controla limite de conta** nenhum. Cada encaixe da esteira tem o seu trio, no `named_agent` que a `028` já tinha. A lista de modelos é gravada no handshake que confere o login. A **Q7** foi respondida pela fase 0 (**vira ADR**), e ela abriu a **Q10**: a conta nova recebe **link** para o que é comportamento (plugins, skills, `CLAUDE.md`), e os MCPs de usuário do Claude ficam fora, ditos na tela |
+| [tasks.md](features/030-agent-accounts/tasks.md) | **22 tasks em 5 fases**, só a fase 0 entregue. A regra de ordem: **o que isola vem antes do que mostra.** Nenhum dos três caminhos de login passa env hoje, o `apiKeyEnv` nunca foi injetado, e a memória spawna por fora do resolver — todos passam pela conta antes de existir tela. A folha do Open Design (T3) represa só a fase 3 |
 
 ## Convenções
 

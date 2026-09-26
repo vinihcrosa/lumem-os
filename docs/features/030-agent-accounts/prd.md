@@ -1,6 +1,6 @@
 # PRD — Mais de uma conta por agente
 
-> **Status:** proposta
+> **Status:** em execução
 > **Histórico:** v0.1 — proposta em **2026-09-25**, a partir de um pedido do Vinicius: *"ter duas ou
 > mais contas do Claude conectadas, e poder selecionar o Opus 5 na conta 1 para uma coisa e a conta 2
 > com Fable para outra"*. Ela tira do [backlog](../../project/backlog.md) o item *Múltiplas contas
@@ -17,6 +17,7 @@
 > invocação resolvida da spec a cada `spawn` — é onde a conta entra) e o
 > [ADR do cofre](../../adr/2026-09-13-1730-lumem-owns-the-keys-of-what-it-depends-on.md), que já disse
 > que **agentes entram numa feature posterior**. Esta pode ser ela
+> **Tasks:** [tasks.md](tasks.md) — 22 tasks em 5 fases. A fase 0 (a medição) está entregue
 > **Desenho:** ainda não existe. Vem do Open Design **antes** do React —
 > [regra de 2026-08-19](../../adr/2026-08-19-2247-design-is-made-in-open-design.md)
 
