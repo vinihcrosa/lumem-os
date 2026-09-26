@@ -615,6 +615,18 @@ compartilhar a classe é o que faz clicar em `Home` desmarcar a worktree, que é
 | [tasks.md](features/029-sidebar-nav/tasks.md) | **6 tasks em 3 fases, todas entregues.** A parte que custou não foi o CSS: foi o App passar a ter **uma** resposta para *onde eu estou*, e ele tinha duas — `selection` nele e `board` dentro do `WorkspacePanel`. A fase 3 achou dois defeitos que não são do bloco: o e2e da rolagem **nasceu vazio** (a árvore não rola no fixture), e a frase de leitor de tela colidiu com a barra de PR — texto invisível é texto para o `getByText` |
 | `packages/web/prototype/lumem-sidebar-nav.html` | a folha, quatro quadros. O bloco tem **65px** medidos e o glifo cai no **mesmo `x`** do `■` de projeto (1615,5px nos dois), que é o que prova que as linhas são a mesma linha |
 
+### [agent-accounts/](features/030-agent-accounts/) — mais de uma conta por agente · **proposta**
+
+Duas ou mais contas do mesmo agente conectadas, e a conversa escolhendo de qual sai — *"Opus 5 na
+conta 1 para uma coisa, Fable na conta 2 para outra"*. Tira do [backlog](project/backlog.md) o item
+que estava lá desde a pty-vs-acp: a credencial deixa de ser do **agente** e passa a ser de
+**(agente, conta)**. O modelo continua escolha da sessão; a conta vem antes dele.
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](features/030-agent-accounts/prd.md) | o §4 é a medição que falta antes de qualquer código — e a que pode mudar o desenho é o **Keychain do macOS**: se o Claude Code guarda a credencial numa entrada que não varia com `CLAUDE_CONFIG_DIR`, duas contas colidem |
+| [open-questions.md](features/030-agent-accounts/open-questions.md) | 12 perguntas, **11 respondidas**, 3 contra a proposta e 2 emendadas: a sessão escolhe, pré-selecionada com um **trio padrão** — a conta padrão do agente, e o modelo e effort padrão da conta —, não troca — *continua* numa sessão nova com o contexto levado —, e o Lumem **não controla limite de conta** nenhum. Cada encaixe da esteira tem o seu trio, no `named_agent` que a `028` já tinha. A lista de modelos é gravada no handshake que confere o login. Aberta só a Q7 — se vira ADR —, adiada até a fase 0 |
+
 ## Convenções
 
 > **`adr/` decide · `project/` sustenta · `features/` executa · o código está em vigor.**

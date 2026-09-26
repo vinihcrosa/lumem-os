@@ -157,6 +157,8 @@ propriedade de **(agente, conta)**.
 **De onde veio:** [pty-vs-acp A2](pty-vs-acp.md) · **Volta quando:** você precisar rodar trabalho e
 pessoal na mesma máquina sem trocar login na mão.
 
+**Virou PRD em 2026-09-25:** [agent-accounts](../features/030-agent-accounts/prd.md), ainda proposta.
+
 ### Terceiro CLI de agente — `M`
 
 O **segundo** virou PRD em 2026-09-05 e a **C1 respondeu Codex**:
