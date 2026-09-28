@@ -24,12 +24,14 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # Custou uma tentativa da esteira: o portão reprovou trabalho correto e
 # escreveu "o teste do projeto falhou (saída 1)".
 #
-# Carregado só quando existe, e sem escolher versão: quem manda é o alias
-# `default` do nvm, que é a mesma coisa que o terminal usaria.
+# Carregado só quando existe. A versão é a do `.nvmrc` (T5 da `024-dev-harness`),
+# e o alias `default` do nvm fica como segunda opção, para uma máquina que ainda
+# não instalou o pino — quem recusa uma versão errada é o `setup.sh`, dizendo qual.
 if ! command -v nvm >/dev/null 2>&1 && [ -s "${NVM_DIR:-$HOME/.nvm}/nvm.sh" ]; then
   # shellcheck disable=SC1091
   . "${NVM_DIR:-$HOME/.nvm}/nvm.sh" >/dev/null 2>&1 || true
-  nvm use default >/dev/null 2>&1 || true
+  nvm use "$(cat "$(dirname "${BASH_SOURCE[0]}")/../../.nvmrc" 2>/dev/null)" >/dev/null 2>&1 \
+    || nvm use default >/dev/null 2>&1 || true
 fi
 
 # Do caminho absoluto, não do nome: dois workspaces podem se chamar igual em

@@ -366,7 +366,16 @@ falha. Um agente que rodar o gate pela aba `Testes` recebe vermelho por ambiente
 - `pnpm gate:quick` verde.
 
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ não iniciada
+**Status**: ✅ entregue em 2026-09-28. `.nvmrc` e `mise.toml` em `22.17.1`; `scripts/node-version.ts`
+recusa **major** diferente e deixa passar patch/minor com aviso; o `setup.sh` o chama e o `env.sh` põe o
+nvm no `.nvmrc` antes do `default`. Medido de verdade: sob o **Node 26.4.0** do Homebrew (sem nvm), o
+`setup.sh` sai **1** com *"pinado no node 22.17.1 (.nvmrc) e encontrei 26.4.0 … Saída: `nvm use` … ou
+`mise install`"*; sob o 22.17.1 sai 0 em **3 s**.
+
+> **SPEC_DEVIATION.** Além do que a task pedia, os três workflows trocaram `node-version: 22` por
+> `node-version-file: .nvmrc` — o CI rodava o 22 mais recente, que não é o pino —, e o teste recusa
+> um número de versão escrito à mão num workflow. Só o major recusa: `22.18` contra `22.17.1` avisa e
+> segue, porque recusar patch compraria atrito sem nenhum defeito medido.
 
 ---
 
