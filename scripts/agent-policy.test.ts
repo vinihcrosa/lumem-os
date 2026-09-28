@@ -57,3 +57,26 @@ describe("a política do agente é do repositório", () => {
     expect(halves.join("\n")).toBe("");
   });
 });
+
+describe("o guarda está ligado", () => {
+  interface HookEntry { matcher?: string; hooks?: { type?: string; command?: string }[] }
+  function preToolUse(): HookEntry[] {
+    const settings = JSON.parse(readFileSync(join(repoRoot, ".claude/settings.json"), "utf8")) as {
+      hooks?: { PreToolUse?: HookEntry[] };
+    };
+    return settings.hooks?.PreToolUse ?? [];
+  }
+
+  it("o `PreToolUse` do projeto chama `scripts/harness/guard.ts`, por `node` e não por `tsx`", () => {
+    const commands = preToolUse().flatMap((entry) => entry.hooks ?? []).map((hook) => hook.command ?? "");
+    const guard = commands.filter((command) => command.includes("scripts/harness/guard.ts"));
+    expect(guard, "nenhum PreToolUse chama o guarda").toHaveLength(1);
+    expect(guard[0]).toMatch(/^node .*--experimental-strip-types/);
+  });
+
+  it("o matcher cobre o Bash e toda ferramenta que escreve arquivo", () => {
+    const entry = preToolUse().find((e) => (e.hooks ?? []).some((h) => h.command?.includes("guard.ts")));
+    const tools = new Set((entry?.matcher ?? "").split("|"));
+    for (const tool of ["Bash", "Write", "Edit", "MultiEdit", "NotebookEdit"]) expect(tools).toContain(tool);
+  });
+});

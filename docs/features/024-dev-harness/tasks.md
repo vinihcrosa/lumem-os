@@ -569,7 +569,23 @@ o alcance é o que ela medir.
 - `pnpm gate:quick` verde.
 
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ não iniciada
+**Status**: ✅ entregue em 2026-09-28. `scripts/harness/guard.ts`, ligado no `PreToolUse` do
+`.claude/settings.json` para `Bash|Write|Edit|MultiEdit|NotebookEdit`, rodado por
+`node --experimental-strip-types` — **84 ms** por chamada contra **576 ms** do `tsx`, medidos na mesma
+máquina, e é por isso que ele não importa nada além de `node:`. `guard.test.ts` tem **119** casos: cada
+grafia de cada ação, o piso do `deny` como subconjunto (uma linha por regra), o parser, e o processo do
+hook (sai 2 com a frase, sai 0, e **recusa** uma entrada que não é JSON). O aceite por comportamento:
+um Claude Haiku em `bypassPermissions`, numa bancada em `/tmp/lumem-t18`, tentou **7** grafias que o piso
+não pega — `+main`, `HUSKY=0`, `git -C . push -f`, `bash -c "npm publish"`, `HEAD:main`, escrita fora do
+checkout, `core.hooksPath` — e teve as **7** recusadas com a frase do guarda; os dois controles passaram
+(US$ 0,06).
+
+Dois defeitos, os dois achados antes de alguém depender dele:
+- o teste achou que `pnpm --filter <pacote> publish` passava — a regra olhava só a primeira palavra;
+- **o próprio guarda recusou o autor dele**, no primeiro comando depois de ligado: um `python3 - <<'PY'`
+  com crase no corpo foi lido como substituição de comando. Heredoc com delimitador entre aspas é texto
+  literal; o parser passou a entendê-lo (e a ler como script o heredoc que alimenta um shell), e
+  `2>&1`/`&>` deixaram de ser lidos como segundo plano.
 
 ---
 

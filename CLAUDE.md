@@ -86,9 +86,10 @@ Monorepo pnpm + Turborepo. `packages/shared` (contratos), `packages/server` (dae
 Antes de dizer que uma task está pronta, rode o gate que ela declara. Detalhes em [docs/project/testing.md](docs/project/testing.md).
 
 **A política do agente é do repositório**: `.claude/settings.json`, com o motivo de cada `deny` em
-`scripts/harness/policy.ts`. O `~/.claude/settings.json` é preferência de máquina, não guardrail — e um
-`deny` daqui vale contra qualquer `allow` de lá, inclusive em `bypassPermissions`. Recusa é o
-comportamento, não um erro para contornar.
+`scripts/harness/policy.ts`, e um **guarda** (`scripts/harness/guard.ts`, no `PreToolUse`) que lê o
+comando inteiro — `git push origin +main`, `HUSKY=0`, escrita fora do checkout. O `~/.claude/settings.json`
+é preferência de máquina, não guardrail — e um `deny` daqui vale contra qualquer `allow` de lá, inclusive
+em `bypassPermissions`. Recusa é o comportamento, não um erro para contornar.
 
 ## Regra de design
 
