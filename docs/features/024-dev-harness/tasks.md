@@ -24,7 +24,7 @@ aprovação.
 |---|---|---|---|
 | **Fase 0 — o que os agentes carregam** | T0 | — | o alcance da T18, T19 e T20 | ~2 h |
 | **F1 — contenção e loop** | T1 · T2 · T3 · T4 · T5 · T6 · T7 · T8 · T17 · T18 · T19 · T20 · T21 | [#56](https://github.com/vinihcrosa/lumem-os/issues/56) | N2 com segurança | ~1 dia |
-| **F2 — comportamento e arquitetura** | T9 · T10 · T11 · T12 · T13 | [#64](https://github.com/vinihcrosa/lumem-os/issues/64) | N3 em CSS/token, dependência e docs | ~3 dias |
+| **F2 — comportamento e arquitetura** | T9 · T10 · T11 · T12 · T13 · T22 | [#64](https://github.com/vinihcrosa/lumem-os/issues/64) | N3 em CSS/token, dependência e docs | ~3 dias |
 | **F3 — entropia e revisão inferencial** | T14 · ~~T15~~ · T16 | [#69](https://github.com/vinihcrosa/lumem-os/issues/69) | ampliar N3 por número | ~3 dias |
 
 | Task | Issue | Classe | Trava | Esforço |
@@ -47,6 +47,7 @@ aprovação.
 | T10 fitness arquitetural como teste | [#65](https://github.com/vinihcrosa/lumem-os/issues/65) | sensor computacional | [Q3](open-questions.md), [Q4](open-questions.md) | M |
 | T11 log do daemon consultável pelo agente | [#66](https://github.com/vinihcrosa/lumem-os/issues/66) | ambiente | — | M |
 | T12 rollback ensaiado e medido | [#67](https://github.com/vinihcrosa/lumem-os/issues/67) | ambiente | — | M |
+| T22 o selo de classe de N3, como rótulo na PR | — | sensor computacional | ~~[Q7](open-questions.md)~~ | P |
 | T13 frescor de dependência automatizado | [#68](https://github.com/vinihcrosa/lumem-os/issues/68) | sensor computacional | — | P |
 | T14 mutation testing com piso | [#69](https://github.com/vinihcrosa/lumem-os/issues/69) | sensor computacional | — | G |
 | ~~T15 revisor inferencial no CI, com taxa medida~~ — **fora de escopo** (2026-09-28, [Q5](open-questions.md)) | [#70](https://github.com/vinihcrosa/lumem-os/issues/70) | sensor inferencial | — | M |
@@ -869,6 +870,36 @@ verificável deste repositório.
 - o número de PRs abertas pelo bot não passa de 3.
 
 **Gate**: `pnpm gate:full` na PR do bot
+**Status**: ⬜ não iniciada
+
+---
+
+### T22: O selo de classe de N3, como rótulo na PR
+
+**Classe:** sensor computacional · **Previne:** que *"esta PR é só de documentação"* seja julgamento de
+quem lê o título. As três classes da [A3](open-questions.md) — CSS/token, dependência, documentação —
+só existem se uma PR que as **mistura** com outra coisa for reconhecida como *sem classe*.
+**Trava:** ~~[Q7](open-questions.md)~~ — respondida em 2026-09-28: rótulo, **sem** merge automático.
+
+**What**:
+1. `scripts/pr-class.ts`: recebe a lista de caminhos tocados e devolve a classe, como função pura.
+   `packages/web/src/**/*.css` e `packages/web/src/styles/tokens.*` sozinhos → `css-token`;
+   `package.json` e `pnpm-lock.yaml` (de qualquer pacote) sozinhos → `dependência`; `docs/**` e
+   `*.md` sozinhos → `docs`; qualquer união → `sem classe`.
+2. `scripts/pr-class.test.ts`: cada classe, cada mistura, e a PR vazia.
+3. Um passo no `ci.yml`, só em `pull_request`, com `permissions: pull-requests: write` **só nele**:
+   `git diff --name-only <base>...<head>` → `pr-class` → `gh pr edit --add-label` (e tira o rótulo
+   antigo quando a classe muda num push novo).
+4. O rótulo é **informação**: nenhuma regra do ruleset o lê, e nada se mescla sozinho por causa dele.
+
+**Where**: `scripts/pr-class.ts` (+ teste, novos), `.github/workflows/ci.yml`, `docs/project/testing.md`.
+
+**Done when**:
+- uma PR só de `.md` recebe `N3: docs`; a mesma PR com um `.ts` a mais passa a `sem classe` no push
+  seguinte — observado numa PR descartável;
+- `pnpm gate:quick` verde.
+
+**Gate**: `pnpm gate:quick`
 **Status**: ⬜ não iniciada
 
 ---

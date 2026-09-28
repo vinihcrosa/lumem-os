@@ -821,6 +821,18 @@ cada linha existe.
 pessoa no repositório — a partir daí a discussão de estilo passa a custar tempo de duas pessoas, que é
 exatamente o que um formatador compra.
 
+### Merge automático das classes de N3 — `P`
+
+A [T22 da dev-harness](../features/024-dev-harness/tasks.md) rotula a PR com a classe (`N3: docs`,
+`N3: css-token`, `N3: dependência` ou `sem classe`), e a [Q7](../features/024-dev-harness/open-questions.md)
+parou aí em 2026-09-28: quem mescla continua sendo o dono. O passo seguinte é a PR de classe com os
+checks verdes se mesclar sozinha (`gh pr merge --auto`), o que pede liberar o `gh pr merge` que a T4
+proíbe ao agente — e só para PR rotulada.
+
+**De onde veio:** [dev-harness Q7](../features/024-dev-harness/open-questions.md) · **Volta quando:** a
+Fase 1 da dev-harness tiver rodado algumas semanas, e o rótulo tiver acertado em toda PR que passou por
+ele — o dado que diz se a classe é confiável para decidir sozinha.
+
 ### Revisor de IA no CI — `M`
 
 A [T15 da dev-harness](../features/024-dev-harness/tasks.md) punha o `lumem-reviewer` em toda PR, e a

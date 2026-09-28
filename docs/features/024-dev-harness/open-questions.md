@@ -159,7 +159,7 @@ As três que a [auditoria](../../project/harness-audit.md) fez ao time humano, r
   uso), como secret do repositório. O teto por tamanho de diff continua valendo como ideia para a
   [T16](tasks.md), que não depende da T15.
 
-- [ ] **Q7 — As classes de N3 precisam de um selo mecânico?**
+- [x] **Q7 — As classes de N3 precisam de um selo mecânico? ([T22](tasks.md))**
   A A3 nomeou três classes que se mesclariam sem ler o diff. Mas "esta PR é da classe CSS/token" é
   hoje um julgamento humano — e uma PR que mistura CSS com uma mudança de daemon não é da classe
   nenhuma.
@@ -171,6 +171,13 @@ As três que a [auditoria](../../project/harness-audit.md) fez ao time humano, r
   feito.
   > **Nota — 2026-09-28.** O número T17 foi para os hooks de git da emenda, e o T21 para o contrato do
   > `checks.md` ([Q15](#abertas-pela-emenda-de-2026-09-28)). Se esta pergunta criar task, ela é a **T22**.
+  **R:** **o selo, como rótulo — e nada de merge automático**, respondido em 2026-09-28. Nasce a
+  [T22](tasks.md): um script determinístico, sem IA, classifica a PR pelos caminhos tocados e põe o
+  rótulo (`N3: css-token`, `N3: dependência`, `N3: docs` ou `sem classe`); quem mescla continua sendo o
+  dono. O merge automático da classe — o N3 de verdade — foi recusado **agora** pela mesma razão da
+  [Q5](#abertas): deixar agente mesclar em `main` sozinho é mais autonomia do que revisão automática, que
+  acabou de ser adiada, e a Fase 1 ainda não rodou. Ele está no [backlog](../../project/backlog.md) com
+  gatilho.
 
 - [ ] **Q8 — Quando entrar a segunda pessoa, o que muda?**
   A T2 nasce com zero aprovações e a PRD tira `CODEOWNERS` de escopo, os dois por causa do "uma pessoa
