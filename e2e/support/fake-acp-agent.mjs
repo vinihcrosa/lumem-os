@@ -334,6 +334,15 @@ async function runQuotaRefusal(id) {
 }
 
 /**
+ * A frase que derruba o turno sem ser cota. Combinada com o spec, e com mais nada.
+ *
+ * `-32603` **sem** `errorKind`: é a mesma recusa da cota menos a única coisa que
+ * a distingue, e é o que o daemon tem de tratar como falha comum — fechando o
+ * turno na conversa em vez de deixá-la respondendo para sempre.
+ */
+const FAIL = "falhe o turno";
+
+/**
  * A frase que pede a conta (`034` T17). Combinada com o spec, e com mais nada.
  */
 const WHICH_ACCOUNT = "em que conta você está";
@@ -961,6 +970,14 @@ createInterface({ input: process.stdin }).on("line", (line) => {
       }
       if ((blocks.at(-1) ?? "").startsWith(QUOTA)) {
         void runQuotaRefusal(message.id);
+        return;
+      }
+      if ((blocks.at(-1) ?? "").startsWith(FAIL)) {
+        write({
+          jsonrpc: "2.0",
+          id: message.id,
+          error: { code: -32603, message: "Internal error: o fake desistiu do turno" },
+        });
         return;
       }
       if (text.includes(WHICH_ACCOUNT)) {

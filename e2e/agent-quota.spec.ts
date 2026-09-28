@@ -1,7 +1,13 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { E2E_SERVER_PORT } from "../ports.js";
-import { ensureProject, ensureWorkspace, openNewAgent, openProject } from "./support/app.js";
+import {
+  ensureProject,
+  ensureWorkspace,
+  openConfiguredAgent,
+  openNewAgent,
+  openProject,
+} from "./support/app.js";
 import { call, query } from "./support/daemon.js";
 import { E2E_FIXTURE_REPO_ACCOUNTS } from "./support/fixtures.js";
 
@@ -157,4 +163,39 @@ test("a conta bateu no limite: a conversa diz qual, e oferece continuar noutra",
   // próprio ambiente —, e com o corte da origem, onde a recusa ficou para trás.
   await expect(next.getByText(`conta: ${spare.configDir}`)).toBeVisible({ timeout: 20_000 });
   await expect(next.locator(".banner--warning").filter({ hasText: "bateu no limite" })).toHaveCount(0);
+});
+
+test("um turno que falha sem ser cota fecha, diz por quê, e a conversa continua", async ({ page }) => {
+  /*
+   * A falha comum, irmã da cota: `-32603` sem `errorKind`. Antes do `turn_failed`,
+   * a conversa ficava em `streaming` para sempre — o botão de interromper aceso,
+   * um `internal error` por cima —, e a única saída era fechar a aba.
+   */
+  test.setTimeout(90_000);
+  await page.goto("/");
+  await ensureWorkspace(page);
+  await ensureProject(page, E2E_FIXTURE_REPO_ACCOUNTS, PROJECT);
+  const worktreeName = `falha-${Date.now().toString(36)}`;
+  await call(DAEMON, "worktree.create", { projectId: await projectId(), name: worktreeName });
+  await page.goto("/");
+  await openProject(page, PROJECT);
+  await page.getByLabel("árvore de projetos").getByRole("button", { name: worktreeName, exact: true }).click();
+  await openConfiguredAgent(page, DAEMON, "claude", worktreeName);
+
+  const talk = conversation(page);
+  const box = talk.getByLabel("mensagem para o agente");
+  await box.fill("falhe o turno, por favor");
+  await talk.getByRole("button", { name: /enviar/ }).click();
+
+  const line = talk.locator(".banner--danger").filter({ hasText: "o turno falhou" });
+  await expect(line).toBeVisible({ timeout: 20_000 });
+  await expect(line).toContainText("Internal error: o fake desistiu do turno");
+  await expect(talk.getByRole("button", { name: /interromper/ })).toHaveCount(0);
+  // Uma linha só: nenhum `internal error` genérico repetindo a mesma coisa.
+  await expect(talk.locator(".banner--danger")).toHaveCount(1);
+
+  // O composer aceita a próxima, e o turno seguinte chega ao fim.
+  await box.fill("em que conta você está?");
+  await talk.getByRole("button", { name: /enviar/ }).click();
+  await expect(talk.getByText(/recebi: em que conta você está\?/)).toBeVisible({ timeout: 20_000 });
 });
