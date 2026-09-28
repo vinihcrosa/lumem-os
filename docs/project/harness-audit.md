@@ -123,6 +123,12 @@ política alguma. A ordem é por severidade.
 Os itens 1 a 4 são irreversíveis ou quase, custam um comando, e nenhum passa por confirmação. É o que
 trava a autonomia — mais do que qualquer lacuna de teste.
 
+> **Item #1 fechado em 2026-09-28** pela [T1](../features/024-dev-harness/tasks.md): a linha
+> `_authToken` saiu do `~/.npmrc` (o arquivo, que só tinha ela, deixou de existir), `npm whoami` sai
+> com código 1, e `npm publish --dry-run` avisa *"This command requires you to be logged in"*. O
+> `smoke:install` continua verde. **Falta revogar o token no npmjs.com** — apagar do arquivo não
+> invalida a credencial em backup ou snapshot de disco, e isso só o dono da conta faz.
+
 ## 7. Scorecard
 
 Escala: **0** ausente · **1** informal · **2** executável quando alguém lembra · **3** automatizado no

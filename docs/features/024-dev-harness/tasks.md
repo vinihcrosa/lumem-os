@@ -122,7 +122,10 @@ de 72h e o número da versão não volta nunca). Hoje custa um comando e não pa
   `release.yml` já registra o formato dessa falha.
 
 **Gate**: `pnpm smoke:install`
-**Status**: ⬜ não iniciada
+**Status**: ✅ entregue em 2026-09-28, **menos o passo 3**. `~/.npmrc` sem `_authToken` (o arquivo
+deixou de existir), `npm whoami` sai 1, `npm publish --dry-run` avisa *"requires you to be logged in"* —
+em `--dry-run` o npm avisa em vez de recusar, e o aviso é o sinal —, `smoke:install` verde. **O passo 3,
+revogar o token no npmjs.com, é do dono da conta.**
 
 ---
 
