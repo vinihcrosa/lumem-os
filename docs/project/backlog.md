@@ -821,6 +821,25 @@ cada linha existe.
 pessoa no repositório — a partir daí a discussão de estilo passa a custar tempo de duas pessoas, que é
 exatamente o que um formatador compra.
 
+### Revisor de IA no CI — `M`
+
+A [T15 da dev-harness](../features/024-dev-harness/tasks.md) punha o `lumem-reviewer` em toda PR, e a
+[Q5](../features/024-dev-harness/open-questions.md) a tirou de escopo em 2026-09-28: *"agora não é hora
+de fazer review automático com agentes"*. O desenho que ficou, para não ser refeito:
+1. o Claude no job (`anthropics/claude-code-action` ou `claude -p`, com `--json-schema`) devolve os
+   achados em JSON, nos **dois baldes** da [Q67 da `028`](../features/028-autonomous-orchestration/open-questions.md)
+   — `bloqueia`, com o comando que o demonstra, e `anota`;
+2. um passo **sem IA** roda de novo cada comando de `bloqueia`: reproduziu, a PR trava; não reproduziu, o
+   achado cai;
+3. os `anota` viram comentário na PR, pelo `gh`.
+O custo que decide quando fazer é o passo 2: ele **executa no CI um comando que a IA escreveu depois de
+ler o diff**, então precisa de job sem secret, `permissions: read-all`, lista fechada de comandos e
+nenhuma PR de fork. A autenticação é `CLAUDE_CODE_OAUTH_TOKEN` (assinatura) ou `ANTHROPIC_API_KEY`.
+
+**De onde veio:** [dev-harness Q5 e Q6](../features/024-dev-harness/open-questions.md) · **Volta
+quando:** o verificador local do fluxo novo tiver rodado em três features e ficar claro o que ele não
+pega — ou quando entrar uma segunda pessoa, e a revisão humana deixar de ser de uma pessoa só.
+
 ### Quebrar o `AcpManager` — `G`
 
 O arquivo mais difícil de testar do repositório concentra transporte, sessão e tradução, e é o que mais

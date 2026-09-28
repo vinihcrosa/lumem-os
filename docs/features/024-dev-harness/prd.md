@@ -48,7 +48,7 @@ Três fases, na ordem em que reduzem risco por unidade de esforço:
 |---|---|---|
 | **F1 — contenção e loop** | credencial fora do ambiente, `main` protegida com os dois checks obrigatórios, política de permissão versionada, runtime pinado, frescor de documentação como teste, `AGENTS.md` | **N2 com segurança** |
 | **F2 — comportamento e arquitetura** | lint de correção bloqueante, fitness arquitetural como teste, log do daemon consultável, ensaio de rollback, frescor de dependência | **N3 nas três classes definidas** |
-| **F3 — entropia e revisão inferencial** | mutation testing com piso, revisor no CI com taxa medida, PR menor por contrato | ampliar as classes de N3 por número |
+| **F3 — entropia e revisão inferencial** | mutation testing com piso, ~~revisor no CI com taxa medida~~ (fora de escopo em 2026-09-28, [Q5](open-questions.md)), PR menor por contrato | ampliar as classes de N3 por número |
 
 **As três classes de N3**, confirmadas na resposta 3 do §10 da auditoria e fechadas aqui:
 

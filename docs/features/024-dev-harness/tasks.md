@@ -25,7 +25,7 @@ aprovação.
 | **Fase 0 — o que os agentes carregam** | T0 | — | o alcance da T18, T19 e T20 | ~2 h |
 | **F1 — contenção e loop** | T1 · T2 · T3 · T4 · T5 · T6 · T7 · T8 · T17 · T18 · T19 · T20 · T21 | [#56](https://github.com/vinihcrosa/lumem-os/issues/56) | N2 com segurança | ~1 dia |
 | **F2 — comportamento e arquitetura** | T9 · T10 · T11 · T12 · T13 | [#64](https://github.com/vinihcrosa/lumem-os/issues/64) | N3 em CSS/token, dependência e docs | ~3 dias |
-| **F3 — entropia e revisão inferencial** | T14 · T15 · T16 | [#69](https://github.com/vinihcrosa/lumem-os/issues/69) | ampliar N3 por número | ~3 dias |
+| **F3 — entropia e revisão inferencial** | T14 · ~~T15~~ · T16 | [#69](https://github.com/vinihcrosa/lumem-os/issues/69) | ampliar N3 por número | ~3 dias |
 
 | Task | Issue | Classe | Trava | Esforço |
 |---|---|---|---|---|
@@ -49,7 +49,7 @@ aprovação.
 | T12 rollback ensaiado e medido | [#67](https://github.com/vinihcrosa/lumem-os/issues/67) | ambiente | — | M |
 | T13 frescor de dependência automatizado | [#68](https://github.com/vinihcrosa/lumem-os/issues/68) | sensor computacional | — | P |
 | T14 mutation testing com piso | [#69](https://github.com/vinihcrosa/lumem-os/issues/69) | sensor computacional | — | G |
-| T15 revisor inferencial no CI, com taxa medida | [#70](https://github.com/vinihcrosa/lumem-os/issues/70) | sensor inferencial | [Q5](open-questions.md), [Q6](open-questions.md) | M |
+| ~~T15 revisor inferencial no CI, com taxa medida~~ — **fora de escopo** (2026-09-28, [Q5](open-questions.md)) | [#70](https://github.com/vinihcrosa/lumem-os/issues/70) | sensor inferencial | — | M |
 | T16 PR menor por contrato | [#71](https://github.com/vinihcrosa/lumem-os/issues/71) | ambiente | — | P |
 
 ---
@@ -910,6 +910,10 @@ nem mutação, e 3151 testes verdes não dizem quantos têm dentes.
 
 ### T15: O revisor inferencial no CI, não bloqueante, com taxa medida · [#70](https://github.com/vinihcrosa/lumem-os/issues/70)
 
+> **Fora de escopo — 2026-09-28.** A [Q5](open-questions.md) tirou esta task da feature. O texto abaixo
+> fica como estava, como registro do que foi pensado; o que volta, e quando, está no
+> [backlog](../../project/backlog.md).
+
 **Classe:** sensor inferencial · **Previne:** que o `lumem-reviewer` — 518 linhas de critério real,
 incluindo **auditoria de força de teste por bateria de mutação** — só exista quando alguém lembra de
 chamar. É hoje o único sensor semântico do repositório e é 100% manual: o quadrante inferencial de
@@ -936,7 +940,7 @@ feedback está vazio.
   revisão inventada.
 
 **Gate**: as três PRs acima
-**Status**: ⬜ não iniciada
+**Status**: ⏸ **fora de escopo** desde 2026-09-28 — [Q5](open-questions.md): nada de revisão automática por agente no CI agora. O desenho discutido está no [backlog](../../project/backlog.md).
 
 ---
 

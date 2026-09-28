@@ -128,20 +128,36 @@ As três que a [auditoria](../../project/harness-audit.md) fez ao time humano, r
   a primeira task que acrescentasse uma tabela quebraria o arquivo às pressas. Quebrar o `AcpManager`
   direito é feature própria, no [backlog](../../project/backlog.md).
 
-- [ ] **Q5 — O revisor inferencial passa a bloquear? ([T15](tasks.md))**
+- [x] **Q5 — O revisor inferencial passa a bloquear? ([T15](tasks.md))**
   Não dá para responder antes de ter dado. Um revisor que erra bloqueando é pior que revisor nenhum,
   porque ensina a ignorar.
   **Recomendação:** decidir com **5 PRs** de taxa medida — achados reais contra falsos positivos,
   anotados na própria PR. Abaixo de 50% de achado real ele fica informativo para sempre.
   **O que a resposta muda:** uma linha no `review.yml`.
+  **R:** **fora de escopo — não há revisor de IA no CI agora**, respondido em 2026-09-28: *"agora não é
+  hora de fazer review automático com agentes"*. A [T15](tasks.md) sai da feature e o desenho discutido
+  vai para o [backlog](../../project/backlog.md), para não ser refeito: o Claude no job devolve os
+  achados em JSON, em dois baldes (os da [Q67 da `028`](../028-autonomous-orchestration/open-questions.md));
+  um passo **sem IA** roda de novo o comando de cada `bloqueia`; e o resto vira comentário. O que o
+  desenho custava e ninguém tinha dito: o segundo passo **executa no CI um comando que a IA escreveu
+  depois de ler o diff** — injeção de prompt vira execução de código —, então ele pediria job sem
+  secret, lista fechada de comandos e nada de PR de fork.
+  O que **não** sai com esta resposta: o verificador **local** do
+  [ADR de 2026-09-28](../../adr/2026-09-28-1952-a-feature-is-proven-by-checks-not-planned-in-tasks.md),
+  que roda na sessão, e o validador do `verification.md`, que é código e não IA.
 
-- [ ] **Q6 — Quem paga o token do revisor de CI, e qual o teto por PR? ([T15](tasks.md))**
+- [x] **Q6 — Quem paga o token do revisor de CI, e qual o teto por PR? ([T15](tasks.md))**
   A PR mediana deste repositório tem 2.600 linhas e a maior tem 9.489. Revisar tudo em toda PR é um
   custo recorrente que ninguém orçou.
   **Recomendação:** teto por tamanho de diff — acima dele o job comenta "diff grande demais, revisão
   humana" em vez de tentar e alucinar. E o teto é a mesma fronteira da [T16](tasks.md), o que dá ao
   autor um motivo econômico para PR menor.
   **O que a resposta muda:** se a T15 existe.
+  **R:** **cai junto com a [Q5](#abertas)**, em 2026-09-28: sem revisor no CI, não há token a pagar. Quando
+  o item do backlog voltar, as duas opções de autenticação já estão conferidas na documentação do Claude
+  Code: `CLAUDE_CODE_OAUTH_TOKEN` (da assinatura, por `claude setup-token`) ou `ANTHROPIC_API_KEY` (por
+  uso), como secret do repositório. O teto por tamanho de diff continua valendo como ideia para a
+  [T16](tasks.md), que não depende da T15.
 
 - [ ] **Q7 — As classes de N3 precisam de um selo mecânico?**
   A A3 nomeou três classes que se mesclariam sem ler o diff. Mas "esta PR é da classe CSS/token" é
