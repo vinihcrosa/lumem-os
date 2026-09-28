@@ -13,6 +13,7 @@ import {
   planPreCommit,
   planPrePush,
   subjectOf,
+  withoutRepositoryVariables,
 } from "./git-hook.js";
 
 const repoRoot = join(import.meta.dirname, "..", "..");
@@ -126,5 +127,30 @@ describe("o husky chama estes hooks", () => {
   it("o CI desliga o husky, que não tem o que fazer num runner", () => {
     const ci = readFileSync(join(repoRoot, ".github/workflows/ci.yml"), "utf8");
     expect(ci).toMatch(/HUSKY:\s*0/);
+  });
+});
+
+describe("o ambiente que o git exporta para o hook não chega aos comandos", () => {
+  it("tira GIT_DIR, GIT_INDEX_FILE e GIT_WORK_TREE, e deixa o resto", () => {
+    const clean = withoutRepositoryVariables({
+      GIT_DIR: "/repo/.git",
+      GIT_INDEX_FILE: "/repo/.git/index",
+      GIT_WORK_TREE: "/repo",
+      GIT_ASKPASS: "/bin/askpass",
+      PATH: "/usr/bin",
+    });
+    expect(clean).toEqual({ GIT_ASKPASS: "/bin/askpass", PATH: "/usr/bin" });
+  });
+
+  it("o pre-push, rodado com o GIT_DIR de um hook, não deixa um `git init` de teste escrever neste repositório", async () => {
+    const { mkdtempSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { spawnSync } = await import("node:child_process");
+    const dir = mkdtempSync(join(tmpdir(), "hook-env-"));
+    const env = withoutRepositoryVariables({ ...process.env, GIT_DIR: join(repoRoot, ".git") });
+    const init = spawnSync("git", ["init", "-q", "--bare", "probe.git"], { cwd: dir, env, encoding: "utf8" });
+    expect(init.status).toBe(0);
+    const bare = spawnSync("git", ["config", "--get", "core.bare"], { cwd: repoRoot, encoding: "utf8" });
+    expect(bare.stdout.trim()).toBe("false");
   });
 });

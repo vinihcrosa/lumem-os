@@ -173,13 +173,44 @@ export function writeStamp(tree: string): void {
 // ---------------------------------------------------------------------------
 // The hook process.
 
+/**
+ * The variables git exports to a hook that name **this** repository.
+ *
+ * Found the expensive way, on the first real push: git ran `pre-push` with
+ * `GIT_DIR` set, the gate inherited it, and every test that runs `git init` or
+ * `git config` in a temporary directory pointed at this repository instead. 718
+ * tests failed, and three of them wrote into the shared config every worktree
+ * reads — `core.bare = true`, which broke all seventeen worktrees at once, and a
+ * `[user]` section that would have signed every later commit as `test`.
+ */
+export const REPOSITORY_VARIABLES = [
+  "GIT_DIR",
+  "GIT_WORK_TREE",
+  "GIT_INDEX_FILE",
+  "GIT_PREFIX",
+  "GIT_COMMON_DIR",
+  "GIT_OBJECT_DIRECTORY",
+  "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+  "GIT_NAMESPACE",
+  "GIT_QUARANTINE_PATH",
+  "GIT_CEILING_DIRECTORIES",
+  "GIT_DISCOVERY_ACROSS_FILESYSTEM",
+] as const;
+
+/** The environment without them. Everything else — auth, editor, PATH — stays. */
+export function withoutRepositoryVariables(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const clean = { ...env };
+  for (const name of REPOSITORY_VARIABLES) delete clean[name];
+  return clean;
+}
+
 function say(line: string): void {
   process.stderr.write(`${line}\n`);
 }
 
 function run(argv: string[]): number {
   const [command, ...args] = argv as [string, ...string[]];
-  return spawnSync(command, args, { stdio: "inherit" }).status ?? 1;
+  return spawnSync(command, args, { stdio: "inherit", env: withoutRepositoryVariables(process.env) }).status ?? 1;
 }
 
 function currentBranch(): string | null {
@@ -198,6 +229,15 @@ async function readStdin(): Promise<string> {
 
 async function main(): Promise<number> {
   const hook = process.argv[2];
+  // Before anything runs: this process, the git calls below and every command
+  // they spawn find the repository from the working directory, as a person would.
+  const inherited = { ...process.env };
+  for (const name of REPOSITORY_VARIABLES) delete process.env[name];
+  if (hook === "pre-commit" && inherited["GIT_INDEX_FILE"] !== undefined) {
+    // The one git needs back: a `commit -a` or `commit <path>` stages into a
+    // temporary index, and that is the one the staged list has to be read from.
+    process.env["GIT_INDEX_FILE"] = inherited["GIT_INDEX_FILE"];
+  }
   if (hook === "pre-commit") {
     const staged = git(["diff", "--cached", "--name-only", "--diff-filter=ACMR"]).split("\n").filter(Boolean);
     const plan = planPreCommit(currentBranch(), staged);
@@ -239,7 +279,7 @@ async function main(): Promise<number> {
     say(`pre-push: pnpm gate:quick desde ${plan.base.slice(0, 12)} (${plan.why})`);
     const status = spawnSync("pnpm", ["-s", "gate:quick"], {
       stdio: "inherit",
-      env: { ...process.env, LUMEM_GATE_BASE: plan.base },
+      env: { ...withoutRepositoryVariables(process.env), LUMEM_GATE_BASE: plan.base },
     }).status;
     if (status !== 0) {
       say("pre-push: o gate:quick reprovou — o push não sai. Conserte, ou diga por que o vermelho é esperado.");
