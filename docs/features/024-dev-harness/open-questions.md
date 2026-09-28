@@ -1,6 +1,6 @@
 # Perguntas — o harness deste repositório
 
-> **PRD:** [prd.md](prd.md) · **Tasks:** [tasks.md](tasks.md) · **Emenda:** as Q9–Q14 são de 2026-09-28
+> **PRD:** [prd.md](prd.md) · **Tasks:** [tasks.md](tasks.md) · **Emenda:** as Q9–Q15 são de 2026-09-28
 > **Como usar:** responda embaixo de cada pergunta no campo `**R:**` e marque `[x]`. Nada é apagado —
 > pergunta respondida vira registro de decisão. Pergunta que trava uma task tem o número da task ao
 > lado, e a task não começa antes da resposta.
@@ -94,8 +94,8 @@ As três que a [auditoria](../../project/harness-audit.md) fez ao time humano, r
   isso, N3 é uma promessa verbal.
   **O que a resposta muda:** existe ou não uma T17, e se N3 chega a ser real ou continua sendo N2 bem
   feito.
-  > **Nota — 2026-09-28.** O número T17 foi para os hooks de git da emenda. Se esta pergunta criar
-  > task, ela é a **T21**.
+  > **Nota — 2026-09-28.** O número T17 foi para os hooks de git da emenda, e o T21 para o contrato do
+  > `checks.md` ([Q15](#abertas-pela-emenda-de-2026-09-28)). Se esta pergunta criar task, ela é a **T22**.
 
 - [ ] **Q8 — Quando entrar a segunda pessoa, o que muda?**
   A T2 nasce com zero aprovações e a PRD tira `CODEOWNERS` de escopo, os dois por causa do "uma pessoa
@@ -224,7 +224,7 @@ que decide o tamanho da T18, da T19 e da T20.
   esteira sem código a mais, e **não nasce feature de produto**. Uma célula ficou pela metade, e é da
   [T20](tasks.md): no Claude Code desta máquina a skill do projeto aparece **sem a descrição**.
 
-- [ ] **Q14 — Onde moram as skills, para que os dois agentes as leiam? ([T20](tasks.md))**
+- [x] **Q14 — Onde moram as skills, para que os dois agentes as leiam? ([T20](tasks.md))**
   O Claude lê `.claude/skills/`. O Codex desta máquina tem `~/.codex/skills` e `~/.agents/skills`,
   e a leitura de projeto dele é o que a T0 mede.
   **Recomendação:** a fonte em `.claude/skills/lumem-*`, e o que a T0 disser que o Codex lê vira um
@@ -235,3 +235,44 @@ que decide o tamanho da T18, da T19 e da T20.
   > **Nota — 2026-09-28.** Com o repositório **só Claude** ([Q11](#abertas-pela-emenda-de-2026-09-28)), a metade do Codex desta
   > pergunta cai: as skills moram em `.claude/skills/`, e ponto. O que sobra de pé é a outra metade —
   > **as cinco skills de terceiro** que já estão lá.
+  **R (2026-09-28):** das cinco, nenhuma tinha o motivo de ter entrado escrito em `docs/`.
+  - `playwright-skill` **fica** — o `lumem-dev` a invoca para e2e, e ela escreve em `/tmp`;
+  - `evolutionary-modular-architecture` **sai** — é NestJS/Nx, não o stack, e propõe arquitetura por
+    conta própria, o que contradiria um ADR em silêncio (regra 7 do `CLAUDE.md`);
+  - `tlc-spec-lean` **sai como está e vira a base do fluxo de feature** deste repositório, com a
+    estrutura de `docs/features/` no lugar do `.specs/` dela. Como uma coisa vira a outra é a
+    [Q15](#abertas-pela-emenda-de-2026-09-28); a licença dela é CC-BY-4.0, então a derivada credita a origem;
+  - `react-best-practices` e `react-composition-patterns` **ficam**, pela recomendação — são do stack do
+    `web` —, com a ressalva no `CLAUDE.md` de que a parte de Next.js da primeira não se aplica.
+
+- [x] **Q15 — Como o fluxo da `tlc-spec-lean` entra na estrutura de `docs/features/`? ([T20](tasks.md))**
+  A [Q14](#abertas-pela-emenda-de-2026-09-28) decidiu basear o fluxo de feature na `tlc-spec-lean` com a estrutura de docs deste
+  repositório. As duas concordam em quase tudo e discordam num ponto só, que é o que esta pergunta
+  decide: **a lista de tasks.**
+  - A `tlc-spec-lean` tem quatro movimentos — **plan → checks → build → verify** — e três artefatos:
+    `plan.md` (problema, fluxo, impacto, entidades, superfície, portas de mão única e critérios EARS),
+    `checks.md` (afirmações observáveis, cada uma com a **prova** que a decide) e `verification.md`
+    (escrito por um verificador que **não** é o autor). E ela recusa, por princípio, a lista de
+    tasks: *"granularidade não é qualidade"* — quinze tasks de um arquivo compram ordem, não
+    correção, e competem com as obrigações pela atenção.
+  - Este repositório tem `prd.md`, `open-questions.md` e `tasks.md`, e o `tasks.md` é **contrato**: o
+    `check-docs` deriva o `Status:` dele (proposta ⇔ sem `tasks.md`), o `lumem-dev` executa por T, e a
+    regra 5 do `CLAUDE.md` diz que ele não nasce vazio.
+  O mapeamento que não tem discussão: `prd.md` ≈ `plan.md`; `open-questions.md` fica (é o *"decisões
+  você pergunta"* dela); as `AD-NNN` do `STATE.md` dela são os ADRs daqui; o verificador é o
+  `lumem-reviewer`, disparado novo; os validadores Python viram TypeScript em `scripts/`, ao lado do
+  `check-docs`.
+  **Recomendação:** para **feature nova**, o `checks.md` **substitui** o `tasks.md`, e o `prd.md` ganha
+  as seções do `plan.md` — com ADR, porque muda o contrato da [`025`](../025-docs-contract/prd.md). As
+  features existentes ficam como estão. O que decide é que o repositório já mediu os sintomas que a
+  skill descreve: a `walking-skeleton` entregue com **244 caixas abertas**, *"task escrita não é task
+  começada"*, e a `028` com **61 tasks**.
+  **O que a resposta muda:** se nasce um ADR, se o `check-docs` passa a conhecer o `checks.md`, e o que
+  o `lumem-dev` e o `lumem-reviewer` leem.
+  **R:** **a recomendação**, respondido em 2026-09-28, e virou o [ADR](../../adr/2026-09-28-1952-a-feature-is-proven-by-checks-not-planned-in-tasks.md): em feature nova o
+  `checks.md` substitui o `tasks.md`, o `prd.md` ganha a forma do plano e o `verification.md` é escrito
+  por um `lumem-reviewer` novo. As features existentes ficam como estão, e a própria `024` termina no
+  formato de tasks. O trabalho está na [T20](tasks.md) (a skill) e na [T21](tasks.md) (o contrato).
+  > **Nota — 2026-09-28.** A nota da [Q7](#abertas) reservava *"T21"* para o selo de N3. A T21 foi para o
+  > contrato do `checks.md`; se a Q7 criar task, ela é a **T22**.
+

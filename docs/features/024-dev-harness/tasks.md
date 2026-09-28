@@ -4,7 +4,7 @@
 [harness-audit.md](../../project/harness-audit.md)
 
 **Status:** em execução
-**Histórico:** **16 tasks em 3 fases, nenhuma iniciada** (2026-09-07). **Emenda de 2026-09-28:** mais a Fase 0 (T0) e quatro tasks na Fase 1 (T17–T20) — hooks de git, o guarda dos agentes, o `Stop` e as skills; ver o [§8 da PRD](prd.md#8-emenda--2026-09-28-hooks-skills-e-o-que-três-semanas-não-mudaram). Três perguntas já respondidas (A1–A3); oito abertas, e as que travam task estão marcadas na coluna `Trava`.
+**Histórico:** **16 tasks em 3 fases, nenhuma iniciada** (2026-09-07). **Emenda de 2026-09-28:** mais a Fase 0 (T0) e cinco tasks na Fase 1 (T17–T21) — hooks de git, o guarda, o `Stop`, as skills e o contrato do `checks.md`; ver o [§8 da PRD](prd.md#8-emenda--2026-09-28-hooks-skills-e-o-que-três-semanas-não-mudaram). Três perguntas já respondidas (A1–A3); oito abertas, e as que travam task estão marcadas na coluna `Trava`.
 **Issues:** [#72](https://github.com/vinihcrosa/lumem-os/issues/72) rastreia a feature; cada task tem a
 sua, na coluna `Issue`. Marco por fase no GitHub.
 
@@ -23,7 +23,7 @@ aprovação.
 | Fase | Tasks | Habilita | Esforço somado |
 |---|---|---|---|
 | **Fase 0 — o que os agentes carregam** | T0 | — | o alcance da T18, T19 e T20 | ~2 h |
-| **F1 — contenção e loop** | T1 · T2 · T3 · T4 · T5 · T6 · T7 · T8 · T17 · T18 · T19 · T20 | [#56](https://github.com/vinihcrosa/lumem-os/issues/56) | N2 com segurança | ~1 dia |
+| **F1 — contenção e loop** | T1 · T2 · T3 · T4 · T5 · T6 · T7 · T8 · T17 · T18 · T19 · T20 · T21 | [#56](https://github.com/vinihcrosa/lumem-os/issues/56) | N2 com segurança | ~1 dia |
 | **F2 — comportamento e arquitetura** | T9 · T10 · T11 · T12 · T13 | [#64](https://github.com/vinihcrosa/lumem-os/issues/64) | N3 em CSS/token, dependência e docs | ~3 dias |
 | **F3 — entropia e revisão inferencial** | T14 · T15 · T16 | [#69](https://github.com/vinihcrosa/lumem-os/issues/69) | ampliar N3 por número | ~3 dias |
 
@@ -41,7 +41,8 @@ aprovação.
 | T17 hooks de git versionados, ligados pelo setup | — | sensor computacional | [Q9](open-questions.md), [Q10](open-questions.md) | P |
 | T18 o guarda, no `PreToolUse` do Claude | — | permissão | [Q11](open-questions.md), T0 | M |
 | T19 o `Stop` cobra o gate antes de *"pronto"* | — | sensor computacional | [Q12](open-questions.md), T0 | P |
-| T20 as três skills de documentação, e a auditoria das de terceiro | — | guide inferencial | [Q14](open-questions.md), T0, T8 | M |
+| T20 as três skills de documentação, e a auditoria das de terceiro | — | guide inferencial | [Q14](open-questions.md), [Q15](open-questions.md), T8 | G |
+| T21 o contrato conhece o `checks.md` | — | sensor computacional | [Q15](open-questions.md) | M |
 | T9 lint de correção, bloqueante | [#64](https://github.com/vinihcrosa/lumem-os/issues/64) | sensor computacional | [Q2](open-questions.md) | M |
 | T10 fitness arquitetural como teste | [#65](https://github.com/vinihcrosa/lumem-os/issues/65) | sensor computacional | [Q3](open-questions.md), [Q4](open-questions.md) | M |
 | T11 log do daemon consultável pelo agente | [#66](https://github.com/vinihcrosa/lumem-os/issues/66) | ambiente | — | M |
@@ -586,15 +587,21 @@ contrário da regra — a auditoria achou uma (D3), e hoje são cinco em `.claud
 **What**:
 1. `lumem-adr` — os três testes, o frontmatter, `supersedes`, reafirmar o que fica, o estudo em
    `docs/project/` que o sustenta. Primeiro passo: listar `docs/adr/` e ler o frontmatter.
-2. `lumem-feature-docs` — `prd.md`, `open-questions.md`, `tasks.md`, numeração `NNN`, a gramática do
-   `Status:`, a nota no requisito contradito; e ao fechar a feature, a linha no §Estado atual e o
-   parágrafo no History do Outline.
+2. `lumem-feature` — **o fluxo de feature**, derivado da `tlc-spec-lean` pelo [ADR de 2026-09-28](../../adr/2026-09-28-1952-a-feature-is-proven-by-checks-not-planned-in-tasks.md)
+   ([Q15](open-questions.md)): plano no `prd.md`, perguntas no `open-questions.md`, obrigações com
+   prova no `checks.md`, construção a partir dos checks, e o `verification.md` escrito por um
+   `lumem-reviewer` novo. Mais o que é daqui: numeração `NNN`, a gramática do `Status:`, a nota no
+   requisito contradito, e ao fechar a feature a linha no §Estado atual e o parágrafo no History do
+   Outline. Os validadores dela, em Python, viram TypeScript em `scripts/`. A licença da original é
+   CC-BY-4.0: o `SKILL.md` credita a origem.
 3. `lumem-outline` — discovery, postmortem, runbook, a entrada no Work log: a coleção certa, a regra
    do segredo, *linka, não copia*, e o fechamento discovery → ADR.
 4. O `CLAUDE.md` fica com a tabela de **onde cada coisa mora** e as sete
    regras; o formato sai para as skills.
-5. As cinco skills de terceiro em `.claude/skills/` passam, uma a uma, pela pergunta *"o que ela manda
-   contradiz o `CLAUDE.md`?"* — e a que contradiz sai do repositório ou ganha a exceção escrita.
+5. As skills de terceiro, pela resposta da [Q14](open-questions.md): `evolutionary-modular-architecture`
+   e `tlc-spec-lean` **saem** (a segunda depois de a `lumem-feature` existir); `playwright-skill`,
+   `react-best-practices` e `react-composition-patterns` **ficam**, e o `CLAUDE.md` diz que a parte de
+   Next.js da `react-best-practices` não se aplica.
 6. **A descrição que some.** A [T0](#t0-o-que-cada-agente-carrega-do-repositório-medido) viu a skill do
    projeto aparecer **sem descrição** no Claude Code desta máquina — e skill sem descrição não
    dispara sozinha. Medir a causa (a hipótese é o orçamento da lista, com dezenas de skills globais
@@ -603,13 +610,49 @@ contrário da regra — a auditoria achou uma (D3), e hoje são cinco em `.claud
 7. Um teste em `scripts/` exige que cada `lumem-*` tenha `name` e `description`, e que toda regra que
    uma skill cita (`check-docs`, `Status:`) exista no código que ela cita.
 
-**Where**: `.claude/skills/lumem-adr/`, `.claude/skills/lumem-feature-docs/`,
-`.claude/skills/lumem-outline/` (novos), `CLAUDE.md`, `scripts/`.
+**Where**: `.claude/skills/lumem-adr/`, `.claude/skills/lumem-feature/`,
+`.claude/skills/lumem-outline/` (novos), `.claude/skills/tlc-spec-lean/` e
+`.claude/skills/evolutionary-modular-architecture/` (saem), `CLAUDE.md`, `scripts/`.
 
 **Done when**:
 - um agente sem histórico, pedido *"escreve um ADR sobre X"*, carrega a `lumem-adr` sozinho e produz
   um arquivo que o `docs:check` aceita — observado;
 - `wc -l CLAUDE.md` abaixo de **100**, junto com a T8;
+- `pnpm gate:quick` verde.
+
+**Gate**: `pnpm gate:quick`
+**Status**: ⬜ não iniciada
+
+---
+
+### T21: O contrato conhece o `checks.md`
+
+**Classe:** sensor computacional · **Previne:** que o fluxo novo do [ADR de 2026-09-28](../../adr/2026-09-28-1952-a-feature-is-proven-by-checks-not-planned-in-tasks.md) exista
+só na skill: sem isto, o `check-docs` acusaria toda feature nova de `Status:` errado (ela não tem
+`tasks.md`), o `lumem-dev` procuraria task que não existe, e o `lumem-reviewer` não saberia que o
+`verification.md` é dele.
+**Trava:** [Q15](open-questions.md).
+
+**What**:
+1. `scripts/check-docs.ts`: proposta ⇔ **nem `tasks.md` nem `checks.md`**; o `Status:` é comparado com
+   o arquivo que existir; os casos novos no `check-docs.test.ts`, cada um provado ficando vermelho.
+2. Os validadores do fluxo — plano, checks e verificação —, portados da `tlc-spec-lean` para
+   TypeScript em `scripts/`, com o teste que injeta defeito em cada regra e exige que ele morra (o
+   `selftest.py` dela).
+3. `.claude/agents/lumem-dev.md`: executa **fatias do `checks.md`**, escreve o teste a partir do check
+   e nunca da implementação, e continua executando `tasks.md` nas features antigas.
+4. `.claude/agents/lumem-reviewer.md`: é o **verificador** — disparado novo, depois do último commit
+   da feature, sobre `<base>..HEAD`, com todos os checks —, e escreve o `verification.md`.
+5. `CLAUDE.md`: a regra 5 ganha a nota no requisito contradito — *"PRD proposta ⇔ não tem
+   `tasks.md`"* passa a valer para `tasks.md` **ou** `checks.md`.
+
+**Where**: `scripts/check-docs.ts` (+ teste), `scripts/` (validadores novos), `.claude/agents/lumem-dev.md`,
+`.claude/agents/lumem-reviewer.md`, `CLAUDE.md`.
+
+**Done when**:
+- uma feature de exemplo com `prd.md` + `checks.md` e `Status: em execução` passa no `check-docs`, e a
+  mesma sem `checks.md` reprova;
+- cada validador portado fica vermelho contra o defeito que ele existe para pegar;
 - `pnpm gate:quick` verde.
 
 **Gate**: `pnpm gate:quick`

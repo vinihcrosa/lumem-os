@@ -53,6 +53,7 @@ O contrato está na [025-docs-contract](features/025-docs-contract/prd.md).
 | [Agente é sempre ACP; o PTY é só do terminal](adr/2026-09-24-1620-agent-is-always-acp.md) | 2026-09-24 | `transport` |
 | [Uma conta de agente é um diretório de configuração inteiro, e a primeira é a ausência dele](adr/2026-09-26-0148-an-account-is-a-whole-agent-config-dir.md) | 2026-09-26 | `security` |
 | [O Outline discute e opera, o repositório decide e executa](adr/2026-09-28-1726-outline-discusses-the-repo-decides.md) | 2026-09-28 | `docs` |
+| [Uma feature se prova por checks, e não se planeja em tasks](adr/2026-09-28-1952-a-feature-is-proven-by-checks-not-planned-in-tasks.md) | 2026-09-28 | `docs` |
 
 **A cadeia foi exercitada em 2026-09-13**, e pela primeira vez: o ADR das credenciais do tracker foi
 **superado no mesmo dia** pelo do cofre, porque a decisão dele estava errada — o `gh` era solução
@@ -479,8 +480,8 @@ uma Fase 0 que mede se os agentes que a esteira sobe carregam a configuração d
 | Arquivo | O quê |
 |---|---|
 | [prd.md](features/024-dev-harness/prd.md) | o problema, as três fases, as três classes de N3, os não-objetivos com motivo, e o que muda arquivo por arquivo |
-| [open-questions.md](features/024-dev-harness/open-questions.md) | 3 respondidas antes da PRD existir (o token era só do CD; `main` desprotegida por inércia; as classes de N3 confirmadas) e 14 abertas — as Q9–Q14 são da emenda |
-| [tasks.md](features/024-dev-harness/tasks.md) | 21 tasks: a Fase 0 (T0) e as 3 fases, com T17–T20 na F1 — e o aceite de cada uma é comportamento observado, não configuração lida |
+| [open-questions.md](features/024-dev-harness/open-questions.md) | 3 respondidas antes da PRD existir (o token era só do CD; `main` desprotegida por inércia; as classes de N3 confirmadas) e 12 da emenda e da v0.1 — as Q9–Q15, da emenda, respondidas em 2026-09-28 |
+| [tasks.md](features/024-dev-harness/tasks.md) | 22 tasks: a Fase 0 (T0, entregue) e as 3 fases, com T17–T21 na F1 — e o aceite de cada uma é comportamento observado, não configuração lida |
 
 ### [workspace-tasks/](features/022-workspace-tasks/) — tarefa como entidade
 

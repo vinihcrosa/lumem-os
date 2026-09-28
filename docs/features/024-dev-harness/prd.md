@@ -2,8 +2,8 @@
 
 > **Status:** em execução
 > **Histórico:** v0.1 — proposto em **2026-09-07**, a partir da [auditoria de harness](../../project/harness-audit.md) medida no commit `40a0883` (v0.3.1). v0.2 — **2026-09-28**: remedido, e o escopo cresce para **hooks** (de git e de agente) e **skills** — ver o [§8](#8-emenda--2026-09-28-hooks-skills-e-o-que-três-semanas-não-mudaram).
-> **Perguntas:** [open-questions.md](open-questions.md) — 14 abertas, 3 já respondidas
-> **Tasks:** [tasks.md](tasks.md) — 21 tasks: uma Fase 0 de medição e as 3 fases de 2026-09-07
+> **Perguntas:** [open-questions.md](open-questions.md) — 15 depois da emenda; Q9–Q15 respondidas em 2026-09-28, Q1–Q8 abertas
+> **Tasks:** [tasks.md](tasks.md) — 22 tasks: a Fase 0 (T0, entregue) e as 3 fases, com T17–T21 na F1
 > **Issue de rastreio:** [#72](https://github.com/vinihcrosa/lumem-os/issues/72), com marco por fase
 > **Depende de:** nada. A [daemon-auth](../019-daemon-auth/prd.md) é vizinha e **não** é pré-requisito:
 > ela protege o produto de quem fala com ele, esta protege o repositório de quem escreve nele
@@ -183,7 +183,8 @@ antes de escrever, no molde da [`021`](../021-second-agent/prd.md) e da [`034`](
 | `.husky/`, `package.json`, `scripts/harness/*.test.ts` | `pre-commit`, `commit-msg`, `pre-push`, pelo husky ([Q9](open-questions.md)); o `pnpm install` liga | T17 |
 | `scripts/harness/guard.ts` (+ teste), `.claude/settings.json` | o guarda, no `PreToolUse` do Claude | T18 |
 | `.claude/settings.json` | o `Stop` que cobra o gate antes de *"pronto"* | T19 |
-| `.claude/skills/lumem-*` | as três skills de documentação; auditoria das cinco de terceiro | T20 |
+| `.claude/skills/lumem-*` | as três skills de documentação, a `lumem-feature` derivada da `tlc-spec-lean`; duas de terceiro saem | T20 |
+| `scripts/check-docs.ts`, validadores, `.claude/agents/*.md` | o contrato conhece o `checks.md` ([ADR](../../adr/2026-09-28-1952-a-feature-is-proven-by-checks-not-planned-in-tasks.md)) | T21 |
 
 ### 8.4 Critério de aceite — acrescido
 

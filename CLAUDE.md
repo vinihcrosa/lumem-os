@@ -187,6 +187,10 @@ As sete regras — o desenho está na [`docs/features/025-docs-contract/`](docs/
 5. **Estado se deriva, não se escreve.** ADR superado ⇔ outro o nomeia em `supersedes`; **não existe
    campo `status:`** e nenhum ADR é editado depois de escrito. PRD proposta ⇔ não tem `tasks.md`, e
    `tasks.md` **não nasce vazio**.
+   > **Nota — 2026-09-28.** Em feature nova, o `checks.md` substitui o `tasks.md`
+   > ([ADR](docs/adr/2026-09-28-1952-a-feature-is-proven-by-checks-not-planned-in-tasks.md)): PRD
+   > proposta ⇔ não tem **nem** `tasks.md` **nem** `checks.md`. O resto da regra fica de pé. O
+   > `check-docs` só passa a conhecer o `checks.md` com a [T21 da `024`](docs/features/024-dev-harness/tasks.md).
 6. **A nota no requisito contradito fica** — no requisito, com âncora para quem contradiz, e
    **delimitando o que sobrou de pé**. *Decisão revertida sem registro é decisão que volta sozinha.*
 7. **Sem índice gerado.** A pasta é o índice e o frontmatter é o resumo. Antes de propor ou mudar
