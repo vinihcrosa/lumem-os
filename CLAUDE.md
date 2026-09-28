@@ -514,7 +514,13 @@ medir no produto e não no mock: o daemon pedia o comando de login no lugar erra
 numa conta nova do Claude pela tela** (achado pelo e2e); e o teste de design no app de verdade achou o
 primeiro acesso dizendo *"pede autenticação"* numa máquina logada, e `/settings` esperando ~10 s porque
 o `setup.probe` viajava no mesmo lote das consultas rápidas. As contas moram em `/settings` → Agentes,
-a casa que a `030-settings` já tinha marcado para o login.
+a casa que a `030-settings` já tinha marcado para o login. E a primeira cota **de verdade** esgotada — o limite semanal de
+uma das contas, em 2026-09-28 — fechou a metade da T17 da `028` que esperava por ela: a recusa chega
+como `-32603` genérico, mas com **`data.errorKind: "rate_limit"`**, e é por isso, e nunca pelo texto,
+que o daemon a reconhece. A conversa diz qual conta bateu no limite e oferece *continuar em outra
+conta* — nunca troca sozinha —, e a esteira pausa o cartão em vez de gastar tentativa. De brinde:
+qualquer outra falha de `session/prompt` deixava a conversa presa em *respondendo* para sempre, e
+passou a fechar o turno dizendo por quê.
 
 Comece pelo [índice da documentação](docs/README.md).
 
