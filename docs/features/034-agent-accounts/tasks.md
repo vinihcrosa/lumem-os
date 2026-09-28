@@ -3,9 +3,9 @@
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md) ·
 **Decisão:** [ADR de 2026-09-26](../../adr/2026-09-26-0148-an-account-is-a-whole-agent-config-dir.md)
 
-**Status:** em execução
-**Histórico:** **19 das 20 tasks entregues em 2026-09-26.** Falta só a T19, que precisa de uma
-segunda assinatura de verdade e de um navegador. Escrito depois da fase 0, e **reescrito no mesmo dia**
+**Status:** completa
+**Histórico:** **as 20 tasks estão entregues.** 19 em 2026-09-26, e a T19 — a segunda assinatura de
+verdade — em 2026-09-28, conectada pela tela e conferida no Keychain. Escrito depois da fase 0, e **reescrito no mesmo dia**
 depois do rebase no `main`. Quatro coisas tinham mudado por baixo:
 - a feature colidiu com a `030-settings` e virou `034`;
 - o desenho saiu do Open Design ([ADR de 2026-09-20](../../adr/2026-09-20-2246-design-lives-in-the-code.md));
@@ -385,8 +385,9 @@ prints estão em `.context/034-t18/`. O que ele achou, e onde foi consertado:
 **Where**: a máquina de quem tem as duas contas
 **Done when**: o §2.3 do [estudo](../../project/agent-accounts-measurements.md) ganha a linha medida.
 **Gate**: nenhum. **Precisa do Vinicius**: navegador e duas assinaturas
-**Status**: pendente — é a única. O login pela tela funciona desde `9947f01`: em `/settings` →
-Agentes, `＋ conectar conta` no Claude, e o login abre sozinho
+**Status**: ✅ entregue (2026-09-28). A conta `technomar-ted` foi conectada pela tela, e as três
+conferências passaram: a entrada `Claude Code-credentials-d2b72677` existe, a primeira conta continua
+logada, e cada uma lê o próprio e-mail. O §2.3 do estudo tem a tabela
 
 #### T20: Fechar a feature
 
@@ -399,5 +400,5 @@ Agentes, `＋ conectar conta` no Claude, e o login abre sozinho
 **Where**: `docs/`, `CLAUDE.md`
 **Done when**: `pnpm docs:check` e `pnpm gate:full` verdes.
 **Gate**: `pnpm gate:full`
-**Status**: entregue exceto o `Status: completa`, que espera a T19. Índice, `CLAUDE.md`, backlog e
-as armadilhas do [testing.md](../../project/testing.md) estão atualizados
+**Status**: ✅ entregue (2026-09-28) — `Status: completa` na PRD e aqui, índice, `CLAUDE.md`, backlog e
+as armadilhas do [testing.md](../../project/testing.md)

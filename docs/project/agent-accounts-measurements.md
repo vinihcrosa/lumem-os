@@ -99,6 +99,18 @@ O que sobra para o primeiro login de verdade conferir é o `find-generic-passwor
 Code-credentials-<hash>"` existir depois dele — e isso vira critério de aceite de uma task, não
 pergunta de desenho.
 
+**Medido em 2026-09-28**, com uma segunda assinatura de verdade conectada pela tela (a T19 da
+[`034`](../features/034-agent-accounts/tasks.md)), só com leituras — nenhum segredo lido, nada escrito:
+
+| O que faltava medir | Resultado |
+|---|---|
+| a entrada da conta nova no Keychain | **existe**: `Claude Code-credentials-d2b72677`, e `d2b72677` é o `sha256` do diretório da conta — o nome que o §2.1 leu no binário |
+| a primeira conta continua logada | **sim**: a entrada sem sufixo continua lá, e o `auth status` sem a variável diz `loggedIn: true` |
+| cada conta com o próprio e-mail | **sim**: as duas no plano `team`, com e-mails diferentes — o `auth status` de cada diretório lê o `.claude.json` dela |
+
+E uma prova que ninguém pediu: no mesmo dia, o limite semanal esgotou na conta nova enquanto a
+primeira seguia respondendo (§7). Cada conta gasta a sua cota.
+
 ### 2.4 `CLAUDE_SECURESTORAGE_CONFIG_DIR` — a forma cirúrgica, e por que ela mente
 
 Ela existe, e faz literalmente o que o §4 da PRD prometia: muda **só** a entrada do Keychain e deixa

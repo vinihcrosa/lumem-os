@@ -498,8 +498,8 @@ compondo o primeiro prompt e abre novos agentes numa aba rascunho. A discovery m
 retomada e tempos dos adaptadores Claude e Codex sem enviar prompt; o custo que ficou é manter o
 catálogo de adaptadores, a espera do `setup` e o fluxo de sessão pendente no daemon.
 
-A [`034`](docs/features/034-agent-accounts/prd.md) — **19 de 20 tasks entregues**; falta a T19, uma
-segunda assinatura de verdade — dá **mais de uma conta por agente**: Opus numa conta, Fable noutra,
+A [`034`](docs/features/034-agent-accounts/prd.md) — **completa, 20 tasks**; a última conectou uma
+segunda assinatura de verdade e achou a entrada dela no Keychain — dá **mais de uma conta por agente**: Opus numa conta, Fable noutra,
 lado a lado, cada uma gastando na sua. A fase 0 mediu antes de escrever, e o
 [ADR](docs/adr/2026-09-26-0148-an-account-is-a-whole-agent-config-dir.md) saiu dela: o Keychain
 **não colide** (o Claude Code põe `sha256(dir)[0:8]` no nome da entrada), mas `CLAUDE_CONFIG_DIR` e

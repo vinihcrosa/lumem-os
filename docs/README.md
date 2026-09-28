@@ -722,7 +722,7 @@ cuja sessão nasce no primeiro envio.
 
 ---
 
-### [agent-accounts/](features/034-agent-accounts/) — mais de uma conta por agente · **em execução**
+### [agent-accounts/](features/034-agent-accounts/) — mais de uma conta por agente · **completa**
 
 Duas ou mais contas do mesmo agente conectadas, e a conversa escolhendo de qual sai — *"Opus 5 na
 conta 1 para uma coisa, Fable na conta 2 para outra"*. Tira do [backlog](project/backlog.md) o item
@@ -733,7 +733,7 @@ que estava lá desde a pty-vs-acp: a credencial deixa de ser do **agente** e pas
 |---|---|
 | [prd.md](features/034-agent-accounts/prd.md) | o §4 era a medição que faltava antes de qualquer código, e ela foi feita em 2026-09-26: o **Keychain não colide**, a variável do CLI se sustenta e **não é cirúrgica** — ela leva a configuração inteira do agente —, e o `session/new` não confere login. A §6 foi reescrita depois do rebase: as contas vão para `/settings`, não para o rodapé que a `030-settings` vai tirar |
 | [open-questions.md](features/034-agent-accounts/open-questions.md) | 15 perguntas, **15 respondidas**, 3 contra a proposta e 2 emendadas — a **Q12**, de 2026-09-28, nasceu de uma conta de verdade batendo no limite semanal: a conversa **oferece** continuar em outra conta, e nunca troca sozinha: a sessão escolhe, pré-selecionada com um **trio padrão** — a conta padrão do agente, e o modelo e effort padrão da conta —, não troca — *continua* numa sessão nova com o contexto levado —, e o Lumem **não controla limite de conta** nenhum. Cada encaixe da esteira tem o seu trio, no `named_agent` que a `028` já tinha. A lista de modelos é gravada no handshake que confere o login. A **Q7** foi respondida pela fase 0 (**vira ADR**), e ela abriu a **Q10**: a conta nova recebe **link** para o que é comportamento (plugins, skills, `CLAUDE.md`), e os MCPs de usuário do Claude ficam fora, ditos na tela |
-| [tasks.md](features/034-agent-accounts/tasks.md) | **19 das 20 tasks entregues** — falta a T19, que precisa de uma segunda assinatura de verdade. A regra de ordem foi **o que isola vem antes do que mostra**: nenhum dos três caminhos de login passava env, o `apiKeyEnv` nunca foi injetado, e a memória spawnava por fora do resolver. O e2e achou o daemon pedindo o comando de login no lugar errado, e o teste de design no app de verdade achou dois defeitos que nenhum teste via — o onboarding dizendo *"pede autenticação"* numa máquina logada, e `/settings` esperando ~10 s por um adaptador que ela não tinha consultado |
+| [tasks.md](features/034-agent-accounts/tasks.md) | **as 20 tasks entregues** — a última, a T19, conectou uma segunda assinatura de verdade em 2026-09-28 e achou a entrada dela no Keychain, com o sufixo que a fase 0 leu no binário. A regra de ordem foi **o que isola vem antes do que mostra**: nenhum dos três caminhos de login passava env, o `apiKeyEnv` nunca foi injetado, e a memória spawnava por fora do resolver. O e2e achou o daemon pedindo o comando de login no lugar errado, e o teste de design no app de verdade achou dois defeitos que nenhum teste via — o onboarding dizendo *"pede autenticação"* numa máquina logada, e `/settings` esperando ~10 s por um adaptador que ela não tinha consultado |
 
 ## Convenções
 
