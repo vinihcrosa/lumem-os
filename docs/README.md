@@ -4,6 +4,13 @@
 
 > **Decisão de arquitetura, 2026-09-24** — [o ADR](adr/2026-09-24-1620-agent-is-always-acp.md) supera o de 2026-08-17: agente é sempre ACP. O PTY continua no terminal integrado — shell, scripts e login. A feature [acp-only-agents](features/033-acp-only-agents/prd.md) também faz criar worktree compor o primeiro prompt e abre novos agentes numa aba rascunho; a sessão só nasce no primeiro envio.
 
+> **Documentação fora daqui, 2026-09-28** — [o ADR](adr/2026-09-28-1726-outline-discusses-the-repo-decides.md)
+> dá à documentação um segundo lugar: o **Outline** (`wiki.cazimi.tech`). **O Outline discute e opera; o
+> repositório decide e executa.** Lá ficam a discovery antes da decisão, runbooks, postmortems, custo, a
+> [crônica das features](https://wiki.cazimi.tech/doc/history-como-cada-feature-chegou-lJVA7cSc8V) e os
+> instantâneos — a [passagem de bastão de 2026-09-13](https://wiki.cazimi.tech/doc/handoff-2026-09-13-u8K3xB4dRX)
+> saiu desta pasta para lá. Nada lá está em vigor, e nada aqui é copiado para lá.
+
 ---
 
 ## Por onde começar
@@ -45,6 +52,7 @@ O contrato está na [025-docs-contract](features/025-docs-contract/prd.md).
 | [A marca é escassa, e a identidade do agente tem família própria](adr/2026-09-22-0228-brand-is-scarce-agent-has-its-own-family.md) | 2026-09-22 | `design` |
 | [Agente é sempre ACP; o PTY é só do terminal](adr/2026-09-24-1620-agent-is-always-acp.md) | 2026-09-24 | `transport` |
 | [Uma conta de agente é um diretório de configuração inteiro, e a primeira é a ausência dele](adr/2026-09-26-0148-an-account-is-a-whole-agent-config-dir.md) | 2026-09-26 | `security` |
+| [O Outline discute e opera, o repositório decide e executa](adr/2026-09-28-1726-outline-discusses-the-repo-decides.md) | 2026-09-28 | `docs` |
 
 **A cadeia foi exercitada em 2026-09-13**, e pela primeira vez: o ADR das credenciais do tracker foi
 **superado no mesmo dia** pelo do cofre, porque a decisão dele estava errada — o `gh` era solução
@@ -73,7 +81,6 @@ propósito, e agora com uma cadeia de verdade para exercitá-los.
 | [conveyor-durable-state.md](project/conveyor-durable-state.md) | O **estudo** que sustenta [o ADR da esteira sem lease](adr/2026-09-13-0412-the-conveyor-has-no-lease.md). Os dez invariantes de lease do [Compozy](references/compozy.md) postos lado a lado com o que este produto já tem: **seis não se aplicam** — eles existem porque lá qualquer sessão reivindica um run, e aqui quem reivindica é o daemon, que é um só —, **um já é grátis** (o selo é derivado, e matar a sessão o devolve na leitura seguinte, com teste), e **três ficam**, todos sobre *quantas vezes já se tentou*. Diz também o que ele **não** decidiu, e o gatilho que traz o lease de volta: uma segunda esteira no mesmo `~/.lumem` |
 | [pty-vs-acp.md](project/pty-vs-acp.md) | O **estudo** que sustenta [o ADR do transporte](adr/2026-08-17-1812-agent-session-is-acp-not-pty.md). O custo medido, os prós e contras de cada transporte, a recomendação contrária que perdeu, e o §9.2 — billing e janela de contexto investigados na fonte, com duas das minhas próprias afirmações corrigidas |
 | [agentation.md](project/agentation.md) | A barra de anotação visual do dev: clicar num elemento da tela vira contexto estruturado para o agente. Como está montada, por que não viaja para produção, e as duas variáveis que a ligam e desligam |
-| [handoff-2026-09-13.md](project/handoff-2026-09-13.md) | **Passagem de bastão**, e um **instantâneo** — ele não é fonte de verdade de nada, aponta. O que só existe lá é *o que está no ar* (a PR aberta, o defeito deixado em aberto) e *a ordem recomendada*. Leia antes de continuar a [`028`](features/028-autonomous-orchestration/prd.md) |
 | [backlog.md](project/backlog.md) | **Tudo que ficou para depois**, com uma frase de contexto, de onde veio, e o gatilho que traz de volta. Toda ideia adiada entra aqui na hora |
 
 ---
@@ -438,7 +445,7 @@ código, ou congela.
 |---|---|
 | [prd.md](features/020-memory-dogfooding/prd.md) | o que existe para medir e o que falta, o protocolo semana a semana, os critérios, o §7 vazio à espera do resultado |
 | [open-questions.md](features/020-memory-dogfooding/open-questions.md) | 6 perguntas — as **U2–U4 são os critérios**, e têm que estar respondidas antes da semana 1 |
-| [journal.md](features/020-memory-dogfooding/journal.md) | uma entrada por sexta: a saída do `report` e três linhas |
+| [diário, no Outline](https://wiki.cazimi.tech/doc/memory-dogfooding-journal-yvJ6AQLsTa) | uma entrada por sexta: a saída do `report` e três linhas. Saiu desta pasta em 2026-09-28 — instantâneo, ver o [ADR](adr/2026-09-28-1726-outline-discusses-the-repo-decides.md) |
 
 ### [second-agent/](features/021-second-agent/) — o segundo agente
 

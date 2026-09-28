@@ -76,8 +76,15 @@ projetos** ([U5](open-questions.md)) — o caso que justifica o conceito de work
 | 2 | `LUMEM_MEMORY_DISTILL=1` | a inbox: quantas propostas nascem, quantas você aprova, quanto tempo elas esperam |
 | 3 | mais `LUMEM_MEMORY_AUTO_LEARN=1`, orçamento `3` | o acervo crescendo sozinho: o que fica, o que você apaga, o que custou |
 
-Toda sexta: a saída do `report` colada em [journal.md](journal.md), nesta pasta, com **três linhas** do
-que incomodou. A inbox é revisada **todo dia** — uma proposta pendente há mais de 48 horas conta
+Toda sexta: a saída do `report` colada no [diário](https://wiki.cazimi.tech/doc/memory-dogfooding-journal-yvJ6AQLsTa), com **três linhas** do
+que incomodou.
+
+> **Nota — 2026-09-28.** O diário saiu desta pasta e foi para o Outline
+> ([ADR de 2026-09-28](../../adr/2026-09-28-1726-outline-discusses-the-repo-decides.md)): é instantâneo
+> e envelhece por definição. O protocolo continua de pé inteiro, e o **§7** — a decisão que as três
+> semanas produzem — continua sendo escrito **aqui**.
+
+A inbox é revisada **todo dia** — uma proposta pendente há mais de 48 horas conta
 contra a destilação, porque significa que a inbox virou cerimônia.
 
 ### F4 — Os critérios, escritos antes
