@@ -45,7 +45,7 @@ os três testes de lá continuam verdes **sem provar nada sobre a chegada**. A T
 
 **What**: O `fallback` do `useRunDock` cai em `open: true`, e o comentário que justificava o fechado
 passa a justificar o aberto — dizendo o que mudou, e não apagando o motivo antigo.
-**Where**: `packages/web/src/hooks/useRunDock.ts`, `packages/web/src/hooks/run-dock.test.ts`
+**Where**: `packages/web/src/features/checkout/useRunDock.ts`, `packages/web/src/features/checkout/useRunDock.test.ts`
 
 **Done when**:
 - [x] RED primeiro: um teste afirma que, com o `localStorage` vazio, o rodapé nasce **aberto** — e
@@ -63,7 +63,7 @@ passa a justificar o aberto — dizendo o que mudou, e não apagando o motivo an
 
 **What**: A prova de que nenhum gatilho novo nasceu — o piso de 640px continua sendo do chevron e da
 alça, e chegar numa worktree com o rodapé já aberto deixa a coluna nos 360px.
-**Where**: `packages/web/src/components/right-panel.test.tsx` (ou vizinho), `packages/web/src/App.tsx`
+**Where**: `packages/web/src/features/checkout/RightPanel.test.tsx` (ou vizinho), `packages/web/src/App.tsx`
 (leitura, não edição)
 
 **Done when**:

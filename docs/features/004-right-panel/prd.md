@@ -5,7 +5,7 @@
 > **Versão:** v0.1
 > **Perguntas:** [open-questions.md](open-questions.md)
 > **Tasks:** [tasks.md](tasks.md)
-> **Protótipo:** `packages/web/prototype/lumem-right-panel.html` — abra no navegador
+> **Protótipo:** packages/web/prototype/lumem-right-panel.html — abra no navegador
 > **Sucede:** [worktree-tabs](../003-worktree-tabs/tasks.md)
 
 ---
@@ -56,7 +56,7 @@ O protótipo lê o **mesmo** `tokens.css` que o app lê. Quando o desenho fecha,
 
 #### Tokens que esta feature acrescentou
 
-Gerados, não escritos à mão: entraram no bloco `CONFIG` de `packages/web/scripts/generate-tokens.py` e saíram na regeração, com contraste verificado. A suíte foi de 31 para **46 pares**, todos AA ou melhor.
+Gerados, não escritos à mão: entraram no bloco `CONFIG` de packages/web/scripts/generate-tokens.py e saíram na regeração, com contraste verificado. A suíte foi de 31 para **46 pares**, todos AA ou melhor.
 
 | Grupo | Tokens | Por quê |
 |---|---|---|

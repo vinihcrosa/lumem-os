@@ -1,8 +1,8 @@
 # PRD — Primeiro acesso
 
-**Protótipo:** `packages/web/prototype/lumem-onboarding-flow.html` — **nove telas**, da máquina vazia
+**Protótipo:** packages/web/prototype/lumem-onboarding-flow.html — **nove telas**, da máquina vazia
 ao primeiro turno com o Claude por ACP
-**Sistema de design:** `packages/web/prototype/lumem-design-system.html` + `lumem-ds.css` — a camada
+**Sistema de design:** packages/web/prototype/lumem-design-system.html + `lumem-ds.css` — a camada
 compartilhada que o fluxo consome
 **Sucede:** [acp-sessions](../006-acp-sessions/prd.md) — é ela que faz o passo 3 ter para onde ir
 **Perguntas:** [open-questions.md](open-questions.md) · **Tasks:** [tasks.md](tasks.md)

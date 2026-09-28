@@ -1,6 +1,6 @@
 # Worktree com abas — Tasks
 
-**Protótipo:** `packages/web/prototype/lumem-tabs.html`
+**Protótipo:** packages/web/prototype/lumem-tabs.html
 **Sucede:** [ui-shell](../002-ui-shell/tasks.md), que vestiu a árvore de três níveis
 **Status:** completa
 **Histórico:** concluída — 8 de 8 entregues, gate cheio verde
@@ -84,7 +84,7 @@ A troca de somente leitura acontece **no lugar**, sem remontar: sessão que morr
 #### W2: Sidebar de dois níveis
 
 **What**: A árvore para na worktree, `local` entra na lista, o pip vira contagem.
-**Where**: `packages/web/src/components/SidebarTree.tsx`, `sidebar.css`, `App.tsx`
+**Where**: `packages/web/src/features/workspace/SidebarTree.tsx`, `sidebar.css`, `App.tsx`
 **Depends on**: W1
 
 **Done when**:
@@ -104,7 +104,7 @@ A troca de somente leitura acontece **no lugar**, sem remontar: sessão que morr
 #### W3: `useWorktreeTabs`
 
 **What**: Quais sessões são abas, qual está ativa, e o que acontece quando uma sai.
-**Where**: `packages/web/src/hooks/useWorktreeTabs.ts` + teste
+**Where**: `packages/web/src/features/checkout/useWorktreeTabs.ts` + teste
 **Depends on**: W2
 
 **Done when**:
@@ -141,7 +141,7 @@ A troca de somente leitura acontece **no lugar**, sem remontar: sessão que morr
 > Decisão revertida sem registro é decisão que volta sozinha; por isso esta nota, e não uma edição.
 
 **What**: Cabeçalho fixo, faixa de abas, aba de contexto.
-**Where**: `packages/web/src/components/WorktreePanel.tsx`, `detail.css`, `App.tsx`
+**Where**: `packages/web/src/features/checkout/WorktreePanel.tsx`, `detail.css`, `App.tsx`
 **Depends on**: W3
 
 **Done when**:
@@ -159,7 +159,7 @@ A troca de somente leitura acontece **no lugar**, sem remontar: sessão que morr
 #### W5: Painel `local`
 
 **What**: O checkout principal como worktree.
-**Where**: `packages/web/src/components/LocalPanel.tsx` (ou o mesmo painel com variante)
+**Where**: `packages/web/src/features/checkout/LocalPanel.tsx` (ou o mesmo painel com variante)
 **Depends on**: W4
 
 **Done when**:
@@ -177,7 +177,7 @@ A troca de somente leitura acontece **no lugar**, sem remontar: sessão que morr
 #### W6: Aba de sessão
 
 **What**: O terminal dentro da aba, sem sair do painel da worktree.
-**Where**: `packages/web/src/components/SessionTab.tsx`, `terminal.css`
+**Where**: `packages/web/src/features/conversation/SessionTab.tsx`, `terminal.css`
 **Depends on**: W4
 
 **Done when**:

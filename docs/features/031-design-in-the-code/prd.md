@@ -24,7 +24,7 @@ acidente — as três estavam escritas como consequência ruim desde o primeiro 
 | Sai | Entra |
 |---|---|
 | `packages/web/prototype/` — 50 arquivos | nada. O componente React **é** o desenho |
-| `scripts/design-sync.ts` | `scripts/design-derive.ts`, só a derivação do `tokens.ts` |
+| scripts/design-sync.ts | scripts/design-derive.ts, só a derivação do `tokens.ts` |
 | a rota `/styleguide` (557 linhas) | 19 stories em `src/ui/Primitives.stories.tsx`, o mesmo JSX |
 | `tokens.css` como **cópia** | `tokens.css` como **fonte**, editável |
 

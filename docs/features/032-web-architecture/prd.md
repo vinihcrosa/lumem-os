@@ -281,7 +281,7 @@ funcionando"* — e a diferença entre esse caso e `LumemEvent` é **só o arqui
 
 **Onde.** `packages/shared/src/{events,board}.ts` e `index.ts`, `packages/server/src/events.ts`,
 `packages/server/src/tasks/board.ts`, `packages/web/src/hooks/{useLiveState,useCloneJob}.ts`,
-`packages/web/src/lib/board.ts`, `packages/web/src/components/TaskSeal.tsx`.
+`packages/web/src/features/tasks/board-columns.ts`, `packages/web/src/features/tasks/TaskSeal.tsx`.
 
 **Pronto quando.**
 - `grep -rni 'espelha\|mirrors' packages/web/src --include='*.ts' --include='*.tsx'` devolve nada;

@@ -469,7 +469,13 @@ incômodo, que é como gate morre.
 técnica de task entregue — só caminho e link. Registro histórico não se reescreve para agradar sensor.
 
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ não iniciada
+**Status**: ✅ entregue em 2026-09-28. As **198** ocorrências que a T6 acusou, em 50 arquivos: **106**
+apontam agora para onde o arquivo mora, pela **cadeia de renomeações do git** (`git log --diff-filter=R`)
+e não pelo nome — o atalho pelo nome do arquivo foi tentado primeiro e errou, mandando
+`packages/server/src/setup/probe.ts` para `scripts/q39/probe.ts`, que é outro arquivo com o mesmo nome;
+**92** são históricas (protótipos que saíram para o `lumem-os-design`, arquivos apagados) e perderam a
+crase, pela convenção da T6. E a linha duplicada do índice era outra, não a de 2026-09-07: o ADR *"agente
+é sempre ACP"* aparecia duas vezes na tabela de ADRs, uma fora da ordem.
 
 ---
 

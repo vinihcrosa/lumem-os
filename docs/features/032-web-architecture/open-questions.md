@@ -19,7 +19,7 @@ escrito é o que a resposta muda no resto.
 
 ### [x] Q1 — Onde mora o sensor?
 
-A [T10 da `024`](../024-dev-harness/tasks.md) vai criar `scripts/architecture.test.ts` para a
+A [T10 da `024`](../024-dev-harness/tasks.md) vai criar scripts/architecture.test.ts para a
 fronteira **entre pacotes**, e a Q3 de lá recomenda `scripts/` porque *"o teste lê o disco de todos
 os pacotes"*. O sensor daqui lê **um** pacote — `packages/web/src` — e regula pastas dentro dele.
 

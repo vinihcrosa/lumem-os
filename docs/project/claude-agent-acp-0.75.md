@@ -163,7 +163,7 @@ Dois turnos contra `0.75.1`: um que **lê** um arquivo, um que **escreve** um.
 | `packages/shared/src/adapters.ts` | `CLAUDE_ADAPTER.pinnedVersion`: `0.40.0` → **`0.75.1`**, com o motivo no comentário |
 | `packages/shared/src/adapters.test.ts` | a versão medida, e um teste que fica vermelho se alguém voltar para `0.40.0` |
 | `packages/server/src/setup/install-adapter.ts` | **já estar lá não é o mesmo que estar certo**: a versão em disco decide, e uma diferente reinstala |
-| `packages/web/src/components/AgentConfigDialog.tsx` | o `placeholder` da versão sai do catálogo, em vez de ser digitado |
+| `packages/web/src/features/agent/AgentConfigDialog.tsx` | o `placeholder` da versão sai do catálogo, em vez de ser digitado |
 
 O segundo é o que faz o bump valer para quem já usava o produto. Antes, `installAdapter` aceitava
 qualquer binário existente e **reportava `spec.pinnedVersion`** — então subir a constante não trocava

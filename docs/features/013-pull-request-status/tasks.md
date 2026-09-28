@@ -44,7 +44,7 @@ alvo dos testes da [worktree-tabs](../003-worktree-tabs/tasks.md) muda no caminh
 
 **What**: `ScopePanel` deixa de ter cabeçalho com título e chips; a coluna do meio passa a ser
 caminho → abas → conteúdo.
-**Where**: `packages/web/src/components/ScopePanel.tsx`, `WorktreePanel.tsx`, `LocalPanel.tsx`,
+**Where**: `packages/web/src/features/checkout/ScopePanel.tsx`, `WorktreePanel.tsx`, `LocalPanel.tsx`,
 `detail.css` + testes
 
 **Done when**:
@@ -68,7 +68,7 @@ caminho → abas → conteúdo.
 #### E2: O que não cabia no cabeçalho
 
 **What**: A aba da worktree ganha o que o daemon já sabe e a tela não mostrava.
-**Where**: `packages/web/src/components/WorktreePanel.tsx` + testes
+**Where**: `packages/web/src/features/checkout/WorktreePanel.tsx` + testes
 
 **Done when**:
 - [x] Caminho em disco **inteiro**, sem truncar, com botão de copiar
@@ -86,7 +86,7 @@ caminho → abas → conteúdo.
 #### E3: O ponto de sujeira na aba
 
 **What**: O pedaço do estado que sobrevive com outra aba na frente.
-**Where**: `packages/web/src/components/ScopePanel.tsx` + testes
+**Where**: `packages/web/src/features/checkout/ScopePanel.tsx` + testes
 
 **Done when**:
 - [x] Árvore suja põe um ponto na aba da worktree, com o número no `title`/leitor de tela
@@ -217,7 +217,7 @@ none | draft | merged | closed` mais a `reason`.
 #### [x] P5: O CSS e a barra, nos sete estados
 
 **What**: `PrBar`, com o CSS vindo inteiro do Open Design.
-**Where**: `packages/web/src/components/PrBar.tsx`, `components/pr-bar.css` + testes
+**Where**: `packages/web/src/features/pull-request/PrBar.tsx`, `components/pr-bar.css` + testes
 
 **Done when**:
 - [x] O CSS é o do protótipo, sem tradução e **sem literal**: nenhuma cor, medida ou tipografia fora de
@@ -239,7 +239,7 @@ none | draft | merged | closed` mais a `reason`.
 #### [x] P6: A barra no topo do painel, com ritmo próprio
 
 **What**: A barra dentro do `RightPanel`, com a consulta e o ritmo.
-**Where**: `packages/web/src/components/RightPanel.tsx`, `hooks/usePullRequest.ts` + testes
+**Where**: `packages/web/src/features/checkout/RightPanel.tsx`, `hooks/usePullRequest.ts` + testes
 
 **Done when**:
 - [x] Fica **acima** da faixa de abas do painel, como um **slot novo** do quadro que já existe — os
@@ -299,7 +299,7 @@ none | draft | merged | closed` mais a `reason`.
 #### [x] P9: A quarta aba, e a lista de verificações
 
 **What**: A aba do painel que só existe quando existe PR.
-**Where**: `packages/web/src/components/RightPanel.tsx`, `components/ChecksTab.tsx` + testes
+**Where**: `packages/web/src/features/checkout/RightPanel.tsx`, `components/ChecksTab.tsx` + testes
 
 **Done when**:
 - [x] A aba aparece **só** com PR, e some quando não há — com teste dos dois lados
@@ -323,7 +323,7 @@ none | draft | merged | closed` mais a `reason`.
 #### [x] P10: O marcador na sidebar
 
 **What**: `● #19` na linha da worktree, com a cor do veredito.
-**Where**: `packages/web/src/components/SidebarTree.tsx` + testes
+**Where**: `packages/web/src/features/workspace/SidebarTree.tsx` + testes
 
 **Done when**:
 - [x] Uma consulta **por projeto** alimenta todas as linhas; teste prova que N worktrees não fazem N
@@ -342,7 +342,7 @@ none | draft | merged | closed` mais a `reason`.
 #### [x] P11: Abrir no navegador, de verdade
 
 **What**: Os três links — a PR, a execução, a comparação.
-**Where**: `packages/web/src/components/PrBar.tsx`, `packages/server/src/pr/compare-url.ts` + testes
+**Where**: `packages/web/src/features/pull-request/PrBar.tsx`, packages/server/src/pr/compare-url.ts + testes
 
 **Done when**:
 - [x] Quem abre é o cliente; o daemon não aprende a chamar `open` (F5.2)
@@ -409,7 +409,7 @@ none | draft | merged | closed` mais a `reason`.
 
 **What**: Os dois verbos, do `argv` até a confirmação.
 **Where**: `packages/server/src/pr/GhHost.ts`, `packages/server/src/routers/pr.ts`,
-`packages/web/src/components/PrWriteDialog.tsx` + testes
+`packages/web/src/features/pull-request/PrWriteDialog.tsx` + testes
 
 **Done when**:
 - [x] Valor de UI viaja como `--flag=valor`, num **único** token de `argv` — com teste que passa um

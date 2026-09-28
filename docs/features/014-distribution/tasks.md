@@ -61,7 +61,7 @@ com `createRequire`, saída em `dist/server/main.mjs`.
 #### T2: A prova de que o bundle sobe
 
 **What**: Um teste que roda `node dist/server/main.mjs` num state dir temporário e fala com ele.
-**Where**: `packages/server/src/dist-boot.test.ts` (ou `scripts/`), rodando após o build
+**Where**: packages/server/src/dist-boot.test.ts (ou `scripts/`), rodando após o build
 
 **Done when**:
 - [x] Sobe o bundle em porta efêmera e `LUMEM_STATE_DIR` temporário, e espera o log de listening

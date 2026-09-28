@@ -45,7 +45,7 @@ poder ser revertida sem desfazer o resto.
 **What**: As duas peças que o desenho pede e o `ui/` não tem, entregues antes de qualquer tela
 depender delas.
 **Where**: `packages/web/src/ui/Tab.tsx`, `packages/web/src/ui/ui.css`,
-`packages/web/src/ui/Styleguide.tsx`, `packages/web/src/ui/ui.test.tsx`
+packages/web/src/ui/Styleguide.tsx, `packages/web/src/ui/ui.test.tsx`
 
 **Done when**:
 - [x] `TabStrip` aceita **dois** slots fixos à direita, com separador entre eles; quem passa só um
@@ -67,7 +67,7 @@ depender delas.
 
 **What**: `ScopePanel` deixa de receber um `header` com título e chips; a coluna do meio passa a ser
 caminho → abas → conteúdo.
-**Where**: `packages/web/src/components/ScopePanel.tsx`, `WorktreePanel.tsx`, `LocalPanel.tsx`,
+**Where**: `packages/web/src/features/checkout/ScopePanel.tsx`, `WorktreePanel.tsx`, `LocalPanel.tsx`,
 `detail.css` + testes
 
 **Done when**:
@@ -89,7 +89,7 @@ caminho → abas → conteúdo.
 #### T3: O que não cabia no cabeçalho
 
 **What**: A aba do checkout ganha o que o daemon já sabe e a tela não mostrava.
-**Where**: `packages/web/src/components/WorktreePanel.tsx` + testes
+**Where**: `packages/web/src/features/checkout/WorktreePanel.tsx` + testes
 
 **Done when**:
 - [x] Caminho em disco **inteiro**, sem truncar, com botão de copiar que tem nome acessível
@@ -107,7 +107,7 @@ caminho → abas → conteúdo.
 #### T4: O que sobrevive com outra aba na frente
 
 **What**: O ponto de sujeira na aba, e o que a **Q1** decidir sobre a branch.
-**Where**: `packages/web/src/components/ScopePanel.tsx`, `WorktreePanel.tsx` + testes
+**Where**: `packages/web/src/features/checkout/ScopePanel.tsx`, `WorktreePanel.tsx` + testes
 
 > **Travada na [Q1](open-questions.md).** O ponto é o piso e não depende dela; o que depende é se o
 > caminho passa a escrever a branch quando ela diverge do nome (a leitura B′). Task separada de
@@ -130,7 +130,7 @@ caminho → abas → conteúdo.
 
 **What**: O interruptor da coluna de arquivos passa da `Topbar` para a faixa de abas do checkout.
 **Where**: `packages/web/src/layout/Topbar.tsx`, `App.tsx`,
-`packages/web/src/components/ScopePanel.tsx`, `right-panel.test.tsx`, `terminal-refit.test.tsx`
+`packages/web/src/features/checkout/ScopePanel.tsx`, `right-panel.test.tsx`, `terminal-refit.test.tsx`
 
 **Done when**:
 - [x] A `Topbar` não tem mais `filesPanel`; o que sobra nela vale para a tela toda
@@ -151,7 +151,7 @@ caminho → abas → conteúdo.
 #### T6: O `local` recebe o mesmo tratamento
 
 **What**: O checkout do projeto passa pela mesma mudança, com as diferenças que são de verdade.
-**Where**: `packages/web/src/components/LocalPanel.tsx` + testes
+**Where**: `packages/web/src/features/checkout/LocalPanel.tsx` + testes
 
 > **Q5 respondida:** sim, o mesmo tratamento. O desenho errava ao dizer que o `local` não tem ação
 > destrutiva — tem, e ela abre uma tela própria. Corrigido no protótipo, não no código.
@@ -170,7 +170,7 @@ caminho → abas → conteúdo.
 #### T7: Os dois estados que a aba herda
 
 **What**: A worktree ausente e o detalhe em voo, dentro da aba (F1.9).
-**Where**: `packages/web/src/components/WorktreePanel.tsx` + testes
+**Where**: `packages/web/src/features/checkout/WorktreePanel.tsx` + testes
 
 **Done when**:
 - [x] Worktree ausente: glifo `⚠` na aba e no título, o aviso do diretório sumido, e **nenhum ponto**

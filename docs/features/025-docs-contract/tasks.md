@@ -191,7 +191,7 @@ do `git mv`.
 - [x] sai *"designed, not built"* / *"desenhado, não implementado"* sobre a `pull-request-status`
 - [x] o heading *"Propostos em 2026-09-05 — quatro PRDs, nenhum começado"* — são três, e o quarto
       está completo
-- [x] os **4 links mortos** para `docs/features/003-worktree-tabs/prd.md`, arquivo que nunca existiu. O
+- [x] os **4 links mortos** para docs/features/003-worktree-tabs/prd.md, arquivo que nunca existiu. O
       destino certo é o `tasks.md`, que é o único arquivo daquela pasta
 - **Gate:** nenhum · **Commit:** `docs: fix the claims that outlived their feature`
 

@@ -1,7 +1,7 @@
 # Interface — Tasks
 
 **PRD:** [prd.md](prd.md) · **Decisões:** [open-questions.md](open-questions.md)
-**Protótipo:** `packages/web/prototype/lumem-shell.html`
+**Protótipo:** packages/web/prototype/lumem-shell.html
 **Status:** completa
 **Histórico:** concluída — 11 de 11 entregues, gate cheio verde
 **Total:** 11 tasks em 4 fases
@@ -71,7 +71,7 @@ T6, T7 e T9 são independentes entre si depois da T2 — podem ir em paralelo. T
 #### T2: Primitivas de UI e rota `/styleguide`
 
 **What**: Os blocos que o protótipo usa, extraídos como componentes, mais uma página que renderiza todos em todos os estados.
-**Where**: `packages/web/src/ui/*.tsx`, `packages/web/src/ui/ui.css`, `packages/web/src/ui/Styleguide.tsx`, `packages/web/src/ui/ui.test.tsx`
+**Where**: `packages/web/src/ui/*.tsx`, `packages/web/src/ui/ui.css`, packages/web/src/ui/Styleguide.tsx, `packages/web/src/ui/ui.test.tsx`
 **Depends on**: T1
 **Reuses**: marcação e classes do protótipo
 **Requirement**: PRD §4 F2
@@ -122,7 +122,7 @@ T6, T7 e T9 são independentes entre si depois da T2 — podem ir em paralelo. T
 #### T4: Sidebar — árvore unificada com colapso
 
 **What**: Projeto, worktree e sessão como a mesma linha em profundidades diferentes, com expansão persistida e rodapé de ação.
-**Where**: `packages/web/src/components/ProjectList.tsx`, `WorktreeTree.tsx`, `SessionList.tsx`, `packages/web/src/hooks/useTreeExpansion.ts`, `packages/web/src/hooks/useSessionsByScope.ts`, `packages/web/src/App.tsx`
+**Where**: packages/web/src/components/ProjectList.tsx, `WorktreeTree.tsx`, `SessionList.tsx`, `packages/web/src/features/workspace/useTreeExpansion.ts`, `packages/web/src/features/checkout/useSessionsByScope.ts`, `packages/web/src/App.tsx`
 **Depends on**: T2, T3
 **Reuses**: `Row` da T2, `useActiveWorkspace` como modelo de persistência
 **Requirement**: PRD §4 F3 · Q4, Q5, Q6, Q7
@@ -149,7 +149,7 @@ T6, T7 e T9 são independentes entre si depois da T2 — podem ir em paralelo. T
 #### T5: Seletor de workspace
 
 **What**: O topo da sidebar — qual workspace tudo abaixo pertence.
-**Where**: `packages/web/src/components/WorkspaceSelector.tsx`, `packages/web/src/components/workspace.css`
+**Where**: `packages/web/src/features/workspace/WorkspaceSelector.tsx`, `packages/web/src/features/workspace/workspace.css`
 **Depends on**: T4
 **Reuses**: `Button`, `Field` da T2
 **Requirement**: PRD §4 F3 · Q8
@@ -172,7 +172,7 @@ T6, T7 e T9 são independentes entre si depois da T2 — podem ir em paralelo. T
 #### T6: Detalhe do projeto
 
 **What**: Crumb, título, chips, barra de ações, grade de metadados, lista de worktrees e lista de sessões.
-**Where**: `packages/web/src/components/ProjectDetail.tsx`, `CreateWorktreeDialog.tsx`, `packages/web/src/components/detail.css`
+**Where**: packages/web/src/components/ProjectDetail.tsx, `CreateWorktreeDialog.tsx`, `packages/web/src/features/checkout/detail.css`
 **Depends on**: T2
 **Reuses**: `MetaGrid`, `Chip`, `Item`, `SectionHead`, `Banner` da T2
 **Requirement**: PRD §4 F4 · Q7
@@ -195,7 +195,7 @@ T6, T7 e T9 são independentes entre si depois da T2 — podem ir em paralelo. T
 #### T7: Detalhe da worktree
 
 **What**: O mesmo esqueleto do T6, mais os dois bloqueios de remoção que o §8 exige.
-**Where**: `packages/web/src/components/WorktreeDetail.tsx`
+**Where**: packages/web/src/components/WorktreeDetail.tsx
 **Depends on**: T2
 **Reuses**: `Chip`, `MetaGrid`, `Banner`, `Button` da T2
 **Requirement**: walking-skeleton F4.8, F4.9, F4.10, §8
@@ -220,7 +220,7 @@ T6, T7 e T9 são independentes entre si depois da T2 — podem ir em paralelo. T
 #### T8: Menu de nova sessão
 
 **What**: A fileira de botões vira um menu suspenso.
-**Where**: `packages/web/src/components/NewSessionMenu.tsx`
+**Where**: `packages/web/src/features/conversation/NewSessionMenu.tsx`
 **Depends on**: T2, T6
 **Reuses**: `Menu`, `MenuItem`, `Button` da T2
 **Requirement**: walking-skeleton F5.1, F5.2, F6.5
@@ -243,7 +243,7 @@ T6, T7 e T9 são independentes entre si depois da T2 — podem ir em paralelo. T
 #### T9: Sessão e terminal
 
 **What**: A tela que mais ocupa pixels: cabeçalho do terminal, altura cheia, e o xterm tematizado a partir dos tokens.
-**Where**: `packages/web/src/components/SessionDetail.tsx`, `Terminal.tsx`, `packages/web/src/components/terminal.css`, `packages/web/src/lib/xterm-theme.ts`
+**Where**: packages/web/src/components/SessionDetail.tsx, `Terminal.tsx`, `packages/web/src/features/conversation/terminal.css`, `packages/web/src/lib/xterm-theme.ts`
 **Depends on**: T2
 **Reuses**: `tokens.ts` — é para isto que ele é gerado
 **Requirement**: PRD §7 · walking-skeleton F5.3, F5.9, F5.10
@@ -271,7 +271,7 @@ T6, T7 e T9 são independentes entre si depois da T2 — podem ir em paralelo. T
 #### T10: Primeiro uso, vazio, carregando, offline
 
 **What**: Os estados que não são o caminho feliz, que hoje são parágrafos soltos.
-**Where**: `packages/web/src/components/FirstRun.tsx`, `AddProjectDialog.tsx`, `packages/web/src/App.tsx`
+**Where**: packages/web/src/components/FirstRun.tsx, `AddProjectDialog.tsx`, `packages/web/src/App.tsx`
 **Depends on**: T4, T6, T7
 **Reuses**: `Card`, `Field`, `EmptyState`, `Banner` da T2
 **Requirement**: walking-skeleton §5, §8 · PRD §4 F5

@@ -2,7 +2,7 @@
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md) — 14 de 14 respondidas
 **Decisão de transporte:** [pty-vs-acp.md](../../project/pty-vs-acp.md) — **TA1–TA6** fechadas lá
-**Protótipo:** `packages/web/prototype/lumem-acp-conversation.html` — desenho fechado e verificado; as tasks de cliente **portam** o que está lá, não redesenham
+**Protótipo:** packages/web/prototype/lumem-acp-conversation.html — desenho fechado e verificado; as tasks de cliente **portam** o que está lá, não redesenham
 **Sucede:** [file-editor](../005-file-editor/tasks.md)
 **Destrava:** [workspace-memory](../007-workspace-memory/roadmap.md) partes 06–09
 **Status:** completa
@@ -163,7 +163,7 @@ que devolve resultado em vez de lançar.
 #### T4: `AcpManager` — o irmão do `PtyManager`
 
 **What**: Lançar o adaptador, fazer o framing JSON-RPC pelo `@agentclientprotocol/sdk`, e ser dono do ciclo de vida.
-**Where**: `packages/server/src/acp/AcpManager.ts` + teste, `packages/server/src/acp/fake-agent.ts` (fixture)
+**Where**: `packages/server/src/acp/AcpManager.ts` + teste, packages/server/src/acp/fake-agent.ts (fixture)
 **Depends on**: T1
 
 **Done when**:
@@ -267,7 +267,7 @@ permissão — e só (D6).
 #### C1: O modelo de vista da conversa
 
 **What**: Reduzir o stream de eventos a um estado renderizável. Puro, sem React.
-**Where**: `packages/web/src/lib/conversation-model.ts` + teste
+**Where**: `packages/web/src/features/conversation/conversation-model.ts` + teste
 **Depends on**: T1
 
 **Done when**:
@@ -288,7 +288,7 @@ permissão — e só (D6).
 #### C2: O socket da conversa
 
 **What**: Conectar, decodificar, reconectar — espelho de `pty-socket.ts`.
-**Where**: `packages/web/src/lib/acp-socket.ts` + teste
+**Where**: `packages/web/src/features/conversation/acp-socket.ts` + teste
 **Depends on**: T1
 
 **Done when**:
@@ -307,7 +307,7 @@ permissão — e só (D6).
 #### C3: Mensagem e raciocínio
 
 **What**: Os dois blocos de texto da conversa, com streaming e o raciocínio colapsado (F2.1, F2.2, A3).
-**Where**: `packages/web/src/components/Message.tsx`, `Thought.tsx` + testes, `conversation.css`
+**Where**: `packages/web/src/features/conversation/Message.tsx`, `Thought.tsx` + testes, `conversation.css`
 **Depends on**: C1
 
 **Done when**:
@@ -326,7 +326,7 @@ permissão — e só (D6).
 #### C4: O cartão de ferramenta
 
 **What**: O elemento que substitui o texto rolando — cinco estados, cabeçalho sempre visível, corpo colapsado com teto (F2.3, A4, D4).
-**Where**: `packages/web/src/components/ToolCard.tsx` + teste, `conversation.css`
+**Where**: `packages/web/src/features/conversation/ToolCard.tsx` + teste, `conversation.css`
 **Depends on**: C1
 
 **Done when**:
@@ -347,7 +347,7 @@ permissão — e só (D6).
 #### C5: O diálogo de permissão
 
 **What**: O único bloco que trava a sessão. Nasce com teste próprio (F2.4).
-**Where**: `packages/web/src/components/PermissionRequest.tsx` + teste, `conversation.css`
+**Where**: `packages/web/src/features/conversation/PermissionRequest.tsx` + teste, `conversation.css`
 **Depends on**: C1, C2
 
 **Done when**:
@@ -368,7 +368,7 @@ permissão — e só (D6).
 #### C6: O sinal fora da aba visível
 
 **What**: Pedido de permissão numa aba que não está aberta marca a aba e conta na sidebar (F2.4, [A10](open-questions.md)).
-**Where**: `packages/web/src/hooks/useWorktreeTabs.ts`, `components/SidebarTree.tsx`, `Tab.tsx` + testes
+**Where**: `packages/web/src/features/checkout/useWorktreeTabs.ts`, `components/SidebarTree.tsx`, `Tab.tsx` + testes
 **Depends on**: C1
 
 **Done when**:
@@ -418,7 +418,7 @@ permissão — e só (D6).
 #### C8: O CSS da conversa
 
 **What**: Portar o CSS do protótipo, inteiro, sem retoque de layout.
-**Where**: `packages/web/src/components/conversation.css`
+**Where**: `packages/web/src/features/conversation/conversation.css`
 **Depends on**: C3, C4, C5, C7
 
 **Done when**:
@@ -436,7 +436,7 @@ permissão — e só (D6).
 #### C9: A aba escolhe conversa ou terminal
 
 **What**: `SessionTabPanel` roteia por `transport`. É a task que troca o que o usuário vê.
-**Where**: `packages/web/src/components/SessionTab.tsx`, `hooks/useWorktreeTabs.ts` + testes
+**Where**: `packages/web/src/features/conversation/SessionTab.tsx`, `hooks/useWorktreeTabs.ts` + testes
 **Depends on**: C7, T7
 
 **Done when**:
@@ -562,7 +562,7 @@ sessão. As colunas `mode` e `model` já existem (T3) e passam a ser escritas qu
 #### P3: O plano na tela
 
 **What**: `plan` e `plan_update` traduzidos, e o cartão que se reescreve (F2.5).
-**Where**: `packages/server/src/acp/translate.ts`, `packages/web/src/lib/conversation-model.ts`, `packages/web/src/components/PlanCard.tsx` + testes, `conversation.css`
+**Where**: `packages/server/src/acp/translate.ts`, `packages/web/src/features/conversation/conversation-model.ts`, `packages/web/src/features/conversation/PlanCard.tsx` + testes, `conversation.css`
 **Depends on**: P2
 
 **Done when**:
@@ -583,7 +583,7 @@ sessão. As colunas `mode` e `model` já existem (T3) e passam a ser escritas qu
 #### P4: Uso e custo
 
 **What**: `usage_update` traduzido, e o rodapé que substitui o `/usage` (F2.7).
-**Where**: `packages/server/src/acp/translate.ts`, `packages/web/src/lib/conversation-model.ts`, `packages/web/src/components/UsageFooter.tsx` + testes, `conversation.css`
+**Where**: `packages/server/src/acp/translate.ts`, `packages/web/src/features/conversation/conversation-model.ts`, `packages/web/src/features/conversation/UsageFooter.tsx` + testes, `conversation.css`
 **Depends on**: P2
 
 **Done when**:
@@ -604,7 +604,7 @@ sessão. As colunas `mode` e `model` já existem (T3) e passam a ser escritas qu
 #### P5: Modo e modelo
 
 **What**: Os seletores, a troca, e a persistência na sessão (F2.6, D8, D9).
-**Where**: `packages/server/src/acp/AcpManager.ts`, `packages/server/src/acp/websocket.ts`, `packages/server/src/sessions/SessionStore.ts`, `packages/web/src/components/ConfigPills.tsx` + testes, `conversation.css`
+**Where**: `packages/server/src/acp/AcpManager.ts`, `packages/server/src/acp/websocket.ts`, `packages/server/src/sessions/SessionStore.ts`, `packages/web/src/features/conversation/ConfigPills.tsx` + testes, `conversation.css`
 **Depends on**: P2
 
 **Done when**:
@@ -626,7 +626,7 @@ sessão. As colunas `mode` e `model` já existem (T3) e passam a ser escritas qu
 #### P6: Comandos de barra
 
 **What**: O menu vindo de `available_commands_update` (F2.8).
-**Where**: `packages/server/src/acp/translate.ts`, `packages/web/src/components/SlashMenu.tsx` + testes, `conversation.css`
+**Where**: `packages/server/src/acp/translate.ts`, `packages/web/src/features/conversation/SlashMenu.tsx` + testes, `conversation.css`
 **Depends on**: P2
 
 **Done when**:
@@ -647,7 +647,7 @@ sessão. As colunas `mode` e `model` já existem (T3) e passam a ser escritas qu
 #### P7: O terminal que o agente pede
 
 **What**: `terminal/create`, `output`, `wait_for_exit`, `kill`, `release` atendidos pelo `PtyManager`, e o `xterm` dentro do cartão (F3, A5, D7).
-**Where**: `packages/server/src/acp/AcpManager.ts`, `packages/server/src/acp/terminal-bridge.ts` + teste, `packages/web/src/components/ToolCard.tsx`
+**Where**: `packages/server/src/acp/AcpManager.ts`, `packages/server/src/acp/terminal-bridge.ts` + teste, `packages/web/src/features/conversation/ToolCard.tsx`
 **Depends on**: P1, P2
 
 **Done when**:
@@ -852,7 +852,7 @@ comprimido, e um purge da linha antiga apaga a cópia antiga sem estragar a nova
 #### Q5: A aba que reabre, e o botão que retoma ✅
 
 **What**: Reabrir uma sessão encerrada mostra a conversa; retomar é explícito (D13).
-**Where**: `packages/web/src/features/conversation/Conversation.tsx`, `packages/server/src/acp/websocket.ts`, `packages/web/src/hooks/useWorktreeTabs.ts` + testes, `conversation.css`
+**Where**: `packages/web/src/features/conversation/Conversation.tsx`, `packages/server/src/acp/websocket.ts`, `packages/web/src/features/checkout/useWorktreeTabs.ts` + testes, `conversation.css`
 **Depends on**: Q4
 
 **Done when**:
@@ -944,7 +944,7 @@ Se a fase virar uma tela de preferências — a A16 —, aí sim: protótipo pri
 #### R1: O formulário ✅
 
 **What**: Criar configuração de agente pela UI, com transporte e versão do adaptador.
-**Where**: `packages/web/src/components/AgentConfigDialog.tsx` + teste, `sidebar.css`, `App.tsx`
+**Where**: `packages/web/src/features/agent/AgentConfigDialog.tsx` + teste, `sidebar.css`, `App.tsx`
 **Depends on**: nada — o `agentConfig.create` já aceita os dois campos desde a fase 1
 
 **Done when**:
@@ -968,7 +968,7 @@ Se a fase virar uma tela de preferências — a A16 —, aí sim: protótipo pri
 #### R2: A lista, e o que fazer com um erro de digitação ✅ — entregue junto da R1
 
 **What**: Ver as configurações que existem, com o transporte de cada uma, e remover.
-**Where**: `packages/web/src/components/AgentConfigDialog.tsx` + teste
+**Where**: `packages/web/src/features/agent/AgentConfigDialog.tsx` + teste
 **Depends on**: R1
 
 **Done when**:

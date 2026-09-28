@@ -121,7 +121,7 @@ Quatro coisas que a forma decide:
 
 ### Desenho antes de React
 
-Mesmo processo das quatro features anteriores (skill `ui-design-prototype`): protótipo HTML+CSS sobre o mesmo `tokens.css`, verificado por renderização, antes de qualquer componente. Arquivo: `packages/web/prototype/lumem-clone.html`.
+Mesmo processo das quatro features anteriores (skill `ui-design-prototype`): protótipo HTML+CSS sobre o mesmo `tokens.css`, verificado por renderização, antes de qualquer componente. Arquivo: packages/web/prototype/lumem-clone.html.
 
 Estados que o protótipo tem que mostrar, porque são eles que o desenho erra (nove, e sete não são o caminho feliz):
 

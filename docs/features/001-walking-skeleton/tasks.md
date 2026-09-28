@@ -191,7 +191,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
 #### T3: Servidor HTTP + tRPC base
 
 **What**: Servidor Fastify com adapter tRPC montado e uma procedure `health`.
-**Where**: `packages/server/src/{server.ts,trpc.ts,routers/index.ts}`, `packages/shared/src/types.ts`
+**Where**: `packages/server/src/{server.ts,trpc.ts,routers/index.ts}`, packages/shared/src/types.ts
 **Depends on**: T2
 **Reuses**: —
 **Requirement**: PRD §7
@@ -306,7 +306,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
 #### T7: Componente Terminal
 
 **What**: Componente React que renderiza `xterm.js` ligado ao WebSocket de PTY.
-**Where**: `packages/web/src/components/Terminal.tsx`, `packages/web/src/lib/pty-socket.ts`
+**Where**: `packages/web/src/features/conversation/Terminal.tsx`, `packages/web/src/features/conversation/pty-socket.ts`
 **Depends on**: T6
 **Reuses**: protocolo de `shared` do T6
 **Requirement**: PRD F5.3, F5.7
@@ -334,7 +334,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
 #### T8: Tela provisória de terminal
 
 **What**: Tela mínima que cria uma sessão de shell com `cwd` fixo e mostra o terminal.
-**Where**: `packages/web/src/pages/TerminalSpike.tsx`, procedure `pty.spawnShell` em `packages/server/src/routers/pty.ts`
+**Where**: packages/web/src/pages/TerminalSpike.tsx, procedure `pty.spawnShell` em packages/server/src/routers/pty.ts
 **Depends on**: T7
 **Reuses**: `Terminal` do T7, `PtyManager` do T5
 **Requirement**: prova da fatia vertical — vira a base de F5.1
@@ -756,7 +756,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
 #### T25: UI de detalhe da worktree
 
 **What**: Painel de detalhe com branch, caminho, limpeza e ahead/behind.
-**Where**: `packages/web/src/components/WorktreeDetail.tsx`
+**Where**: packages/web/src/components/WorktreeDetail.tsx
 **Depends on**: T20, T24
 **Reuses**: `getDetail` do T22
 **Requirement**: PRD F4.10

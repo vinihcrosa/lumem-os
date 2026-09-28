@@ -1,10 +1,10 @@
 # Primeiro acesso — Tasks
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md) — 0 de 17 respondidas
-**Protótipo:** `packages/web/prototype/lumem-onboarding-flow.html` — nove telas, desenho fechado e
+**Protótipo:** packages/web/prototype/lumem-onboarding-flow.html — nove telas, desenho fechado e
 renderizado. As tasks de cliente **portam** o que está lá; onde o desenho e o produto discordam, vale o
 [§4 do PRD](prd.md) e a **T0** corrige o desenho antes de qualquer porte
-**Sistema de design:** `packages/web/prototype/lumem-ds.css` — camada compartilhada, nova neste sync
+**Sistema de design:** packages/web/prototype/lumem-ds.css — camada compartilhada, nova neste sync
 **Sucede:** [acp-sessions](../006-acp-sessions/tasks.md) — é ela que faz o passo 3 ter para onde ir
 **Status:** completa
 **Histórico:** **21 de 21 entregues.** Gate cheio verde — 1.671 unit/integration (1 pulado) + 26 e2e.
@@ -165,7 +165,7 @@ mexer), depois `packages/web/prototype/` pelo sync
 **What**: `Steps`, `CheckList`/`CheckRow`, `Choice`, `CopyCommand`, `Recap` e `Coach` em `ui/`, com o
 CSS que o `lumem-ds.css` desenhou.
 **Where**: `packages/web/src/ui/` (componentes novos + `index.ts` + `ui.css`),
-`packages/web/src/ui/Styleguide.tsx`
+packages/web/src/ui/Styleguide.tsx
 **Depends on**: T0
 
 **Done when**:
@@ -205,7 +205,7 @@ CSS que o `lumem-ds.css` desenhou.
 #### T2: O CSS do fluxo, e a auditoria do porte ✅
 
 **What**: `setup.css` com o que é só desta tela, mais o teste que prova que classe pedida existe.
-**Where**: `packages/web/src/setup/setup.css`, `packages/web/src/setup/setup-css.test.ts`
+**Where**: `packages/web/src/features/setup/setup.css`, `packages/web/src/features/setup/setup-css.test.ts`
 **Depends on**: T1
 
 **Done when**:
@@ -238,7 +238,7 @@ CSS que o `lumem-ds.css` desenhou.
 
 **What**: `SetupFlow` — a casca sem sidebar, a régua de cinco passos, a navegação, e a condição que faz
 o fluxo aparecer.
-**Where**: `packages/web/src/setup/SetupFlow.tsx` + teste, `packages/web/src/App.tsx`
+**Where**: `packages/web/src/features/setup/SetupFlow.tsx` + teste, `packages/web/src/App.tsx`
 **Depends on**: T2
 
 **Done when**:
@@ -262,7 +262,7 @@ o fluxo aparecer.
 #### T4: Boas-vindas ✅
 
 **What**: A tela 1 — o que o produto é, antes de pedir qualquer coisa.
-**Where**: `packages/web/src/setup/Welcome.tsx` + teste
+**Where**: `packages/web/src/features/setup/Welcome.tsx` + teste
 **Depends on**: T3
 
 **Done when**:
@@ -281,7 +281,7 @@ o fluxo aparecer.
 #### T5: Pronto ✅
 
 **What**: A tela 9 — o recibo do que passou a existir na máquina.
-**Where**: `packages/web/src/setup/Done.tsx` + teste
+**Where**: `packages/web/src/features/setup/Done.tsx` + teste
 **Depends on**: T3
 
 **Done when**:
@@ -372,7 +372,7 @@ sonda conecta e a `agent_config` ACP nasce com a versão **detectada**.
 #### T8: A sonda ✅
 
 **What**: `setup.probe` — sobe o adaptador, faz o handshake, devolve o que veio, mata o processo.
-**Where**: `packages/server/src/setup/probe.ts` + teste, `packages/server/src/acp/AcpManager.ts`
+**Where**: packages/server/src/setup/probe.ts + teste, `packages/server/src/acp/AcpManager.ts`
 (expor `initialize`), `packages/server/src/config.ts` (`probeDir`), `routers/setup.ts`
 **Depends on**: T7
 
@@ -402,7 +402,7 @@ sonda conecta e a `agent_config` ACP nasce com a versão **detectada**.
 #### T9: A máquina na tela ✅
 
 **What**: A tela 2 — as cinco checagens, o aviso do `git`, e o "verificar de novo".
-**Where**: `packages/web/src/setup/MachineStep.tsx` + teste
+**Where**: `packages/web/src/features/setup/MachineStep.tsx` + teste
 **Depends on**: T6, T3
 
 **Done when**:
@@ -423,7 +423,7 @@ sonda conecta e a `agent_config` ACP nasce com a versão **detectada**.
 #### T10: O agente na tela ✅
 
 **What**: A tela 3 — o que foi encontrado, o que instalar, e o que a autenticação vai ser.
-**Where**: `packages/web/src/setup/AgentStep.tsx` + teste
+**Where**: `packages/web/src/features/setup/AgentStep.tsx` + teste
 **Depends on**: T7, T9
 
 **Done when**:
@@ -448,7 +448,7 @@ sonda conecta e a `agent_config` ACP nasce com a versão **detectada**.
 #### T11: O handshake na tela, e a configuração que nasce dele ✅
 
 **What**: A tela 4 — a prova de que conectou — e a `agent_config` criada com a versão detectada.
-**Where**: `packages/web/src/setup/HandshakeStep.tsx` + teste
+**Where**: `packages/web/src/features/setup/HandshakeStep.tsx` + teste
 **Depends on**: T8, T10
 
 **Done when**:
@@ -473,7 +473,7 @@ sonda conecta e a `agent_config` ACP nasce com a versão **detectada**.
 #### T12: A sonda contra o adaptador real ✅
 
 **What**: Um integration marcado, com o `claude-agent-acp` de verdade.
-**Where**: `packages/server/src/setup/probe.integration.test.ts`,
+**Where**: packages/server/src/setup/probe.integration.test.ts,
 [`docs/project/testing.md`](../../project/testing.md)
 **Depends on**: T8
 
@@ -528,7 +528,7 @@ de entrar.
 #### T14: Workspace ✅
 
 **What**: A tela 5 — criar o workspace, e dizer o que passou a existir no disco.
-**Where**: `packages/web/src/setup/WorkspaceStep.tsx` + teste
+**Where**: `packages/web/src/features/setup/WorkspaceStep.tsx` + teste
 **Depends on**: T3
 
 **Done when**:
@@ -549,7 +549,7 @@ de entrar.
 #### T15: Projeto ✅
 
 **What**: A tela 6 — o caminho, o que o Lumem leu dali, e o aviso das worktrees que já existem.
-**Where**: `packages/web/src/setup/ProjectStep.tsx` + teste
+**Where**: `packages/web/src/features/setup/ProjectStep.tsx` + teste
 **Depends on**: T13, T14
 
 **Done when**:
@@ -600,7 +600,7 @@ de entrar.
 #### T17: A primeira tarefa ✅
 
 **What**: A tela 7 — nome, base, a prévia, e o que abre junto.
-**Where**: `packages/web/src/setup/TaskStep.tsx` + teste
+**Where**: `packages/web/src/features/setup/TaskStep.tsx` + teste
 **Depends on**: T16, T15
 
 **Done when**:
@@ -624,7 +624,7 @@ de entrar.
 
 **What**: Explicar o modo `Auto` na primeira vez que ele para e pergunta.
 **Where**: `packages/web/src/features/conversation/Conversation.tsx`,
-`packages/web/src/hooks/useFirstPermissionCoach.ts` + testes, `setup.css` (`coach--after`)
+`packages/web/src/features/conversation/useFirstPermissionCoach.ts` + testes, `setup.css` (`coach--after`)
 **Depends on**: T1
 
 **Done when**:
@@ -648,7 +648,7 @@ de entrar.
 #### T19: O e2e que prova o objetivo ✅
 
 **What**: Banco vazio → primeiro turno de conversa, tudo pela tela.
-**Where**: `e2e/onboarding.spec.ts`, [`docs/project/testing.md`](../../project/testing.md)
+**Where**: e2e/onboarding.spec.ts, [`docs/project/testing.md`](../../project/testing.md)
 **Depends on**: T17, T18
 
 **Done when**:

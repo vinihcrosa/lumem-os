@@ -453,7 +453,7 @@ Nada disso é útil se for invisível — a lição do `journey` do Hermes.
 - Um sinal discreto na aba quando a sessão em curso escreveu ou propôs algo.
 
 **O desenho existe, e é um só.** O protótipo do S2 —
-`packages/web/prototype/lumem-memory.html` — é o desenho de registro, e a PR 05 o implementou: a
+packages/web/prototype/lumem-memory.html — é o desenho de registro, e a PR 05 o implementou: a
 memória é a **terceira aba do painel direito**, ao lado de arquivos e mudanças, com escopo seguindo o
 checkout selecionado.
 

@@ -80,7 +80,7 @@ Verificado nos manifestos e na raiz, não suposto:
 | Caminhos de código citados em backtick (fora de `docs/references/`) | **242**, **20 inexistentes** |
 | Linha duplicada no índice | 1 — `task-cycle-evidence.md` aparece duas vezes em `docs/README.md` |
 
-Os 4 links: dois apontam para `docs/features/003-worktree-tabs/prd.md`, que nunca existiu (a pasta só tem
+Os 4 links: dois apontam para docs/features/003-worktree-tabs/prd.md, que nunca existiu (a pasta só tem
 `tasks.md`), e dois em `compozy.md` apontam para arquivos de **outro** repositório.
 
 > **Metade consertada em 2026-09-07, pela [025-docs-contract](../features/025-docs-contract/prd.md).**
@@ -91,8 +91,8 @@ Os 4 links: dois apontam para `docs/features/003-worktree-tabs/prd.md`, que nunc
 > a linha duplicada do índice — nada disso foi tocado aqui.
 
 Os 20 caminhos são de `tasks.md` de features entregues, citando arquivo que a própria feature
-seguinte renomeou: `packages/server/src/setup/probe.ts`, `packages/web/src/components/WorktreeDetail.tsx`,
-`scripts/ScriptRunner.ts`, `e2e/onboarding.spec.ts`, entre outros.
+seguinte renomeou: packages/server/src/setup/probe.ts, packages/web/src/components/WorktreeDetail.tsx,
+scripts/ScriptRunner.ts, e2e/onboarding.spec.ts, entre outros.
 
 **Os caminhos de `docs/references/` ficam de fora da conta de propósito:** aqueles arquivos descrevem
 o código de *outros produtos* (Superset, compozy). São 30 ocorrências que parecem defeito e não são.

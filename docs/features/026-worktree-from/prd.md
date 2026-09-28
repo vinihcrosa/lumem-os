@@ -30,7 +30,7 @@ terminal, o que é o mesmo que dizer que o harness não ajudou.
 
 | Onde | O quê |
 |---|---|
-| `packages/web/src/components/CreateWorktreeDialog.tsx` | um `Input` só — o nome, que também é a branch. Nenhum seletor de origem |
+| packages/web/src/components/CreateWorktreeDialog.tsx | um `Input` só — o nome, que também é a branch. Nenhum seletor de origem |
 | `packages/server/src/routers/worktree.ts:110` | `create` aceita `{ projectId, name }`. **Só isso** |
 | `packages/server/src/routers/worktree.ts:137` | a base é `project.defaultBranch`, **sempre** |
 | `packages/server/src/routers/worktree.ts:95` | a `preview` carimba `baseBranch: project.defaultBranch` e monta a string `git worktree add -b …` **à mão** |

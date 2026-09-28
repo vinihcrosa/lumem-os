@@ -537,7 +537,7 @@ descreve.
 
 - Código deste repositório: `packages/server/src/pty/`, `packages/server/src/sessions/`,
   `packages/server/src/routers/session.ts`, `packages/server/src/db/schema.ts`,
-  `packages/web/src/components/Terminal.tsx`, `packages/web/src/lib/pty-socket.ts`
+  `packages/web/src/features/conversation/Terminal.tsx`, `packages/web/src/features/conversation/pty-socket.ts`
 - [Estudo do Compozy](../references/compozy.md), §7 "Agent CLIs — 26 providers via ACP"
 - [Agent Client Protocol — visão geral](https://agentclientprotocol.com/protocol/overview) e
   [SDK TypeScript](https://agentclientprotocol.com/libraries/typescript)

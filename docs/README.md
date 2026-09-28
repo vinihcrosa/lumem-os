@@ -41,7 +41,6 @@ O contrato está na [025-docs-contract](features/025-docs-contract/prd.md).
 | [O status de PR vem do `gh` da sua máquina, e o Lumem não guarda segredo](adr/2026-08-30-0416-pr-status-comes-from-your-own-gh.md) | 2026-08-30 | `security` |
 | [O daemon é um bundle ESM que serve o web na própria porta](adr/2026-08-30-0532-daemon-is-an-esm-bundle-that-serves-the-web.md) | 2026-08-30 | `distribution` |
 | [O número da PRD é ordem de leitura, não precedência](adr/2026-09-07-2208-prd-number-is-reading-order-not-precedence.md) | 2026-09-07 | `docs` |
-| [Agente é sempre ACP](adr/2026-09-24-1620-agent-is-always-acp.md) | 2026-09-24 | `transport` |
 | [A head da PR é buscada sob demanda, e não exigida do usuário](adr/2026-09-08-0210-pr-head-is-fetched-on-demand.md) | 2026-09-08 | `git` |
 | [O adaptador é a cópia que o daemon instalou, e o PATH nunca decide qual](adr/2026-09-08-0507-adapter-is-the-copy-the-daemon-owns.md) | 2026-09-08 | `transport` |
 | [O modelo é do Lumem, e o que vem de fora se adapta a ele](adr/2026-09-13-0038-our-model-is-king-outsiders-adapt.md) | 2026-09-13 | `architecture` |

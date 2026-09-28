@@ -256,7 +256,7 @@ do trabalho não vê meus plugins?"*). Passa nos três testes, e a decisão est�
 
 O `AcpManager` deriva `authRequired` do `session/new` responder `-32000`
 (`packages/server/src/acp/AcpManager.ts`, no `spawn` do probe), e o `AgentLogin` pinta `entrar` só
-quando `authRequired === true` (`packages/web/src/components/AgentLogin.tsx`). Com o `0.75.1`, o
+quando `authRequired === true` (packages/web/src/components/AgentLogin.tsx). Com o `0.75.1`, o
 `session/new` fecha sem credencial (§2.2), então a linha fica verde e o primeiro sinal de que falta
 login é o primeiro prompt morrer. A [`027`](../features/027-adapter-provenance/prd.md) mediu o
 sintoma pelo lado do turno (*"com só `node`, `session/prompt` responde `Authentication required`"*) e

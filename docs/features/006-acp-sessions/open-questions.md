@@ -288,7 +288,7 @@ rodou contra versão fixa, então o número medido no PRD tem significado.
 ## E. O que o protótipo levantou
 
 > As duas perguntas desta seção nasceram na **fase 2** — o protótipo em
-> `packages/web/prototype/lumem-acp-conversation.html`. Nenhuma delas era visível lendo o PRD; as duas
+> packages/web/prototype/lumem-acp-conversation.html. Nenhuma delas era visível lendo o PRD; as duas
 > apareceram ao olhar o pixel. O protótipo já mostra a proposta funcionando, então discordar aqui
 > custa uma rodada de CSS, não uma refatoração de React.
 

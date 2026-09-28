@@ -1,7 +1,7 @@
 # Barra direita: arquivos e diff — Tasks
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
-**Protótipo:** `packages/web/prototype/lumem-right-panel.html` — o desenho está fechado e verificado; as tasks de cliente portam o que está lá
+**Protótipo:** packages/web/prototype/lumem-right-panel.html — o desenho está fechado e verificado; as tasks de cliente portam o que está lá
 **Sucede:** [worktree-tabs](../003-worktree-tabs/tasks.md)
 **Status:** completa
 **Histórico:** concluída — 10 de 10, gate cheio verde (685 unit/integration + 12 e2e)
@@ -173,7 +173,7 @@ Não existe procedure de escrita para revisar depois.
 #### R6: Terceira coluna do shell
 
 **What**: O slot à direita, o colapso, a largura arrastável — e o terminal que se remede quando ela mexe.
-**Where**: `packages/web/src/layout/AppShell.tsx`, `layout.css`, `Topbar.tsx`, `packages/web/src/hooks/useRightPanel.ts` + testes
+**Where**: `packages/web/src/layout/AppShell.tsx`, `layout.css`, `Topbar.tsx`, `packages/web/src/features/checkout/useRightPanel.tsx` + testes
 **Depends on**: nada do servidor
 
 **Done when**:
@@ -197,7 +197,7 @@ Não existe procedure de escrita para revisar depois.
 #### R7: Árvore de arquivos
 
 **What**: A árvore lazy, com marcador de status.
-**Where**: `packages/web/src/components/FileTree.tsx`, `files.css`, `hooks/useFileTree.ts` + testes
+**Where**: `packages/web/src/features/checkout/FileTree.tsx`, `files.css`, `hooks/useFileTree.ts` + testes
 **Depends on**: R3, R6
 
 **Done when**:
@@ -218,7 +218,7 @@ Não existe procedure de escrita para revisar depois.
 #### R8: Visualizador de arquivo
 
 **What**: Abrir o arquivo com realce, numeração, e as recusas ditas.
-**Where**: `packages/web/src/components/FileViewer.tsx`, `packages/web/src/components/TabSplit.tsx`, `packages/web/src/lib/shiki-theme.ts` + testes
+**Where**: `packages/web/src/features/checkout/FileViewer.tsx`, `packages/web/src/features/checkout/TabSplit.tsx`, packages/web/src/lib/shiki-theme.ts + testes
 **Depends on**: R7
 
 **Done when**:
@@ -243,7 +243,7 @@ Não existe procedure de escrita para revisar depois.
 #### R9: Aba de mudanças
 
 **What**: O alternador, a lista e o patch.
-**Where**: `packages/web/src/components/ChangesTab.tsx`, `DiffView.tsx`, `files.css` + testes
+**Where**: `packages/web/src/features/checkout/ChangesTab.tsx`, `DiffView.tsx`, `files.css` + testes
 **Depends on**: R5, R6
 
 **Done when**:

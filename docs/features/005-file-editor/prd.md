@@ -67,7 +67,7 @@ O que a tela ganha é um indicador de estado do arquivo, no rodapé da moldura q
 
 ### Desenho antes de React
 
-Mesmo processo das três features anteriores (skill `ui-design-prototype`): protótipo HTML+CSS lendo o **mesmo** `tokens.css` do app, verificado por renderização, antes de qualquer componente. Arquivo: `packages/web/prototype/lumem-file-editor.html`.
+Mesmo processo das três features anteriores (skill `ui-design-prototype`): protótipo HTML+CSS lendo o **mesmo** `tokens.css` do app, verificado por renderização, antes de qualquer componente. Arquivo: packages/web/prototype/lumem-file-editor.html.
 
 Estados que o protótipo tem que mostrar, porque são eles que o desenho pode errar:
 
@@ -80,7 +80,7 @@ Estados que o protótipo tem que mostrar, porque são eles que o desenho pode er
 
 #### Os tokens que o desenho pediu
 
-Dez tokens novos, todos pelo gerador (`packages/web/scripts/generate-tokens.py`), nenhum escrito à
+Dez tokens novos, todos pelo gerador (packages/web/scripts/generate-tokens.py), nenhum escrito à
 mão. A suíte de contraste foi de **46 para 59 pares**, todos AA ou melhor.
 
 | Grupo | Tokens | Para quê |

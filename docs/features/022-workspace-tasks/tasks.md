@@ -38,11 +38,11 @@ A ordem tem duas regras, e as duas são do repositório:
 | `packages/server/src/routers/task.ts` | **novo.** `task.*`, com as transições por ator |
 | `packages/server/src/routers/project.ts` | remover projeto leva as tarefas na **mesma transação** da WS-Q22 |
 | `packages/server/src/routers/worktree.ts`, `session.ts` | um `taskId` opcional em `create` e `createAgent` |
-| `packages/server/src/task/http.ts` | **novo.** `POST /tasks` e `POST /tasks/:id/review`, no molde do `memory/http.ts` |
+| packages/server/src/task/http.ts | **novo.** `POST /tasks` e `POST /tasks/:id/review`, no molde do `memory/http.ts` |
 | `packages/server/src/web/static.ts` | `DAEMON_PREFIXES` aprende `/tasks` |
 | `packages/server/src/memory/skill.ts` | um parágrafo, com o custo em caracteres medido |
-| `packages/web/src/components/WorkspacePanel.tsx` | a fila de Propostas no topo, e a seção de tarefas |
-| `packages/web/src/components/MemoryPanel.tsx` | a aba `inbox` **sai** — a lista sobe para a fila |
+| `packages/web/src/features/workspace/WorkspacePanel.tsx` | a fila de Propostas no topo, e a seção de tarefas |
+| packages/web/src/components/MemoryPanel.tsx | a aba `inbox` **sai** — a lista sobe para a fila |
 
 **O que não muda** — cada um com uma pergunta com nome:
 
@@ -185,7 +185,7 @@ de chegar às tarefas; a frase da confirmação contém os dois números.
 primeiro, `open` depois, `done` recolhido), filtro por status e por projeto, e *"ver todas"* para a
 tela cheia. No painel do projeto, a mesma lista filtrada. Sem prioridade, prazo ou estimativa
 ([T3](open-questions.md)).
-**Where**: `packages/web/src/components/WorkspacePanel.tsx` e o componente novo da lista
+**Where**: `packages/web/src/features/workspace/WorkspacePanel.tsx` e o componente novo da lista
 **Done when**: componente com o fake de tRPC: a ordem é asserida com os quatro estados misturados; o
 filtro por projeto não muda a ordem; `done` recolhido abre e fecha; a lista vazia **ensina** em vez de
 parecer quebrada.
@@ -238,7 +238,7 @@ regra da casa e o ponto de sujeira continua visível.
 sessão da F4 do [daemon-auth](../019-daemon-auth/prd.md); **até ela existir**, o `?session=` da
 memória, **com a mesma dívida nomeada em comentário**. A regra do §3.2 decide `open` ou `proposed`.
 `review` pelo caminho da [T7](open-questions.md).
-**Where**: `packages/server/src/task/http.ts`, `server.ts`, e
+**Where**: packages/server/src/task/http.ts, `server.ts`, e
 `packages/server/src/web/static.ts` — **o `DAEMON_PREFIXES` precisa aprender `/tasks`**, senão o web
 servido na mesma porta engole a rota e o sintoma aparece só no pacote instalado.
 **Done when**: `app.inject`: mesmo projeto → `open`; outro projeto → `proposed`; projeto que não é do
@@ -253,7 +253,7 @@ arquivo estático.
 o mesmo bolso. **Não** é variável de ambiente: é um ajuste **visível**, no mesmo painel dos outros
 tetos, com o número mostrado como leitura. Ao estourar, o `POST` recusa com a frase que diz que o
 orçamento acabou, e **a recusa fica na transcrição**.
-**Where**: `packages/server/src/task/http.ts`, o painel de ajustes, e o schema do ajuste
+**Where**: packages/server/src/task/http.ts, o painel de ajustes, e o schema do ajuste
 **Done when**: a sexta criação **da mesma tarefa** recusa com a frase; a sexta de **outra** tarefa
 passa; o número aparece na tela e muda o comportamento quando editado; a recusa é visível na
 transcrição da sessão, não só no log.
@@ -277,7 +277,7 @@ crescimento total do preâmbulo está escrito no PRD.
 visível e a ação de cada um. A aba `inbox` **sai** do `MemoryPanel`, e a lista sobe para a fila com o
 que a [T3](#t3-a-fila-de-propostas-reconciliada) decidiu levar junto. Tarefa `proposed` aprovada vira
 `open` (com edição) ou `dropped` (com motivo), sempre com quem propôs e de qual sessão.
-**Where**: `packages/web/src/components/WorkspacePanel.tsx`, `MemoryPanel.tsx`, e o componente da
+**Where**: `packages/web/src/features/workspace/WorkspacePanel.tsx`, `MemoryPanel.tsx`, e o componente da
 fila
 **Done when**: componente: os dois tipos na mesma lista com verbos diferentes; aprovar tarefa cruza o
 projeto certo; rejeitar exige motivo. E **o teste que importa**: aprovar uma proposta de memória pela

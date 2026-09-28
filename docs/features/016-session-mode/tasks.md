@@ -1,7 +1,7 @@
 # O modo da conversa — Tasks
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md) — 6 de 6 fechadas
-**Protótipo:** `packages/web/prototype/lumem-session-mode.html` — desenho fechado e verificado
+**Protótipo:** packages/web/prototype/lumem-session-mode.html — desenho fechado e verificado
 renderizando; as tasks de cliente **portam** o que está lá, não redesenham
 **Sucede:** [acp-sessions](../006-acp-sessions/tasks.md), que trouxe os seletores (F2.6) e o pedido de
 permissão
@@ -58,7 +58,7 @@ contraste do menu já no `contrast.ts`.
 
 **What**: O composer passa a ter pílula de modo em toda conversa viva. Quando o agente relata modos, é
 a de hoje; quando não, é a do Lumem.
-**Where**: `packages/web/src/components/LumemModePill.tsx`, `Conversation.tsx`, `conversation.css` +
+**Where**: `packages/web/src/features/conversation/LumemModePill.tsx`, `Conversation.tsx`, `conversation.css` +
 testes
 
 **Done when**:
@@ -174,7 +174,7 @@ workspace ao nascer.
 #### T8: O rastro
 
 **What**: O que passa sozinho aparece na conversa, assinado.
-**Where**: `AcpManager.ts`, `packages/web/src/lib/conversation-model.ts`, `ToolCard.tsx`,
+**Where**: `AcpManager.ts`, `packages/web/src/features/conversation/conversation-model.ts`, `ToolCard.tsx`,
 `conversation.css` + testes
 
 **Done when**:
@@ -209,7 +209,7 @@ workspace ao nascer.
 #### T10: O portão do `liberado`
 
 **What**: A confirmação por sessão, com o escopo dito por extenso.
-**Where**: `packages/web/src/components/FreeModeGate.tsx`, `conversation.css` + testes
+**Where**: `packages/web/src/features/conversation/FreeModeGate.tsx`, `conversation.css` + testes
 
 **Done when**:
 - [x] Escolher `Liberado` abre o portão; o modo **só muda** depois de confirmar
