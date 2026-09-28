@@ -1,4 +1,4 @@
-import { adapterById } from "@lumem/shared";
+import { adapterById, type AcpRateLimit } from "@lumem/shared";
 import { and, desc, eq } from "drizzle-orm";
 import { existsSync } from "node:fs";
 
@@ -18,6 +18,7 @@ import type { ScriptRunner } from "../scripts/ScriptRunner.js";
 
 import type { ConveyorPorts, GateVerdict, PreparedCheckout } from "./conveyor.js";
 import { decideGate } from "./gate.js";
+import { pausedUntil } from "./pause.js";
 import { matches, type Reproducer } from "./reproduce.js";
 import { queueOf, type QueueEntry } from "./queue.js";
 
@@ -88,6 +89,15 @@ export interface ConveyorDeps {
     effort: string | null;
   }): Promise<{ sessionId: string } | null>;
   prompt(input: { sessionId: string; text: string }): Promise<void>;
+  /**
+   * O último relato de cota da sessão, ou `null` (`028` T17).
+   *
+   * É o único sinal de *quando reabre* que a esteira lê: o `resetsAt` que o
+   * agente relatou num `usage`. O texto da recusa também diz — *"resets 7pm"* —,
+   * e não é lido. Opcional: sem ele, toda recusa é *sem sinal*, que é o caso
+   * medido.
+   */
+  rateLimitOf?(sessionId: string): AcpRateLimit | null;
   /** Interrompe um turno que passou do teto. Falhar aqui não é fatal. */
   cancel(sessionId: string): Promise<void>;
   /** Encerra a sessão do encaixe quando o turno acabou (Parte 7 — T52). */
@@ -414,6 +424,12 @@ export function createConveyorPorts(deps: ConveyorDeps): ConveyorPorts {
         if (isDomainError(error) && error.code === "BLOCKED") {
           return { kind: "refused" as const, reason: error.message };
         }
+        // A **conta** disse não (`028` T17). A frase já nomeia a conta; a hora
+        // de reabrir, quando o agente a relatou, sai do `rateLimit` — e só dele.
+        if (isDomainError(error) && error.code === "QUOTA_REFUSED") {
+          const reopensAt = pausedUntil(deps.rateLimitOf?.(input.sessionId) ?? null);
+          return { kind: "quota" as const, reason: error.message, reopensAt };
+        }
         throw error;
       }
     },
@@ -614,6 +630,10 @@ export function createConveyorPorts(deps: ConveyorDeps): ConveyorPorts {
     },
 
     countAttempt: (taskId) => tasks.countAttempt(taskId),
+
+    quotaRefused: (taskId) => tasks.refuseForQuota(taskId),
+
+    pause: ({ taskId, until }) => tasks.pauseUntil(taskId, until),
 
     bounce: async ({ taskId, reason }) => {
       const voltas = await tasks.countBounce(taskId);

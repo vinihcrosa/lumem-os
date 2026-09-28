@@ -385,6 +385,9 @@ export async function bootstrap({
       prompt: async ({ sessionId, text }) => {
         await acp.prompt(sessionId, text);
       },
+      // O sinal de quando a cota reabre, quando o agente o relatou (`028` T17).
+      rateLimitOf: (sessionId) =>
+        acp.rateLimits().find((one) => one.sessionId === sessionId)?.rateLimit ?? null,
       cancel: (sessionId) => {
         acp.cancel(sessionId);
         return Promise.resolve();

@@ -1157,6 +1157,31 @@ export const task = sqliteTable(
      */
     bounces: integer("bounces").notNull().default(0),
     /**
+     * Quantas vezes seguidas a cota recusou o turno desta tarefa (`028` T17, Q32).
+     *
+     * **Separada de `attempts`, porque cota não é orçamento**: a Q32 diz que
+     * esperar a conta reabrir não consome tentativa, e a recusa **devolve** a que
+     * foi contada antes do prompt. Sem um contador próprio, uma cota que nunca
+     * reabre viraria um laço sem fim, sem gastar nada e sem parar nunca — a
+     * mesma razão por que o [ADR da esteira sem
+     * lease](../../../../docs/adr/2026-09-13-0412-the-conveyor-has-no-lease.md)
+     * guarda *quantas vezes já se tentou*.
+     *
+     * Zera quando um turno de fato roda, e na mudança de etapa.
+     */
+    quotaRefusals: integer("quota_refusals").notNull().default(0),
+    /**
+     * Até quando a esteira espera a cota antes de tentar de novo, ou `NULL`.
+     *
+     * **Guardado, como o `blockedReason`, e pelo mesmo motivo**: é o registro de
+     * uma **decisão** do daemon — *"tento de novo às 14:20"* —, e não um fato que
+     * continue existindo fora dele. A pausa que o agente **relata**
+     * (`rateLimit.resetsAt`) continua derivada, no selo; esta é a que a recusa
+     * medida em 2026-09-28 exige, porque ela chegou com `rateLimit: null` — o
+     * *"resets 7pm"* só existe no texto do adaptador, e texto não se lê.
+     */
+    pausedUntil: integer("paused_until", { mode: "timestamp_ms" }),
+    /**
      * Se a esteira pode pegar **esta** tarefa (`028` Parte 2, T22).
      *
      * Dois valores, e o default é `inherit`: a tarefa segue o interruptor do

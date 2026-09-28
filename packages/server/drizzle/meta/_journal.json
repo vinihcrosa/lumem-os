@@ -274,6 +274,13 @@
       "when": 1790437877726,
       "tag": "0038_conta_principal",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "6",
+      "when": 1790619329977,
+      "tag": "0039_espera_da_cota",
+      "breakpoints": true
     }
   ]
 }

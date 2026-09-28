@@ -1251,6 +1251,17 @@ describe("0027 e 0028 — a issue como identidade, e os marcos", () => {
     });
   });
 
+  it("uma tarefa que já existia acorda sem espera de cota (`028` T17)", async () => {
+    const handle = openDatabase({ path: databaseBeforeTracker() });
+    open.push(handle);
+
+    const [row] = await handle.db.select().from(schema.task);
+
+    // `0` e `NULL`: nenhuma recusa contada, nenhuma pausa decidida — a esteira a
+    // pega na próxima passada como pegava antes.
+    expect(row).toMatchObject({ quotaRefusals: 0, pausedUntil: null });
+  });
+
   it("duas tarefas não podem ser a mesma issue no mesmo workspace", async () => {
     const handle = openDatabase({ path: databaseBeforeTracker() });
     open.push(handle);

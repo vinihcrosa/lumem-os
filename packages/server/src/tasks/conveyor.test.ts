@@ -37,6 +37,8 @@ function fakeTask(patch: Partial<TaskRow> = {}): TaskRow {
     reason: null,
     attempts: 0,
     bounces: 0,
+    quotaRefusals: 0,
+    pausedUntil: null,
     autonomy: "inherit",
     preparedPrompt: null,
     preparedRole: null,
@@ -74,6 +76,8 @@ interface Harness {
     mark: ReturnType<typeof vi.fn>;
     prepareCheckout: ReturnType<typeof vi.fn>;
     gate: ReturnType<typeof vi.fn>;
+    quotaRefused: ReturnType<typeof vi.fn>;
+    pause: ReturnType<typeof vi.fn>;
   };
 }
 
@@ -88,6 +92,7 @@ function harness({
   dirty = false,
   instructions = "",
   checkoutFails = null,
+  quotaRefusalsSoFar = 0,
 }: {
   facts: Partial<QueueFacts>;
   verdict?: GateVerdict;
@@ -104,10 +109,13 @@ function harness({
   instructions?: string;
   /** A frase com que `prepareCheckout` rejeita, quando ele rejeita. */
   checkoutFails?: string | null;
+  /** Quantas vezes seguidas a cota já recusou esta tarefa. */
+  quotaRefusalsSoFar?: number;
 }): Harness {
   const calls: string[] = [];
   let attempts = attemptsSoFar;
   let bounces = bouncesSoFar;
+  let quotaRefusals = quotaRefusalsSoFar;
 
   const spies = {
     openSession: vi.fn(async (input: { taskId: string; worktreeId: string }) => {
@@ -166,6 +174,17 @@ function harness({
       calls.push("gate");
       return verdict;
     }),
+    // A recusa por cota **devolve** a tentativa: o contador de tentativas do
+    // harness desce, como o repositório faz numa escrita só.
+    quotaRefused: vi.fn(async () => {
+      calls.push("quotaRefused");
+      attempts = Math.max(0, attempts - 1);
+      quotaRefusals += 1;
+      return quotaRefusals;
+    }),
+    pause: vi.fn(async () => {
+      calls.push("pause");
+    }),
   };
 
   const ports: ConveyorPorts = {
@@ -191,6 +210,8 @@ function harness({
     comment: spies.comment as unknown as ConveyorPorts["comment"],
     park: spies.park as unknown as ConveyorPorts["park"],
     mark: spies.mark as unknown as NonNullable<ConveyorPorts["mark"]>,
+    quotaRefused: spies.quotaRefused as unknown as ConveyorPorts["quotaRefused"],
+    pause: spies.pause as unknown as ConveyorPorts["pause"],
     prepared: async (taskId) => ({
       role: "implementador",
       prompt: "o prompt que foi preparado",
@@ -1143,5 +1164,107 @@ describe("a anotação do revisor vai para a PR (Parte 7 — T55)", () => {
 
     expect(spies.publishNotes).not.toHaveBeenCalled();
     expect(spies.bounce).toHaveBeenCalled();
+  });
+});
+
+describe("a cota recusou: pausa, e não bloqueio (`028` T17, Q32)", () => {
+  /*
+   * A forma medida em 2026-09-28: a conta bateu no limite semanal, e a recusa
+   * chegou sem `rateLimit` — o *"resets 7pm"* estava só no texto. A esteira não
+   * lê texto: espera com espera crescente, três vezes, e depois para nomeando a
+   * conta.
+   */
+  const NOW = new Date("2026-09-28T18:00:00Z");
+  const REASON = "a conta technomar-ted bateu no limite do Claude Code";
+  const cota = (reopensAt: Date | null = null) => ({ kind: "quota" as const, reason: REASON, reopensAt });
+  const run = (ports: ConveyorPorts) => createConveyor(ports, { now: () => NOW }).tick("w1");
+
+  it("não gasta a tentativa, não julga, e pausa até a primeira espera", async () => {
+    const { ports, spies, calls } = harness({ facts: { entries: [entry()] } });
+    spies.prompt.mockResolvedValue(cota());
+
+    await run(ports);
+
+    // A tentativa foi contada antes do prompt — é a regra que protege contra
+    // daemon morto no meio — e a recusa a devolve.
+    expect(calls.indexOf("countAttempt")).toBeLessThan(calls.indexOf("quotaRefused"));
+    expect(spies.quotaRefused).toHaveBeenCalledWith("t1");
+    expect(spies.pause).toHaveBeenCalledWith({
+      taskId: "t1",
+      until: new Date(NOW.getTime() + 15 * 60_000),
+    });
+    expect(spies.gate).not.toHaveBeenCalled();
+    expect(spies.block).not.toHaveBeenCalled();
+    expect(spies.advance).not.toHaveBeenCalled();
+  });
+
+  it("solta o adaptador enquanto espera, e deixa registrado na tarefa", async () => {
+    const { ports, spies } = harness({ facts: { entries: [entry()] } });
+    spies.prompt.mockResolvedValue(cota());
+
+    await run(ports);
+
+    // Horas de espera com um processo de 243 MB de pé por nada: a próxima
+    // tentativa retoma a conversa do encaixe.
+    expect(spies.closeSession).toHaveBeenCalledWith("ses-t1");
+    expect(spies.comment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: `implementador · ${REASON} — esperando para tentar de novo (1 de 3), sem gastar tentativa`,
+      }),
+    );
+  });
+
+  it("a quarta recusa seguida bloqueia, e o motivo nomeia a conta", async () => {
+    const { ports, spies } = harness({ facts: { entries: [entry()] }, quotaRefusalsSoFar: 3 });
+    spies.prompt.mockResolvedValue(cota());
+
+    await run(ports);
+
+    expect(spies.block).toHaveBeenCalledWith({
+      taskId: "t1",
+      reason: `${REASON} — tentei de novo 3 vezes e ela não reabriu`,
+    });
+    expect(spies.pause).not.toHaveBeenCalledWith(expect.objectContaining({ until: expect.any(Date) }));
+  });
+
+  it("quando o agente relatou que só reabre depois de 4 h, bloqueia na primeira", async () => {
+    const { ports, spies } = harness({ facts: { entries: [entry()] } });
+    spies.prompt.mockResolvedValue(cota(new Date(NOW.getTime() + 5 * 60 * 60_000)));
+
+    await run(ports);
+
+    expect(spies.block).toHaveBeenCalledWith({
+      taskId: "t1",
+      reason: `${REASON} — ela só reabre daqui a mais de 4 h`,
+    });
+  });
+
+  it("um turno que roda depois de uma recusa zera a espera", async () => {
+    // A cota reabriu: a próxima recusa, se vier, é outro episódio e recomeça
+    // das três.
+    const { ports, spies } = harness({ facts: { entries: [entry({ quotaRefusals: 2 })] } });
+
+    await run(ports);
+
+    expect(spies.pause).toHaveBeenCalledWith({ taskId: "t1", until: null });
+    expect(spies.gate).toHaveBeenCalled();
+  });
+
+  it("sem recusa anterior, um turno comum não escreve nada de cota", async () => {
+    const { ports, spies } = harness({ facts: { entries: [entry()] } });
+
+    await run(ports);
+
+    expect(spies.pause).not.toHaveBeenCalled();
+  });
+
+  it("o clique do `assistido` que bate na cota diz isso, e não um erro genérico", async () => {
+    const { ports, spies } = harness({ facts: {} });
+    spies.prompt.mockResolvedValue(cota());
+
+    await expect(createConveyor(ports, { now: () => NOW }).send("t1")).rejects.toMatchObject({
+      code: "QUOTA_REFUSED",
+      message: REASON,
+    });
   });
 });

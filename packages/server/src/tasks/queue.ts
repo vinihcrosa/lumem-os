@@ -85,10 +85,13 @@ export function queueOf(
   {
     workspaceId,
     liveTurns,
+    now = new Date(),
   }: {
     workspaceId: string;
     /** Os turnos em voo do daemon, como o `AcpManager` os relata. */
     liveTurns: readonly { sessionId: string; startedAt: Date }[];
+    /** Contra o que a espera da cota é comparada. */
+    now?: Date;
   },
 ): QueueFacts {
   const space = db.select().from(workspace).where(eq(workspace.id, workspaceId)).get();
@@ -155,6 +158,11 @@ export function queueOf(
       // cuja sessão morreu volta a ser candidato aqui, sem escrita nenhuma —
       // que é a recuperação inteira da esteira.
       if ((busy.get(row.id) ?? []).length > 0) continue;
+      // Esperando a cota reabrir (`028` T17): não é candidato **até a hora**, e
+      // depois dela volta sem escrita nenhuma — a Q32 *"retoma sozinha"*. E ele
+      // não conta como vaga ocupada, porque não tem turno em voo: com teto 1,
+      // horas de pausa seriam horas de esteira parada por nada.
+      if (row.pausedUntil !== null && row.pausedUntil > now) continue;
       entries.push({ task: row, role: stage.role });
     }
   }

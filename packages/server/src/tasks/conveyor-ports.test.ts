@@ -2,7 +2,7 @@ import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { ADAPTERS_DIR_NAME, CLAUDE_ADAPTER, newId } from "@lumem/shared";
+import { ADAPTERS_DIR_NAME, CLAUDE_ADAPTER, newId, type AcpRateLimit } from "@lumem/shared";
 import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -12,11 +12,13 @@ import {
   project,
   session,
   worktree,
+  workspace as workspaceTable,
   task,
   taskComment,
   taskFinding,
   taskReview,
 } from "../db/schema.js";
+import { DomainError } from "../errors.js";
 import { createTaskFindingRepository } from "../repositories/task-finding.js";
 import { createTaskReviewRepository } from "../repositories/task-review.js";
 import { createTaskRepository } from "../repositories/task.js";
@@ -74,6 +76,10 @@ interface SceneOptions {
    * `createWorktree` que recusa, porque cortar worktree não é o que eles testam.
    */
   withCheckout?: boolean;
+  /** O `session/prompt`, quando o caso manda um. O default recusa: não devia haver prompt. */
+  prompt?: () => Promise<void>;
+  /** O último relato de cota de uma sessão, quando o caso tem um. */
+  rateLimitOf?: (sessionId: string) => AcpRateLimit | null;
 }
 
 /** O que a esteira pediu aos scripts do projeto, em ordem. */
@@ -175,7 +181,8 @@ async function scene(status: string, options: SceneOptions = {}) {
       resumed.push(input);
       return Promise.resolve({ sessionId: `${input.sessionId}-retomada` });
     },
-    prompt: () => Promise.reject(new Error("não devia mandar prompt")),
+    prompt: options.prompt ?? (() => Promise.reject(new Error("não devia mandar prompt"))),
+    ...(options.rateLimitOf === undefined ? {} : { rateLimitOf: options.rateLimitOf }),
     cancel: () => Promise.resolve(),
     closeSession: () => Promise.resolve(),
     reproduce:
@@ -205,6 +212,8 @@ async function scene(status: string, options: SceneOptions = {}) {
     entry,
     statusNow,
     taskId: created.id,
+    workspaceId: space.id,
+    api,
     tasks,
     db,
     findings: createTaskFindingRepository(db),
@@ -934,5 +943,109 @@ describe("a conta do encaixe chega ao processo (034 T10)", () => {
     await openers.resumeSession({ sessionId, agentMode: null, model: "sonnet", effort: null });
 
     expect(configCalls.filter((call) => call.configId === "effort")).toEqual([]);
+  });
+});
+
+describe("a cota recusou, e o banco guarda a espera (`028` T17)", () => {
+  /*
+   * A política mora no `conveyor.test.ts`; aqui é a tradução — e é o arquivo que
+   * faltou na T49, quando a política estava certa e o banco recusava.
+   */
+  const REASON = "a conta technomar-ted bateu no limite do Claude Code";
+  const row = async (db: Awaited<ReturnType<typeof scene>>["db"], id: string) =>
+    (await db.select().from(task)).find((each) => each.id === id)!;
+
+  it("a recusa devolve a tentativa e conta a recusa, numa escrita só", async () => {
+    const { ports, taskId, db } = await scene("in_progress");
+    await ports.countAttempt(taskId);
+
+    const refusals = await ports.quotaRefused(taskId);
+
+    expect(refusals).toBe(1);
+    // Esperar a cota não é tentar (Q32): o cartão volta com a tentativa intacta.
+    expect(await row(db, taskId)).toMatchObject({ attempts: 0, quotaRefusals: 1 });
+  });
+
+  it("a pausa tira o cartão da fila até a hora — e ele volta sozinho quando ela passa", async () => {
+    const { ports, taskId, workspaceId, db } = await scene("in_progress");
+    await db.update(workspaceTable).set({ autonomy: "autonomo" }).where(eq(workspaceTable.id, workspaceId));
+    const due = () => ports.queue(workspaceId).entries.some((entry) => entry.task.id === taskId);
+    expect(due()).toBe(true);
+
+    await ports.pause({ taskId, until: new Date(Date.now() + 60 * 60_000) });
+    expect(due()).toBe(false);
+
+    // Nenhuma escrita para voltar: a hora passou, e a fila lê.
+    await ports.pause({ taskId, until: new Date(Date.now() - 1_000) });
+    expect(due()).toBe(true);
+  });
+
+  it("`null` é *a cota reabriu*: limpa a espera e zera as recusas", async () => {
+    const { ports, taskId, db } = await scene("in_progress");
+    await ports.quotaRefused(taskId);
+    await ports.pause({ taskId, until: new Date(Date.now() + 60_000) });
+
+    await ports.pause({ taskId, until: null });
+
+    expect(await row(db, taskId)).toMatchObject({ quotaRefusals: 0, pausedUntil: null });
+  });
+
+  it("mudar de etapa zera a espera, como zera a tentativa", async () => {
+    const { ports, entry, taskId, db } = await scene("in_progress");
+    await ports.quotaRefused(taskId);
+    await ports.pause({ taskId, until: new Date(Date.now() + 60_000) });
+
+    await ports.advance({ task: entry().task, role: "implementador" });
+
+    expect(await row(db, taskId)).toMatchObject({ quotaRefusals: 0, pausedUntil: null });
+  });
+
+  it("o `QUOTA_REFUSED` do daemon vira resposta, e não exceção", async () => {
+    const { ports } = await scene("in_progress", {
+      prompt: () => Promise.reject(new DomainError("QUOTA_REFUSED", REASON)),
+    });
+
+    const answer = await ports.prompt({ sessionId: "ses-1", text: "vai" });
+
+    // Sem sinal do agente, sem hora: o caso medido chegou com `rateLimit: null`.
+    expect(answer).toEqual({ kind: "quota", reason: REASON, reopensAt: null });
+  });
+
+  it("quando o agente relatou a janela gasta, a hora de reabrir vai junto", async () => {
+    const resetsAt = Math.floor(new Date("2026-09-28T22:00:00Z").getTime() / 1000);
+    const { ports } = await scene("in_progress", {
+      prompt: () => Promise.reject(new DomainError("QUOTA_REFUSED", REASON)),
+      rateLimitOf: (sessionId) =>
+        sessionId === "ses-1"
+          ? { utilization: 1, isUsingOverage: false, resetsAt, surpassedThreshold: null, kind: "seven_day" }
+          : null,
+    });
+
+    const answer = await ports.prompt({ sessionId: "ses-1", text: "vai" });
+
+    expect(answer).toEqual({ kind: "quota", reason: REASON, reopensAt: new Date(resetsAt * 1000) });
+  });
+
+  it("o quadro pinta `pausada até` com a hora que a esteira decidiu", async () => {
+    const { ports, taskId, workspaceId, api } = await scene("in_progress");
+    const until = new Date(Date.now() + 45 * 60_000);
+
+    await ports.pause({ taskId, until });
+
+    const board = await api.task.board({ workspaceId });
+    const card = board.flatMap((column) => column.cards).find((each) => each.id === taskId);
+    // A pausa que a recusa decide é guardada; a que o agente relata continua
+    // derivada. As duas chegam ao mesmo selo.
+    expect(card?.seal).toEqual({ kind: "paused", until: until.toISOString() });
+  });
+
+  it("uma pausa que já passou não pinta nada", async () => {
+    const { ports, taskId, workspaceId, api } = await scene("in_progress");
+
+    await ports.pause({ taskId, until: new Date(Date.now() - 60_000) });
+
+    const board = await api.task.board({ workspaceId });
+    const card = board.flatMap((column) => column.cards).find((each) => each.id === taskId);
+    expect(card?.seal.kind).not.toBe("paused");
   });
 });
