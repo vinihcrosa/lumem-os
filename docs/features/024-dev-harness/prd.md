@@ -86,7 +86,7 @@ Nada além dessas três, e cada uma só depois de o portão da F1 existir.
 | `docs/**` (24 itens), `docs/README.md` | o que o T6 acusa | T7 |
 | `AGENTS.md`, `CLAUDE.md`, `docs/project/history.md` | o mapa fica neutro; a narrativa histórica sai do contexto ativo | T8 |
 | `eslint.config.ts` ou `.oxlintrc.json`, `package.json`, `ci.yml` | lint de correção, bloqueante | T9 |
-| `scripts/architecture.test.ts` | direção de dependência, dependência declarada e teto de linhas | T10 |
+| `scripts/package-boundaries.test.ts` | direção de dependência, dependência declarada e teto de linhas | T10 |
 | `packages/server/src/config.ts`, `server.ts`, `turbo.json`, `scripts/workspace/run.sh` | `LUMEM_LOG_FILE` — o log do daemon em arquivo | T11 |
 | `.github/workflows/release.yml` | `rollback_to`, e o ensaio | T12 |
 | `.github/dependabot.yml` | frescor de dependência | T13 |

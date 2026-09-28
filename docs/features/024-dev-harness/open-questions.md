@@ -84,15 +84,22 @@ As três que a [auditoria](../../project/harness-audit.md) fez ao time humano, r
   borda — e trocar pelo `typescript-eslint` custa uma tarde e 20 s de CI, com gatilho no
   [backlog](../../project/backlog.md).
 
-- [ ] **Q3 — Onde mora o teste de arquitetura? ([T10](tasks.md))**
+- [x] **Q3 — Onde mora o teste de arquitetura? ([T10](tasks.md))**
   Candidatos: `scripts/` (projeto vitest `scripts`, ferramenta do repositório) ou `packages/shared`
   (junto do código que ele regula).
   **Recomendação:** `scripts/`. O teste lê o disco de todos os pacotes; morando dentro de um deles ele
   inverteria a própria direção de dependência que existe para defender — e ele não é código
   publicado.
   **O que a resposta muda:** um caminho de arquivo, e se ele entra ou não no tarball (não deve).
+  **R:** **`scripts/`, com o nome `scripts/package-boundaries.test.ts`**, respondido em 2026-09-28. O
+  que mudou desde a pergunta: a [`032`](../032-web-architecture/prd.md) criou o
+  `packages/web/src/architecture.test.ts`, com oito regras **de dentro do `web`**. Daí a divisão, que
+  vira uma linha no `CLAUDE.md`: regra **dentro** de um pacote mora no pacote; regra **entre** pacotes
+  mora em `scripts/`. E o nome é outro de propósito — dois `architecture.test.ts` fariam *"o teste de
+  arquitetura quebrou"* ambíguo, que é a regra de *numeração diferente pede nome diferente* aplicada a
+  arquivo.
 
-- [ ] **Q4 — Teto de linhas por arquivo: número absoluto com exceções, ou só "não cresce"? ([T10](tasks.md))**
+- [x] **Q4 — Teto de linhas por arquivo: número absoluto com exceções, ou só "não cresce"? ([T10](tasks.md))**
   Hoje: 27 arquivos acima de 400 linhas, 8 acima de 700, `AcpManager.ts` com 2071. Um teto de 700
   reprova 8 arquivos no dia 1; um "não cresce" (cada arquivo tem o próprio limite, igual ao tamanho
   atual, e ele só pode diminuir) não reprova nada hoje e impede a piora.
@@ -101,6 +108,25 @@ As três que a [auditoria](../../project/harness-audit.md) fez ao time humano, r
   em número que aparece no diff.
   **O que a resposta muda:** a forma do mapa e se a T10 vem acompanhada de trabalho de refatoração
   (não deve — a T10 só instala o sensor).
+  **R:** **teto para arquivo novo e mapa de exceções que pode subir — mas só com o motivo escrito no
+  dado**, respondido em 2026-09-28. O que decidiu foi a remedição, três semanas depois da pergunta:
+
+  | | 2026-09-07 | 2026-09-28 |
+  |---|---|---|
+  | produção acima de 700 linhas | 8 | **13** |
+  | produção acima de 400 linhas | 27 | **31** — 21 no `server`, 9 no `web`, 1 no `shared` |
+  | `AcpManager.ts` | 2071 | **2813** (+36%) |
+  | `db/schema.ts` | 787 | **1709** |
+
+  Sem teto, o maior arquivo cresce mais rápido que todos. A forma é a da regra 8 do
+  `packages/web/src/architecture.test.ts` da [`032`](../032-web-architecture/prd.md) — que já
+  permite subir o número do mapa, *pedindo* o motivo na mensagem —, com um endurecimento: o mapa guarda
+  **`{ linhas, motivo }`**, e subir sem motivo reprova. Com agente, *"atualize o número"* vira reflexo;
+  um campo exigido faz crescer ser uma decisão escrita que o verificador lê. Os tetos: **400** em
+  `web/src/features/` (o da `032`, que ganha o campo `motivo`) e **700** no resto. O *"só desce"* foi
+  recusado porque o `schema.ts` e o `acp-protocol.ts` crescem por natureza — cada tabela, cada tipo —, e
+  a primeira task que acrescentasse uma tabela quebraria o arquivo às pressas. Quebrar o `AcpManager`
+  direito é feature própria, no [backlog](../../project/backlog.md).
 
 - [ ] **Q5 — O revisor inferencial passa a bloquear? ([T15](tasks.md))**
   Não dá para responder antes de ter dado. Um revisor que erra bloqueando é pior que revisor nenhum,

@@ -821,6 +821,18 @@ cada linha existe.
 pessoa no repositório — a partir daí a discussão de estilo passa a custar tempo de duas pessoas, que é
 exatamente o que um formatador compra.
 
+### Quebrar o `AcpManager` — `G`
+
+O arquivo mais difícil de testar do repositório concentra transporte, sessão e tradução, e é o que mais
+cresce: **2071 linhas em 2026-09-07, 2813 em 2026-09-28** (+36% em três semanas). A
+[Q4 da dev-harness](../features/024-dev-harness/open-questions.md) pôs um teto com mapa — ele pode
+crescer, mas só com motivo escrito —, e recusou quebrá-lo às pressas: dividir direito é desenho, com
+PRD própria.
+
+**De onde veio:** [dev-harness Q4](../features/024-dev-harness/open-questions.md) · **Volta quando:** o
+mapa da T10 subir o `AcpManager` pela terceira vez, ou antes, se uma feature precisar mexer em duas das
+três responsabilidades dele ao mesmo tempo.
+
 ### `typescript-eslint` no lugar do `oxlint --type-aware` — `P`
 
 A [Q2](../features/024-dev-harness/open-questions.md) escolheu o `oxlint --type-aware` (2,7 s) contra o

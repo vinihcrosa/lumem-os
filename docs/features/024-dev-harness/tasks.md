@@ -725,28 +725,34 @@ ninguém ver — `shared` não importa ninguém, `server` importa `shared`, `web
 propriedade que existe por disciplina. E previne o crescimento silencioso do núcleo:
 `AcpManager.ts` tem **2071 linhas** e concentra transporte, sessão e tradução — é o arquivo mais
 difícil de testar do repositório, e o que mais cresce.
-**Trava:** [Q3](open-questions.md) (onde mora), [Q4](open-questions.md) (forma do teto).
+**Trava:** ~~[Q3](open-questions.md)~~ e ~~[Q4](open-questions.md)~~, respondidas em 2026-09-28: `scripts/package-boundaries.test.ts`, e mapa que sobe só com motivo.
 
 **What**:
-1. `scripts/architecture.test.ts` com três asserções:
+1. `scripts/package-boundaries.test.ts` com três asserções — **entre** pacotes; o que é de dentro do
+   `web` já está no `packages/web/src/architecture.test.ts` da [`032`](../032-web-architecture/prd.md):
    - **direção:** nenhum `import` de `packages/shared/src` alcança `server`, `web` ou `cli`; nenhum de
      `server` alcança `web` ou `cli`; `web → server` é permitido **só** como `import type` de
      `@lumem/server/router-types`, que é a exceção declarada e a única;
    - **dependência declarada:** todo `@lumem/*` importado por um pacote está nas `dependencies` ou
      `devDependencies` **daquele** pacote. Hoje passa (o `web` declara `@lumem/server` em devDeps), e
      é uma propriedade que quebra calada num monorepo com symlink;
-   - **teto:** arquivo novo de produção não passa de **700 linhas**, e os 8 que hoje passam vivem num
-     mapa de exceções com o tamanho atual, que **só pode diminuir** (conforme a Q4).
+   - **teto:** arquivo de produção fora de `web/src/features/` não passa de **700 linhas** fora do
+     mapa; o mapa guarda **`{ linhas, motivo }`**, e um arquivo que cresce além do registrado reprova
+     até o mapa subir **com motivo novo** — sem motivo, reprova ([Q4](open-questions.md)). A regra 8 da
+     `032` ganha o mesmo campo `motivo`, e as duas mensagens passam a dizer a mesma coisa.
 2. A mensagem de falha injeta remediação, não código de regra: *"este import atravessa a fronteira do
    pacote — mova a lógica para `shared/`, ou exponha por `router-types`"*. O critério de qualidade da
    mensagem é o do §D4 da auditoria: um agente tem que saber o que fazer sem abrir o teste.
-3. O mapa de exceções nasce da medição já feita (`AcpManager.ts` 2071, `MemoryPanel.tsx` 987,
-   `FileService.ts` 971, `MemoryService.ts` 961, `AgentLogin.tsx` 933, `Conversation.tsx` 824,
-   `schema.ts` 787, `GitService.ts` 768).
+3. O mapa de exceções nasce da medição de 2026-09-28, com motivo *"linha de base 2026-09-28"*:
+   `AcpManager.ts` 2813, `schema.ts` 1709, `GitService.ts` 1099, `FileService.ts` 971,
+   `MemoryService.ts` 961, `SessionStore.ts` 951, `routers/worktree.ts` 896, `tasks/conveyor.ts` 784,
+   `bootstrap.ts` 781, `repositories/task.ts` 756, `shared/src/acp-protocol.ts` 749,
+   `tasks/conveyor-ports.ts` 727. O `conversation-model.ts` (751) já está no mapa da `032`. Os
+   números mudam até a task começar — o mapa nasce do `wc -l` do dia, não desta lista.
 4. **A task instala o sensor e não refatora nada.** Reduzir o `AcpManager` é trabalho com PRD próprio;
    misturar as duas coisas produz um diff que ninguém revisa.
 
-**Where**: `scripts/architecture.test.ts` (novo, conforme a Q3), `docs/project/testing.md`.
+**Where**: `scripts/package-boundaries.test.ts` (novo), `docs/project/testing.md`, `CLAUDE.md` (a linha *dentro do pacote → no pacote; entre pacotes → `scripts/`*).
 
 **Done when**:
 - um `import` de `server` dentro de `packages/shared/src` **reprova**, nomeando os dois arquivos e
@@ -754,7 +760,8 @@ difícil de testar do repositório, e o que mais cresce.
 - remover `@lumem/server` das devDependencies do `web` **reprova**;
 - acrescentar 20 linhas a um arquivo que está no seu teto **reprova**; remover 20 linhas **passa** e o
   mapa pode ser atualizado para baixo;
-- o mapa tem exatamente os 8 arquivos medidos, e o teste passa no HEAD.
+- subir um número do mapa **sem** `motivo` reprova;
+- o mapa tem exatamente os arquivos acima do teto no dia, e o teste passa no HEAD.
 
 **Gate**: `pnpm gate:quick`
 **Status**: ⬜ não iniciada
