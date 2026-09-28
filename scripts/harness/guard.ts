@@ -131,6 +131,22 @@ function readDollarParen(line: string, start: number): { inner: string; end: num
   throw new UnparseableCommand("substituição de comando sem fechar");
 }
 
+/**
+ * `$((…))` is arithmetic, not a command. Its text is not run — only the command
+ * substitutions nested in it are, and those are returned to be checked.
+ */
+function nestedSubstitutions(text: string): string[] {
+  const found: string[] = [];
+  for (let k = 0; k < text.length; k += 1) {
+    if (text[k] === "$" && text[k + 1] === "(" && text[k + 2] !== "(") {
+      const sub = readDollarParen(text, k);
+      found.push(sub.inner);
+      k = sub.end - 1;
+    }
+  }
+  return found;
+}
+
 /** The text of a backtick substitution starting at `start`, and the index after it. */
 function readBacktick(line: string, start: number): { inner: string; end: number } {
   let j = start + 1;
@@ -237,7 +253,8 @@ function parse(line: string): Parsed {
         }
         if (line[j] === "`" || (line[j] === "$" && line[j + 1] === "(")) {
           const sub = line[j] === "`" ? readBacktick(line, j) : readDollarParen(line, j);
-          substitutions.push(sub.inner);
+          if (line[j] === "$" && line[j + 2] === "(") substitutions.push(...nestedSubstitutions(sub.inner));
+          else substitutions.push(sub.inner);
           value += SUBSTITUTION;
           j = sub.end;
           continue;
@@ -263,7 +280,8 @@ function parse(line: string): Parsed {
     }
     if (c === "`" || (c === "$" && line[i + 1] === "(")) {
       const sub = c === "`" ? readBacktick(line, i) : readDollarParen(line, i);
-      substitutions.push(sub.inner);
+      if (c === "$" && line[i + 2] === "(") substitutions.push(...nestedSubstitutions(sub.inner));
+      else substitutions.push(sub.inner);
       word += SUBSTITUTION;
       inWord = true;
       i = sub.end;
