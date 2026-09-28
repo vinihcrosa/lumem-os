@@ -298,6 +298,42 @@ async function runEcho(blocks) {
 }
 
 /**
+ * A frase que estoura a cota (`028` T17). Combinada com o spec, e com mais nada.
+ *
+ * Reconhecida no **começo** do último bloco — o da pessoa —, e não em qualquer
+ * lugar do prompt: a conversa continuada noutra conta leva o corte da origem, e
+ * a frase vai junto dentro dele. Com `includes`, a conta nova estouraria também.
+ */
+const QUOTA = "estoure a cota";
+
+/** O texto que o `0.75.1` mandou quando a conta `technomar-ted` bateu no limite semanal. */
+const WEEKLY_LIMIT = "You've hit your weekly limit · resets 7pm (America/Sao_Paulo)";
+
+/**
+ * A recusa por cota, exatamente como ela chegou em 2026-09-28.
+ *
+ * Quatro coisas, nesta ordem, e é a ordem que o daemon precisa aguentar: o texto
+ * do limite como **mensagem do agente**, um `usage_update` zerado (custo zero, não
+ * nulo, e sem `_meta` de cota), o `session/prompt` **recusado** com `-32603` e
+ * `data.errorKind` — e nenhum `turn_end`, porque um turno recusado não termina.
+ */
+async function runQuotaRefusal(id) {
+  update({
+    sessionUpdate: "agent_message_chunk",
+    messageId: "cota",
+    content: { type: "text", text: WEEKLY_LIMIT },
+  });
+  await sleep(10);
+  update({ sessionUpdate: "usage_update", used: 0, size: 200_000, cost: { amount: 0, currency: "USD" } });
+  await sleep(10);
+  write({
+    jsonrpc: "2.0",
+    id,
+    error: { code: -32603, message: `Internal error: ${WEEKLY_LIMIT}`, data: { errorKind: "rate_limit" } },
+  });
+}
+
+/**
  * A frase que pede a conta (`034` T17). Combinada com o spec, e com mais nada.
  */
 const WHICH_ACCOUNT = "em que conta você está";
@@ -921,6 +957,10 @@ createInterface({ input: process.stdin }).on("line", (line) => {
       }
       if (text.startsWith(DISTILL_OPENER)) {
         void runDistill().then((stopReason) => reply(message.id, { stopReason }));
+        return;
+      }
+      if ((blocks.at(-1) ?? "").startsWith(QUOTA)) {
+        void runQuotaRefusal(message.id);
         return;
       }
       if (text.includes(WHICH_ACCOUNT)) {
