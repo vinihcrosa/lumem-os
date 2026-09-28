@@ -74,6 +74,69 @@ interface Parsed {
   commands: string[][];
   /** Heredoc bodies, by the index of the command they feed. */
   heredocs: Map<number, string[]>;
+  /** The text inside every `$(…)` and backtick, checked as command lines of their own. */
+  substitutions: string[];
+}
+
+/**
+ * What a `$(…)` becomes inside a word. The command inside is checked on its own;
+ * the word it lands in has a value the guard cannot know, and that only matters
+ * when the word is an argument of a command the guard watches.
+ */
+export const SUBSTITUTION = "\u0000$()";
+
+/** The text of a `$(…)` starting at `start` (the `$`), and the index after it. */
+function readDollarParen(line: string, start: number): { inner: string; end: number } {
+  let depth = 0;
+  let j = start + 1;
+  while (j < line.length) {
+    const c = line[j];
+    // A heredoc inside the substitution: its body is text, and a `)` in it —
+    // "a) the first point" in a commit message — is not the end.
+    if (c === "<" && line[j + 1] === "<" && line[j + 2] !== "<") {
+      const head = /^<<-?\s*(['"]?)([A-Za-z0-9_.-]+)\1/.exec(line.slice(j));
+      if (head !== null) {
+        const delimiter = head[2] as string;
+        const bodyStart = line.indexOf("\n", j);
+        if (bodyStart === -1) throw new UnparseableCommand("heredoc sem corpo");
+        let k = bodyStart + 1;
+        for (;;) {
+          if (k >= line.length) throw new UnparseableCommand(`heredoc sem o terminador \`${delimiter}\``);
+          const newline = line.indexOf("\n", k);
+          const raw = newline === -1 ? line.slice(k) : line.slice(k, newline);
+          k = newline === -1 ? line.length : newline + 1;
+          if (raw.replace(/^\t+/, "") === delimiter) break;
+        }
+        j = k;
+        continue;
+      }
+    }
+    if (c === "'") {
+      const close = line.indexOf("'", j + 1);
+      if (close === -1) throw new UnparseableCommand("aspas simples sem fechar");
+      j = close + 1;
+      continue;
+    }
+    if (c === "\\") {
+      j += 2;
+      continue;
+    }
+    if (c === "(") depth += 1;
+    if (c === ")") {
+      depth -= 1;
+      if (depth === 0) return { inner: line.slice(start + 2, j), end: j + 1 };
+    }
+    j += 1;
+  }
+  throw new UnparseableCommand("substituição de comando sem fechar");
+}
+
+/** The text of a backtick substitution starting at `start`, and the index after it. */
+function readBacktick(line: string, start: number): { inner: string; end: number } {
+  let j = start + 1;
+  while (j < line.length && line[j] !== "`") j += line[j] === "\\" ? 2 : 1;
+  if (j >= line.length) throw new UnparseableCommand("crase sem fechar");
+  return { inner: line.slice(start + 1, j), end: j + 1 };
 }
 
 /**
@@ -85,6 +148,7 @@ interface Parsed {
 function parse(line: string): Parsed {
   const commands: string[][] = [];
   const heredocs = new Map<number, string[]>();
+  const substitutions: string[] = [];
   const pending: { delimiter: string; stripTabs: boolean; quoted: boolean }[] = [];
   let words: string[] = [];
   let word = "";
@@ -172,7 +236,11 @@ function parse(line: string): Parsed {
           continue;
         }
         if (line[j] === "`" || (line[j] === "$" && line[j + 1] === "(")) {
-          throw new UnparseableCommand("substituição de comando dentro de aspas");
+          const sub = line[j] === "`" ? readBacktick(line, j) : readDollarParen(line, j);
+          substitutions.push(sub.inner);
+          value += SUBSTITUTION;
+          j = sub.end;
+          continue;
         }
         value += line[j];
         j += 1;
@@ -194,7 +262,12 @@ function parse(line: string): Parsed {
       continue;
     }
     if (c === "`" || (c === "$" && line[i + 1] === "(")) {
-      throw new UnparseableCommand("substituição de comando");
+      const sub = c === "`" ? readBacktick(line, i) : readDollarParen(line, i);
+      substitutions.push(sub.inner);
+      word += SUBSTITUTION;
+      inWord = true;
+      i = sub.end;
+      continue;
     }
     if (c === "#" && !inWord) {
       const newline = line.indexOf("\n", i);
@@ -240,7 +313,46 @@ function parse(line: string): Parsed {
   }
   endCommand();
   if (pending.length > 0) throw new UnparseableCommand(`heredoc sem o terminador \`${pending[0]?.delimiter}\``);
-  return { commands, heredocs };
+  return { commands, heredocs, substitutions };
+}
+
+/**
+ * Flags whose value is text, not an option: a substitution there — the
+ * `git commit -m "$(cat <<'EOF' … EOF)"` Claude Code itself writes — cannot turn
+ * into `--force`.
+ */
+const TEXT_VALUE_FLAGS = new Set(["-m", "--message", "-F", "--file", "--body", "-b", "--title", "-t", "--jq", "-q", "--notes"]);
+
+/** Read-only git subcommands: a substitution in their arguments changes nothing. */
+const READ_ONLY_GIT = new Set([
+  "log", "show", "diff", "status", "rev-parse", "rev-list", "ls-files", "ls-tree", "grep", "blame",
+  "describe", "for-each-ref", "cat-file", "merge-base", "shortlog", "name-rev", "show-ref",
+]);
+
+/**
+ * The argument of a watched command whose value comes from a substitution, or
+ * `null`. Watched means the arguments decide whether it is dangerous.
+ */
+function opaqueArgument(tool: string, args: string[]): string | null {
+  const watched = tool === "git" || tool === "npm" || tool === "pnpm" || tool === "yarn" || tool === "gh" || tool === "rm";
+  if (!watched) return null;
+  if (tool === "git") {
+    const sub = args.find((a) => !a.startsWith("-"));
+    if (sub !== undefined && sub.includes(SUBSTITUTION)) return sub;
+    if (sub !== undefined && READ_ONLY_GIT.has(sub)) return null;
+  }
+  for (let k = 0; k < args.length; k += 1) {
+    const arg = args[k] as string;
+    if (!arg.includes(SUBSTITUTION)) continue;
+    const previous = args[k - 1];
+    if (previous !== undefined && TEXT_VALUE_FLAGS.has(previous) && tool !== "rm" && tool !== "npm" && tool !== "pnpm" && tool !== "yarn") {
+      continue;
+    }
+    const eq = arg.indexOf("=");
+    if (eq > 0 && TEXT_VALUE_FLAGS.has(arg.slice(0, eq)) && tool !== "rm") continue;
+    return arg;
+  }
+  return null;
 }
 
 const ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*=/;
@@ -444,8 +556,9 @@ function checkRm(args: string[], cwd: string, ctx: GuardContext): Verdict {
 export function checkCommandLine(line: string, cwd: string, ctx: GuardContext): Verdict {
   let commands: string[][];
   let heredocs: Map<number, string[]>;
+  let substitutions: string[];
   try {
-    ({ commands, heredocs } = parse(line));
+    ({ commands, heredocs, substitutions } = parse(line));
   } catch (error) {
     if (error instanceof UnparseableCommand) {
       return refuse(
@@ -456,17 +569,32 @@ export function checkCommandLine(line: string, cwd: string, ctx: GuardContext): 
     throw error;
   }
 
+  for (const inner of substitutions) {
+    const verdict = checkCommandLine(inner, cwd, ctx);
+    if (!verdict.allow) return verdict;
+  }
+
   for (const [index, words] of commands.entries()) {
     const leading = splitAssignments(words);
     const { env, argv } = unwrap(leading.argv);
     const assignments = [...leading.env, ...env];
     if (argv[0] === "export") assignments.push(...argv.slice(1));
-    if (assignments.some((a) => /^HUSKY=0?$/.test(a) || a === "HUSKY=false")) {
+    if (assignments.some((a) => /^HUSKY=0?$/.test(a) || a === "HUSKY=false" || (a.startsWith("HUSKY=") && a.includes(SUBSTITUTION)))) {
       return refuse("`HUSKY=0` desliga todos os hooks de git (Q9); se um hook está errado, conserte o hook");
     }
     if (argv.length === 0) continue;
+    if ((argv[0] as string).includes(SUBSTITUTION)) {
+      return refuse("o nome do comando vem de uma substituição, e o guarda não sabe o que vai rodar");
+    }
     const tool = (argv[0] as string).split("/").pop() as string;
     const args = argv.slice(1);
+    const opaque = opaqueArgument(tool, args);
+    if (opaque !== null) {
+      return refuse(
+        `o argumento \`${opaque.replace(SUBSTITUTION, "$(…)")}\` de \`${tool}\` vem de uma substituição de ` +
+          "comando, e o guarda não sabe o valor; rode a substituição antes e passe o valor escrito",
+      );
+    }
     let verdict: Verdict = ALLOW;
     if (tool === "git") verdict = checkGit(args, cwd, ctx);
     else if (tool === "npm" || tool === "pnpm" || tool === "yarn") verdict = checkPackageManager(tool, args);
