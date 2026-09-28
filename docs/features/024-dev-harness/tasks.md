@@ -544,7 +544,9 @@ o alcance é o que ela medir.
 rode o gate que ela declara"* depender de o agente lembrar dela.
 **Trava:** [Q12](open-questions.md), e a [T0](#t0-o-que-cada-agente-carrega-do-repositório-medido).
 
-**What** — escrito com a recomendação da Q12:
+**What** — a resposta da [Q12](open-questions.md): bloqueante, uma vez por turno.
+0. **Medir antes:** a **mediana** do `gate:quick` em turnos reais que mexeram em código, não só o
+   pior caso (84 s). É o número que diz quanto o bloqueio custa na prática, e fica no `testing.md`.
 1. `scripts/harness/stop.ts`: se a árvore mudou desde o último `gate:quick` verde (o carimbo da
    [T17](#t17-hooks-de-git-versionados-ligados-pelo-setup), em `.git/lumem-gate-green`, agora com o
    hash da árvore de trabalho), roda o `gate:quick`; vermelho devolve
@@ -552,12 +554,17 @@ rode o gate que ela declara"* depender de o agente lembrar dela.
 2. **Uma vez por turno**: com `stop_hook_active`, sai sem rodar.
 3. **Fora da esteira**: com a variável que o daemon põe nas sessões da esteira, sai sem rodar — o
    portão da [`028`](../028-autonomous-orchestration/prd.md) já julga lá.
-4. Ligar no `Stop` do `.claude/settings.json`.
+4. Ligar no `Stop` do `.claude/settings.json`, com `timeout` explícito acima do pior caso medido.
+5. A frase do bloqueio diz o que falhou **e** que parar de novo é permitido: *"se o vermelho é
+   esperado (RED do TDD, pergunta pendente), diga isso e pare"* — é o que impede o hook de brigar com
+   o ciclo do `lumem-dev`.
 
 **Where**: `scripts/harness/stop.ts` (+ teste, novos), `.claude/settings.json`.
 
 **Done when**:
-- uma sessão que quebra um teste e tenta encerrar recebe o bloqueio com o nome do teste, uma vez;
+- uma sessão que quebra um teste e tenta encerrar recebe o bloqueio com o nome do teste, **uma vez** —
+  a segunda parada passa;
+- a mediana do passo 0 está registrada no `testing.md`;
 - uma sessão que não mexeu em nada encerra sem rodar gate nenhum;
 - `pnpm gate:quick` verde.
 

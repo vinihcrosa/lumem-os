@@ -184,7 +184,7 @@ que decide o tamanho da T18, da T19 e da T20.
   exige que o piso seja subconjunto do que o guarda recusa. O guarda que não consegue decidir —
   entrada que não parseia — **recusa** em vez de liberar, e isso é caso de teste.
 
-- [ ] **Q12 — O `Stop` cobra o gate antes de o agente dizer *"pronto"*? ([T19](tasks.md))**
+- [x] **Q12 — O `Stop` cobra o gate antes de o agente dizer *"pronto"*? ([T19](tasks.md))**
   É a regra *"antes de dizer que uma task está pronta, rode o gate que ela declara"* virando mecânica.
   O custo é o tempo: 84 s no pior caso, a cada vez que o agente para.
   **Recomendação:** sim, com três limites — só roda se a árvore mudou desde o último `gate:quick`
@@ -192,6 +192,15 @@ que decide o tamanho da T18, da T19 e da T20.
   do Claude), e na esteira ele **não** roda, porque lá o portão da
   [`028`](../028-autonomous-orchestration/prd.md) já é quem julga.
   **O que a resposta muda:** se a T19 existe, e quanto tempo cada turno custa.
+  **R:** **sim — bloqueante, uma vez por turno**, respondido em 2026-09-28, contra duas alternativas:
+  o `Stop` que só **informa** a pessoa (o agente não fica sabendo) e **nenhum** `Stop` (o `pre-push`
+  pega o erro antes do CI, mas depois do *"pronto"*, que é o instante em que se decide confiar). O que
+  torna o bloqueio suportável é saber que **o `Stop` não sabe por que o Claude parou** — terminou,
+  perguntou, está no RED do TDD, ou só respondeu — , o mesmo achado que a
+  [`028`](../028-autonomous-orchestration/prd.md) mediu no `end_turn`. Por isso ele é um aviso que
+  insiste **uma vez**: na segunda parada o `stop_hook_active` vem `true` e ele deixa, e o agente
+  conserta ou diz por que o vermelho é esperado. Só roda com a árvore mudada desde o carimbo da
+  [Q10](#abertas-pela-emenda-de-2026-09-28), não roda na esteira, e tem `timeout` explícito acima do pior caso do gate.
 
 - [ ] **Q13 — Os agentes que o Lumem sobe carregam o que está no repositório? ([T0](tasks.md))**
   Não dá para responder sem medir. Quatro superfícies, cada uma pode ler ou não
