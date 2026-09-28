@@ -1524,6 +1524,21 @@ novo quando o primeiro save terminou; o rascunho novo ia embora, e o blur mandav
 que segura o primeiro `onCommit` pendente. A regra: **estado local que um `await` vai mexer tem de
 conferir, na volta, se ainda é o estado que ele levou**.
 
+### Quando o roteiro não consegue rolar, o defeito pode ser da tela
+
+**Sintoma:** no teste de design da [`034`](../features/034-agent-accounts/tasks.md), a roda do mouse,
+o `scrollIntoView` e o `scrollTop` não moviam `/settings` — e a solução foi uma viewport de 2 600px
+de altura, para caber tudo no print. Dois dias depois veio o relato: *"a página de configuração está
+sem scroll"*. O roteiro não estava errado; ele estava **medindo o defeito**.
+
+**Causa:** `.set` não tinha `overflow` nem `min-height: 0`, e a coluna do meio recortava o que passava
+da janela — o que só passou a acontecer quando as contas deixaram a tela mais alta que a janela.
+
+**Conserto:** `f9b3e22`, com um e2e que rola com a roda e pergunta `elementFromPoint` pela última
+seção. A regra: **um gesto de pessoa que falha no roteiro é um achado até prova em contrário** —
+contornar o gesto (viewport maior, `scrollIntoView`, clique por coordenada) é esconder o que a pessoa
+vai encontrar.
+
 ## Convenções
 
 - Teste de git usa **repositório temporário real**, nunca mock. `git worktree` tem caso de borda em nome com barra e branch existente que mock nenhum reproduz.

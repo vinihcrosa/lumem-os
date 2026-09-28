@@ -371,6 +371,9 @@ prints estão em `.context/034-t18/`. O que ele achou, e onde foi consertado:
   é modelo e qual é effort (`848917f`); a pílula abria conversa numa conta sem login (`f336ac6`);
 - **o que o `gate:full` achou depois:** com dois agentes, `conta principal` era ambígua — cada bloco
   de agente virou um grupo nomeado (`4c30f1f`)
+- **o que ele deixou passar**, e o Vinicius achou usando: `/settings` **não rolava**. O roteiro não
+  conseguia rolar a tela e eu contornei com uma viewport alta, em vez de ler o sintoma como achado —
+  consertado em `f9b3e22`, com e2e
 
 #### T19: Uma segunda conta de verdade
 
