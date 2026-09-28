@@ -135,7 +135,7 @@ para **4 468 testes**. Medido em 2026-09-28, contra a linha de base do §6 da
 | 4 — `gh api -X DELETE` | scope `delete_repo` | **igual** |
 | 6 e 7 — credencial e `~/.lumem` | `~/.claude/settings.json`: 101 `allow`, 0 `deny` | **103 `allow`, 0 `deny`**, e nada em `.claude/settings.json` do repositório |
 | hook de git | nenhum | **nenhum** — `core.hooksPath` indefinido |
-| `AGENTS.md` | não existe | **não existe**. O Lumem roda Codex na esteira, e o Codex não lê `CLAUDE.md` |
+| `AGENTS.md` | não existe | **não existe** — e deixou de ser lacuna: este repositório é desenvolvido **só com Claude** (§8.2) |
 
 O que mudou é o que a [`025`](../025-docs-contract/prd.md) e a
 [PR #92](https://github.com/vinihcrosa/lumem-os/pull/92) fizeram na documentação: o link-checker
@@ -154,20 +154,25 @@ e ele nomeia três coisas que a v0.1 não tinha:
    **feedback, não portão**: `--no-verify` o atravessa. Ele vale pelo que devolve *antes* do CI — e só
    vira regra para o agente quando o guarda do item 2 recusa o `--no-verify`.
 2. **Hooks de agente.** A [T4](tasks.md#t4-a-política-de-permissão-do-agente-vira-arquivo-do-repositório-com-teste--59)
-   põe um `deny` no `.claude/settings.json`, e isso protege **um** agente. O Codex tem hooks próprios
-   (`.codex/hooks.json`, com `PreToolUse` que bloqueia), e a política precisa valer para os dois. A
-   forma que a emenda propõe é **um guarda, três tomadas**: um script só decide, e o git, o Claude e o
-   Codex o chamam.
+   põe um `deny` no `.claude/settings.json`, e ele casa por padrão de texto: `git push origin +main`
+   força sem casar `Bash(git push --force:*)`. A emenda acrescenta **um guarda** — um hook
+   `PreToolUse` que lê o comando inteiro —, com o `deny` como piso ([Q11](open-questions.md)).
 3. **Skills.** O formato de cada tipo de documento sai do `CLAUDE.md` para três skills do repositório
    — ADR, documentos de feature e Outline —, e a regra de *onde cada coisa mora* fica. O desenho está
    na conversa que abriu a [PR #92](https://github.com/vinihcrosa/lumem-os/pull/92): regra sempre
    carregada, formato sob demanda.
 
-E uma pergunta que a v0.1 não fez e que decide o valor dos itens 2 e 3: **os agentes que o próprio
-Lumem sobe carregam o que está no repositório?** A esteira da [`028`](../028-autonomous-orchestration/prd.md)
-roda `claude-agent-acp` e `codex-acp`, não o Claude Code interativo. Se os adaptadores não leem
-`.claude/settings.json` nem `.codex/hooks.json`, o guarda protege quem está olhando e deixa de fora
-quem trabalha sozinho — o caso que mais precisa dele. Por isso a emenda abre uma **Fase 0** que mede
+> **Só Claude — 2026-09-28.** Este repositório é desenvolvido **só com Claude**, respondido junto da
+> [Q11](open-questions.md). O harness **do repositório** — hooks, guarda, skills, arquivo de instrução —
+> mira o Claude e nada mais: sem `.codex/hooks.json`, sem skill espelhada para o Codex, e o
+> `AGENTS.md` da [T8](tasks.md) perde o motivo que a auditoria deu a ele. Isso é sobre o
+> repositório, não sobre o produto: o Lumem continua suportando Codex para quem o usa.
+
+E uma pergunta que a v0.1 não fez e que decide o valor dos itens 2 e 3: **o agente que o próprio
+Lumem sobe carrega o que está no repositório?** A esteira da [`028`](../028-autonomous-orchestration/prd.md)
+roda o `claude-agent-acp`, não o Claude Code interativo. Se o adaptador não lê o
+`.claude/settings.json` do projeto, o guarda protege quem está olhando e deixa de fora quem trabalha
+sozinho — o caso que mais precisa dele. Por isso a emenda abre uma **Fase 0** que mede
 antes de escrever, no molde da [`021`](../021-second-agent/prd.md) e da [`034`](../034-agent-accounts/prd.md).
 
 ### 8.3 O que muda, arquivo por arquivo — só o que é novo
@@ -175,17 +180,17 @@ antes de escrever, no molde da [`021`](../021-second-agent/prd.md) e da [`034`](
 | Onde | O quê | Task |
 |---|---|---|
 | `docs/project/harness-audit.md` §11 | o que cada agente carrega do repositório, medido | T0 |
-| `.githooks/`, `scripts/workspace/setup.sh`, `scripts/harness/*.test.ts` | `pre-commit`, `commit-msg`, `pre-push`; o setup liga o `core.hooksPath` | T17 |
-| `scripts/harness/guard.ts` (+ teste), `.claude/settings.json`, `.codex/hooks.json` | um guarda, chamado pelos dois agentes | T18 |
-| `.claude/settings.json`, `.codex/hooks.json` | o `Stop` que cobra o gate antes de *"pronto"* | T19 |
-| `.claude/skills/lumem-*`, e onde o Codex as lê | as três skills de documentação; auditoria das cinco de terceiro | T20 |
+| `.husky/`, `package.json`, `scripts/harness/*.test.ts` | `pre-commit`, `commit-msg`, `pre-push`, pelo husky ([Q9](open-questions.md)); o `pnpm install` liga | T17 |
+| `scripts/harness/guard.ts` (+ teste), `.claude/settings.json` | o guarda, no `PreToolUse` do Claude | T18 |
+| `.claude/settings.json` | o `Stop` que cobra o gate antes de *"pronto"* | T19 |
+| `.claude/skills/lumem-*` | as três skills de documentação; auditoria das cinco de terceiro | T20 |
 
 ### 8.4 Critério de aceite — acrescido
 
-8. Um agente — Claude **e** Codex, interativo **e** pela esteira, até onde a T0 disser que alcança —
+8. O Claude — interativo **e** pela esteira, até onde a T0 disser que alcança —
    tentando `git commit --no-verify`, `git push --force` ou `npm publish` é **recusado pelo guarda**,
    com a frase dizendo por quê. Conferido tentando, não lendo a configuração.
 9. `git commit` com mensagem fora do Conventional Commits é recusado pelo `commit-msg`; `git push` com
    o `gate:quick` vermelho é recusado pelo `pre-push`, dizendo o que rodou.
-10. Um clone novo mais `scripts/workspace/setup.sh` deixa os hooks ligados sem passo manual.
+10. Um clone novo mais `pnpm install` deixa os hooks ligados sem passo manual.
 

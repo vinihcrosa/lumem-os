@@ -39,7 +39,7 @@ aprovação.
 | T7 os 24 itens que o T6 acusa | [#62](https://github.com/vinihcrosa/lumem-os/issues/62) | — | — | P |
 | T8 `AGENTS.md`, e o `CLAUDE.md` encolhe | [#63](https://github.com/vinihcrosa/lumem-os/issues/63) | guide inferencial | — | M |
 | T17 hooks de git versionados, ligados pelo setup | — | sensor computacional | [Q9](open-questions.md), [Q10](open-questions.md) | P |
-| T18 um guarda, chamado pelos dois agentes | — | permissão | [Q11](open-questions.md), T0 | M |
+| T18 o guarda, no `PreToolUse` do Claude | — | permissão | [Q11](open-questions.md), T0 | M |
 | T19 o `Stop` cobra o gate antes de *"pronto"* | — | sensor computacional | [Q12](open-questions.md), T0 | P |
 | T20 as três skills de documentação, e a auditoria das de terceiro | — | guide inferencial | [Q14](open-questions.md), T0, T8 | M |
 | T9 lint de correção, bloqueante | [#64](https://github.com/vinihcrosa/lumem-os/issues/64) | sensor computacional | [Q2](open-questions.md) | M |
@@ -58,26 +58,26 @@ aprovação.
 ### T0: O que cada agente carrega do repositório, medido
 
 **Classe:** medição · **Previne:** escrever um guarda que protege quem está olhando e deixa de fora
-quem trabalha sozinho. A esteira da [`028`](../028-autonomous-orchestration/prd.md) sobe
-`claude-agent-acp` e `codex-acp`, e nada neste repositório diz se eles leem a configuração do projeto.
+quem trabalha sozinho. A esteira da [`028`](../028-autonomous-orchestration/prd.md) sobe o
+`claude-agent-acp`, e nada neste repositório diz se ele lê a configuração do projeto. **Só Claude**:
+o repositório não é desenvolvido com outro agente ([Q11](open-questions.md)).
 **Trava:** a [Q13](open-questions.md) é esta medição.
 
 **What**:
-1. Numa worktree descartável, criar `.claude/settings.json` e `.codex/hooks.json` com **um hook
-   `PreToolUse` que só escreve um arquivo-marca** (`/tmp/lumem-t0/<agente>-<superfície>`), mais uma
-   linha distintiva em `CLAUDE.md`, em `AGENTS.md` e numa skill de teste.
-2. Rodar as quatro superfícies com um prompt que dispare uma ferramenta inofensiva (`ls`): Claude Code
-   interativo, Codex interativo, e os dois adaptadores pelo daemon, como a esteira os sobe — no modo
-   que a esteira usa (`bypassPermissions` no Claude).
+1. Numa worktree descartável, criar `.claude/settings.json` com **um hook `PreToolUse` que só
+   escreve um arquivo-marca** (`/tmp/lumem-t0/<superfície>`) e um `deny` de teste, mais uma linha
+   distintiva no `CLAUDE.md` e numa skill de teste.
+2. Rodar as duas superfícies com um prompt que dispare uma ferramenta inofensiva (`ls`): o Claude Code
+   interativo, e o `claude-agent-acp` pelo daemon, como a esteira o sobe — em `bypassPermissions`.
 3. Para cada superfície, registrar as quatro células: **hook disparou?** (a marca existe), **`deny`
-   valeu?**, **o arquivo de instrução chegou?** (o agente cita a linha distintiva), **a skill
-   apareceu?**. Dezesseis células, e o custo em token de cada rodada.
+   valeu?**, **o `CLAUDE.md` chegou?** (o agente cita a linha distintiva), **a skill apareceu?**. Oito
+   células, e o custo em token de cada rodada.
 4. Registrar no `docs/project/harness-audit.md`, como **§11**, com a data, as versões e a tabela.
 
 **Where**: `docs/project/harness-audit.md`. Nenhum código de produção.
 
 **Done when**:
-- as dezesseis células têm resposta observada, e nenhuma é *"deve funcionar"*;
+- as oito células têm resposta observada, e nenhuma é *"deve funcionar"*;
 - a [Q13](open-questions.md) está respondida com a tabela, e o alcance da T18, T19 e T20 está escrito
   nelas antes de começarem.
 
@@ -427,6 +427,12 @@ agente, e apodrecendo a cada feature nova.
 > (passo 3) e a exceção da raiz (passo 4). O teto de **100 linhas** do *Done when* continua valendo, e
 > a [T20](#t20-as-três-skills-de-documentação-e-a-auditoria-das-de-terceiro) é o que o alcança — o
 > formato de cada documento sai do `CLAUDE.md` para as skills.
+>
+> **E o passo 1 perdeu o motivo.** O `Previne` desta task é *"qualquer outro agente entra sem mapa"*, e
+> este repositório é desenvolvido **só com Claude** ([Q11](open-questions.md), 2026-09-28). O que fica
+> de pé é o `CLAUDE.md` abaixo de 100 linhas; se o `AGENTS.md` ainda nasce — por exemplo, para quem
+> clonar o repositório público com outra ferramenta — é decisão da hora em que esta task começar, e
+> não pressuposto.
 
 **Done when**:
 - `wc -l CLAUDE.md` abaixo de **100**;
@@ -448,31 +454,41 @@ e um push depois — e que um agente commite em `main`. A auditoria mediu a aus�
 indefinido, só `.sample`) e nenhuma task da v0.1 a tratava.
 **Trava:** [Q9](open-questions.md) (a ferramenta) e [Q10](open-questions.md) (o que roda em cada um).
 
-**What** — escrito com as recomendações; muda se as respostas mudarem:
-1. `.githooks/pre-commit`, `.githooks/commit-msg`, `.githooks/pre-push`, cada um **uma linha** que
-   chama `scripts/harness/git-hook.ts <nome>` — a lógica mora em TypeScript, com teste, e não em shell.
+**What** — a ferramenta é o **husky v9** ([Q9](open-questions.md)), e o conteúdo de cada hook é o
+da [Q10](open-questions.md):
+1. `husky` como dependência de desenvolvimento da raiz, com `"prepare": "husky"`. `.husky/pre-commit`,
+   `.husky/commit-msg`, `.husky/pre-push`, cada um **uma linha** que chama
+   `scripts/harness/git-hook.ts <nome>` — a lógica mora em TypeScript, com teste, e não em shell.
 2. `pre-commit`: recusa commit com `HEAD` em `main`; roda `docs:check` se há `.md` em stage e
-   `design:derive --check` se há `tokens.css` em stage. Teto medido de **10 s**, e a mensagem diz o
+   `design:derive --check` se há `tokens.css` em stage. Medidos em 0,4 s e 0,3 s; a mensagem diz o
    que rodou.
 3. `commit-msg`: Conventional Commits (`tipo(escopo)?: assunto`), assunto até 72 caracteres. A
    recusa mostra a mensagem recebida e um exemplo.
-4. `pre-push`: `pnpm gate:quick`. Vermelho recusa o push com o resumo do gate.
-5. `scripts/workspace/setup.sh` liga `git config core.hooksPath .githooks` — idempotente, e o
-   `run.sh` avisa se encontrar o hook desligado.
+4. `pre-push`: `pnpm gate:quick`. Vermelho recusa o push com o resumo do gate. Verde grava o
+   **carimbo** — o hash da árvore (`git write-tree` do `HEAD`) em `.git/lumem-gate-green` —, e um
+   push de árvore já carimbada sai dizendo *"já verde em <hash>"* sem rodar. O `Stop` da
+   [T19](#t19-o-stop-cobra-o-gate-antes-de-pronto) usa o mesmo carimbo. O `typecheck` **não** entra
+   no `pre-commit`: são ~23 s frio, e ele já vem dentro do `gate:quick`.
+5. Quem liga é o `prepare` do `pnpm install`, que o `setup.sh` já roda. O `run.sh` avisa se
+   encontrar o `core.hooksPath` diferente de `.husky/_` — o caso da worktree que nunca rodou install —,
+   e o `ci.yml` ganha `HUSKY: 0`.
 6. `scripts/harness/git-hook.test.ts`: cada decisão como função pura (arquivos em stage e mensagem →
-   veredito), mais um teste que confere que os três arquivos de `.githooks/` existem, são executáveis
-   e chamam o nome certo.
+   veredito), mais um teste que confere que os três arquivos de `.husky/` existem e chamam o nome
+   certo, e que o `prepare` está no `package.json`.
 7. `docs/project/testing.md` ganha a linha: **hook de git é feedback, não portão** — quem garante é o
    ruleset da T2 e o CI; quem impede o agente de atravessar com `--no-verify` é a T18.
 
-**Where**: `.githooks/` (novo), `scripts/harness/git-hook.ts` (+ teste, novos),
-`scripts/workspace/setup.sh`, `docs/project/testing.md`, `docs/project/workspaces.md`.
+**Where**: `.husky/` (novo), `package.json`, `pnpm-lock.yaml`, `scripts/harness/git-hook.ts` (+ teste, novos),
+`scripts/workspace/run.sh`, `.github/workflows/ci.yml`, `docs/project/testing.md`, `docs/project/workspaces.md`.
 
 **Done when**:
-- numa worktree nova, depois do `setup.sh`, `git commit -m "wip"` é **recusado** pelo `commit-msg`, e
+- numa worktree nova, depois do `pnpm install`, `git commit -m "wip"` é **recusado** pelo `commit-msg`, e
   um commit em `main` é recusado pelo `pre-commit` — os dois observados;
 - `git push` com um teste quebrado de propósito é recusado pelo `pre-push`, nomeando o teste;
-- o `pre-commit` de um commit só de código roda em menos de 10 s, medido;
+- o `pre-commit` de um commit só de código roda em menos de **1 s**, medido;
+- um segundo `git push` da mesma árvore sai pelo carimbo, sem rodar o gate;
+- os checkpoints do Conductor continuam sendo criados com os hooks ligados — conferido
+  observando um checkpoint novo em `refs/conductor-checkpoints` depois de um turno;
 - `pnpm gate:quick` verde.
 
 **Gate**: `pnpm gate:quick`
@@ -480,37 +496,41 @@ indefinido, só `.sample`) e nenhuma task da v0.1 a tratava.
 
 ---
 
-### T18: Um guarda, chamado pelos dois agentes
+### T18: O guarda, no `PreToolUse` do Claude
 
-**Classe:** permissão · **Previne:** que a política valha para um agente e não para o outro, e que um
-padrão de prefixo deixe passar a mesma ação escrita de outro jeito (`git push origin +main` é um push
-forçado que `Bash(git push --force:*)` não casa).
+**Classe:** permissão · **Previne:** que um padrão de prefixo deixe passar a mesma ação escrita de
+outro jeito (`git push origin +main` é um push forçado que `Bash(git push --force:*)` não casa), e que
+a política dependa de um arquivo que casa texto. O `deny` da T4 fica como **piso**
+([Q11](open-questions.md)).
 **Trava:** [Q11](open-questions.md), e a [T0](#t0-o-que-cada-agente-carrega-do-repositório-medido) —
 o alcance é o que ela medir.
 
 **What**:
-1. `scripts/harness/guard.ts`: lê o JSON de `PreToolUse` da entrada padrão (o formato do Claude e o do
-   Codex, que têm o mesmo miolo `tool_name`/`tool_input`), decide, e sai `2` com a frase no `stderr`
-   quando recusa. Decisão como **função pura** — comando → veredito com motivo —, separada da leitura.
+1. `scripts/harness/guard.ts`: lê o JSON de `PreToolUse` do Claude da entrada padrão
+   (`tool_name`/`tool_input`), decide, e sai `2` com a frase no `stderr` quando recusa. Decisão como
+   **função pura** — comando → veredito com motivo —, separada da leitura. Entrada que não parseia é
+   **recusa**, não liberação ([Q11](open-questions.md)).
 2. O que ele recusa, com o motivo de cada um: a lista da [T4](#t4-a-política-de-permissão-do-agente-vira-arquivo-do-repositório-com-teste--59),
    mais `git commit --no-verify` e `git push --no-verify` (é o que faz a T17 valer para agente),
+   `HUSKY=0` em qualquer comando e escrita em `~/.config/husky/` — as duas portas de fuga que o
+   husky acrescenta ([Q9](open-questions.md)) —,
    push direto para `main`, push forçado em **qualquer** forma (`--force`, `-f`, `+refspec`,
    `--force-with-lease` para `main`), `git reset --hard` com mudança não commitada, e escrita fora do
    checkout.
-3. Ligar nas tomadas que a T0 disser que existem: `hooks.PreToolUse` do `.claude/settings.json` e
-   `.codex/hooks.json`, os dois chamando o mesmo script.
-4. `scripts/harness/guard.test.ts`: uma tabela de casos, **com a entrada crua de cada agente** — o
-   caso que um agente recusa e o outro deixa passar é o defeito. E o teste da T4 passa a exigir que
-   as duas tomadas existam e apontem para o mesmo arquivo.
-5. `AGENTS.md`: o que o guarda recusa, e que recusa é o comportamento — não um erro para contornar.
+3. Ligar em `hooks.PreToolUse` do `.claude/settings.json` — e, pelo que a T0 medir, também onde a
+   esteira sobe o `claude-agent-acp`.
+4. `scripts/harness/guard.test.ts`: uma tabela de casos com a **entrada crua do Claude**, cada forma
+   alternativa de cada ação (`--force`, `-f`, `+refspec`, variável na frente, `git -C`). E o teste da
+   T4 passa a exigir que o piso do `deny` seja **subconjunto** do que o guarda recusa.
+5. `CLAUDE.md`: o que o guarda recusa, e que recusa é o comportamento — não um erro para contornar.
 
-**Where**: `scripts/harness/guard.ts` (+ teste, novos), `.claude/settings.json`, `.codex/hooks.json`
-(novo), `scripts/agent-policy.test.ts`, `AGENTS.md`.
+**Where**: `scripts/harness/guard.ts` (+ teste, novos), `.claude/settings.json`,
+`scripts/agent-policy.test.ts`, `CLAUDE.md`.
 
 **Done when**:
-- cada ação da lista, tentada **pelos dois agentes** na forma inofensiva, é recusada com a frase do
-  guarda — observado, não lido;
-- apagar uma tomada, ou fazer as duas apontarem para scripts diferentes, deixa `pnpm test` vermelho;
+- cada ação da lista, tentada pelo Claude na forma inofensiva — interativo, e pela esteira até onde a
+  T0 alcançar —, é recusada com a frase do guarda; observado, não lido;
+- apagar a tomada, ou tirar do guarda um padrão que o `deny` tem, deixa `pnpm test` vermelho;
 - `pnpm gate:quick` verde.
 
 **Gate**: `pnpm gate:quick`
@@ -525,15 +545,16 @@ rode o gate que ela declara"* depender de o agente lembrar dela.
 **Trava:** [Q12](open-questions.md), e a [T0](#t0-o-que-cada-agente-carrega-do-repositório-medido).
 
 **What** — escrito com a recomendação da Q12:
-1. `scripts/harness/stop.ts`: se a árvore mudou desde o último `gate:quick` verde (carimbo em
-   `.git/lumem-gate-green` com o hash do `git diff HEAD`), roda o `gate:quick`; vermelho devolve
+1. `scripts/harness/stop.ts`: se a árvore mudou desde o último `gate:quick` verde (o carimbo da
+   [T17](#t17-hooks-de-git-versionados-ligados-pelo-setup), em `.git/lumem-gate-green`, agora com o
+   hash da árvore de trabalho), roda o `gate:quick`; vermelho devolve
    `{"decision":"block","reason":…}` com o resumo, verde grava o carimbo.
-2. **Uma vez por turno**: com `stop_hook_active` (Claude) ou o equivalente do Codex, sai sem rodar.
+2. **Uma vez por turno**: com `stop_hook_active`, sai sem rodar.
 3. **Fora da esteira**: com a variável que o daemon põe nas sessões da esteira, sai sem rodar — o
    portão da [`028`](../028-autonomous-orchestration/prd.md) já julga lá.
-4. Ligar no `Stop` dos dois agentes, onde a T0 disser que existe.
+4. Ligar no `Stop` do `.claude/settings.json`.
 
-**Where**: `scripts/harness/stop.ts` (+ teste, novos), `.claude/settings.json`, `.codex/hooks.json`.
+**Where**: `scripts/harness/stop.ts` (+ teste, novos), `.claude/settings.json`.
 
 **Done when**:
 - uma sessão que quebra um teste e tenta encerrar recebe o bloqueio com o nome do teste, uma vez;
@@ -551,8 +572,7 @@ rode o gate que ela declara"* depender de o agente lembrar dela.
 contexto ativo em todo turno, dentro do `CLAUDE.md`; e skill de terceiro no repositório mandando o
 contrário da regra — a auditoria achou uma (D3), e hoje são cinco em `.claude/skills/`.
 **Trava:** [Q14](open-questions.md), a [T0](#t0-o-que-cada-agente-carrega-do-repositório-medido) e a
-[T8](#t8-agentsmd-na-raiz-e-o-claudemd-encolhe--63) (o `AGENTS.md` é onde a regra de *onde mora*
-fica).
+[T8](#t8-agentsmd-na-raiz-e-o-claudemd-encolhe--63) (o `CLAUDE.md` encolhe junto).
 
 **What**:
 1. `lumem-adr` — os três testes, o frontmatter, `supersedes`, reafirmar o que fica, o estudo em
@@ -562,20 +582,19 @@ fica).
    parágrafo no History do Outline.
 3. `lumem-outline` — discovery, postmortem, runbook, a entrada no Work log: a coleção certa, a regra
    do segredo, *linka, não copia*, e o fechamento discovery → ADR.
-4. O `CLAUDE.md` (ou o `AGENTS.md`, pela T8) fica com a tabela de **onde cada coisa mora** e as sete
+4. O `CLAUDE.md` fica com a tabela de **onde cada coisa mora** e as sete
    regras; o formato sai para as skills.
 5. As cinco skills de terceiro em `.claude/skills/` passam, uma a uma, pela pergunta *"o que ela manda
    contradiz o `CLAUDE.md`?"* — e a que contradiz sai do repositório ou ganha a exceção escrita.
-6. O que a T0 disser que o Codex lê recebe um link simbólico para as mesmas skills.
-7. Um teste em `scripts/` exige que cada `lumem-*` tenha `name` e `description`, e que toda regra que
+6. Um teste em `scripts/` exige que cada `lumem-*` tenha `name` e `description`, e que toda regra que
    uma skill cita (`check-docs`, `Status:`) exista no código que ela cita.
 
 **Where**: `.claude/skills/lumem-adr/`, `.claude/skills/lumem-feature-docs/`,
-`.claude/skills/lumem-outline/` (novos), `CLAUDE.md`, o caminho do Codex, `scripts/`.
+`.claude/skills/lumem-outline/` (novos), `CLAUDE.md`, `scripts/`.
 
 **Done when**:
 - um agente sem histórico, pedido *"escreve um ADR sobre X"*, carrega a `lumem-adr` sozinho e produz
-  um arquivo que o `docs:check` aceita — observado nos dois agentes, até onde a T0 disser;
+  um arquivo que o `docs:check` aceita — observado;
 - `wc -l CLAUDE.md` abaixo de **100**, junto com a T8;
 - `pnpm gate:quick` verde.
 

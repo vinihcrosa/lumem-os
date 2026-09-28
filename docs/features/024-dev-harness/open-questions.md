@@ -113,17 +113,31 @@ As seis que o [§8 da PRD](prd.md#8-emenda--2026-09-28-hooks-skills-e-o-que-trê
 abriu — hooks de git, hooks de agente e skills. A Q13 é a única que só se responde medindo, e é ela
 que decide o tamanho da T18, da T19 e da T20.
 
-- [ ] **Q9 — Qual ferramenta liga os hooks de git? ([T17](tasks.md))**
+- [x] **Q9 — Qual ferramenta liga os hooks de git? ([T17](tasks.md))**
   Três candidatos: `core.hooksPath` apontando para `.githooks/` versionado, `lefthook` e `husky`.
   O que pesa aqui é que **toda worktree compartilha o mesmo `.git`** — Conductor e Superset criam
-  dezenas —, e que o repositório não tem hoje nenhuma dependência de hook.
-  **Recomendação:** `core.hooksPath=.githooks`, ligado pelo `scripts/workspace/setup.sh`. Zero
-  dependência, o caminho relativo resolve na raiz de cada worktree, e o script do hook é arquivo
-  comum que o teste lê. `lefthook` compra paralelismo e filtro por glob, que três hooks curtos não
-  precisam; `husky` depende do `prepare` do `pnpm install`, que o `--ignore-scripts` do CI desliga.
-  **O que a resposta muda:** se a T17 adiciona uma dependência.
+  dezenas (17 nesta máquina em 2026-09-28) —, e que o repositório não tem hoje nenhuma dependência de
+  hook.
+  **Recomendação (da emenda):** `core.hooksPath=.githooks`, ligado pelo `scripts/workspace/setup.sh`,
+  sem dependência.
+  **R:** **husky v9**, respondido em 2026-09-28 — contra a recomendação, por familiaridade, e a
+  comparação que decidiu está aqui para não ser refeita. A lógica mora em
+  `scripts/harness/git-hook.ts` nos dois casos, então a ferramenta só decide **quem liga** e **quantas
+  portas de fuga existem**. O husky ganha em ligar sozinho no `pnpm install` (o `prepare`), sem
+  depender do `setup.sh`, e em ser convenção que pessoa e agente reconhecem; custa um pacote pequeno
+  sem dependências, no `package.json` da raiz (`private: true`, fora do tarball publicado), e uma
+  pasta gerada por worktree (`.husky/_`). O custo que importa é **duas portas de fuga além do
+  `--no-verify`**: `HUSKY=0` no ambiente, e o `~/.config/husky/init.sh`, que o husky executa a cada
+  hook e que pode desligá-los na máquina inteira sem rastro no repositório. As duas ficam fechadas
+  para agente pela [T18](tasks.md). E o CI ganha `HUSKY: 0`.
+  > **Correção — 2026-09-28.** A recomendação original dizia que o husky *"depende do `prepare` do
+  > `pnpm install`, que o `--ignore-scripts` do CI desliga"*. **Estava errado:** o `ci.yml` roda
+  > `pnpm install --frozen-lockfile`, sem `--ignore-scripts`. O argumento caiu antes da resposta, e a
+  > resposta não se apoia nele.
+  **O que a resposta muda:** a T17 adiciona `husky` como dependência de desenvolvimento da raiz, e os
+  hooks moram em `.husky/`.
 
-- [ ] **Q10 — O que roda em cada hook de git? ([T17](tasks.md))**
+- [x] **Q10 — O que roda em cada hook de git? ([T17](tasks.md))**
   O custo é o que decide: um `pre-commit` lento é um `pre-commit` que se atravessa.
   **Recomendação:**
   - `pre-commit` — **abaixo de 10 s**, só o que é barato e do arquivo em stage: `docs:check` se há
@@ -133,8 +147,22 @@ que decide o tamanho da T18, da T19 e da T20.
   - `pre-push` — o `gate:quick` (84 s medidos em 2026-09-28 no pior caso, quando seleciona a suíte
     inteira). É o último ponto antes de o CI gastar 4 min.
   **O que a resposta muda:** o corpo de três arquivos, e o tempo que cada commit custa.
+  **R:** **a recomendação, com dois acréscimos**, respondido em 2026-09-28. Os custos que decidiram,
+  medidos nesta máquina no mesmo dia: `docs:check` **0,4 s**, `design:derive --check` **0,3 s**,
+  `typecheck` **2 s** com cache e ~23 s frio, `gate:quick` **84 s** no pior caso. O `typecheck` fica
+  **fora** do `pre-commit` por causa do frio — uma worktree nova ou uma troca de branch faria o
+  commit custar 23 s —, e entra pelo `gate:quick` do `pre-push`. Os acréscimos:
+  - **o carimbo compartilhado com a [Q12](#abertas-pela-emenda-de-2026-09-28).** O `pre-push` e o `Stop` gravam e leem o mesmo
+    carimbo — o hash da árvore do último `gate:quick` verde —, e o `pre-push` de uma árvore já
+    verde sai dizendo *"já verde em <hash>"*, sem rodar de novo;
+  - **o checkpoint do Conductor não pode quebrar.** São 997 refs em `refs/conductor-checkpoints`,
+    com mensagem `checkpoint:session-…`, fora do Conventional Commits; tudo indica que saem por
+    plumbing, que não dispara hook, e isso vira **aceite** da T17 em vez de suposição.
+  E o que ficou de fora de propósito: os títulos de squash em `main` (`034-agent-accounts: …`) não
+  seguem o Conventional Commits, mas quem os escreve é o GitHub no merge — o `commit-msg` nunca os
+  vê. Padronizar título de PR é outra regra, no CI, e conversa com a [T16](tasks.md).
 
-- [ ] **Q11 — A política do agente mora em `permissions.deny`, num hook, ou nos dois? ([T4](tasks.md), [T18](tasks.md))**
+- [x] **Q11 — A política do agente mora em `permissions.deny`, num hook, ou nos dois? ([T4](tasks.md), [T18](tasks.md))**
   O `deny` é nativo, barato e só o Claude o lê. O hook `PreToolUse` existe no Claude e no Codex, e
   sabe ler o comando inteiro — `git push --force` escrito como `git push origin +main` não casa com
   um padrão de prefixo, mas casa com um parser.
@@ -143,13 +171,25 @@ que decide o tamanho da T18, da T19 e da T20.
   e é ele que o teste exercita com o JSON de entrada de cada agente. O que um agente recusa e o
   outro deixa passar é o defeito que o teste existe para pegar.
   **O que a resposta muda:** se a T18 existe, ou se a T4 basta.
+  **R:** **os dois**, respondido em 2026-09-28 — e com uma restrição que encolhe a pergunta: **este
+  repositório é desenvolvido só com Claude.** O guarda não precisa de tomada no Codex, e o *"um script,
+  dois agentes"* da recomendação cai. O que decidiu, lido na documentação do Claude Code no mesmo dia:
+  - o `deny` de **qualquer** escopo ganha do `allow` de qualquer escopo — o do repositório vale contra
+    os 103 `allow` do `~/.claude/settings.json` — e vale **em `bypassPermissions`**, o modo da esteira;
+  - o `PreToolUse` dispara **em todo modo**, e um bloqueio dele ganha até de um `allow`;
+  - o `deny` casa por texto e o hook lê o comando: `git push origin +main`, `git push -f` e
+    `HUSKY=0 git commit` (a porta da [Q9](#abertas-pela-emenda-de-2026-09-28)) escapam do primeiro e não do segundo;
+  - um hook que quebra **deixa passar**, e é o `deny` que segura a forma óbvia nesse dia.
+  Então: o `deny` da [T4](tasks.md) é o **piso**, o guarda da [T18](tasks.md) é o **guarda**, e um teste
+  exige que o piso seja subconjunto do que o guarda recusa. O guarda que não consegue decidir —
+  entrada que não parseia — **recusa** em vez de liberar, e isso é caso de teste.
 
 - [ ] **Q12 — O `Stop` cobra o gate antes de o agente dizer *"pronto"*? ([T19](tasks.md))**
   É a regra *"antes de dizer que uma task está pronta, rode o gate que ela declara"* virando mecânica.
   O custo é o tempo: 84 s no pior caso, a cada vez que o agente para.
   **Recomendação:** sim, com três limites — só roda se a árvore mudou desde o último `gate:quick`
   verde (um carimbo com o hash do `git diff`), bloqueia **uma vez** por turno (o `stop_hook_active`
-  do Claude, e o equivalente do Codex), e na esteira ele **não** roda, porque lá o portão da
+  do Claude), e na esteira ele **não** roda, porque lá o portão da
   [`028`](../028-autonomous-orchestration/prd.md) já é quem julga.
   **O que a resposta muda:** se a T19 existe, e quanto tempo cada turno custa.
 
@@ -163,6 +203,10 @@ que decide o tamanho da T18, da T19 e da T20.
   que ser o **daemon** (a política do Lumem da [`016`](../016-session-mode/prd.md) já é um guarda), e
   isso é assunto de produto, com ADR próprio — não de repositório.
   **O que a resposta muda:** o alcance da T18, T19 e T20, e se nasce uma feature de produto.
+  > **Nota — 2026-09-28.** A [Q11](#abertas-pela-emenda-de-2026-09-28) fixou que este repositório é desenvolvido **só com
+  > Claude**. As superfícies caem de quatro para **duas** — o Claude Code interativo e o
+  > `claude-agent-acp@0.75.1` como a esteira o sobe —, e as células de dezesseis para **oito**. A
+  > pergunta continua aberta: é a do adaptador que decide o desenho.
 
 - [ ] **Q14 — Onde moram as skills, para que os dois agentes as leiam? ([T20](tasks.md))**
   O Claude lê `.claude/skills/`. O Codex desta máquina tem `~/.codex/skills` e `~/.agents/skills`,
@@ -172,3 +216,6 @@ que decide o tamanho da T18, da T19 e da T20.
   E as cinco skills de terceiro que já moram em `.claude/skills/` passam pela mesma auditoria: a
   auditoria de 2026-09-07 achou uma delas **contradizendo o `CLAUDE.md`** (D3).
   **O que a resposta muda:** um caminho, e se o repositório carrega skill que não escreveu.
+  > **Nota — 2026-09-28.** Com o repositório **só Claude** ([Q11](#abertas-pela-emenda-de-2026-09-28)), a metade do Codex desta
+  > pergunta cai: as skills moram em `.claude/skills/`, e ponto. O que sobra de pé é a outra metade —
+  > **as cinco skills de terceiro** que já estão lá.
