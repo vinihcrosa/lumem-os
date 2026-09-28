@@ -15,7 +15,7 @@ import {
   type FakeAgentScript,
   type FakeAgentTurn,
 } from "../testing/acp-fake-agent.js";
-import { AcpManager, codeIn, modeOwnerOf, type AcpManagerOptions } from "./AcpManager.js";
+import { AcpManager, AcpTurnFailedError, codeIn, modeOwnerOf, type AcpManagerOptions } from "./AcpManager.js";
 import type { AcpProcess } from "./process.js";
 import {
   createMemoryTranscriptStore,
@@ -2460,6 +2460,44 @@ describe("um turno que falha solta a marca, e deixa retrato", () => {
     // é a que a Q46 procura.
     const [payload] = warn.mock.calls[0] as [Record<string, unknown>];
     expect(payload).toMatchObject({ rateLimit: null, windowSpent: false });
+  });
+
+  it("a conversa fica sabendo: o turno falhou, com a frase do adaptador — e sem contar um turno", async () => {
+    const { manager } = failing("o adaptador desistiu");
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: here() });
+    const events: AcpEvent[] = [];
+    manager.onEvent(info.id, ({ event }) => events.push(event));
+
+    const failed = await manager.prompt(info.id, "oi").catch((error: unknown) => error);
+
+    /*
+     * Sem este evento a conversa ficava em `streaming` para sempre — o botão de
+     * interromper aceso sobre um turno morto —, porque o adaptador não manda
+     * `turn_end` numa recusa. E ele **não** é um `turn_end`: é nele que o
+     * contador de turnos vira, e um turno que não aconteceu não conta.
+     */
+    expect(events.at(-1)).toEqual({ type: "turn_failed", message: expect.stringContaining("o adaptador desistiu") });
+    expect(typesOf(events)).not.toContain("turn_end");
+    // O erro continua subindo — a esteira o trata como tentativa gasta —, e
+    // marcado como já contado na conversa, para quem o recebe não repeti-lo.
+    expect(failed).toBeInstanceOf(AcpTurnFailedError);
+    expect(failed).toMatchObject({ code: -32603 });
+  });
+
+  it("a recusa por cota continua sendo cota, e não vira falha", async () => {
+    const fake = fakeAgentProcess({
+      prompt: () =>
+        Promise.reject(new RequestError(-32603, "Internal error: limite", { errorKind: "rate_limit" })),
+    });
+    const manager = new AcpManager({ spawner: () => fake.process, isAvailable: () => true });
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: here(), adapterId: "claude" });
+    const events: AcpEvent[] = [];
+    manager.onEvent(info.id, ({ event }) => events.push(event));
+
+    await manager.prompt(info.id, "oi").catch(() => undefined);
+
+    expect(typesOf(events)).toContain("quota_refused");
+    expect(typesOf(events)).not.toContain("turn_failed");
   });
 
   it("o mesmo retrato vai para o disco, porque o log do daemon não persiste", async () => {

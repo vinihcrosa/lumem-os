@@ -503,6 +503,27 @@ describe("a recusa por cota (`028` T17)", () => {
   });
 });
 
+describe("um turno que falhou", () => {
+  it("chega como evento da conversa, e não como `internal error` por cima dela", async () => {
+    queued.push(
+      fakeAgentProcess({ prompt: () => Promise.reject(new Error("o adaptador desistiu")) }).process,
+    );
+    const info = await acpManager.spawn({ command: "claude-agent-acp", cwd: "/repos/lorebase" });
+    const client = await TestClient.connect(info.id);
+    await client.waitForMessage("attached");
+
+    client.send({ type: "prompt", text: "oi" });
+    await client.waitForEvent("turn_failed");
+    // Mesmo truque do caso da cota: a resposta a este quadro só chega depois de
+    // a rejeição do prompt ter sido tratada.
+    client.sendRaw("isto não é json");
+    await client.waitForMessage("error");
+
+    const errors = client.messages.filter((message) => message.type === "error");
+    expect(errors).toEqual([expect.objectContaining({ code: "INVALID_MESSAGE" })]);
+  });
+});
+
 describe("detaching", () => {
   it("leaves the agent alone when the client goes away", async () => {
     // F1.4 through the socket: closing the browser unsubscribes a listener and

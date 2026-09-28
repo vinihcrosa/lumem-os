@@ -868,3 +868,29 @@ describe("a recusa por cota (`028` T17)", () => {
     expect(replayConversation(entries)).toEqual(from(...entries));
   });
 });
+
+describe("um turno que falhou, sem ser cota", () => {
+  const failed = (): AcpTranscriptEntry =>
+    at({ type: "turn_failed", message: "Internal error: o adaptador desistiu" });
+
+  it("fecha o turno: sem isso a conversa ficava respondendo para sempre", () => {
+    expect(from(userSaid("oi"), failed()).streaming).toBe(false);
+  });
+
+  it("é o Lumem falando, em turno próprio, com a frase do erro", () => {
+    const state = from(userSaid("oi"), agentSaid("começando"), failed());
+
+    expect(state.turns).toHaveLength(3);
+    expect(state.turns.at(-1)?.blocks).toEqual([
+      { kind: "failure", text: "o turno falhou — Internal error: o adaptador desistiu" },
+    ]);
+    // Não houve parada: o `StopReason` do ACP não tem palavra para recusa.
+    expect(state.lastStopReason).toBeNull();
+  });
+
+  it("relida do disco, desenha o mesmo que ao vivo", () => {
+    const entries = [userSaid("oi"), failed()];
+
+    expect(replayConversation(entries)).toEqual(from(...entries));
+  });
+});

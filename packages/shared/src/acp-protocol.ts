@@ -547,6 +547,18 @@ export const acpEventSchema = z.discriminatedUnion("type", [
     message: z.string(),
   }),
   /**
+   * O `session/prompt` foi recusado, e não por cota (irmão do `quota_refused`).
+   *
+   * **Fecha o turno**, pelo mesmo motivo: numa recusa o adaptador não manda
+   * `turn_end`, e sem este evento a conversa ficava em `streaming` para sempre —
+   * o botão de interromper aceso sobre um turno morto, e um `internal error`
+   * genérico por cima. E **não** é um `turn_end`, que é onde o contador de turnos
+   * vira: um turno que não aconteceu não gasta o teto de `turnsPerSession`.
+   *
+   * `message` é a frase do erro, **só para mostrar** — nada decide por ela.
+   */
+  z.object({ type: z.literal("turn_failed"), message: z.string() }),
+  /**
    * An event the daemon received and could not name.
    *
    * A deliberate shape, not a hole: the daemon produces it after failing to

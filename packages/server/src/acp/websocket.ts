@@ -12,7 +12,7 @@ import { WebSocket, WebSocketServer, type RawData } from "ws";
 
 import { isDomainError, type DomainErrorCode } from "../errors.js";
 import { onUpgradePath } from "../ws/upgrade.js";
-import { modeOwnerOf } from "./AcpManager.js";
+import { AcpTurnFailedError, modeOwnerOf } from "./AcpManager.js";
 import type { AcpManager } from "./AcpManager.js";
 
 /**
@@ -139,6 +139,13 @@ export function registerAcpWebSocket({
             // continuar noutra (`028` T17). Um aviso vermelho em cima dela seria
             // a mesma frase duas vezes, uma delas sem saída.
             if (isDomainError(error) && error.code === "QUOTA_REFUSED") return;
+            // Idem para qualquer outra recusa: a linha `turn_failed` já está na
+            // conversa, com a frase do adaptador. O log fica — é defeito de
+            // alguém, e o `warn` é o que se vê enquanto acontece.
+            if (error instanceof AcpTurnFailedError) {
+              app.log.warn({ err: error, sessionId }, "acp turn failed");
+              return;
+            }
             reportFailure(error, "prompt");
           });
           return;

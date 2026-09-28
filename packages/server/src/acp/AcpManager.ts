@@ -146,6 +146,24 @@ export interface AcpSpawnOptions {
 }
 
 /**
+ * Um `session/prompt` recusado que a conversa já registrou como `turn_failed`.
+ *
+ * Carrega o `code` e o `data` do erro original, para quem lia o erro cru — o
+ * retrato da Q46, um log — continuar lendo o mesmo; a mensagem é a dele.
+ */
+export class AcpTurnFailedError extends Error {
+  readonly code: unknown;
+  readonly data: unknown;
+
+  constructor(cause: unknown) {
+    super(cause instanceof Error ? cause.message : String(cause), { cause });
+    this.name = "AcpTurnFailedError";
+    this.code = (cause as { code?: unknown } | null)?.code ?? null;
+    this.data = (cause as { data?: unknown } | null)?.data ?? null;
+  }
+}
+
+/**
  * Os dois condutores possíveis de um turno.
  *
  * Declarado aqui, e não importado da `tasks/budget.ts`, pela mesma direção de
@@ -1345,7 +1363,7 @@ export class AcpManager {
       session.openToolCalls.clear();
       this.observeTurnFailure(session, error);
       if (isQuotaRefusal(error, session.quotaRefusalKind)) throw this.quotaRefused(session, error);
-      throw error;
+      throw this.turnFailed(session, error);
     }
 
     // The fifth card state, and the only place it can be derived (A14). ACP has
@@ -1446,6 +1464,22 @@ export class AcpManager {
     return new DomainError("QUOTA_REFUSED", `${whose} bateu no limite do ${agentLabel}`, {
       cause: error,
     });
+  }
+
+  /**
+   * Qualquer outra recusa do `session/prompt`: a conversa fica sabendo que o
+   * turno acabou, e por quê.
+   *
+   * O erro **continua subindo**, e não vira `DomainError`: não é uma falha
+   * esperada com código do Lumem — é o adaptador que desistiu —, e a esteira o
+   * trata como tentativa gasta. O que muda é a marca `AcpTurnFailedError`, que
+   * diz a quem o recebe que a conversa já contou; o `websocket` a lê para não
+   * pintar um `internal error` em cima da linha.
+   */
+  private turnFailed(session: Session, error: unknown): AcpTurnFailedError {
+    const failed = new AcpTurnFailedError(error);
+    this.emit(session, { type: "turn_failed", message: failureText(failed) });
+    return failed;
   }
 
   /**
@@ -2702,6 +2736,27 @@ function identityFromAuthStatus(params: unknown): AcpAccountIdentity | null {
 function isAuthRequired(error: unknown): boolean {
   const code = (error as { code?: unknown }).code;
   return code === ACP_AUTH_REQUIRED_CODE;
+}
+
+/**
+ * The sentence a failed turn shows: the error's message, plus the SDK's
+ * `data.details` when it has one.
+ *
+ * `details` is the SDK's own wrapping, not the adapter's: an agent that throws a
+ * bare `Error` reaches the client as `-32603 "Internal error"` with its text in
+ * `data.details` — measured in this file's tests, and the trap `testing.md`
+ * records. Without it the line would read "Internal error" and say nothing.
+ * Display only: nothing branches on it.
+ */
+function failureText(error: AcpTurnFailedError): string {
+  const details =
+    typeof error.data === "object" && error.data !== null
+      ? (error.data as Record<string, unknown>)["details"]
+      : undefined;
+  if (typeof details !== "string" || details === "" || error.message.includes(details)) {
+    return error.message;
+  }
+  return `${error.message}: ${details}`;
 }
 
 /**

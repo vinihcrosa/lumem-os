@@ -559,6 +559,33 @@ describe("o rascunho que a chegada preenche", () => {
   });
 });
 
+describe("um turno que falhou", () => {
+  it("fecha o turno, diz por quê, e a conversa aceita a próxima pergunta", async () => {
+    const user = userEvent.setup();
+    const { socket } = mount();
+    socket.deliver(attached([entry({ type: "message", messageId: "u-1", role: "user", text: "vai" })]));
+    await screen.findByRole("button", { name: /interromper/ });
+
+    socket.deliver({
+      type: "event",
+      at: clock,
+      event: { type: "turn_failed", message: "Internal error: o adaptador desistiu" },
+    });
+
+    // A linha é do Lumem, em vermelho, e a frase do erro vai inteira.
+    const line = await screen.findByText("o turno falhou — Internal error: o adaptador desistiu");
+    expect(line.closest(".banner")).toHaveClass("banner--danger");
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: /interromper/ })).not.toBeInTheDocument();
+    });
+
+    await user.type(screen.getByLabelText("mensagem para o agente"), "de novo");
+    await user.click(screen.getByRole("button", { name: /enviar/ }));
+
+    expect(socket.sent).toContainEqual({ type: "prompt", text: "de novo" });
+  });
+});
+
 describe("interrupting", () => {
   it("offers to interrupt only while a turn is in flight", async () => {
     const { socket } = mount();

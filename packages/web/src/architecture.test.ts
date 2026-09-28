@@ -461,7 +461,8 @@ describe("regra 7 — um `index.css` por feature", () => {
 //   `unavailable-text.ts`, e a T11 o levou a 743 pelo mesmo motivo da `033`:
 //   `continued_in` e `continued_from`, com a frase já fora, em
 //   `continuation-text.ts` — o que sobra é o `case`. A `028` T17 o levou a
-//   751 pelo mesmo motivo: `quota_refused`, com a frase em `quota-text.ts`.
+//   751 pelo mesmo motivo: `quota_refused` e `turn_failed`, com as frases em
+//   `turn-close-text.ts`.
 // - `LocalPanel.tsx` (444) — não estava em nenhuma lista da T25 nem da Q8; o
 //   disco tinha mais um arquivo do que o texto contava, a mesma classe de
 //   achado que a T2 já registrou para `lib/trpc.js`.

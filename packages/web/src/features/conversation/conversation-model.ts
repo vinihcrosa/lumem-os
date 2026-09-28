@@ -17,7 +17,7 @@ import type {
 } from "@lumem/shared";
 
 import { continuationBlock } from "./continuation-text.js";
-import { quotaTurn } from "./quota-text.js";
+import { closingTurn } from "./turn-close-text.js";
 import { unavailableText } from "./unavailable-text.js";
 
 /**
@@ -104,8 +104,8 @@ export type Block =
    * injeção parecer um defeito.
    */
   | { kind: "meta"; text: string; link?: string }
-  /** A conta bateu no limite (`028` T17) — ver `quota-text.ts`. Não é `meta`: pede um gesto. */
-  | { kind: "quota"; text: string };
+  /** As recusas do `session/prompt` — ver `turn-close-text.ts`. `quota` pede um gesto. */
+  | { kind: "quota" | "failure"; text: string };
 
 export interface Turn {
   /**
@@ -543,9 +543,9 @@ export function reduceConversation(
       };
 
     case "quota_refused":
-      // Fecha o turno, porque o adaptador não manda `turn_end` numa recusa; e o
-      // `lastStopReason` fica, porque não houve parada. Turno próprio: é o Lumem.
-      return { ...state, streaming: false, turns: [...state.turns, quotaTurn(event, at)] };
+    case "turn_failed":
+      // Fecha o turno (numa recusa não há `turn_end`); sem parada, o `lastStopReason` fica.
+      return { ...state, streaming: false, turns: [...state.turns, closingTurn(event, at)] };
 
     case "unknown":
       return appendBlock(state, "agent", {

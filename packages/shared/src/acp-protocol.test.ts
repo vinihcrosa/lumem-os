@@ -677,3 +677,12 @@ describe("a recusa por cota (`028` T17, medida em 2026-09-28)", () => {
     expect(decodeAcpServerMessage(wire).ok).toBe(true);
   });
 });
+
+describe("o turno que falhou", () => {
+  it("atravessa o fio com a frase do adaptador", () => {
+    const event: AcpEvent = { type: "turn_failed", message: "Internal error: o adaptador desistiu" };
+    const result = decodeAcpServerMessage(encodeAcpServerMessage({ type: "event", at: 1, event }));
+
+    expect(result.ok && result.message.type === "event" && result.message.event).toEqual(event);
+  });
+});

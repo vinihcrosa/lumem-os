@@ -237,6 +237,10 @@ function BlockView({
           {block.text}
         </Banner>
       );
+    case "failure":
+      // Perigo, e não aviso: o turno morreu, e o próximo passo é seu — de novo,
+      // ou outra coisa. Sem gesto: não há o que oferecer além da conversa aberta.
+      return <Banner tone="danger">{block.text}</Banner>;
   }
 }
 
