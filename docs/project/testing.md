@@ -1539,6 +1539,24 @@ seção. A regra: **um gesto de pessoa que falha no roteiro é um achado até pr
 contornar o gesto (viewport maior, `scrollIntoView`, clique por coordenada) é esconder o que a pessoa
 vai encontrar.
 
+### A forma do erro do fake não é a forma do erro do adaptador
+
+**Sintoma:** a [Q46 da `028`](../features/028-autonomous-orchestration/open-questions.md#q46--como-o-daemon-reconhece-uma-recusa-por-cota)
+afirmou, apoiada num teste verde, que o texto do adaptador chega *"enterrado em `data.details`"* — e
+propôs o `windowSpent` como o filtro da amostra. Quando uma cota de verdade fechou, em 2026-09-28, a
+chave era **`data.errorKind`**, o texto estava na `message`, e o `windowSpent` era `false`: o filtro
+proposto não teria achado a amostra.
+
+**Causa:** o teste fazia o fake em processo lançar um `Error` cru. O SDK do ACP embrulha isso como
+`-32603` com `data: { details }` — é a forma do **SDK** diante de um erro qualquer, e não a do
+adaptador, que lança o erro dele com o `data` que quiser. O teste provava o embrulho e foi lido como
+prova da forma.
+
+**Conserto:** os testes da recusa por cota (`35857b2`) lançam um `RequestError` com a forma
+**medida** — código, `message` e `data` como chegaram. A regra: **forma de estrangeiro se copia de uma
+amostra real, nunca de um fake que a produziu por acidente** — e, sem amostra, o teste diz que é
+suposição.
+
 ## Convenções
 
 - Teste de git usa **repositório temporário real**, nunca mock. `git worktree` tem caso de borda em nome com barra e branch existente que mock nenhum reproduz.

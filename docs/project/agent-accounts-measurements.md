@@ -34,6 +34,7 @@
 | O `codex-acp` respeita `CODEX_HOME`? | **Sim** — e aqui a **escrita** foi exercitada: um login num diretório descartável não tocou o `~/.codex` (§3) |
 | Dá para conferir a conta em vez de acreditar? | **Sim, nos dois** — mas **não** pelo `session/new`. Claude: `claude-agent-acp --cli auth status` (0,57 s, JSON com e-mail e plano). Codex: a notificação `_auth/status_update` (§4) |
 | A variável do CLI é *"cirúrgica: só a credencial muda"*, como o §4 da PRD escreveu? | **Não.** Ela move a **configuração inteira do agente** — e é por isso que a Q7 virou ADR (§5) |
+| Como o adaptador diz que a conta bateu no limite? *(2026-09-28, depois da fase 0)* | **Por `data.errorKind: "rate_limit"`** num `session/prompt` recusado com `-32603` — o código é genérico e o texto é prosa. Sem `turn_end`, e com `rateLimit: null`: a hora de reabrir só existe no texto (§7) |
 
 ## 2. Claude Code
 
@@ -245,3 +246,55 @@ não chegou ao probe.
 
 A conferência do §4 conserta os dois ao mesmo tempo, e é por isso que ela entra na `034` e não num
 remendo separado: com contas, **qual** conta é a pergunta, e *se há* uma é o caso particular.
+
+## 7. A conta que bateu no limite — medida em 2026-09-28
+
+> **Não foi uma bancada: foi uso.** Uma conta do Claude conectada pela `034` — rótulo
+> `technomar-ted`, com `CLAUDE_CONFIG_DIR` próprio — bateu no **limite semanal** no meio de uma
+> conversa. Sessão Lumem `6b67b5b4-…`, sessão ACP `52cb3d1d`, `claude-agent-acp@0.75.1`, modelo
+> `sonnet`. O que chegou ficou em dois lugares que já existiam para isso: a transcrição da conversa e
+> o `~/.lumem/_system/turn-failures.jsonl` que a
+> [Q46 da `028`](../features/028-autonomous-orchestration/open-questions.md#q46--como-o-daemon-reconhece-uma-recusa-por-cota)
+> deixou de instrumento. **Custo: nenhum turno chegou ao modelo.**
+
+O que chegou, nesta ordem:
+
+| # | O quê | Forma |
+|---|---|---|
+| 1 | `agent_message_chunk` | o texto *"You've hit your weekly limit · resets 7pm (America/Sao_Paulo)"*, gravado como mensagem **comum** do agente |
+| 2 | `usage_update` | `used: 0`, `size: 200000`, custo **zero** em USD — não nulo —, e `rateLimit: null` |
+| 3 | `session/prompt` **recusado** | `{"code":-32603,"message":"Internal error: You've hit your weekly limit · resets 7pm (America/Sao_Paulo)","data":{"errorKind":"rate_limit"}}` |
+| 4 | — | **nenhum `turn_end`** |
+
+O retrato do `turn-failures.jsonl` saiu com `tag: turn-failed` e `windowSpent: false` — e o `false`
+é informação: a janela **não** estava marcada como gasta, porque o `rateLimit` veio nulo. O filtro
+que a Q46 propôs (`jq 'select(.windowSpent)'`) **não teria achado esta amostra**; o que a achou foi o
+`data`, guardado cru justamente por isso.
+
+**O que isto decide:**
+
+- **o código não serve, o texto também não, e o `errorKind` serve.** `-32603` é o *internal error*
+  genérico do JSON-RPC; o texto é prosa do adaptador. O único campo estrutural que distingue a recusa
+  por cota de qualquer outra falha interna é `data.errorKind`. Ele entrou na `spec` como
+  `AdapterSpec.quotaRefusalKind` — `"rate_limit"` no Claude, `null` no Codex, que **não foi medido** —,
+  e é por ele, e só por ele, que o daemon reconhece a recusa (o [ADR de
+  2026-09-13](../adr/2026-09-13-0038-our-model-is-king-outsiders-adapt.md));
+- **o sinal de quando reabre não existe fora do texto.** *"resets 7pm (America/Sao_Paulo)"* está na
+  mensagem e em nenhum campo — o `rateLimit` veio nulo. A esteira, então, trata o caso medido como
+  **sem sinal**: três tentativas com espera crescente, e depois o cartão para nomeando a conta
+  (a [T17 da `028`](../features/028-autonomous-orchestration/tasks.md#t17-cota-não-é-orçamento--pausada));
+- **a recusa não fecha o turno sozinha.** Sem `turn_end`, a conversa ficava dizendo que o agente
+  ainda respondia. O evento `quota_refused` do Lumem é quem fecha — e **não** é um `turn_end`, porque
+  é no `turn_end` que o contador de turnos vira, e contar um turno aqui gastaria o teto de
+  `turnsPerSession` num turno que a conta recusou. Pelo mesmo motivo, o `usage_update` zerado do
+  passo 2 deixou de virar linha em `session_usage`;
+- **a conversa diz qual conta.** Com duas contas do mesmo agente, *"o Claude bateu no limite"* não
+  diz nada. A linha diz *"a conta technomar-ted bateu no limite do Claude Code"*, com o texto do
+  adaptador ao lado, e oferece *continuar em outra conta* quando há outra conectada — oferece, e não
+  troca: a [Q4](../features/034-agent-accounts/open-questions.md#x-q4--o-limite-de-janela-e-o-teto-de-orçamento-passam-a-ser-por-conta)
+  continua de pé, e a decisão está na
+  [Q12](../features/034-agent-accounts/open-questions.md#x-q12--a-conversa-que-bateu-no-limite-oferece-continuar-em-outra-conta).
+
+**O que não foi medido:** a mesma recusa no **Codex**, e o limite de **cinco horas** do Claude (a
+amostra é do semanal). Até uma cota do Codex fechar de verdade, a recusa dele é uma falha de turno
+comum — escrever `rate_limit` na spec dele seria vocabulário de um adaptador no catálogo de outro.

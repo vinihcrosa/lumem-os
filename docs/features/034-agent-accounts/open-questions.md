@@ -2,10 +2,12 @@
 
 **PRD:** [prd.md](prd.md)
 
-**Estado:** 14 perguntas · **14 respondidas** (2026-09-25 e 2026-09-26). A
+**Estado:** 15 perguntas · **15 respondidas** (2026-09-25, 2026-09-26 e 2026-09-28). A
 [Q7](#x-q7--isso-vira-adr) foi respondida pela fase 0 (**vira ADR**), e a
 [Q10](#x-q10--o-que-uma-conta-nova-herda-da-sua-configuração-de-hoje), que nasceu dela, foi aceita
-como proposta. A [Q11](#x-q11--uma-conta-de-assinatura-herda-o-anthropic_api_key-do-daemon) nasceu na T6.
+como proposta. A [Q11](#x-q11--uma-conta-de-assinatura-herda-o-anthropic_api_key-do-daemon) nasceu na T6,
+e a [Q12](#x-q12--a-conversa-que-bateu-no-limite-oferece-continuar-em-outra-conta) nasceu de uso: uma
+conta de verdade bateu no limite semanal.
 
 A Q1 e a Q5 foram **emendadas no mesmo dia** — a interpretação delas estava errada, e a emenda está
 dentro de cada resposta, com a versão anterior riscada.
@@ -433,3 +435,31 @@ diretório próprio não herda**. O resolvedor remove os nomes do `apiKeyEnv` do
 jeito que já remove a variável de conta da primeira. A **primeira conta** (a sem diretório) continua
 herdando, porque é o comportamento de hoje, e mudar isso trocaria a forma de cobrança de quem já
 usa o produto sem que ninguém tenha pedido. Conta de chave recebe a chave do cofre, e só ela.
+
+---
+
+### [x] Q12 — A conversa que bateu no limite oferece continuar em outra conta?
+
+Nasceu de uso, em 2026-09-28: a conta `technomar-ted` bateu no **limite semanal** do Claude no meio
+de uma conversa, e o que chegou está no
+[estudo](../../project/agent-accounts-measurements.md#7-a-conta-que-bateu-no-limite--medida-em-2026-09-28),
+§7. Com duas contas conectadas, o jeito de seguir sem esperar até *"7pm"* já existe no produto — é o
+*continuar em outra conta* da [Q3](#x-q3--dá-para-trocar-a-conta-de-uma-conversa-já-aberta), no
+cabeçalho. A pergunta é se a **linha da recusa** também o oferece, ou se ela só informa — e, oferecendo,
+se o produto troca sozinho.
+
+**R (2026-09-28), decidida na implementação com autonomia delegada:** **oferece, e nunca troca
+sozinho.** A linha diz qual conta parou (*"a conta technomar-ted bateu no limite do Claude Code —"*,
+com o texto do adaptador inteiro depois, porque o *"resets 7pm"* só existe nele) e, quando há **outra
+conta conectada** — de qualquer agente, como no cabeçalho —, traz o mesmo gesto, ao lado da frase.
+Sem outra conta, a linha é só a frase.
+
+- **nunca automático** — é a [Q4](#x-q4--o-limite-de-janela-e-o-teto-de-orçamento-passam-a-ser-por-conta)
+  lida de novo, e não uma regra nova: o Lumem não mede, não compara e não gira conta. Continuar numa
+  conta que você não escolheu seria o produto decidindo em qual assinatura você gasta;
+- **só a recusa mais recente oferece.** Com conversa depois dela, a cota já reabriu, e continuar
+  noutra conta por outro motivo é o gesto do cabeçalho;
+- **a esteira não usa isto.** O encaixe continua na conta dele e **espera** — é a
+  [T17 da `028`](../028-autonomous-orchestration/tasks.md#t17-cota-não-é-orçamento--pausada): três
+  tentativas com espera crescente, e depois o cartão para nomeando a conta, para você decidir. Trocar a
+  conta do encaixe é configuração ([Q5](#x-q5--cada-encaixe-da-esteira-pode-ter-conta-própria)).

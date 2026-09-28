@@ -8,7 +8,8 @@
 **Histórico:** **as seis partes estão entregues**  — a **Parte 1** (12 tasks, fases 0–4), a
 **Parte 3** (8, fases 5–9), a **Parte 2** (13, fases 10–15), a **Parte 4** (8, fases 16–20) e as
 **Partes 5 e 6** juntas (7, fases 21–24). São **48 tasks**, todas de 2026-09-12 e 2026-09-13, e
-**uma delas é parcial** — a T48, com o motivo escrito nela. A **Parte 7** (13 tasks, fases 25–28,
+**uma delas é parcial** — a T48, com o motivo escrito nela. A T17 também era, e fechou em
+**2026-09-28**, quando uma cota de verdade esgotou. A **Parte 7** (13 tasks, fases 25–28,
 2026-09-14 e 2026-09-15) não estava no §6: ela nasceu de **rodar a esteira contra uma tarefa de
 verdade**, e o que ela conserta é o parecer do revisor não entrar em lugar nenhum. São **61** ao
 todo. O corte é decisão registrada: das seis
@@ -21,13 +22,14 @@ duas coisas antes de existir código.
 A ordem tem uma regra: **o modelo antes da leitura, a leitura antes da tela** — e a tela por último
 porque é a mais barata de refazer e a única represada pelo Open Design, que desta vez já entregou.
 
-> **Por que continua `em execução` com as seis partes entregues.** Duas tasks são **parciais**, e as
+> **Por que continua `em execução` com as seis partes entregues.** ~~Duas tasks são **parciais**, e as
 > duas por falta de fonte e não de tempo: a **T17** espera uma cota de verdade esgotada para
-> reconhecer a recusa — *"o protocolo não tem código para isso"* —, e a **T48** espera um jeito de
-> testar o caminho feliz do tracker sem inventar uma opção de produto que só o teste usa. Chamar a
-> feature de `completa` com a primeira em aberto seria dizer que a `pausada` da
-> [Q32](open-questions.md#q32--limite-de-taxa-do-agente-pausa-não-é-bloqueio) existe inteira, e ela
-> não existe.
+> reconhecer a recusa — *"o protocolo não tem código para isso"* —, e a **T48**~~ **Uma task é
+> parcial**, por falta de fonte e não de tempo: a **T48**, que espera um jeito de
+> testar o caminho feliz do tracker sem inventar uma opção de produto que só o teste usa. A **T17**
+> fechou em **2026-09-28**, quando uma cota de verdade esgotou e a recusa ganhou forma — a `pausada` da
+> [Q32](open-questions.md#q32--limite-de-taxa-do-agente-pausa-não-é-bloqueio) existe inteira desde
+> então. O que segura o `em execução` é só a T48.
 >
 > **É o Vinicius quem fecha esse número**, não este arquivo: o `Status:` é da PRD, e a gramática do
 > [`025`](../025-docs-contract/prd.md) não tem um valor para *"entregue com duas ressalvas
@@ -515,7 +517,7 @@ sessão teve — sem tabela nova.
 
 ---
 
-### Fase 7 — o portão · **T16 entregue · T17 parcial**
+### Fase 7 — o portão · **T16 e T17 entregues** (a T17 em 2026-09-28)
 
 #### T16: A decisão do teto, e ela é uma função pura
 
@@ -573,8 +575,9 @@ bloqueia; espera maior que **4 h** vira bloqueio
 **Done when**: o selo `pausada até ~HH:MM` sai do `rateLimit` que o evento `usage` carrega; uma pausa
 não mexe em nenhum contador; e 4 h de espera vira `bloqueada` com o motivo.
 **Gate**: `pnpm gate:quick`
-**Status**: ⚠️ **parcial** (2026-09-13) — a metade que tem fonte de dado está de pé; a outra metade
-**não tem como ser escrita hoje**, e a nota diz por quê.
+**Status**: ✅ **entregue** (2026-09-28) — ~~⚠️ **parcial** (2026-09-13) — a metade que tem fonte de
+dado está de pé; a outra metade **não tem como ser escrita hoje**, e a nota diz por quê.~~ A outra
+metade esperou a recusa ter forma, e a forma chegou; a emenda do fim desta task diz qual e o que entrou.
 
 > **O que entrou:** `pausedUntil` deriva a pausa do que o agente **relata** — a janela gasta
 > (`utilization >= 1`) e ele **não** em excedente. Com excedente ele continua respondendo, e pausar
@@ -613,6 +616,52 @@ não mexe em nenhum contador; e 4 h de espera vira `bloqueada` com o motivo.
 > `rateLimitOf` — ele exigia `utilization` na raiz e o `0.75.1` a aninhou em
 > `unifiedWindows.<janela>`. Antes dela, esta task não teria dado de onde ler, e o defeito estava
 > apagado em **todo** transcript do repositório sem nada falhar.
+
+> **Emenda (2026-09-28): a metade que faltava, e o que a forma medida mudou nela.** Uma conta do
+> Claude conectada pela [`034`](../034-agent-accounts/prd.md) bateu no limite **semanal**, e o
+> retrato da [Q46](open-questions.md#q46--como-o-daemon-reconhece-uma-recusa-por-cota) fez o que
+> prometia. O `0.75.1` mandou um `agent_message_chunk` com o texto do limite, um `usage_update`
+> zerado, e o `session/prompt` recusado com `-32603` e **`data.errorKind: "rate_limit"`** — sem
+> `turn_end`, e com **`rateLimit: null`**
+> ([estudo](../../project/agent-accounts-measurements.md#7-a-conta-que-bateu-no-limite--medida-em-2026-09-28)).
+> A nota acima dizia *`data.details`*; a chave de verdade é `data.errorKind`, e a Q46 registra a
+> correção.
+>
+> **O que entrou**, em quatro commits:
+>
+> - **o reconhecimento é declarado, e não descoberto** (`35857b2`): `AdapterSpec.quotaRefusalKind`
+>   — `"rate_limit"` no Claude, `null` no Codex, que não foi medido — e o `AcpManager` compara o
+>   `data.errorKind` com ele, nunca o texto. A recusa vira um conceito do Lumem: o evento
+>   `quota_refused`, com a conta nomeada, e o `DomainError` `QUOTA_REFUSED` para quem chamou. O
+>   evento é o que **fecha o turno** na conversa — sem ele, o botão de interromper ficava aceso
+>   sobre um turno morto —, e **não** é um `turn_end`, porque é no `turn_end` que o contador de
+>   turnos vira. Pelo mesmo motivo, o `usage_update` zerado deixou de virar linha em
+>   `session_usage`: ele não somava nada além de um turno no `count(distinct sessão:turno)`;
+> - **a linha oferece continuar em outra conta** (`e6b16bf`), e só oferece — a
+>   [Q12 da `034`](../034-agent-accounts/open-questions.md#x-q12--a-conversa-que-bateu-no-limite-oferece-continuar-em-outra-conta);
+> - **a esteira pausa em vez de gastar** (`710aa74`): a tentativa contada antes do prompt é
+>   **devolvida**, e a recusa é contada à parte (`task.quota_refusals`), senão uma cota que nunca
+>   reabre seria um laço sem custo e sem fim. Sem sinal — que é o caso medido, e por isso o comum —,
+>   a espera cresce: **15 min, 45 min, 2 h**, três horas somadas, abaixo das 4 h que a Q32 chamou de
+>   longas demais; na quarta recusa o cartão para dizendo *"a conta technomar-ted bateu no limite do
+>   Claude Code — tentei de novo 3 vezes e ela não reabriu"*. Com sinal (o `resetsAt` do último
+>   `rateLimit`, e só ele — o *"resets 7pm"* do texto não é lido), a espera é até lá, e passando de
+>   4 h o cartão para na primeira. A espera decidida é **guardada** (`task.paused_until`), como o
+>   `blocked_reason` e pelo mesmo motivo: é o registro de uma decisão do daemon, e não um fato que
+>   continue existindo fora dele. A fila pula o cartão até a hora e o pega de volta sem escrita; o
+>   quadro pinta `pausada até` pelo selo que já existia;
+> - **o e2e** (`2296627`): o fake repete as quatro coisas medidas, e a conversa diz qual conta parou,
+>   fecha o turno e abre a continuação na outra conta.
+>
+> **O `Done when` de cima, relido:** *"o selo `pausada até ~HH:MM` sai do `rateLimit`"* continua
+> verdade, e ganhou uma segunda fonte — a espera que a esteira decide depois de uma recusa sem
+> sinal. As duas chegam ao mesmo selo, e vence a que reabre mais tarde. *"Uma pausa não mexe em
+> nenhum contador"* vale para a tentativa, o orçamento e o teto de turnos; o único que anda é o que
+> existe para a pausa não virar laço.
+>
+> **O que não foi medido:** a recusa do **Codex** e o limite de **cinco horas** do Claude. Até uma
+> das duas fechar de verdade, a primeira é falha de turno comum e a segunda é suposta igual à
+> semanal.
 
 ---
 
