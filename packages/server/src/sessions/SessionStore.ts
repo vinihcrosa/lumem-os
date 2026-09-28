@@ -266,6 +266,25 @@ export function createSessionStore({
     return adapterId ?? undefined;
   }
 
+  /**
+   * O adaptador e a conta de uma sessão de agente, no formato do `spawn`.
+   *
+   * O manager não tem banco, e a recusa por cota precisa das duas coisas: o
+   * adaptador para ler o erro com a palavra da `spec` dele, e a conta para a
+   * frase dizer qual parou (`028` T17). Ausentes quando não há o que dizer.
+   */
+  async function sessionIdentity(
+    agentConfigId: string | null,
+    agentAccountId: string,
+  ): Promise<{ adapterId?: string; account?: { id: string; label: string } }> {
+    const adapterId = await adapterIdOf(agentConfigId);
+    const account = await createAgentAccountRepository(db).get(agentAccountId);
+    return {
+      ...(adapterId === undefined ? {} : { adapterId }),
+      ...(account === undefined ? {} : { account: { id: account.id, label: account.label } }),
+    };
+  }
+
   /** O projeto de um escopo: ele mesmo, ou o projeto da worktree. */
   async function projectIdOf(scopeType: string, scopeId: string): Promise<string | undefined> {
     if (scopeType === "project") return scopeId;
@@ -472,6 +491,9 @@ export function createSessionStore({
             "sessão de agente exige a conta em que ela roda",
           );
         }
+        // Lidos antes do `spawn`, que é onde o `await` é permitido: é o que deixa
+        // uma recusa por cota dizer qual conta parou (`028` T17).
+        const identity = await sessionIdentity(agentConfigId, agentAccountId);
 
         // The agent first, so its id is the record's id — the same identity rule
         // the PTY path follows, for the same reason.
@@ -496,6 +518,7 @@ export function createSessionStore({
           lumemMode: born,
           lumemModeDefault: inherited,
           driver: input.driver ?? "human",
+          ...identity,
         });
 
         let row: SessionRow;
@@ -667,6 +690,9 @@ export function createSessionStore({
          */
         lumemMode: row.lumemMode as LumemMode,
         lumemModeDefault: await inheritedMode(row.scopeType as ScopeType, row.scopeId),
+        // A retomada sobe um adaptador novo, e ele precisa saber a conta tanto
+        // quanto o da criação: é o caso comum da esteira desde a Parte 7.
+        ...(await sessionIdentity(row.agentConfigId, account.id)),
       };
 
       /*

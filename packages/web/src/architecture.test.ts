@@ -460,7 +460,8 @@ describe("regra 7 — um `index.css` por feature", () => {
 //   o arquivo acumulando. A `034` T9 o trouxe a 733 tirando frases para
 //   `unavailable-text.ts`, e a T11 o levou a 743 pelo mesmo motivo da `033`:
 //   `continued_in` e `continued_from`, com a frase já fora, em
-//   `continuation-text.ts` — o que sobra é o `case`.
+//   `continuation-text.ts` — o que sobra é o `case`. A `028` T17 o levou a
+//   751 pelo mesmo motivo: `quota_refused`, com a frase em `quota-text.ts`.
 // - `LocalPanel.tsx` (444) — não estava em nenhuma lista da T25 nem da Q8; o
 //   disco tinha mais um arquivo do que o texto contava, a mesma classe de
 //   achado que a T2 já registrou para `lib/trpc.js`.
@@ -475,7 +476,7 @@ const LARGE_FILE_CEILING: Readonly<Record<string, number>> = {
   "features/checkout/LocalPanel.tsx": 444,
   "features/checkout/RunDock.tsx": 587,
   "features/checkout/useFileBuffer.ts": 605,
-  "features/conversation/conversation-model.ts": 743,
+  "features/conversation/conversation-model.ts": 751,
   "features/settings/SettingsPanel.tsx": 567,
 };
 

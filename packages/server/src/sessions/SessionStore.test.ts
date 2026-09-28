@@ -1,3 +1,4 @@
+import { RequestError } from "@agentclientprotocol/sdk";
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -1561,6 +1562,73 @@ describe("o catálogo de adaptador", () => {
       expect(readingOf(catalog, "claude", projectId)?.commands.map((c) => c.name)).toEqual([
         "plan",
       ]);
+    });
+  });
+});
+
+/**
+ * A recusa por cota nomeia a conta da sessão (`028` T17).
+ *
+ * O `AcpManager` não tem banco: quem sabe a conta e o adaptador é este arquivo,
+ * e é ele que tem de entregá-los no `spawn` — na criação **e** na retomada, que
+ * sobe um adaptador novo e é o caso comum da esteira desde a Parte 7.
+ */
+describe("a recusa por cota diz de qual conta", () => {
+  function refusing() {
+    return fakeAgentProcess({
+      prompt: () =>
+        Promise.reject(
+          new RequestError(-32603, "Internal error: You've hit your weekly limit", {
+            errorKind: "rate_limit",
+          }),
+        ),
+    }).process;
+  }
+
+  /** Uma configuração **do catálogo** — é o `adapterId` dela que diz como ler a recusa. */
+  async function claudeIn(db: Db, label: string) {
+    const config = await createAgentConfigRepository(db).create({
+      name: CLAUDE_ADAPTER.id,
+      command: "claude-agent-acp",
+      adapterVersion: CLAUDE_ADAPTER.pinnedVersion,
+    });
+    await createAgentAccountRepository(db).rename(config.defaultAccountId!, label);
+    return {
+      kind: "agent" as const,
+      agentConfigId: config.id,
+      agentAccountId: config.defaultAccountId,
+      scopeType: "worktree" as const,
+      scopeId: "w1",
+      cwd: tmpdir(),
+      command: config.command,
+      adapterVersion: config.adapterVersion,
+    };
+  }
+
+  it("na conversa que nasceu agora", async () => {
+    const { store, db, acpManager } = setup();
+    queued.push(refusing());
+    const row = await store.start(await claudeIn(db, "technomar-ted"));
+
+    await expect(acpManager.prompt(row.id, "oi")).rejects.toMatchObject({
+      code: "QUOTA_REFUSED",
+      message: "a conta technomar-ted bateu no limite do Claude Code",
+    });
+  });
+
+  it("na conversa retomada, que sobe outro adaptador", async () => {
+    const { store, db, acpManager } = setup();
+    const row = await store.start(await claudeIn(db, "technomar-ted"));
+    await acpManager.prompt(row.id, "algo dito ontem");
+    acpManager.kill(row.id);
+    await vi.waitFor(async () => expect((await store.findById(row.id))?.state).toBe("exited"));
+
+    queued.push(refusing());
+    const resumed = await store.resume(row.id);
+
+    await expect(acpManager.prompt(resumed.id, "de novo")).rejects.toMatchObject({
+      code: "QUOTA_REFUSED",
+      message: "a conta technomar-ted bateu no limite do Claude Code",
     });
   });
 });

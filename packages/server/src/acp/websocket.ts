@@ -51,6 +51,9 @@ const DOMAIN_TO_ACP_ERROR: Record<DomainErrorCode, AcpErrorCode> = {
   BLOCKED: "INTERNAL",
   CONSTRAINT_VIOLATION: "INTERNAL",
   GIT_FAILED: "INTERNAL",
+  // Mapeado para o `Record` ser exaustivo, e nunca enviado: a recusa já está na
+  // conversa como `quota_refused` — ver o `prompt` abaixo.
+  QUOTA_REFUSED: "INTERNAL",
 };
 
 /**
@@ -132,6 +135,10 @@ export function registerAcpWebSocket({
           // carrying the events it produces while it runs. The rejection is
           // reported, and nothing else waits on it.
           void acpManager.prompt(sessionId, message.text).catch((error: unknown) => {
+            // A cota recusou, e a conversa já diz isso, com a conta e o gesto de
+            // continuar noutra (`028` T17). Um aviso vermelho em cima dela seria
+            // a mesma frase duas vezes, uma delas sem saída.
+            if (isDomainError(error) && error.code === "QUOTA_REFUSED") return;
             reportFailure(error, "prompt");
           });
           return;

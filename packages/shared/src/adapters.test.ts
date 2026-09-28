@@ -171,6 +171,21 @@ describe("the claude spec", () => {
   });
 });
 
+describe("a recusa por cota é declarada, não descoberta", () => {
+  it("o claude recusa com `data.errorKind: rate_limit` — medido em 2026-09-28", () => {
+    // A forma veio de uma cota semanal esgotada de verdade, no `0.75.1`: `-32603`,
+    // a mensagem do adaptador, e `data: { errorKind: "rate_limit" }`. O código é
+    // o genérico; o que distingue é o `errorKind` (Q46 da `028`).
+    expect(CLAUDE_ADAPTER.quotaRefusalKind).toBe("rate_limit");
+  });
+
+  it("o codex não foi medido, e o catálogo não inventa a palavra dele", () => {
+    // Não medido não é não existe: `null` é "a recusa dele vira falha de turno
+    // comum" até uma cota do Codex fechar de verdade (ADR de 2026-09-13).
+    expect(CODEX_ADAPTER.quotaRefusalKind).toBeNull();
+  });
+});
+
 describe("the codex spec", () => {
   it("brings its own CLI, so the spec declares none", () => {
     // Measured (§4.8): `codex-acp` depends on `@openai/codex` through

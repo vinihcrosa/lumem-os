@@ -71,7 +71,13 @@ export function trackSessionUsage({ db, acpManager, log }: RecordUsageOptions): 
 
     // Nada a gravar: turno que não mexeu na janela e não custou dinheiro é linha
     // que só ocupa espaço.
-    if (tokens === 0 && cost === null) return;
+    //
+    // Custo **zero** também, e não só ausente: é o relato que o Claude manda
+    // antes de recusar um `session/prompt` por cota (`028` T17, medido em
+    // 2026-09-28). Não soma token nem dinheiro — mas contaria um turno no
+    // `count(distinct sessão:turno)`, e o teto de `turnsPerSession` gastaria num
+    // turno que a conta recusou.
+    if (tokens === 0 && (cost === null || cost.amount === 0)) return;
 
     void (async () => {
       const scope = await scopeOf(db, sessionId);

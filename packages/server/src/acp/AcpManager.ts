@@ -14,6 +14,7 @@ import {
   ACP_AUTH_REQUIRED_CODE,
   acpToolKindSchema,
   adapterByCommand,
+  adapterById,
   newId,
   type AcpConfigOption,
   type AcpEvent,
@@ -124,6 +125,24 @@ export interface AcpSpawnOptions {
    * quem está olhando.
    */
   driver?: AcpDriver;
+  /**
+   * Qual adaptador do catálogo é este (`AdapterSpec.id`), quando é um.
+   *
+   * Passado por quem abre a sessão, e não deduzido do comando: uma configuração
+   * fora do catálogo pode chamar qualquer binário, e o que depende disto é ler o
+   * erro do `session/prompt` com o vocabulário **daquele** adaptador — a recusa
+   * por cota (`AdapterSpec.quotaRefusalKind`, `028` T17). Ausente, nenhuma
+   * leitura específica: toda falha é falha comum.
+   */
+  adapterId?: string;
+  /**
+   * A conta em que a sessão roda (`034`), para a recusa por cota dizer qual.
+   *
+   * Carregada e não consultada: o manager não tem banco, e desde a `034` *"o
+   * Claude bateu no limite"* não diz nada — são duas contas do mesmo agente, e
+   * a frase útil é a que nomeia a que parou.
+   */
+  account?: { id: string; label: string };
 }
 
 /**
@@ -455,6 +474,17 @@ interface Session {
    * aquilo de novo para não dizer nada de novo.
    */
   coreInjected: boolean;
+  /**
+   * A palavra com que este adaptador recusa por cota, ou `null` (`028` T17).
+   *
+   * Da `spec`, resolvida no `launch` pelo `adapterId` — a capacidade é
+   * declarada, e não descoberta no turno (ADR de 2026-09-13).
+   */
+  quotaRefusalKind: string | null;
+  /** O rótulo do agente, para a frase da recusa. */
+  agentLabel: string;
+  /** A conta da sessão, quando quem a abriu disse. */
+  account: { id: string; label: string } | null;
 }
 
 export interface AcpManagerOptions {
@@ -1101,6 +1131,7 @@ export class AcpManager {
     { probe = false }: { probe?: boolean } = {},
   ): { session: Session; child: AcpProcess } {
     const { command, args = [], cwd, env, unsetEnv, adapterVersion } = options;
+    const spec = options.adapterId === undefined ? null : adapterById(options.adapterId);
 
     if (command.trim() === "") {
       throw new DomainError("INVALID_ARGUMENT", "command must not be empty");
@@ -1174,6 +1205,11 @@ export class AcpManager {
       turnId: newId(),
       replaying: false,
       coreInjected: false,
+      quotaRefusalKind: spec?.quotaRefusalKind ?? null,
+      // "agente" quando o catálogo não conhece: a frase continua sendo uma frase,
+      // e o nome do binário não é o que alguém chama de agente.
+      agentLabel: spec?.label ?? "agente",
+      account: options.account ?? null,
     };
 
     // The sniffer sits between the adapter and the SDK. See `unknown-updates.ts`
@@ -1308,6 +1344,7 @@ export class AcpManager {
       session.turnStartedAt = null;
       session.openToolCalls.clear();
       this.observeTurnFailure(session, error);
+      if (isQuotaRefusal(error, session.quotaRefusalKind)) throw this.quotaRefused(session, error);
       throw error;
     }
 
@@ -1383,6 +1420,32 @@ export class AcpManager {
 
     this.log?.warn(portrait, "turno falhou");
     this.turnFailures?.(portrait);
+  }
+
+  /**
+   * A conta bateu no limite: a conversa fica sabendo, e quem chamou também.
+   *
+   * O evento é o que **fecha o turno** para a tela — o adaptador não manda
+   * `turn_end` numa recusa, e a conversa ficaria dizendo que ele ainda responde.
+   * A exceção é o que a esteira lê para pausar em vez de gastar tentativa
+   * (`028` T17): `QUOTA_REFUSED`, e não o erro cru, porque o erro cru é
+   * vocabulário do adaptador e a esteira não o fala.
+   */
+  private quotaRefused(session: Session, error: unknown): DomainError {
+    const { account, agentLabel } = session;
+    this.emit(session, {
+      type: "quota_refused",
+      accountId: account?.id ?? null,
+      accountLabel: account?.label ?? null,
+      agent: agentLabel,
+      // O texto do adaptador, e só para ler: o *"resets 7pm"* está nele e em mais
+      // nenhum lugar, e interpretá-lo seria casar a prosa de outro produto.
+      message: error instanceof Error ? error.message : String(error),
+    });
+    const whose = account === null ? "a conta desta sessão" : `a conta ${account.label}`;
+    return new DomainError("QUOTA_REFUSED", `${whose} bateu no limite do ${agentLabel}`, {
+      cause: error,
+    });
   }
 
   /**
@@ -2639,6 +2702,22 @@ function identityFromAuthStatus(params: unknown): AcpAccountIdentity | null {
 function isAuthRequired(error: unknown): boolean {
   const code = (error as { code?: unknown }).code;
   return code === ACP_AUTH_REQUIRED_CODE;
+}
+
+/**
+ * Whether a refused `session/prompt` is the account hitting its limit (`028` T17).
+ *
+ * By the structure the adapter's spec declares, and never by the message: the
+ * code is the generic `-32603`, and the only thing that separates a quota refusal
+ * from any other internal error is `data.errorKind` — measured against a real
+ * exhausted weekly limit on `claude-agent-acp@0.75.1`. An adapter that declares no
+ * kind (`null`, Codex today) has no quota refusal: its failures stay failures.
+ */
+function isQuotaRefusal(error: unknown, kind: string | null): boolean {
+  if (kind === null) return false;
+  const data = (error as { data?: unknown }).data;
+  if (typeof data !== "object" || data === null) return false;
+  return (data as Record<string, unknown>)["errorKind"] === kind;
 }
 
 /**

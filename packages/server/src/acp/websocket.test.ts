@@ -1,3 +1,4 @@
+import { RequestError } from "@agentclientprotocol/sdk";
 import type { AddressInfo } from "node:net";
 
 import {
@@ -465,6 +466,40 @@ describe("bad frames", () => {
     const error = await client.waitForMessage("error");
 
     expect(error).toMatchObject({ code: "SESSION_EXITED" });
+  });
+});
+
+describe("a recusa por cota (`028` T17)", () => {
+  it("chega como evento da conversa, e não como aviso de erro por cima dela", async () => {
+    queued.push(
+      fakeAgentProcess({
+        prompt: () =>
+          Promise.reject(
+            new RequestError(-32603, "Internal error: You've hit your weekly limit", {
+              errorKind: "rate_limit",
+            }),
+          ),
+      }).process,
+    );
+    const info = await acpManager.spawn({
+      command: "claude-agent-acp",
+      cwd: "/repos/lorebase",
+      adapterId: "claude",
+      account: { id: "acct_ted", label: "technomar-ted" },
+    });
+    const client = await TestClient.connect(info.id);
+    await client.waitForMessage("attached");
+
+    client.send({ type: "prompt", text: "oi" });
+    await client.waitForEvent("quota_refused");
+    // Um quadro inválido **depois** da recusa: a resposta dele só chega quando a
+    // rejeição do prompt já foi tratada, então se ela tivesse virado erro, ele
+    // estaria antes deste na fila.
+    client.sendRaw("isto não é json");
+    await client.waitForMessage("error");
+
+    const errors = client.messages.filter((message) => message.type === "error");
+    expect(errors).toEqual([expect.objectContaining({ code: "INVALID_MESSAGE" })]);
   });
 });
 

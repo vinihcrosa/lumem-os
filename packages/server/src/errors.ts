@@ -20,7 +20,12 @@ export type DomainErrorCode =
   /** A database constraint nobody mapped. Always a defect in the mapping. */
   | "CONSTRAINT_VIOLATION"
   /** A git command failed; the message is git's own, untranslated. */
-  | "GIT_FAILED";
+  | "GIT_FAILED"
+  /**
+   * A conta da sessão bateu no limite do agente (`028` T17). Não é falha do
+   * turno: é espera, e quem conduz decide o que fazer com ela.
+   */
+  | "QUOTA_REFUSED";
 
 export class DomainError extends Error {
   constructor(

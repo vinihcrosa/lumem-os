@@ -520,6 +520,33 @@ export const acpEventSchema = z.discriminatedUnion("type", [
     message: z.string(),
   }),
   /**
+   * A conta desta sessão bateu no limite do agente (`028` T17).
+   *
+   * **Traduzido, e não repassado.** O que chega do adaptador é um
+   * `session/prompt` recusado com `-32603` e um `data.errorKind` que só a `spec`
+   * dele sabe ler; o que sai daqui é o conceito do Lumem — *esta conta não pode
+   * mais responder agora* —, com a conta nomeada, porque desde a
+   * [`034`](../../../docs/features/034-agent-accounts/prd.md) *"o Claude bateu no
+   * limite"* não diz qual.
+   *
+   * **Fecha o turno.** O adaptador não manda `turn_end` numa recusa, e sem este
+   * evento a conversa ficaria dizendo que o agente ainda está respondendo. Ele
+   * não é um `turn_end` de propósito: o turno não aconteceu, e contar um turno
+   * aqui gastaria o teto de `turnsPerSession` num turno que a conta recusou.
+   *
+   * `message` é o texto do adaptador, **só para mostrar** — *"resets 7pm"* está
+   * nele e em nenhum outro campo, e nada no daemon o interpreta. `accountId` e
+   * `accountLabel` são nulos quando a sessão não sabe a conta; `agent` é o
+   * rótulo do catálogo.
+   */
+  z.object({
+    type: z.literal("quota_refused"),
+    accountId: z.string().nullable(),
+    accountLabel: z.string().nullable(),
+    agent: z.string(),
+    message: z.string(),
+  }),
+  /**
    * An event the daemon received and could not name.
    *
    * A deliberate shape, not a hole: the daemon produces it after failing to

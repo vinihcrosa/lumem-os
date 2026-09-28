@@ -140,6 +140,7 @@ const DOMAIN_TO_TRPC: Record<DomainErrorCode, TRPCError["code"]> = {
   BLOCKED: "CONFLICT",
   INVALID_ARGUMENT: "BAD_REQUEST",
   GIT_FAILED: "BAD_REQUEST",
+  QUOTA_REFUSED: "TOO_MANY_REQUESTS",
   SPAWN_FAILED: "INTERNAL_SERVER_ERROR",
   // Reaching here means a repository forgot to declare a constraint it can hit.
   CONSTRAINT_VIOLATION: "INTERNAL_SERVER_ERROR",

@@ -47,6 +47,7 @@ const DOMAIN_TO_PTY_ERROR: Record<DomainErrorCode, PtyErrorCode> = {
   BLOCKED: "INTERNAL",
   CONSTRAINT_VIOLATION: "INTERNAL",
   GIT_FAILED: "INTERNAL",
+  QUOTA_REFUSED: "INTERNAL",
 };
 
 /**

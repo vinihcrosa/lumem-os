@@ -151,6 +151,21 @@ export interface AdapterSpec {
   notInherited: readonly string[];
   /** Como se confere a identidade de uma conta. `null` quando não há leitura medida. */
   identity: AdapterIdentity | null;
+  /**
+   * Como este adaptador diz *"a conta bateu no limite"* ao recusar um
+   * `session/prompt` — o valor de `data.errorKind` no erro JSON-RPC (`028` T17).
+   *
+   * **O código não serve**: a recusa chega como `-32603`, o *internal error*
+   * genérico, e é o `errorKind` que a distingue. **O texto também não**: ele é do
+   * adaptador (*"You've hit your weekly limit · resets 7pm"*), pode ser traduzido
+   * ou reescrito, e casar prosa é o que o
+   * [ADR de 2026-09-13](../../../docs/adr/2026-09-13-0038-our-model-is-king-outsiders-adapt.md)
+   * proíbe. O texto vai para a tela; quem decide é esta palavra.
+   *
+   * `null` quer dizer *não medido*: a recusa deste adaptador é tratada como
+   * qualquer falha de turno.
+   */
+  quotaRefusalKind: string | null;
 }
 
 /** O comando que instala um adaptador globalmente — a sugestão de um erro de spawn. */
@@ -221,6 +236,14 @@ export const CLAUDE_ADAPTER: AdapterSpec = {
   // §4 do estudo: 0,57 s, zero token, com `email` e `subscriptionType` no JSON.
   // O `session/new` não serve: o do `0.75.1` fecha sem credencial nenhuma.
   identity: "cli-auth-status",
+  /*
+   * Medido em 2026-09-28, com uma cota semanal esgotada de verdade no `0.75.1`
+   * (`docs/project/agent-accounts-measurements.md` §7): `session/prompt` recusado
+   * com `{ code: -32603, message: "Internal error: You've hit your weekly limit ·
+   * …", data: { errorKind: "rate_limit" } }`, depois de um `agent_message_chunk`
+   * com o mesmo texto e de um `usage_update` zerado, e sem `turn_end`.
+   */
+  quotaRefusalKind: "rate_limit",
 };
 
 export const CODEX_ADAPTER: AdapterSpec = {
@@ -263,6 +286,10 @@ export const CODEX_ADAPTER: AdapterSpec = {
   // §3.3 do estudo: `_auth/status_update` traz e-mail e plano no login ChatGPT.
   // O `session/new` confere presença e não validade — aceitou uma chave falsa.
   identity: "auth-status-notification",
+  // Não medido: nenhuma cota do Codex fechou contra este repositório. Até fechar,
+  // a recusa dele é uma falha de turno comum — o palpite `rate_limit` seria
+  // vocabulário de outro adaptador escrito no dele.
+  quotaRefusalKind: null,
 };
 
 export const ADAPTERS: readonly AdapterSpec[] = [CLAUDE_ADAPTER, CODEX_ADAPTER];

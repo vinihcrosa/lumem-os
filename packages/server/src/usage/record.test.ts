@@ -222,6 +222,25 @@ describe("trackSessionUsage", () => {
     expect(app.rows()[0]?.cost).toBeNull();
   });
 
+  it("um relato que não mexeu em nada não vira turno — é o que precede a recusa por cota", async () => {
+    /*
+     * A forma medida em 2026-09-28 (`028` T17): antes de recusar o
+     * `session/prompt` por cota, o Claude manda um `usage_update` com `used: 0` e
+     * custo **zero** — não nulo. Gravado, ele somava nada em token e nada em
+     * dinheiro, e contava **um turno** no `count(distinct sessão:turno)`: o teto
+     * de `turnsPerSession` e o *"N turnos"* da tela gastando num turno que a
+     * conta recusou.
+     */
+    const app = await world();
+    const session = await app.spawn();
+
+    await app.turn(session.id, [{ used: 0, cost: 0 }]);
+    await app.turn(session.id, [{ used: 1_000, cost: 0.01 }]);
+
+    await vi.waitFor(() => expect(app.rows()).toHaveLength(1));
+    expect(app.rows()[0]).toMatchObject({ tokens: 1_000 });
+  });
+
   it("sessão de worktree paga pela worktree **e** pelo projeto dela", async () => {
     const app = await world();
     const session = await app.spawn({ worktree: true });

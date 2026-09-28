@@ -201,6 +201,10 @@ function BlockView({
       // existe em `ui/ui.css` como a grade de metadados (`dl`/`dt`/`dd`) — mesmo
       // nome, forma diferente.
       return <MetaLine text={block.text} open={block.link === undefined ? null : (sessionLink?.(block.link) ?? null)} />;
+    case "quota":
+      // Aviso, e não perigo: nada quebrou, a conta espera reabrir. A família é a
+      // de estado (`warning`), nunca a da marca.
+      return <Banner tone="warning">{block.text}</Banner>;
   }
 }
 
