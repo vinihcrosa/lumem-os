@@ -1,7 +1,8 @@
+import { RequestError } from "@agentclientprotocol/sdk";
 import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
-import { CLAUDE_ADAPTER } from "@lumem/shared";
+import { CLAUDE_ADAPTER, type AcpEvent } from "@lumem/shared";
 import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -68,6 +69,8 @@ interface World {
   stateDir: string;
   configId: string;
   db: Db;
+  /** Todo evento de toda sessão — a pesquisa não tem linha, então é por aqui. */
+  events: AcpEvent[];
 }
 
 /** A cópia que o daemon instalou: desde 2026-09-08, a única que ele lança. */
@@ -80,7 +83,14 @@ function stageManagedAdapter(stateDir: string): string {
 }
 
 async function world(
-  options: { answer?: string; budget?: number; enabled?: boolean; staged?: boolean } = {},
+  options: {
+    answer?: string;
+    budget?: number;
+    enabled?: boolean;
+    staged?: boolean;
+    /** O agente recusa por cota, na forma medida em 2026-09-28. */
+    quota?: boolean;
+  } = {},
 ): Promise<World> {
   const stateDir = join(tempDir("lumem-autolearn-"), ".lumem");
   await ensureMemoryHome({ stateDir });
@@ -99,6 +109,11 @@ async function world(
       return fakeAgentProcess({
         prompt: async (_text, turn) => {
           state.prompts += 1;
+          if (options.quota === true) {
+            throw new RequestError(-32603, "Internal error: You've hit your weekly limit", {
+              errorKind: "rate_limit",
+            });
+          }
           await turn.update({
             sessionUpdate: "agent_message_chunk",
             content: { type: "text", text: options.answer ?? WITH_EVIDENCE },
@@ -111,6 +126,8 @@ async function world(
     handshakeTimeoutMs: 2_000,
   });
   managers.push(acpManager);
+  const events: AcpEvent[] = [];
+  acpManager.watchEvents(({ event }) => events.push(event));
 
   const workspace = await createWorkspaceRepository(db).create({ name: "pessoal" });
   const project = await createProjectRepository(db).create({
@@ -156,10 +173,21 @@ async function world(
     stateDir,
     configId: config.id,
     db,
+    events,
   } as World;
 }
 
 describe("createAutoLearn", () => {
+  it("a cota que recusa a pesquisa é cota, e diz de qual conta (`028` T17)", async () => {
+    const world_ = await world({ quota: true });
+
+    await world_.learn("qual é o endpoint de checkout?", world_.sessionId).catch(() => undefined);
+
+    expect(world_.events).toContainEqual(
+      expect.objectContaining({ type: "quota_refused", accountLabel: "principal", agent: "Claude Code" }),
+    );
+  });
+
   it("a pesquisa sobe na conta padrão do agente, com o env dela (`034` T5)", async () => {
     const world_ = await world();
     await world_.db.update(agentAccount).set({ configDir: "/contas/padrao" });

@@ -122,6 +122,24 @@ export function catalogedAdapterOf(config: AdapterConfigRef, stateDir: string): 
   return adapterById(config.name) ?? catalogedAdapterAt(config.command, stateDir);
 }
 
+/**
+ * What the `AcpManager` needs to read a refused turn in this adapter's words and
+ * to name the account that stopped (`028` T17) — the same pair the session store
+ * hands to `spawn`, for the daemon's own sessions that have no row (the memory
+ * distillation and research).
+ */
+export function launchIdentity(
+  config: AdapterConfigRef,
+  account: { id: string; label: string },
+  stateDir: string,
+): { adapterId?: string; account: { id: string; label: string } } {
+  const spec = catalogedAdapterOf(config, stateDir);
+  return {
+    ...(spec === null ? {} : { adapterId: spec.id }),
+    account: { id: account.id, label: account.label },
+  };
+}
+
 /** The spec whose managed binary is exactly `command`, or `null`. */
 export function catalogedAdapterAt(command: string, stateDir: string): AdapterSpec | null {
   return ADAPTERS.find((spec) => adapterBinaryPath(adaptersDir(stateDir), spec) === command) ?? null;

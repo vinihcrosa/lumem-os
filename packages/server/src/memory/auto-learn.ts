@@ -7,7 +7,7 @@ import { createAgentAccountRepository } from "../repositories/agentAccount.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
 import { createSessionRepository } from "../repositories/session.js";
 import type { SecretStore } from "../secrets/SecretStore.js";
-import { adapterCommandForConfig, adapterInvocationFor } from "../setup/adapter-command.js";
+import { adapterCommandForConfig, adapterInvocationFor, launchIdentity } from "../setup/adapter-command.js";
 
 import { MemoryService } from "./MemoryService.js";
 import { markUnverified, routeFor } from "./evidence.js";
@@ -240,6 +240,10 @@ function askAgent({
       env: invocation.env,
       unsetEnv: invocation.unsetEnv,
       ...(config.adapterVersion === null ? {} : { adapterVersion: config.adapterVersion }),
+      // O adaptador e a conta, como o `SessionStore` passa: sem eles, a cota que
+      // recusasse este turno seria uma falha comum, sem a palavra que a `spec`
+      // declara e sem dizer de qual conta (`028` T17).
+      ...launchIdentity(config, account, stateDir),
     });
 
     const said: string[] = [];

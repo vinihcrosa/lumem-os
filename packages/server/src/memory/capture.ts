@@ -6,7 +6,7 @@ import type { SessionRow } from "../db/schema.js";
 import { createAgentAccountRepository } from "../repositories/agentAccount.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
 import type { SecretStore } from "../secrets/SecretStore.js";
-import { adapterInvocationFor } from "../setup/adapter-command.js";
+import { adapterInvocationFor, launchIdentity } from "../setup/adapter-command.js";
 
 import { MemoryService } from "./MemoryService.js";
 import { distill, type Distiller } from "./distiller.js";
@@ -168,6 +168,10 @@ function askAgent({
       env: invocation.env,
       unsetEnv: invocation.unsetEnv,
       ...(config.adapterVersion === null ? {} : { adapterVersion: config.adapterVersion }),
+      // O adaptador e a conta, como o `SessionStore` passa: sem eles, a cota que
+      // recusasse este turno seria uma falha comum, sem a palavra que a `spec`
+      // declara e sem dizer de qual conta (`028` T17).
+      ...launchIdentity(config, account, stateDir),
     });
     // Esta sessão **não** tem linha no banco, e é de propósito: ela não é um
     // trabalho seu, não aparece em aba nenhuma, e não deve sobreviver a nada. É

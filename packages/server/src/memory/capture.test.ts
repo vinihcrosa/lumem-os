@@ -1,3 +1,4 @@
+import { RequestError } from "@agentclientprotocol/sdk";
 import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -74,10 +75,18 @@ interface World {
   transcripts: TranscriptStore;
   /** O que cada `spawn` recebeu — é o que diz em que conta a destilação subiu. */
   requests: AcpSpawnRequest[];
+  /** Todo evento de toda sessão — a destilação não tem linha, então é por aqui. */
+  events: AcpEvent[];
 }
 
 async function world(
-  options: { enabled?: boolean; answer?: string; entries?: readonly AcpTranscriptEntry[] } = {},
+  options: {
+    enabled?: boolean;
+    answer?: string;
+    entries?: readonly AcpTranscriptEntry[];
+    /** O agente recusa por cota, na forma medida em 2026-09-28. */
+    quota?: boolean;
+  } = {},
 ): Promise<World> {
   const stateDir = join(tempDir("lumem-capture-"), ".lumem");
   await ensureMemoryHome({ stateDir });
@@ -99,6 +108,11 @@ async function world(
       requests.push(request);
       return fakeAgentProcess({
         prompt: async (_text, turn) => {
+          if (options.quota === true) {
+            throw new RequestError(-32603, "Internal error: You've hit your weekly limit", {
+              errorKind: "rate_limit",
+            });
+          }
           await turn.update({
             sessionUpdate: "agent_message_chunk",
             content: { type: "text", text: answer },
@@ -112,6 +126,8 @@ async function world(
     transcripts,
   });
   managers.push(acpManager);
+  const events: AcpEvent[] = [];
+  acpManager.watchEvents(({ event }) => events.push(event));
 
   const workspace = await createWorkspaceRepository(db).create({ name: "pessoal" });
   const project = await createProjectRepository(db).create({
@@ -153,6 +169,7 @@ async function world(
     row,
     transcripts,
     requests,
+    events,
   };
 }
 
@@ -187,6 +204,21 @@ describe("createSessionCapture", () => {
     expect(requests).toHaveLength(1);
     expect(requests[0]?.command).toMatch(/node_modules\/\.bin\/claude-agent-acp$/);
     expect(requests[0]?.env?.CLAUDE_CONFIG_DIR).toBe("/contas/padrao");
+  });
+
+  it("a cota que recusa a destilação é cota, e diz de qual conta (`028` T17)", async () => {
+    /*
+     * A destilação sobe na conta padrão, e sem o adaptador e a conta no `spawn`
+     * uma recusa por cota aqui era uma falha comum — sem nome de conta, e sem a
+     * palavra que a `spec` declara.
+     */
+    const { capture, row, events } = await world({ quota: true });
+
+    await capture(row, LIVED(row)).catch(() => undefined);
+
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: "quota_refused", accountLabel: "principal", agent: "Claude Code" }),
+    );
   });
 
   it("desligada, não faz nada", async () => {
