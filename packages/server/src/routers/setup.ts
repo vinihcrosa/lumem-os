@@ -5,6 +5,7 @@ import { DEFAULT_ADAPTER_ID, adapterById, type AdapterSpec } from "@lumem/shared
 import { z } from "zod";
 
 import { DomainError } from "../errors.js";
+import { accountLaunchFor, recordProbedIdentity, type AccountLaunch } from "../setup/account-launch.js";
 import { detectAgents } from "../setup/agents.js";
 import { adapterCommandFor, adaptersDir, catalogedAdapterAt } from "../setup/adapter-command.js";
 import {
@@ -40,6 +41,46 @@ function specOf(id: string | undefined): AdapterSpec {
   }
   return spec;
 }
+
+/**
+ * A spec de partida para resolver a conta: a do comando explícito, a do
+ * `adapterId`, ou nenhuma quando só a conta foi dita — aí quem diz o agente é
+ * a configuração dela.
+ */
+function requestedSpec(
+  stateDir: string,
+  input: { command?: string | undefined; adapterId?: string | undefined; accountId?: string | undefined },
+): AdapterSpec | null {
+  if (input.command !== undefined) return catalogedAdapterAt(input.command, stateDir);
+  if (input.accountId !== undefined && input.adapterId === undefined) return null;
+  return specOf(input.adapterId);
+}
+
+/** O binário a lançar: o explícito, ou a cópia gerenciada da spec da conta. */
+function commandFor(stateDir: string, explicit: string | undefined, launch: AccountLaunch): string {
+  if (explicit !== undefined) return explicit;
+  if (launch.spec === null) {
+    throw new DomainError(
+      "INVALID_ARGUMENT",
+      "esta conta é de um agente fora do catálogo: diga o comando do adaptador",
+    );
+  }
+  return adapterCommandFor(launch.spec, stateDir);
+}
+
+/** O `env`/`unsetEnv` de uma conta, só com o que há — um objeto vazio não é nada a dizer. */
+function accountEnvOptions(launch: AccountLaunch) {
+  return {
+    ...(Object.keys(launch.env).length > 0 ? { env: launch.env } : {}),
+    ...(launch.unsetEnv.length > 0 ? { unsetEnv: launch.unsetEnv } : {}),
+  };
+}
+
+/**
+ * Qual conta, para `probe`, `login` e `authenticate` (`034` T6). Ausente, a
+ * padrão do agente — que sobe sem a variável do CLI.
+ */
+const accountIdField = z.string().trim().min(1).optional();
 
 /** Which adapter, for the procedures that act on one. Absent means the default. */
 const adapterInput = z.object({ adapterId: z.string().trim().min(1).optional() }).optional();
@@ -101,11 +142,19 @@ export const setupRouter = router({
         args: z.array(z.string()).optional(),
         cols: z.number().int().min(1).max(5_000).optional(),
         rows: z.number().int().min(1).max(5_000).optional(),
+        /** Em que conta entrar — o login grava no diretório dela. */
+        accountId: accountIdField,
       }),
     )
     .mutation(({ ctx, input }) =>
       domainSafeAsync(async () => {
-        const command = input.command ?? adapterCommandFor(specOf(input.adapterId), ctx.config.stateDir);
+        const launch = await accountLaunchFor(
+          ctx.db,
+          ctx.secrets,
+          requestedSpec(ctx.config.stateDir, input),
+          input.accountId,
+        );
+        const command = commandFor(ctx.config.stateDir, input.command, launch);
         const cwd = join(ctx.config.stateDir, "probe");
 
         /*
@@ -120,6 +169,7 @@ export const setupRouter = router({
           command,
           ...(input.args === undefined ? {} : { args: input.args }),
           cwd,
+          ...accountEnvOptions(launch),
         });
         const method = report.authMethods.find((candidate) => candidate.id === input.methodId);
 
@@ -145,6 +195,9 @@ export const setupRouter = router({
           command: method.command,
           args: method.args,
           cwd,
+          // O terminal do login roda **na conta**: é o diretório que a variável
+          // aponta que recebe a credencial.
+          ...accountEnvOptions(launch),
           cols: input.cols,
           rows: input.rows,
         });
@@ -179,11 +232,19 @@ export const setupRouter = router({
          * é o estado da tentativa.
          */
         apiKey: z.string().min(1).optional(),
+        /** Em que conta entrar. */
+        accountId: accountIdField,
       }),
     )
     .mutation(({ ctx, input }) =>
-      domainSafeAsync(() => {
-        const spec = specOf(input.adapterId);
+      domainSafeAsync(async () => {
+        const launch = await accountLaunchFor(
+          ctx.db,
+          ctx.secrets,
+          input.command === undefined ? requestedSpec(ctx.config.stateDir, input) : null,
+          input.accountId,
+        );
+        const spec = launch.spec ?? specOf(input.adapterId);
         const cwd = join(ctx.config.stateDir, "probe");
         mkdirSync(cwd, { recursive: true });
 
@@ -192,6 +253,7 @@ export const setupRouter = router({
             command: input.command ?? adapterCommandFor(spec, ctx.config.stateDir),
             ...(input.args === undefined ? {} : { args: input.args }),
             cwd,
+            ...accountEnvOptions(launch),
             methodId: input.methodId,
             ...(input.apiKey === undefined ? {} : { apiKey: input.apiKey }),
             /*
@@ -249,12 +311,20 @@ export const setupRouter = router({
           /** Which catalogued adapter, when no explicit command is given. */
           adapterId: z.string().trim().min(1).optional(),
           args: z.array(z.string()).optional(),
+          /** Qual conta conferir. Ausente, a padrão. */
+          accountId: accountIdField,
         })
         .optional(),
     )
     .query(({ ctx, input }) =>
       domainSafeAsync(async () => {
-        const command = input?.command ?? adapterCommandFor(specOf(input?.adapterId), ctx.config.stateDir);
+        const launch = await accountLaunchFor(
+          ctx.db,
+          ctx.secrets,
+          requestedSpec(ctx.config.stateDir, input ?? {}),
+          input?.accountId,
+        );
+        const command = commandFor(ctx.config.stateDir, input?.command, launch);
 
         /*
          * A directory of its own, and an empty one.
@@ -274,11 +344,23 @@ export const setupRouter = router({
           );
         }
 
-        const report = await ctx.acpManager.probe({
-          command,
-          ...(input?.args === undefined ? {} : { args: input.args }),
-          cwd,
-        });
+        const report = await ctx.acpManager.probe(
+          {
+            command,
+            ...(input?.args === undefined ? {} : { args: input.args }),
+            cwd,
+            ...accountEnvOptions(launch),
+          },
+          // Conferido pela identidade (`034` T6), e não pelo `session/new`, que
+          // no Claude `0.75.1` fecha sem credencial nenhuma.
+          { identity: launch.spec?.identity ?? null },
+        );
+        await recordProbedIdentity(ctx.db, launch.account, report);
+        // Uma conferência que leu o login pode ter conectado a conta e trocado
+        // a padrão (`034` T8): a lista de contas de outra aba ficou velha.
+        if (launch.account !== null && report.loggedIn && launch.spec !== null) {
+          ctx.events.emit({ type: "account.changed", adapterId: launch.spec.id });
+        }
 
         /*
          * O que este probe descobriu vai para o catálogo, e é o que tira a
@@ -293,13 +375,17 @@ export const setupRouter = router({
          * Sem `optionsByModel`, que o catálogo preserva: este probe não percorre
          * modelo. E nunca derruba a resposta — o catálogo é cache.
          */
-        const spec =
-          input?.command === undefined
-            ? specOf(input?.adapterId)
-            : catalogedAdapterAt(input.command, ctx.config.stateDir);
+        //
+        // Na conta que foi lida (`034` T9): a lista de modelos é por conta, e a
+        // leitura sem conta é a de antes de haver configuração.
+        const spec = launch.spec;
         if (spec !== null && (input?.args ?? []).length === 0) {
           await ctx.adapterCatalog
-            .recordOptions(spec.id, report.configOptions, { authRequired: report.authRequired })
+            .recordOptions(
+              { adapterId: spec.id, accountId: launch.account?.id ?? null },
+              report.configOptions,
+              { authRequired: report.authRequired },
+            )
             .catch(() => undefined);
         }
         return report;

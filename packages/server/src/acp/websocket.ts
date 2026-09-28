@@ -12,7 +12,7 @@ import { WebSocket, WebSocketServer, type RawData } from "ws";
 
 import { isDomainError, type DomainErrorCode } from "../errors.js";
 import { onUpgradePath } from "../ws/upgrade.js";
-import { modeOwnerOf } from "./AcpManager.js";
+import { AcpTurnFailedError, modeOwnerOf } from "./AcpManager.js";
 import type { AcpManager } from "./AcpManager.js";
 
 /**
@@ -51,6 +51,9 @@ const DOMAIN_TO_ACP_ERROR: Record<DomainErrorCode, AcpErrorCode> = {
   BLOCKED: "INTERNAL",
   CONSTRAINT_VIOLATION: "INTERNAL",
   GIT_FAILED: "INTERNAL",
+  // Mapeado para o `Record` ser exaustivo, e nunca enviado: a recusa já está na
+  // conversa como `quota_refused` — ver o `prompt` abaixo.
+  QUOTA_REFUSED: "INTERNAL",
 };
 
 /**
@@ -132,6 +135,17 @@ export function registerAcpWebSocket({
           // carrying the events it produces while it runs. The rejection is
           // reported, and nothing else waits on it.
           void acpManager.prompt(sessionId, message.text).catch((error: unknown) => {
+            // A cota recusou, e a conversa já diz isso, com a conta e o gesto de
+            // continuar noutra (`028` T17). Um aviso vermelho em cima dela seria
+            // a mesma frase duas vezes, uma delas sem saída.
+            if (isDomainError(error) && error.code === "QUOTA_REFUSED") return;
+            // Idem para qualquer outra recusa: a linha `turn_failed` já está na
+            // conversa, com a frase do adaptador. O log fica — é defeito de
+            // alguém, e o `warn` é o que se vê enquanto acontece.
+            if (error instanceof AcpTurnFailedError) {
+              app.log.warn({ err: error, sessionId }, "acp turn failed");
+              return;
+            }
             reportFailure(error, "prompt");
           });
           return;

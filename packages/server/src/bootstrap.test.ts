@@ -9,6 +9,7 @@ import type { FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AcpManager } from "./acp/AcpManager.js";
+import type { AcpSpawnRequest } from "./acp/process.js";
 import { ADAPTER_CATALOG_FILE } from "./acp/adapter-catalog.js";
 import { bootstrap } from "./bootstrap.js";
 import { loadConfig } from "./config.js";
@@ -18,6 +19,8 @@ import { MemoryService } from "./memory/MemoryService.js";
 import { ensureMemoryHome } from "./memory/home.js";
 import { removeFixtureTree } from "./testing/git-fixtures.js";
 import { PtyManager } from "./pty/PtyManager.js";
+import { createAgentAccountRepository } from "./repositories/agentAccount.js";
+import { createAgentConfigRepository } from "./repositories/agentConfig.js";
 import { createProjectRepository } from "./repositories/project.js";
 import * as sessionStoreModule from "./sessions/SessionStore.js";
 import { adaptersDir } from "./setup/adapter-command.js";
@@ -262,7 +265,7 @@ describe("bootstrap", () => {
      * serialização da falha. Uma asserção que não consegue *relatar* a falha é uma
      * asserção pela metade.
      */
-    expect(spy.mock.calls[0]?.[0].resolveAcpCommand).toBeTypeOf("function");
+    expect(spy.mock.calls[0]?.[0].resolveInvocation).toBeTypeOf("function");
     spy.mockRestore();
   });
 
@@ -410,7 +413,70 @@ describe("bootstrap", () => {
 
       expect(probe).toHaveBeenCalledTimes(1);
       // O aquecimento é o único chamador que percorre os modelos.
-      expect(probe.mock.calls[0]?.[1]).toEqual({ walkModels: true });
+      // E confere pela identidade do adaptador (`034` T6), não pelo `session/new`.
+      expect(probe.mock.calls[0]?.[1]).toEqual({ walkModels: true, identity: "cli-auth-status" });
+    });
+
+    it("confere cada conta conectada, com o env dela, e grava a identidade (`034` T6)", async () => {
+      const stateDir = installedClaude();
+      const database = openTestDb();
+      databases.push(database);
+      const config = await createAgentConfigRepository(database.db).create({
+        name: "claude",
+        command: "claude-agent-acp",
+        adapterVersion: CLAUDE_ADAPTER.pinnedVersion,
+      });
+      const accounts = createAgentAccountRepository(database.db);
+      const work = await accounts.create({
+        agentConfigId: config.id,
+        label: "trabalho",
+        configDir: "/contas/trabalho",
+      });
+      // Desconectada não é conferida: o login dela foi desfeito de propósito (Q8).
+      await accounts.create({
+        agentConfigId: config.id,
+        label: "antiga",
+        configDir: "/contas/antiga",
+        state: "disconnected",
+      });
+      const requests: AcpSpawnRequest[] = [];
+      const manager = new AcpManager({
+        spawner: (request) => {
+          requests.push(request);
+          return fakeAgentProcess().process;
+        },
+        isAvailable: () => true,
+        runCli: async (request) => ({
+          stdout: JSON.stringify({
+            loggedIn: true,
+            email: request.env?.["CLAUDE_CONFIG_DIR"] === undefined ? "padrao@exemplo.com" : "trabalho@exemplo.com",
+            subscriptionType: "max",
+          }),
+          exitCode: 0,
+        }),
+      });
+
+      await boot({ stateDir, acpManager: manager, database });
+
+      await vi.waitFor(async () => {
+        expect((await accounts.get(work.id))?.identity?.email).toBe("trabalho@exemplo.com");
+        expect((await accounts.defaultFor(config.id))?.identity?.email).toBe("padrao@exemplo.com");
+      });
+      expect(requests.map((request) => request.env?.["CLAUDE_CONFIG_DIR"] ?? null).sort()).toEqual([
+        "/contas/trabalho",
+        null,
+      ].sort());
+      // E cada uma ganha a leitura dela no catálogo (`034` T9): a lista é por
+      // conta, e a da padrão não vale para a conta `trabalho`.
+      await vi.waitFor(() => {
+        const saved = JSON.parse(readFileSync(join(stateDir, ADAPTER_CATALOG_FILE), "utf8")) as Record<
+          string,
+          { accountId: string | null }
+        >;
+        expect(Object.values(saved).map((entry) => entry.accountId)).toEqual(
+          expect.arrayContaining([work.id, config.defaultAccountId]),
+        );
+      });
     });
 
     it("sonda de novo quando a entrada gravada é de outro pino", async () => {

@@ -1,4 +1,4 @@
-import type { LoadSessionRequest } from "@agentclientprotocol/sdk";
+import { RequestError, type LoadSessionRequest } from "@agentclientprotocol/sdk";
 
 import type { AcpEvent, AcpTranscriptEntry } from "@lumem/shared";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -15,7 +15,7 @@ import {
   type FakeAgentScript,
   type FakeAgentTurn,
 } from "../testing/acp-fake-agent.js";
-import { AcpManager, codeIn, modeOwnerOf, type AcpManagerOptions } from "./AcpManager.js";
+import { AcpManager, AcpTurnFailedError, codeIn, modeOwnerOf, type AcpManagerOptions } from "./AcpManager.js";
 import type { AcpProcess } from "./process.js";
 import {
   createMemoryTranscriptStore,
@@ -1202,6 +1202,37 @@ describe("the terminal the agent asks for", () => {
     // Claiming it without one would have the agent ask for a shell and get an error
     // mid-turn, which is what declaring capabilities honestly avoids.
     expect((withoutPty as { terminal?: unknown }).terminal).not.toBe(true);
+  });
+
+  it("asks for the login command inside clientCapabilities, where the adapter reads it", async () => {
+    /*
+     * `claude-agent-acp@0.75.1` reads `request.clientCapabilities?._meta?.["terminal-auth"]`
+     * (dist/acp-agent.js). Declared at the top of the params instead, it was never
+     * seen: both login methods came back without `_meta`, `command: null`, and the
+     * screen refused both buttons — measured against the real adapter on
+     * 2026-09-26, the same `initialize` with the flag in each place.
+     */
+    let topLevel: unknown;
+    let capabilities: unknown;
+    await startWithPty({
+      initialize: (params) => {
+        topLevel = (params as { _meta?: unknown })._meta;
+        capabilities = params.clientCapabilities;
+        return {};
+      },
+    });
+    let withoutPty: unknown;
+    await start({
+      initialize: (params) => {
+        withoutPty = params.clientCapabilities;
+        return {};
+      },
+    });
+
+    expect(capabilities).toMatchObject({ auth: { terminal: true }, _meta: { "terminal-auth": true } });
+    expect(topLevel).toBeUndefined();
+    // The same gate as `auth.terminal`: a login command needs a terminal to run in.
+    expect((withoutPty as { _meta?: unknown })._meta).toBeUndefined();
   });
 
   it("runs the command and tells the card which PTY to attach to", async () => {
@@ -2431,6 +2462,44 @@ describe("um turno que falha solta a marca, e deixa retrato", () => {
     expect(payload).toMatchObject({ rateLimit: null, windowSpent: false });
   });
 
+  it("a conversa fica sabendo: o turno falhou, com a frase do adaptador — e sem contar um turno", async () => {
+    const { manager } = failing("o adaptador desistiu");
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: here() });
+    const events: AcpEvent[] = [];
+    manager.onEvent(info.id, ({ event }) => events.push(event));
+
+    const failed = await manager.prompt(info.id, "oi").catch((error: unknown) => error);
+
+    /*
+     * Sem este evento a conversa ficava em `streaming` para sempre — o botão de
+     * interromper aceso sobre um turno morto —, porque o adaptador não manda
+     * `turn_end` numa recusa. E ele **não** é um `turn_end`: é nele que o
+     * contador de turnos vira, e um turno que não aconteceu não conta.
+     */
+    expect(events.at(-1)).toEqual({ type: "turn_failed", message: expect.stringContaining("o adaptador desistiu") });
+    expect(typesOf(events)).not.toContain("turn_end");
+    // O erro continua subindo — a esteira o trata como tentativa gasta —, e
+    // marcado como já contado na conversa, para quem o recebe não repeti-lo.
+    expect(failed).toBeInstanceOf(AcpTurnFailedError);
+    expect(failed).toMatchObject({ code: -32603 });
+  });
+
+  it("a recusa por cota continua sendo cota, e não vira falha", async () => {
+    const fake = fakeAgentProcess({
+      prompt: () =>
+        Promise.reject(new RequestError(-32603, "Internal error: limite", { errorKind: "rate_limit" })),
+    });
+    const manager = new AcpManager({ spawner: () => fake.process, isAvailable: () => true });
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: here(), adapterId: "claude" });
+    const events: AcpEvent[] = [];
+    manager.onEvent(info.id, ({ event }) => events.push(event));
+
+    await manager.prompt(info.id, "oi").catch(() => undefined);
+
+    expect(typesOf(events)).toContain("quota_refused");
+    expect(typesOf(events)).not.toContain("turn_failed");
+  });
+
   it("o mesmo retrato vai para o disco, porque o log do daemon não persiste", async () => {
     const { manager, warn, turnFailures } = failing("qualquer falha");
     const info = await manager.spawn({ command: "claude-agent-acp", cwd: here() });
@@ -2449,5 +2518,138 @@ describe("um turno que falha solta a marca, e deixa retrato", () => {
     expect(turnFailures).toHaveBeenCalledWith(logged);
     // O logger carimba a hora sozinho; o arquivo não tem quem carimbe.
     expect(logged).toMatchObject({ tag: "turn-failed", at: expect.any(String) as unknown as string });
+  });
+});
+
+/**
+ * A recusa por cota, com a forma medida em 2026-09-28 (`028` T17, Q46).
+ *
+ * Uma conta do Claude (`technomar-ted`) bateu no limite semanal, e o `0.75.1`
+ * mandou, nesta ordem: um `agent_message_chunk` com o texto do limite, um
+ * `usage_update` zerado, e o `session/prompt` **recusado** com `-32603` e
+ * `data: { errorKind: "rate_limit" }` — sem `turn_end`. O fake abaixo repete as
+ * quatro coisas, e o que muda de um caso para o outro é só o que o daemon sabe
+ * sobre a sessão.
+ */
+describe("uma recusa por cota", () => {
+  const LIMIT = "You've hit your weekly limit · resets 7pm (America/Sao_Paulo)";
+
+  function refusing(data: Record<string, unknown> = { errorKind: "rate_limit" }) {
+    return fakeAgentProcess({
+      prompt: async (_text, turn) => {
+        await say(turn, LIMIT);
+        await turn.update({
+          sessionUpdate: "usage_update",
+          used: 0,
+          size: 200_000,
+          cost: { amount: 0, currency: "USD" },
+        } as never);
+        throw new RequestError(-32603, `Internal error: ${LIMIT}`, data);
+      },
+    });
+  }
+
+  async function launch(
+    fake: ReturnType<typeof fakeAgentProcess>,
+    spawn: Partial<Parameters<AcpManager["spawn"]>[0]> = {},
+  ) {
+    const manager = new AcpManager({
+      spawner: () => fake.process,
+      isAvailable: () => true,
+      handshakeTimeoutMs: 2_000,
+    });
+    const info = await manager.spawn({
+      command: "claude-agent-acp",
+      cwd: "/repos/lorebase",
+      adapterId: "claude",
+      account: { id: "acct_ted", label: "technomar-ted" },
+      ...spawn,
+    });
+    const events: AcpEvent[] = [];
+    manager.onEvent(info.id, ({ event }) => events.push(event));
+    return { manager, id: info.id, events };
+  }
+
+  it("vira um conceito do Lumem, com a conta nomeada — e o texto do adaptador só para mostrar", async () => {
+    const { manager, id, events } = await launch(refusing());
+
+    const refused = await manager.prompt(id, "oi").catch((error: unknown) => error);
+
+    expect(refused).toMatchObject({
+      name: "DomainError",
+      code: "QUOTA_REFUSED",
+      message: "a conta technomar-ted bateu no limite do Claude Code",
+    });
+    expect(events.at(-1)).toEqual({
+      type: "quota_refused",
+      accountId: "acct_ted",
+      accountLabel: "technomar-ted",
+      agent: "Claude Code",
+      message: `Internal error: ${LIMIT}`,
+    });
+  });
+
+  it("fecha o turno sem contar um: nada em voo, e nenhum `turn_end`", async () => {
+    const { manager, id, events } = await launch(refusing());
+
+    await manager.prompt(id, "oi").catch(() => undefined);
+
+    // O selo do quadro é derivado disto: uma sessão que esperasse a cota com a
+    // marca ligada pintaria `implementando` num turno que a conta recusou.
+    expect(manager.liveTurns()).toEqual([]);
+    // O `turn_end` é o que o contador de turnos vira: emiti-lo gastaria o teto de
+    // `turnsPerSession` num turno que não aconteceu.
+    expect(typesOf(events)).not.toContain("turn_end");
+    expect(typesOf(events)).toContain("quota_refused");
+  });
+
+  it("é reconhecida pela estrutura: o mesmo texto sem `errorKind` é uma falha comum", async () => {
+    // O ADR de 2026-09-13: casar a prosa do adaptador é o defeito. O texto do
+    // limite está aqui inteiro, e sem a palavra declarada não é recusa por cota.
+    const { manager, id, events } = await launch(refusing({ details: LIMIT }));
+
+    const failed = await manager.prompt(id, "oi").catch((error: unknown) => error);
+
+    expect(failed).not.toMatchObject({ code: "QUOTA_REFUSED" });
+    expect(typesOf(events)).not.toContain("quota_refused");
+  });
+
+  it("só vale para o adaptador que a declarou: o Codex não foi medido", async () => {
+    const { manager, id, events } = await launch(refusing(), { adapterId: "codex" });
+
+    const failed = await manager.prompt(id, "oi").catch((error: unknown) => error);
+
+    expect(failed).not.toMatchObject({ code: "QUOTA_REFUSED" });
+    expect(typesOf(events)).not.toContain("quota_refused");
+  });
+
+  it("sem a conta conhecida, a recusa continua sendo recusa, e diz que não sabe qual", async () => {
+    const { manager, id, events } = await launch(refusing(), { account: undefined });
+
+    const refused = await manager.prompt(id, "oi").catch((error: unknown) => error);
+
+    expect(refused).toMatchObject({
+      code: "QUOTA_REFUSED",
+      message: "a conta desta sessão bateu no limite do Claude Code",
+    });
+    expect(events.at(-1)).toMatchObject({ accountId: null, accountLabel: null });
+  });
+
+  it("o retrato da Q46 continua sendo escrito — ele é o que mediu isto", async () => {
+    const turnFailures = vi.fn();
+    const fake = refusing();
+    const manager = new AcpManager({
+      spawner: () => fake.process,
+      isAvailable: () => true,
+      handshakeTimeoutMs: 2_000,
+      turnFailures,
+    });
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: "/r", adapterId: "claude" });
+
+    await manager.prompt(info.id, "oi").catch(() => undefined);
+
+    expect(turnFailures).toHaveBeenCalledWith(
+      expect.objectContaining({ tag: "turn-failed", code: -32603, data: { errorKind: "rate_limit" } }),
+    );
   });
 });

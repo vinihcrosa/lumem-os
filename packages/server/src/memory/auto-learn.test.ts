@@ -1,13 +1,14 @@
+import { RequestError } from "@agentclientprotocol/sdk";
 import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
-import { CLAUDE_ADAPTER } from "@lumem/shared";
+import { CLAUDE_ADAPTER, type AcpEvent } from "@lumem/shared";
 import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AcpManager } from "../acp/AcpManager.js";
 import type { Db } from "../db/index.js";
-import { agentConfig } from "../db/schema.js";
+import { agentAccount, agentConfig } from "../db/schema.js";
 import { openTestDb, type TestDb } from "../db/testing.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
 import { createProjectRepository } from "../repositories/project.js";
@@ -63,9 +64,13 @@ interface World {
   prompts: number;
   /** O `command` de cada `spawn`, na ordem — é o que diz qual cópia subiu. */
   spawned: readonly string[];
+  /** O env de cada `spawn`, na ordem — é o que diz em que conta ele subiu. */
+  envs: readonly (Readonly<Record<string, string>> | undefined)[];
   stateDir: string;
   configId: string;
   db: Db;
+  /** Todo evento de toda sessão — a pesquisa não tem linha, então é por aqui. */
+  events: AcpEvent[];
 }
 
 /** A cópia que o daemon instalou: desde 2026-09-08, a única que ele lança. */
@@ -78,7 +83,14 @@ function stageManagedAdapter(stateDir: string): string {
 }
 
 async function world(
-  options: { answer?: string; budget?: number; enabled?: boolean; staged?: boolean } = {},
+  options: {
+    answer?: string;
+    budget?: number;
+    enabled?: boolean;
+    staged?: boolean;
+    /** O agente recusa por cota, na forma medida em 2026-09-28. */
+    quota?: boolean;
+  } = {},
 ): Promise<World> {
   const stateDir = join(tempDir("lumem-autolearn-"), ".lumem");
   await ensureMemoryHome({ stateDir });
@@ -89,12 +101,19 @@ async function world(
 
   const state = { prompts: 0 };
   const spawned: string[] = [];
+  const envs: (Readonly<Record<string, string>> | undefined)[] = [];
   const acpManager = new AcpManager({
-    spawner: ({ command }) => {
+    spawner: ({ command, env }) => {
       spawned.push(command);
+      envs.push(env);
       return fakeAgentProcess({
         prompt: async (_text, turn) => {
           state.prompts += 1;
+          if (options.quota === true) {
+            throw new RequestError(-32603, "Internal error: You've hit your weekly limit", {
+              errorKind: "rate_limit",
+            });
+          }
           await turn.update({
             sessionUpdate: "agent_message_chunk",
             content: { type: "text", text: options.answer ?? WITH_EVIDENCE },
@@ -107,6 +126,8 @@ async function world(
     handshakeTimeoutMs: 2_000,
   });
   managers.push(acpManager);
+  const events: AcpEvent[] = [];
+  acpManager.watchEvents(({ event }) => events.push(event));
 
   const workspace = await createWorkspaceRepository(db).create({ name: "pessoal" });
   const project = await createProjectRepository(db).create({
@@ -124,6 +145,7 @@ async function world(
     id: "ses_1",
     kind: "agent",
     agentConfigId: config.id,
+    agentAccountId: config.defaultAccountId,
     scopeType: "project",
     scopeId: project.id,
     cwd: stateDir,
@@ -137,6 +159,7 @@ async function world(
       db,
       stateDir,
       acpManager,
+      secrets: { read: () => null },
       enabled: options.enabled ?? true,
       budget: options.budget ?? 3,
     }),
@@ -146,13 +169,35 @@ async function world(
       return state.prompts;
     },
     spawned,
+    envs,
     stateDir,
     configId: config.id,
     db,
+    events,
   } as World;
 }
 
 describe("createAutoLearn", () => {
+  it("a cota que recusa a pesquisa é cota, e diz de qual conta (`028` T17)", async () => {
+    const world_ = await world({ quota: true });
+
+    await world_.learn("qual é o endpoint de checkout?", world_.sessionId).catch(() => undefined);
+
+    expect(world_.events).toContainEqual(
+      expect.objectContaining({ type: "quota_refused", accountLabel: "principal", agent: "Claude Code" }),
+    );
+  });
+
+  it("a pesquisa sobe na conta padrão do agente, com o env dela (`034` T5)", async () => {
+    const world_ = await world();
+    await world_.db.update(agentAccount).set({ configDir: "/contas/padrao" });
+
+    await world_.learn("qual é o endpoint de checkout?", world_.sessionId);
+
+    expect(world_.envs).toHaveLength(1);
+    expect(world_.envs[0]?.CLAUDE_CONFIG_DIR).toBe("/contas/padrao");
+  });
+
   it("com evidência verificável, grava direto — marcada como não verificada", async () => {
     const { learn, memory, sessionId } = await world();
 

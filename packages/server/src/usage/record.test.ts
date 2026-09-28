@@ -6,6 +6,7 @@ import { AcpManager } from "../acp/AcpManager.js";
 import type { Db } from "../db/index.js";
 import { sessionUsage } from "../db/schema.js";
 import { openTestDb, type TestDb } from "../db/testing.js";
+import { createAgentAccountRepository } from "../repositories/agentAccount.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
 import { createProjectRepository } from "../repositories/project.js";
 import { createSessionRepository } from "../repositories/session.js";
@@ -30,7 +31,7 @@ type Windows = readonly { used: number; cost?: number }[];
 
 interface World {
   db: Db;
-  spawn(options?: { worktree?: boolean }): Promise<{ id: string; projectId: string; worktreeId: string }>;
+  spawn(options?: { worktree?: boolean; agentAccountId?: string }): Promise<{ id: string; projectId: string; worktreeId: string }>;
   /** Uma sessão ACP viva **sem** linha no banco — como as do próprio daemon. */
   spawnLoose(): Promise<string>;
   turn(sessionId: string, windows: Windows): Promise<void>;
@@ -38,6 +39,7 @@ interface World {
     projectId: string;
     worktreeId: string;
     agentConfigId: string | null;
+    agentAccountId: string | null;
     tokens: number;
     cost: number | null;
     /** Em que turno da sessão esta linha entrou. */
@@ -93,7 +95,7 @@ async function world(): Promise<World> {
 
   return {
     db,
-    async spawn({ worktree = false } = {}) {
+    async spawn({ worktree = false, agentAccountId } = {}) {
       const info = await acpManager.spawn({
         command: config.command,
         cwd: tmpdir(),
@@ -111,6 +113,7 @@ async function world(): Promise<World> {
         id: info.id,
         kind: "agent",
         agentConfigId: config.id,
+        agentAccountId: agentAccountId ?? config.defaultAccountId,
         scopeType: scope === null ? "project" : "worktree",
         scopeId: scope === null ? project.id : scope.id,
         cwd: tmpdir(),
@@ -143,6 +146,7 @@ async function world(): Promise<World> {
           projectId: row.projectId,
           worktreeId: row.worktreeId,
           agentConfigId: row.agentConfigId,
+          agentAccountId: row.agentAccountId,
           tokens: row.tokens,
           cost: row.cost,
           turn: row.turn,
@@ -218,6 +222,25 @@ describe("trackSessionUsage", () => {
     expect(app.rows()[0]?.cost).toBeNull();
   });
 
+  it("um relato que não mexeu em nada não vira turno — é o que precede a recusa por cota", async () => {
+    /*
+     * A forma medida em 2026-09-28 (`028` T17): antes de recusar o
+     * `session/prompt` por cota, o Claude manda um `usage_update` com `used: 0` e
+     * custo **zero** — não nulo. Gravado, ele somava nada em token e nada em
+     * dinheiro, e contava **um turno** no `count(distinct sessão:turno)`: o teto
+     * de `turnsPerSession` e o *"N turnos"* da tela gastando num turno que a
+     * conta recusou.
+     */
+    const app = await world();
+    const session = await app.spawn();
+
+    await app.turn(session.id, [{ used: 0, cost: 0 }]);
+    await app.turn(session.id, [{ used: 1_000, cost: 0.01 }]);
+
+    await vi.waitFor(() => expect(app.rows()).toHaveLength(1));
+    expect(app.rows()[0]).toMatchObject({ tokens: 1_000 });
+  });
+
   it("sessão de worktree paga pela worktree **e** pelo projeto dela", async () => {
     const app = await world();
     const session = await app.spawn({ worktree: true });
@@ -261,6 +284,23 @@ describe("trackSessionUsage", () => {
 
     await vi.waitFor(() => expect(app.rows()).toHaveLength(1));
     expect(app.rows()[0]?.agentConfigId).toBe(app.agentConfigId);
+  });
+
+  it("grava de qual conta foi o turno — a da sessão, e não a padrão do agente", async () => {
+    // `034` T4: a conta entra como o agente entra, resolvida na escrita. Uma
+    // sessão da conta 2 não pode ser cobrada da padrão, que é a conta 1.
+    const app = await world();
+    const second = await createAgentAccountRepository(app.db).create({
+      agentConfigId: app.agentConfigId,
+      label: "trabalho",
+      configDir: "/tmp/lumem-conta-2",
+    });
+    const session = await app.spawn({ agentAccountId: second.id });
+
+    await app.turn(session.id, [{ used: 7_000 }]);
+
+    await vi.waitFor(() => expect(app.rows()).toHaveLength(1));
+    expect(app.rows()[0]?.agentAccountId).toBe(second.id);
   });
 
 });

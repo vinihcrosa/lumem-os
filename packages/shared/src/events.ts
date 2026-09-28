@@ -40,7 +40,13 @@ export type LumemEvent =
    * gravar —, e não a cada `session/new`: toda conversa aberta repete o mesmo
    * handshake, e um evento por conversa redesenharia a pílula por nada.
    */
-  | { type: "catalog.changed"; adapterId: string };
+  | { type: "catalog.changed"; adapterId: string }
+  /**
+   * As contas deste agente mudaram (`034` T8/T9): conectar, desconectar,
+   * apagar de vez, trocar a padrão ou o trio dela — e uma conferência que leu
+   * o login. Por agente, porque é a lista de contas dele que ficou velha.
+   */
+  | { type: "account.changed"; adapterId: string };
 
 /**
  * Os `type` de `LumemEvent`, para quem precisa deles em execução (`032` T8).
@@ -59,4 +65,5 @@ export const LUMEM_EVENT_TYPES = [
   "session.changed",
   "task.changed",
   "catalog.changed",
+  "account.changed",
 ] as const satisfies readonly LumemEvent["type"][];

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { consumePendingDraft } from "../../lib/navigation.js";
 import { CLAUDE_VIEW_WITH_COMMANDS, CODEX_VIEW } from "../../test/adapter-catalog-fixtures.js";
+import { accountRow } from "../../test/agent-account-fixtures.js";
 import { renderWithProviders } from "../../test/render.js";
 import { installTrpcDefaults, NO_HOST_ORIGINS, trpcMock as trpc } from "../../test/trpc-mock.js";
 import { NewWorktreeComposerModal } from "./NewWorktreeComposerModal.js";
@@ -93,6 +94,31 @@ describe("`Create` chama `worktree.start`", () => {
       prompt: "corrigir o bug do login",
       adapterId: "codex",
       config: { model: "gpt-5.5" },
+      name: undefined,
+      from: undefined,
+    });
+  });
+
+  it("com duas contas, a escolhida na pílula vai junto (`034` T14)", async () => {
+    const user = userEvent.setup();
+    trpc.agentAccount.list.query.mockResolvedValue([
+      accountRow(),
+      accountRow({ id: "acct_trabalho", label: "trabalho", isDefault: false, bare: false }),
+    ]);
+    trpc.worktree.start.mutate.mockResolvedValue({ worktreeId: "wt1", sessionId: "s1" });
+    open();
+
+    await user.type(await screen.findByLabelText("No que você quer trabalhar?"), "corrigir o bug do login");
+    await user.click(await screen.findByRole("button", { name: /^agente e modelo:.*pessoal/ }));
+    await user.click(screen.getByRole("menuitemradio", { name: "trabalho" }));
+    await user.click(screen.getByRole("button", { name: /Create/ }));
+
+    expect(trpc.worktree.start.mutate).toHaveBeenCalledWith({
+      projectId: "p1",
+      prompt: "corrigir o bug do login",
+      adapterId: "claude",
+      config: {},
+      agentAccountId: "acct_trabalho",
       name: undefined,
       from: undefined,
     });

@@ -2,6 +2,7 @@ import type { Role } from "../agents/catalog.js";
 import type { TaskRow } from "../db/schema.js";
 import { DomainError } from "../errors.js";
 
+import { QUOTA_RETRIES, quotaWait } from "./pause.js";
 import type { Autonomy, QueueEntry, QueueFacts } from "./queue.js";
 import { promptFor } from "./prompts.js";
 
@@ -100,14 +101,23 @@ export type GateVerdict =
   /** Nem verde nem vermelho: o trabalho não chegou ao ponto de ser julgado. */
   | { kind: "unfinished"; reason: string };
 
+/**
+ * Quem faz o papel, como a esteira o abre: adaptador, conta, modelo e effort
+ * (`034` T10). `null` em conta é *a padrão do agente*, e em modelo e effort é
+ * *o padrão da conta* — quem resolve é a porta que abre a sessão.
+ */
+export interface SlotAgent {
+  adapter: string;
+  accountId: string | null;
+  model: string | null;
+  effort: string | null;
+}
+
 export interface ConveyorPorts {
   /** A fila deste workspace, agora (T24). */
   queue(workspaceId: string): QueueFacts;
   /** Qual agente faz este papel nesta tarefa, pela cascata do §5.1. */
-  agentFor(input: {
-    taskId: string;
-    role: Role;
-  }): Promise<{ adapter: string; model: string | null; instructions: string }>;
+  agentFor(input: { taskId: string; role: Role }): Promise<SlotAgent & { instructions: string }>;
   /** A worktree, criada ou reusada, com o `setup` já rodado (T26). */
   prepareCheckout(entry: QueueEntry): Promise<PreparedCheckout>;
   /**
@@ -127,15 +137,15 @@ export interface ConveyorPorts {
    * decidiu que a postura de permissão é **do adaptador, declarada na `spec`**.
    * Quem traduz é quem implementa esta porta.
    */
-  openSession(input: {
-    taskId: string;
-    role: Role;
-    adapter: string;
-    model: string | null;
-    cwd: string;
-    /** O escopo da sessão. Uma conversa da esteira mora **no checkout**. */
-    worktreeId: string;
-  }): Promise<{ sessionId: string }>;
+  openSession(
+    input: SlotAgent & {
+      taskId: string;
+      role: Role;
+      cwd: string;
+      /** O escopo da sessão. Uma conversa da esteira mora **no checkout**. */
+      worktreeId: string;
+    },
+  ): Promise<{ sessionId: string }>;
   /**
    * Manda o prompt e espera o turno. O motivo da **parada** é ignorado de
    * propósito — quem responde *"acabou?"* é o portão.
@@ -147,10 +157,7 @@ export interface ConveyorPorts {
    * o cartão acabava parando com *"parou depois de 2 tentativas"* — uma frase
    * que não fala do teto e manda procurar no lugar errado.
    */
-  prompt(input: {
-    sessionId: string;
-    text: string;
-  }): Promise<{ kind: "ok" } | { kind: "refused"; reason: string }>;
+  prompt(input: { sessionId: string; text: string }): Promise<PromptAnswer>;
   /** Interrompe um turno que passou do teto de tempo. */
   cancel(sessionId: string): Promise<void>;
   /**
@@ -234,6 +241,17 @@ export interface ConveyorPorts {
   bounce(input: { taskId: string; reason: string }): Promise<number>;
   /** Tentativa esgotada: o cartão para, com o motivo. */
   block(input: { taskId: string; reason: string }): Promise<void>;
+  /**
+   * A cota recusou o turno desta tarefa (`028` T17): **devolve** a tentativa que
+   * foi contada antes do prompt e conta a recusa, numa escrita só. Devolve
+   * quantas recusas seguidas já houve.
+   */
+  quotaRefused(taskId: string): Promise<number>;
+  /**
+   * Até quando a esteira espera a cota antes de tentar de novo; `null` é *a cota
+   * reabriu* — limpa a espera e zera as recusas.
+   */
+  pause(input: { taskId: string; until: Date | null }): Promise<void>;
   /** O que este turno deixou registrado na tarefa (T21). */
   comment(input: { taskId: string; body: string; sessionId: string }): Promise<void>;
   /**
@@ -258,15 +276,29 @@ export interface ConveyorPorts {
     taskId?: string,
   ): Promise<void>;
   /** O que está preparado nesta tarefa, com o que falta para enviar. */
-  prepared(taskId: string): Promise<{
-    role: Role;
-    prompt: string;
-    worktreeId: string;
-    checkoutPath: string;
-    adapter: string;
-    model: string | null;
-  } | null>;
+  prepared(taskId: string): Promise<
+    | (SlotAgent & {
+        role: Role;
+        prompt: string;
+        worktreeId: string;
+        checkoutPath: string;
+      })
+    | null
+  >;
 }
+
+/**
+ * O que o turno respondeu **antes** de ser julgado.
+ *
+ * `refused` é o daemon dizendo não antes de gastar (o teto do workspace).
+ * `quota` é a **conta** dizendo não (`028` T17) — espera, e não falha: a Q32
+ * diz que ela não consome tentativa nem orçamento. `reopensAt` é o que o agente
+ * relatou sobre quando reabre, e `null` no caso medido, que chegou sem sinal.
+ */
+export type PromptAnswer =
+  | { kind: "ok" }
+  | { kind: "refused"; reason: string }
+  | { kind: "quota"; reason: string; reopensAt: Date | null };
 
 export interface Conveyor {
   /** Uma passada. Devolve quantas tarefas saíram da fila nesta. */
@@ -287,11 +319,13 @@ export interface ConveyorOptions {
   turnTimeoutMs?: number;
   /** Injetável pelo mesmo motivo — e o default é o relógio de verdade. */
   sleep?: (ms: number) => Promise<void>;
+  /** De quando a espera da cota é contada. Injetável para o teste dizer a hora. */
+  now?: () => Date;
 }
 
 export function createConveyor(
   ports: ConveyorPorts,
-  { turnTimeoutMs = TURN_TIMEOUT_MS, sleep = defaultSleep }: ConveyorOptions = {},
+  { turnTimeoutMs = TURN_TIMEOUT_MS, sleep = defaultSleep, now = () => new Date() }: ConveyorOptions = {},
 ): Conveyor {
   /**
    * O turno, com teto.
@@ -304,18 +338,14 @@ export function createConveyor(
   async function promptWithCeiling(
     sessionId: string,
     text: string,
-  ): Promise<{ kind: "ended" } | { kind: "timeout" } | { kind: "refused"; reason: string }> {
-    const answered: { value: { kind: "ok" } | { kind: "refused"; reason: string } | null } = {
-      value: null,
-    };
+  ): Promise<{ kind: "ended" } | { kind: "timeout" } | Exclude<PromptAnswer, { kind: "ok" }>> {
+    const answered: { value: PromptAnswer | null } = { value: null };
     const turn = ports.prompt({ sessionId, text }).then((answer) => {
       answered.value = answer;
     });
     await Promise.race([turn, sleep(turnTimeoutMs)]);
     const answer = answered.value;
-    if (answer !== null) {
-      return answer.kind === "ok" ? { kind: "ended" } : { kind: "refused", reason: answer.reason };
-    }
+    if (answer !== null) return answer.kind === "ok" ? { kind: "ended" } : answer;
 
     await ports.cancel(sessionId).catch(() => undefined);
     return { kind: "timeout" };
@@ -347,7 +377,7 @@ export function createConveyor(
      * olhando — que é o estado que esta feature inteira existe para não ter.
      */
     let checkout: PreparedCheckout;
-    let agent: { adapter: string; model: string | null; instructions: string };
+    let agent: SlotAgent & { instructions: string };
     try {
       checkout = await ports.prepareCheckout(entry);
       agent = await ports.agentFor({ taskId: entry.task.id, role: entry.role });
@@ -461,7 +491,9 @@ export function createConveyor(
       taskId: entry.task.id,
       role: entry.role,
       adapter: agent.adapter,
+      accountId: agent.accountId,
       model: agent.model,
+      effort: agent.effort,
       cwd: checkout.path,
       worktreeId: checkout.worktreeId,
     });
@@ -504,6 +536,38 @@ export function createConveyor(
       await blockWith(entry.task.id, turn.reason);
       return;
     }
+
+    /*
+     * A **conta** disse não (`028` T17): espera, e não falha — a Q32 inteira.
+     *
+     * A tentativa contada antes do prompt é devolvida, porque esperar a cota não
+     * é tentar; o que conta é a recusa, com teto próprio, senão uma cota que
+     * nunca reabre seria um laço sem custo e sem fim. A conversa fecha: esperar
+     * horas com um adaptador de pé é ocupar memória por nada, e a próxima
+     * tentativa retoma a do encaixe. E não notifica — `pausada` não precisa de
+     * você; o bloqueio, quando vier, é que precisa.
+     */
+    if (turn.kind === "quota") {
+      await ports.closeSession(sessionId).catch(() => undefined);
+      const refusals = await ports.quotaRefused(entry.task.id);
+      const wait = quotaWait({ refusals, reopensAt: turn.reopensAt, now: now() });
+      if (wait.kind === "block") {
+        await blockWith(entry.task.id, `${turn.reason} — ${wait.why}`);
+        return;
+      }
+      await ports.pause({ taskId: entry.task.id, until: wait.until });
+      await ports.comment({
+        taskId: entry.task.id,
+        sessionId,
+        body:
+          `${entry.role} · ${turn.reason} — esperando para tentar de novo ` +
+          `(${String(refusals)} de ${String(QUOTA_RETRIES)}), sem gastar tentativa`,
+      });
+      return;
+    }
+
+    // Um turno rodou: a cota reabriu, e a próxima recusa é outro episódio.
+    if (entry.task.quotaRefusals > 0) await ports.pause({ taskId: entry.task.id, until: null });
 
     /*
      * O teto chegou antes: não há o que julgar, e chamar o portão seria julgar
@@ -618,7 +682,9 @@ export function createConveyor(
         taskId,
         role: prepared.role,
         adapter: prepared.adapter,
+        accountId: prepared.accountId,
         model: prepared.model,
+        effort: prepared.effort,
         cwd: prepared.checkoutPath,
         worktreeId: prepared.worktreeId,
       });
@@ -645,6 +711,9 @@ export function createConveyor(
        */
       const sent = await promptWithCeiling(sessionId, prepared.prompt);
       if (sent.kind === "refused") throw new DomainError("BLOCKED", sent.reason);
+      // O clique é seu, e a conta é a do encaixe: a conversa já diz qual parou,
+      // e a resposta do clique diz o mesmo — sem pausa, porque quem decide é você.
+      if (sent.kind === "quota") throw new DomainError("QUOTA_REFUSED", sent.reason);
     },
 
     async tick(workspaceId) {

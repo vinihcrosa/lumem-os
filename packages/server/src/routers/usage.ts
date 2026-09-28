@@ -3,9 +3,11 @@ import { z } from "zod";
 import { publicProcedure, router } from "../trpc.js";
 import {
   usageByProject,
+  usageByProjectAndAccount,
   usageByProjectAndAgent,
   usageByTask,
   usageByWorktree,
+  usageByWorktreeAndAccount,
   usageByWorktreeAndAgent,
   usageOutsideWorktrees,
   USAGE_WINDOWS,
@@ -82,5 +84,22 @@ export const usageRouter = router({
     .input(z.object({ projectId: z.string().min(1), period }))
     .query(({ ctx, input }) =>
       usageByWorktreeAndAgent(ctx.db, { projectId: input.projectId, period: input.period }),
+    ),
+
+  /*
+   * E um nível abaixo do agente, por conta (`034` T12) — separados pelo mesmo
+   * motivo dos de cima: a tela só pede quando algum agente tem mais de uma
+   * conta, e com uma o agente já é a conta.
+   */
+  byProjectAndAccount: publicProcedure
+    .input(z.object({ workspaceId: z.string().min(1), period }))
+    .query(({ ctx, input }) =>
+      usageByProjectAndAccount(ctx.db, { workspaceId: input.workspaceId, period: input.period }),
+    ),
+
+  byWorktreeAndAccount: publicProcedure
+    .input(z.object({ projectId: z.string().min(1), period }))
+    .query(({ ctx, input }) =>
+      usageByWorktreeAndAccount(ctx.db, { projectId: input.projectId, period: input.period }),
     ),
 });

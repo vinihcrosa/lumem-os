@@ -1,7 +1,15 @@
 import { and, eq, gte, sql } from "drizzle-orm";
 
 import type { Db } from "../db/index.js";
-import { agentConfig, project, session, sessionUsage, task, worktree } from "../db/schema.js";
+import {
+  agentAccount,
+  agentConfig,
+  project,
+  session,
+  sessionUsage,
+  task,
+  worktree,
+} from "../db/schema.js";
 
 /**
  * O que cada escopo consumiu numa janela de tempo (`workspace-screen`, W4).
@@ -78,6 +86,28 @@ export interface ProjectAgentUsage extends AgentUsage {
 }
 
 export interface WorktreeAgentUsage extends AgentUsage {
+  worktreeId: string;
+}
+
+/**
+ * O mesmo consumo, um nível abaixo do agente: por conta (`034` T12).
+ *
+ * `agentConfigId` e `name` vão junto para a tela aninhar a conta embaixo do
+ * agente dela sem uma segunda consulta. `agentAccountId` é nulo no consumo
+ * gravado sem conta — a sessão de shell, a linha de antes da coluna —, e o
+ * `label` acompanha: nulo é "não sei", e a conta apagada de vez continua
+ * contando, sem rótulo, como a configuração apagada no agente.
+ */
+export interface AccountUsage extends AgentUsage {
+  agentAccountId: string | null;
+  label: string | null;
+}
+
+export interface ProjectAccountUsage extends AccountUsage {
+  projectId: string;
+}
+
+export interface WorktreeAccountUsage extends AccountUsage {
   worktreeId: string;
 }
 
@@ -234,6 +264,71 @@ export function usageByWorktreeAndAgent(
     .leftJoin(agentConfig, eq(agentConfig.id, sessionUsage.agentConfigId))
     .where(and(eq(sessionUsage.projectId, projectId), gte(sessionUsage.createdAt, since)))
     .groupBy(sessionUsage.worktreeId, sessionUsage.agentConfigId)
+    .orderBy(sql`${SUM.tokens} desc`)
+    .all();
+}
+
+/**
+ * Quanto cada conta custou, por projeto do workspace (`034` T12).
+ *
+ * No molde de `usageByProjectAndAgent`, com a conta a mais no `GROUP BY` — e o
+ * agente **continua** nele: o consumo sem conta de dois agentes diferentes
+ * seriam uma linha só, e a soma por agente deixaria de fechar. Conta e rótulo
+ * vêm de `session_usage` e de um `left join`, pelo mesmo motivo do agente: a
+ * conta é resolvida na escrita, e apagar a conta não apaga o que ela gastou.
+ */
+export function usageByProjectAndAccount(
+  db: Db,
+  { workspaceId, period, now }: { workspaceId: string; period: UsageWindow; now?: Date },
+): ProjectAccountUsage[] {
+  const since = windowStart(period, now);
+
+  return db
+    .select({
+      projectId: sessionUsage.projectId,
+      agentConfigId: sessionUsage.agentConfigId,
+      name: sql<string | null>`max(${agentConfig.name})`,
+      agentAccountId: sessionUsage.agentAccountId,
+      label: sql<string | null>`max(${agentAccount.label})`,
+      tokens: SUM.tokens,
+      cost: SUM.cost,
+      currency: SUM.currency,
+      turns: SUM.turns,
+    })
+    .from(sessionUsage)
+    .innerJoin(project, eq(project.id, sessionUsage.projectId))
+    .leftJoin(agentConfig, eq(agentConfig.id, sessionUsage.agentConfigId))
+    .leftJoin(agentAccount, eq(agentAccount.id, sessionUsage.agentAccountId))
+    .where(and(eq(project.workspaceId, workspaceId), gte(sessionUsage.createdAt, since)))
+    .groupBy(sessionUsage.projectId, sessionUsage.agentConfigId, sessionUsage.agentAccountId)
+    .orderBy(sql`${SUM.tokens} desc`)
+    .all();
+}
+
+/** O mesmo por conta, um nível abaixo: cada worktree de um projeto. */
+export function usageByWorktreeAndAccount(
+  db: Db,
+  { projectId, period, now }: { projectId: string; period: UsageWindow; now?: Date },
+): WorktreeAccountUsage[] {
+  const since = windowStart(period, now);
+
+  return db
+    .select({
+      worktreeId: sessionUsage.worktreeId,
+      agentConfigId: sessionUsage.agentConfigId,
+      name: sql<string | null>`max(${agentConfig.name})`,
+      agentAccountId: sessionUsage.agentAccountId,
+      label: sql<string | null>`max(${agentAccount.label})`,
+      tokens: SUM.tokens,
+      cost: SUM.cost,
+      currency: SUM.currency,
+      turns: SUM.turns,
+    })
+    .from(sessionUsage)
+    .leftJoin(agentConfig, eq(agentConfig.id, sessionUsage.agentConfigId))
+    .leftJoin(agentAccount, eq(agentAccount.id, sessionUsage.agentAccountId))
+    .where(and(eq(sessionUsage.projectId, projectId), gte(sessionUsage.createdAt, since)))
+    .groupBy(sessionUsage.worktreeId, sessionUsage.agentConfigId, sessionUsage.agentAccountId)
     .orderBy(sql`${SUM.tokens} desc`)
     .all();
 }

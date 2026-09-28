@@ -16,6 +16,10 @@ import type {
   LumemModeDefault,
 } from "@lumem/shared";
 
+import { continuationBlock } from "./continuation-text.js";
+import { closingTurn } from "./turn-close-text.js";
+import { unavailableText } from "./unavailable-text.js";
+
 /**
  * The conversation as data, before any of it is a component.
  *
@@ -99,7 +103,9 @@ export type Block =
    * ninguém reconheceu, `.meta` é a sessão se declarando. Juntar os dois faria a
    * injeção parecer um defeito.
    */
-  | { kind: "meta"; text: string };
+  | { kind: "meta"; text: string; link?: string }
+  /** As recusas do `session/prompt` — ver `turn-close-text.ts`. `quota` pede um gesto. */
+  | { kind: "quota" | "failure"; text: string };
 
 export interface Turn {
   /**
@@ -458,21 +464,28 @@ export function reduceConversation(
       };
 
     case "model_unavailable":
+    case "account_default_unavailable":
       /*
        * Turno próprio e `meta`, como o teto e o núcleo da memória: é o daemon
-       * dizendo o que não conseguiu fazer por conta própria, e colar no bloco
-       * do agente faria parecer que ele trocou de modelo sozinho (`033` F6.2).
+       * dizendo o que não conseguiu aplicar — o modelo da retomada (`033` F6.2)
+       * ou o padrão da conta (`034` T9) —, e colar no bloco do agente faria
+       * parecer que ele trocou de modelo sozinho.
        */
       return {
         ...state,
         turns: [
           ...state.turns,
-          {
-            role: "agent",
-            blocks: [{ kind: "meta", text: modelUnavailableText(event.model, event.current) }],
-            at,
-          },
+          { role: "agent", blocks: [{ kind: "meta", text: unavailableText(event) }], at },
         ],
+      };
+
+    case "continued_in":
+    case "continued_from":
+      // As linhas de vínculo (`034` T11): turno próprio pelo mesmo motivo — a
+      // passagem é o daemon falando, e não o agente.
+      return {
+        ...state,
+        turns: [...state.turns, { role: "agent", blocks: [continuationBlock(event)], at }],
       };
 
     case "memory_core":
@@ -528,6 +541,11 @@ export function reduceConversation(
           },
         ],
       };
+
+    case "quota_refused":
+    case "turn_failed":
+      // Fecha o turno (numa recusa não há `turn_end`); sem parada, o `lastStopReason` fica.
+      return { ...state, streaming: false, turns: [...state.turns, closingTurn(event, at)] };
 
     case "unknown":
       return appendBlock(state, "agent", {
@@ -587,13 +605,6 @@ function withoutTally(state: ConversationState): ConversationState {
       block.kind === "meta" && block.text.startsWith(TALLY_MARK) ? null : block,
     ),
   };
-}
-
-/** Qual modelo sumiu e em qual a conversa seguiu — as duas metades da F6.2. */
-function modelUnavailableText(model: string, current: string): string {
-  // Um agente que não relata modelo deixaria "continuou em " sem nada depois.
-  const where = current === "" ? "no modelo padrão dele" : `em ${current}`;
-  return `o modelo ${model} não existe mais neste agente — a conversa continuou ${where}`;
 }
 
 /**

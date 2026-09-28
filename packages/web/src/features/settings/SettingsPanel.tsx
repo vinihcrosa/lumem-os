@@ -1,13 +1,12 @@
-import { ADAPTERS } from "@lumem/shared";
 import { useState, type ReactNode } from "react";
 
-import { useSetupAgentsReport } from "../agent/index.js";
-import { askNoticePermission } from "../tasks/index.js";
+import { askNoticePermission, useTaskSettings } from "../tasks/index.js";
 import { useSecrets } from "../agent/index.js";
-import { useTaskSettings } from "../tasks/index.js";
 import { useWorkspaceMutations } from "../workspace/index.js";
 import { Skeleton } from "../../ui/index.js";
-
+import { AccountsSection } from "./AccountsSection.js";
+import { ConveyorSlots } from "./ConveyorSlots.js";
+import { SaveMark, type SaveState } from "./SaveMark.js";
 
 /**
  * A tela de configurações (`030-settings`).
@@ -105,21 +104,6 @@ export function SettingSection({ title, description, children }: SettingSectionP
   );
 }
 
-/** O que a linha diz sobre si mesma depois que você mexeu nela. */
-type SaveState = { kind: "clean" } | { kind: "saving" } | { kind: "saved" } | { kind: "failed"; why: string };
-
-function SaveMark({ state }: { state: SaveState }) {
-  if (state.kind === "clean") return null;
-  const label =
-    state.kind === "saving" ? "salvando…" : state.kind === "saved" ? "salvo" : "não deu para salvar";
-  return (
-    <span className={`set__save set__save--${state.kind}`} title={state.kind === "failed" ? state.why : undefined}>
-      <span className="set__save__dot" aria-hidden="true" />
-      {label}
-    </span>
-  );
-}
-
 export interface NumberSettingProps {
   id: string;
   /** `null` é *sem teto*; `0` é *bloqueia tudo*. São coisas diferentes. */
@@ -168,8 +152,7 @@ export function NumberSetting({
         setError("este não pode ficar vazio");
         return;
       }
-      await send(null);
-      return;
+      return send(null, draft);
     }
 
     const parsed = Number(text.replace(",", "."));
@@ -181,15 +164,16 @@ export function NumberSetting({
       setError("este conta inteiros");
       return;
     }
-    await send(parsed);
+    await send(parsed, draft);
   }
 
-  async function send(next: number | null): Promise<void> {
+  // `sent`: só limpa o rascunho que virou este envio, e não uma edição feita enquanto ele terminava.
+  async function send(next: number | null, sent: string | null): Promise<void> {
     setError(null);
     setState({ kind: "saving" });
     try {
       await onCommit(next);
-      setDraft(null);
+      setDraft((current) => (current === sent ? null : current));
       setState({ kind: "saved" });
     } catch (cause) {
       // A frase do daemon, e não uma nossa: ele é o único que sabe o que
@@ -279,7 +263,7 @@ export function SettingsPanel({ workspaceId, workspaceName }: SettingsPanelProps
       </header>
 
       <ConveyorSection workspaceId={workspaceId} />
-      <AgentsSection />
+      <AccountsSection />
       <IntegrationsSection />
       <DisplaySection />
     </div>
@@ -478,55 +462,7 @@ function ConveyorSection({ workspaceId }: { workspaceId: string }) {
         >
           <span className="set__val">{data.budget}</span>
         </SettingRow>
-      </div>
-    </SettingSection>
-  );
-}
-
-/**
- * Agentes — **leitura**, nesta feature.
- *
- * O login continua no rodapé da sidebar até a LUM-57, e a Q6 decidiu o que
- * acontece com ele lá: não sobra nada, o rodapé some inteiro. O que entra aqui
- * agora é o que já se sabe ler — quais agentes existem e qual versão o daemon
- * tem **no disco**, que é a regra do
- * [ADR de 2026-09-08](../../../../docs/adr/2026-09-08-0507-adapter-is-the-copy-the-daemon-owns.md):
- * o `PATH` não decide.
- */
-function AgentsSection() {
-  const agents = useSetupAgentsReport();
-
-  return (
-    <SettingSection
-      title="Agentes"
-      description={
-        <>
-          O adaptador é a cópia que o daemon instalou, e o <code>PATH</code> não decide. Conectar
-          vale para <b>todo workspace desta máquina</b> — por enquanto o login mora no rodapé da
-          coluna.
-        </>
-      }
-    >
-      <div className="set__rows">
-        {ADAPTERS.map((spec) => {
-          const found = agents.data?.adapters.find((row) => row.id === spec.id);
-          const installed = found?.adapter.version ?? null;
-          return (
-            <SettingRow
-              key={spec.id}
-              label={spec.label}
-              description={
-                <>
-                  {spec.package ?? spec.command} · pino <code>{spec.pinnedVersion}</code>
-                </>
-              }
-              owner="máquina"
-              readOnly
-            >
-              <span className="set__val">{installed ?? "não instalado"}</span>
-            </SettingRow>
-          );
-        })}
+        <ConveyorSlots workspaceId={workspaceId} />
       </div>
     </SettingSection>
   );
@@ -601,11 +537,10 @@ function IntegrationsSection() {
 /**
  * Exibição — a seção que entra **sem o controle**, de propósito (Q7).
  *
- * O `tokens.css` tem 111 valores em `px` e zero `rem`, e é cópia do Open Design:
- * `html { font-size }` não move um pixel. A alavanca nasce no sistema de design,
- * não aqui. Desenhar o segmentado agora seria um botão que não faz nada, e a
- * diferença entre as duas coisas é o que separa uma tela honesta de uma que
- * promete.
+ * O `tokens.css` tem 111 valores em `px` e zero `rem`: `html { font-size }` não
+ * move um pixel. A alavanca nasce no sistema de design, não aqui. Desenhar o
+ * segmentado agora seria um botão que não faz nada, e a diferença entre as duas
+ * coisas é o que separa uma tela honesta de uma que promete.
  */
 function DisplaySection() {
   return (
@@ -622,7 +557,7 @@ function DisplaySection() {
         <span aria-hidden="true">⚠</span>
         <span>
           <b>Tamanho de fonte ainda não tem alavanca.</b> O <code>tokens.css</code> tem{" "}
-          <b>111 valores em px e zero rem</b>, e é cópia do Open Design — então{" "}
+          <b>111 valores em px e zero rem</b> — então{" "}
           <code>html {"{ font-size }"}</code> não move um pixel. O <code>rem</code> nasce no sistema
           de design, e a preferência chega quando ele chegar.
         </span>

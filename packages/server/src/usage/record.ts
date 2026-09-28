@@ -71,7 +71,13 @@ export function trackSessionUsage({ db, acpManager, log }: RecordUsageOptions): 
 
     // Nada a gravar: turno que não mexeu na janela e não custou dinheiro é linha
     // que só ocupa espaço.
-    if (tokens === 0 && cost === null) return;
+    //
+    // Custo **zero** também, e não só ausente: é o relato que o Claude manda
+    // antes de recusar um `session/prompt` por cota (`028` T17, medido em
+    // 2026-09-28). Não soma token nem dinheiro — mas contaria um turno no
+    // `count(distinct sessão:turno)`, e o teto de `turnsPerSession` gastaria num
+    // turno que a conta recusou.
+    if (tokens === 0 && (cost === null || cost.amount === 0)) return;
 
     void (async () => {
       const scope = await scopeOf(db, sessionId);
@@ -84,6 +90,7 @@ export function trackSessionUsage({ db, acpManager, log }: RecordUsageOptions): 
           projectId: scope.projectId,
           worktreeId: scope.worktreeId,
           agentConfigId: scope.agentConfigId,
+          agentAccountId: scope.agentAccountId,
           tokens,
           turn: turnOf.get(sessionId) ?? 0,
           ...(cost === null ? {} : { cost: cost.amount, currency: cost.currency }),
@@ -116,7 +123,12 @@ export function trackSessionUsage({ db, acpManager, log }: RecordUsageOptions): 
 async function scopeOf(
   db: Db,
   sessionId: string,
-): Promise<{ projectId: string; worktreeId: string; agentConfigId: string | null } | null> {
+): Promise<{
+  projectId: string;
+  worktreeId: string;
+  agentConfigId: string | null;
+  agentAccountId: string | null;
+} | null> {
   const row = await createSessionRepository(db).findById(sessionId);
   if (row === undefined) return null;
 
@@ -124,12 +136,15 @@ async function scopeOf(
   // feita: uma segunda consulta para descobrir isso seria um join com outro
   // nome.
   const agentConfigId = row.agentConfigId ?? null;
+  // E qual conta (`034` T4), da mesma linha: a da sessão, e não a padrão de
+  // hoje — uma conversa da conta 2 não é cobrada da conta 1.
+  const agentAccountId = row.agentAccountId ?? null;
 
   if (row.scopeType === "project") {
-    return { projectId: row.scopeId, worktreeId: "", agentConfigId };
+    return { projectId: row.scopeId, worktreeId: "", agentConfigId, agentAccountId };
   }
 
   const worktree = await createWorktreeRepository(db).findById(row.scopeId);
   if (worktree === undefined) return null;
-  return { projectId: worktree.projectId, worktreeId: worktree.id, agentConfigId };
+  return { projectId: worktree.projectId, worktreeId: worktree.id, agentConfigId, agentAccountId };
 }

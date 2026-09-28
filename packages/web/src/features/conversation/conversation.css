@@ -799,6 +799,19 @@
  * (T30).
  */
 .meta--conversation { border-left: var(--border-width-thick) solid var(--color-border-subtle); padding-left: var(--space-10); font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+/* A linha de vínculo (`034` T15): a mesma linha, que leva à outra aba. Cor de link, e não de marca. */
+.meta--link {
+  display: block;
+  width: 100%;
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 0;
+  background: none;
+  text-align: left;
+  color: var(--color-text-link);
+  cursor: pointer;
+}
+.meta--link:hover { text-decoration: underline; text-underline-offset: var(--space-2); }
 
 /* O mesmo sinal na sidebar, para o pedido de permissão esperando. */
 .count--asking { background: var(--color-bg-warning-subtle); color: var(--color-permission-pending); }

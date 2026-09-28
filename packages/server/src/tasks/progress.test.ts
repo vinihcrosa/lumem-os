@@ -97,6 +97,7 @@ async function world({ track = true } = {}): Promise<World> {
         id: info.id,
         kind: "agent",
         agentConfigId: config.id,
+        agentAccountId: config.defaultAccountId,
         scopeType: "project",
         scopeId: project.id,
         cwd: tmpdir(),

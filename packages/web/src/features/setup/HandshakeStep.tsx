@@ -60,11 +60,24 @@ export function HandshakeStep({ onNext, onBack, onSkip }: HandshakeStepProps) {
     });
   };
 
+  /*
+   * Quem diz se há login é a conferência (`loggedIn`, `034` T6), e não a lista
+   * de métodos: o `claude-agent-acp@0.75.1` oferece os métodos sempre que o
+   * daemon declara `_meta["terminal-auth"]`, logado ou não — contar a lista
+   * fazia esta tela dizer "pede autenticação" numa máquina logada.
+   */
+  const loggedIn = report?.loggedIn === true;
+  const who =
+    report?.identity?.email == null
+      ? null
+      : [report.identity.email, report.identity.plan].filter(Boolean).join(" · ");
   const authWord =
     report === undefined
       ? ""
-      : report.authMethods.length === 0
-        ? "o adaptador não pediu autenticação: usou a credencial local"
+      : loggedIn
+        ? who === null
+          ? "já tem login: usou a credencial local"
+          : `já tem login — ${who}`
         : `o adaptador pede autenticação: ${report.authMethods
             .map((method) => method.name ?? method.id)
             .join(", ")}`;
@@ -131,10 +144,10 @@ export function HandshakeStep({ onNext, onBack, onSkip }: HandshakeStepProps) {
               status="ok"
             />
             <CheckRow
-              state={report.authMethods.length === 0 ? "ok" : "warn"}
+              state={loggedIn ? "ok" : "warn"}
               what="autenticação"
               value={authWord}
-              status={report.authMethods.length === 0 ? "ok" : "pede"}
+              status={loggedIn ? "ok" : "pede"}
             />
             <CheckRow
               state="ok"

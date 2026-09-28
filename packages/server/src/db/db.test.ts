@@ -7,13 +7,33 @@ import { eq, sql } from "drizzle-orm";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { openDatabase, type Db, type Database_ } from "./index.js";
-import { agentConfig, memoryProposal, project, session, task, workspace, worktree } from "./schema.js";
+import {
+  agentAccount,
+  agentConfig,
+  memoryProposal,
+  project,
+  session,
+  task,
+  workspace,
+  worktree,
+} from "./schema.js";
 
 const open: Database_[] = [];
 const dirs: string[] = [];
 
 /** A live configuration always pins its adapter (`033` F1.1). The value is noise here. */
 const PIN = "0.75.1";
+
+/**
+ * A conta de uma configuração inserida cru (`034` T4): sessão de agente sem
+ * conta é recusada pela CHECK `session_agent_config`, e o teste que não a der
+ * passaria a falhar pelo motivo errado.
+ */
+async function seedAccount(db: Db, agentConfigId: string): Promise<string> {
+  const id = newId();
+  await db.insert(agentAccount).values({ id, agentConfigId, label: "padrão" });
+  return id;
+}
 
 /** A database of its own per test — the parallel-safety the matrix promises. */
 function freshDatabase(): { db: Db; path: string } {
@@ -196,6 +216,7 @@ describe("referential integrity", () => {
       id: newId(),
       kind: "agent",
       agentConfigId: configId,
+      agentAccountId: await seedAccount(db, configId),
       scopeType: "worktree",
       scopeId: "w1",
       cwd: "/w/t",
@@ -277,11 +298,12 @@ describe("agent configuration", () => {
  * que botão desenhar, então o banco recusa antes.
  */
 describe("pending prompt", () => {
-  function agentSessionValues(configId: string) {
+  async function agentSessionValues(db: Db, configId: string) {
     return {
       id: newId(),
       kind: "agent",
       agentConfigId: configId,
+      agentAccountId: await seedAccount(db, configId),
       scopeType: "worktree",
       scopeId: "w1",
       cwd: "/w/t",
@@ -304,7 +326,7 @@ describe("pending prompt", () => {
 
   it("a session starts with nothing pending", async () => {
     const { db } = freshDatabase();
-    await db.insert(session).values(agentSessionValues(await seedConfig(db)));
+    await db.insert(session).values(await agentSessionValues(db, await seedConfig(db)));
 
     const [row] = await db.select().from(session);
 
@@ -314,7 +336,7 @@ describe("pending prompt", () => {
   it("keeps a pending prompt, and the one reason the daemon knows", async () => {
     const { db } = freshDatabase();
     await db.insert(session).values({
-      ...agentSessionValues(await seedConfig(db)),
+      ...(await agentSessionValues(db, await seedConfig(db))),
       pendingPrompt: "corrigir o bug do login no Safari",
       pendingReason: "setup_failed",
     });
@@ -332,7 +354,7 @@ describe("pending prompt", () => {
 
     await expect(
       db.insert(session).values({
-        ...agentSessionValues(await seedConfig(db)),
+        ...(await agentSessionValues(db, await seedConfig(db))),
         pendingPrompt: "corrigir o bug",
         pendingReason: "setup_slow",
       }),
@@ -369,18 +391,21 @@ describe("transport", () => {
       adapterVersion: "0.69.0",
     });
 
+    const agentAccountId = await seedAccount(db, configId);
+
     await expect(
       db.insert(session).values({
         id: newId(),
         kind: "agent",
         agentConfigId: configId,
+        agentAccountId,
         scopeType: "worktree",
         scopeId: "w1",
         cwd: "/w/t",
         command: "claude-agent-acp",
         transport: "acp",
       }),
-    ).rejects.toThrow(/CHECK/i);
+    ).rejects.toThrow(/session_acp_id/);
   });
 
   it("refuses a PTY session carrying an ACP session id", async () => {
@@ -431,6 +456,7 @@ describe("transport", () => {
       id: newId(),
       kind: "agent",
       agentConfigId: configId,
+      agentAccountId: await seedAccount(db, configId),
       scopeType: "worktree",
       scopeId: "w1",
       cwd: "/w/t",
@@ -598,6 +624,43 @@ describe("state constraints", () => {
         command: "/bin/zsh",
       }),
     ).rejects.toThrow(/CHECK/i);
+  });
+
+  it("rejects an agent session with a configuration and no account", async () => {
+    // `034` T4: sem conta, o `resume` não sabe em que diretório a conversa mora.
+    const { db } = freshDatabase();
+    const configId = newId();
+    await db.insert(agentConfig).values({ id: configId, name: "claude", command: "c", adapterVersion: PIN });
+
+    await expect(
+      db.insert(session).values({
+        id: newId(),
+        kind: "agent",
+        agentConfigId: configId,
+        scopeType: "worktree",
+        scopeId: "w1",
+        cwd: "/w/t",
+        command: "claude",
+      }),
+    ).rejects.toThrow(/session_agent_config/);
+  });
+
+  it("rejects a shell session that claims an agent account", async () => {
+    const { db } = freshDatabase();
+    const configId = newId();
+    await db.insert(agentConfig).values({ id: configId, name: "claude", command: "c", adapterVersion: PIN });
+
+    await expect(
+      db.insert(session).values({
+        id: newId(),
+        kind: "shell",
+        agentAccountId: await seedAccount(db, configId),
+        scopeType: "project",
+        scopeId: "p1",
+        cwd: "/repo",
+        command: "/bin/zsh",
+      }),
+    ).rejects.toThrow(/session_agent_config/);
   });
 
   it("rejects a scope type that is neither project nor worktree", async () => {

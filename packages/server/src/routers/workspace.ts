@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { ROLES, createAgentCatalog } from "../agents/catalog.js";
+import { createAgentAccountRepository } from "../repositories/agentAccount.js";
 import { createWorkspaceRepository } from "../repositories/workspace.js";
 import { domainSafeAsync, publicProcedure, router } from "../trpc.js";
 
@@ -114,6 +116,55 @@ export const workspaceRouter = router({
         );
         ctx.events.emit({ type: "workspace.changed" });
         return saved;
+      }),
+    ),
+
+  /**
+   * O trio de cada encaixe da esteira no workspace (`034` T16, Q5): de onde veio
+   * (`workspace` ou `default`), adaptador, conta, modelo e effort. Nulo é
+   * *herde* — a conta padrão do agente, e os padrões da conta —, e a tela diz
+   * isso em vez de inventar um valor.
+   */
+  slots: publicProcedure.input(idSchema).query(({ ctx, input }) =>
+    domainSafeAsync(async () => {
+      const catalog = createAgentCatalog(ctx.db);
+      const accounts = createAgentAccountRepository(ctx.db);
+      return Promise.all(
+        ROLES.map(async (role) => {
+          const resolved = await catalog.resolveWorkspace({ workspaceId: input.id, role });
+          const account = resolved.accountId === null ? undefined : await accounts.get(resolved.accountId);
+          return {
+            role,
+            from: resolved.from === "default" ? ("default" as const) : ("workspace" as const),
+            adapter: resolved.adapter,
+            accountId: resolved.accountId,
+            accountLabel: account?.label ?? null,
+            model: resolved.model,
+            effort: resolved.effort,
+          };
+        }),
+      );
+    }),
+  ),
+
+  /** Troca o trio de um encaixe — só daquele (Q5: trocar só o revisor é um gesto). */
+  setSlot: publicProcedure
+    .input(
+      z.object({
+        id: z.string().min(1),
+        role: z.enum(ROLES),
+        adapter: z.string().trim().min(1),
+        accountId: z.string().min(1).nullable(),
+        model: z.string().trim().min(1).nullable(),
+        effort: z.string().trim().min(1).nullable(),
+      }),
+    )
+    .mutation(({ ctx, input }) =>
+      domainSafeAsync(async () => {
+        const { id, ...slot } = input;
+        await createAgentCatalog(ctx.db).setWorkspaceSlot({ workspaceId: id, ...slot });
+        ctx.events.emit({ type: "workspace.changed" });
+        return { ok: true as const };
       }),
     ),
 

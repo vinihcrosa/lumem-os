@@ -1,5 +1,7 @@
 import { DEFAULT_ADAPTER_ID, type AcpConfigOption, type AdapterCatalogView } from "@lumem/shared";
 
+import type { AgentAccountView } from "../agent/index.js";
+
 /**
  * O que a pílula de agente e modelo escolhe (`033` F3), antes de existir sessão.
  *
@@ -10,7 +12,87 @@ import { DEFAULT_ADAPTER_ID, type AcpConfigOption, type AdapterCatalogView } fro
  */
 export interface AgentModelChoice {
   adapterId: string;
+  /**
+   * Em que conta a conversa nasce (`034` T14). Ausente quando o agente não tem
+   * conta lida — o daemon cai na padrão, como antes da `034`.
+   */
+  accountId?: string;
   config: Readonly<Record<string, string>>;
+}
+
+/**
+ * As contas que a pílula oferece: conectadas, ou que ainda não entraram.
+ *
+ * A desconectada por alguém (Q8) fica de fora — reconectar é gesto de
+ * `/settings`, e uma conversa não nasce numa conta cujo login foi desfeito. A
+ * que nunca entrou fica: escolhê-la mostra *sem login* no grupo, com o caminho.
+ */
+export function pickableAccounts(accounts: readonly AgentAccountView[], adapterId: string): AgentAccountView[] {
+  return accounts.filter(
+    (account) => account.adapterId === adapterId && (account.state === "connected" || account.identity === null),
+  );
+}
+
+/**
+ * Se a conta pede login antes de uma conversa nascer nela (`034` T18): a que
+ * nunca entrou, ou a conectada cujo adaptador respondeu `authRequired`. A
+ * pílula a mostra desabilitada — escolhê-la dava uma conversa que morria no
+ * primeiro prompt. A leitura é a mesma que a escolha usaria (`viewForChoice`).
+ */
+export function accountNeedsLogin(
+  catalog: readonly AdapterCatalogView[],
+  account: AgentAccountView,
+  accounts: readonly AgentAccountView[],
+): boolean {
+  const view = viewForChoice(catalog, { adapterId: account.adapterId, accountId: account.id, config: {} }, accounts);
+  return view?.authRequired === true;
+}
+
+/**
+ * A escolha com a conta padrão do agente dela (Q1a). Sem padrão, sem conta: o
+ * daemon decide, e é ele quem diz *"conecte uma conta"* quando não há nenhuma.
+ */
+function withDefaultAccount(adapterId: string, config: Readonly<Record<string, string>>, accounts: readonly AgentAccountView[]): AgentModelChoice {
+  const account = pickableAccounts(accounts, adapterId).find((each) => each.isDefault);
+  return account === undefined ? { adapterId, config } : { adapterId, accountId: account.id, config };
+}
+
+/**
+ * A escolha de uma conta: o modelo e o effort voltam aos padrão **dela** (Q1a).
+ * `config` vazio é isso — quem aplica o trio da conta é o daemon, e a pílula
+ * mostra o mesmo por `modelOf`.
+ */
+export function chooseAccount(adapterId: string, accountId: string): AgentModelChoice {
+  return { adapterId, accountId, config: {} };
+}
+
+/**
+ * A leitura do catálogo que vale para a escolha: a da conta dela.
+ *
+ * Sem leitura da conta, a padrão usa a primeira do agente (o daemon põe a da
+ * padrão na frente). Uma outra conta sem leitura não tem lista para mostrar: se
+ * ela nunca entrou, o grupo diz *sem login*; se entrou, *carregando modelos*.
+ */
+export function viewForChoice(
+  catalog: readonly AdapterCatalogView[],
+  choice: AgentModelChoice,
+  accounts: readonly AgentAccountView[],
+): AdapterCatalogView | null {
+  const readings = catalog.filter((view) => view.adapterId === choice.adapterId);
+  const first = readings[0];
+  if (first === undefined) return null;
+  if (choice.accountId === undefined) return first;
+  const own = readings.find((view) => view.accountId === choice.accountId);
+  if (own !== undefined) return own;
+  const account = accounts.find((each) => each.id === choice.accountId);
+  if (account === undefined || account.isDefault) return first;
+  return {
+    ...first,
+    accountId: account.id,
+    configOptions: [],
+    optionsByModel: {},
+    authRequired: account.state === "connected" ? null : true,
+  };
 }
 
 /** A opção de modelo de um conjunto de opções. */
@@ -43,11 +125,23 @@ export function optionsForModel(view: AdapterCatalogView, model: string): readon
   return modelOptionOf(view.configOptions)?.currentValue === model ? view.configOptions : null;
 }
 
-/** O modelo que a escolha aponta, ou o padrão do ACP quando ela não disse (Q8). */
-export function modelOf(view: AdapterCatalogView, choice: AgentModelChoice): string | null {
+/**
+ * O modelo que a escolha aponta; sem ele, o padrão da conta (Q1a) quando a
+ * lista dela ainda o tem; sem os dois, o padrão do ACP (Q8). É a mesma ordem em
+ * que o daemon aplica, então o que a pílula diz é o que a sessão nasce.
+ */
+export function modelOf(
+  view: AdapterCatalogView,
+  choice: AgentModelChoice,
+  account: AgentAccountView | null = null,
+): string | null {
   const option = modelOptionOf(view.configOptions);
   if (option === null) return null;
-  return choice.config[option.id] ?? option.currentValue;
+  const explicit = choice.config[option.id];
+  if (explicit !== undefined) return explicit;
+  const fallback = account?.defaultModel ?? null;
+  if (fallback !== null && option.choices.some((entry) => entry.value === fallback)) return fallback;
+  return option.currentValue;
 }
 
 /**
@@ -67,10 +161,13 @@ export function unavailableReason(view: AdapterCatalogView): string | null {
  * devolve como padrão. `config` vazio **é** o padrão — o daemon não aplica nada
  * que ninguém pediu.
  */
-export function initialChoice(catalog: readonly AdapterCatalogView[]): AgentModelChoice {
+export function initialChoice(
+  catalog: readonly AdapterCatalogView[],
+  accounts: readonly AgentAccountView[] = [],
+): AgentModelChoice {
   const preferred = catalog.find((view) => view.adapterId === DEFAULT_ADAPTER_ID && unavailableReason(view) === null);
   const usable = preferred ?? catalog.find((view) => unavailableReason(view) === null);
-  return { adapterId: usable?.adapterId ?? DEFAULT_ADAPTER_ID, config: {} };
+  return withDefaultAccount(usable?.adapterId ?? DEFAULT_ADAPTER_ID, {}, accounts);
 }
 
 /**
@@ -79,7 +176,17 @@ export function initialChoice(catalog: readonly AdapterCatalogView[]): AgentMode
  * O *effort* escolhido antes **não** viaja: ele é do modelo anterior, e o
  * seguinte pode nem ter a opção (`haiku`) ou ter outras choices (`gpt-6-astra`).
  */
-export function chooseModel(view: AdapterCatalogView, model: string): AgentModelChoice {
+export function chooseModel(
+  view: AdapterCatalogView,
+  model: string,
+  current: AgentModelChoice | null = null,
+  accounts: readonly AgentAccountView[] = [],
+): AgentModelChoice {
   const option = modelOptionOf(view.configOptions);
-  return { adapterId: view.adapterId, config: option === null ? {} : { [option.id]: model } };
+  const config = option === null ? {} : { [option.id]: model };
+  // No mesmo agente, a conta escolhida fica; noutro, vale a padrão dele.
+  if (current?.adapterId === view.adapterId && current.accountId !== undefined) {
+    return { adapterId: view.adapterId, accountId: current.accountId, config };
+  }
+  return withDefaultAccount(view.adapterId, config, accounts);
 }

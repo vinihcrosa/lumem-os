@@ -1,14 +1,16 @@
 import { chmodSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { ADAPTERS_DIR_NAME, CLAUDE_ADAPTER } from "@lumem/shared";
+import { ADAPTERS_DIR_NAME, CLAUDE_ADAPTER, CODEX_ADAPTER } from "@lumem/shared";
 import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AcpManager } from "../acp/AcpManager.js";
 import type { AcpProcess, AcpSpawnRequest } from "../acp/process.js";
-import { agentConfig, session } from "../db/schema.js";
-import { createAgentConfigRepository } from "../repositories/agentConfig.js";
+import { agentAccount, agentConfig, session } from "../db/schema.js";
+import { createAgentAccountRepository } from "../repositories/agentAccount.js";
+import { configForAdapter, createAgentConfigRepository } from "../repositories/agentConfig.js";
+import { startAgentSession } from "../sessions/start-agent-session.js";
 import {
   FAKE_CONFIG_OPTIONS,
   fakeAgentProcess,
@@ -622,6 +624,55 @@ describe("session.createAgent com adaptador e config (`033` §3.2)", () => {
     expect(again.agentConfigId).toBe(created.agentConfigId);
   });
 
+  it("a conta padrão chega ao spawner: a primeira sobe **sem** a variável", async () => {
+    // `034` T5. A conta de antes da feature é a variável ausente — escrever o
+    // caminho padrão faria o Claude procurar outra entrada do Keychain.
+    const { acpManager, spawner } = fakeAcp();
+    const { ctx, worktreeId } = await setup({ acpManager });
+    stageManagedAdapter(ctx.config.stateDir);
+
+    const created = await ctx.api.session.createAgent({
+      scopeType: "worktree",
+      scopeId: worktreeId,
+      adapterId: CLAUDE_ADAPTER.id,
+    });
+
+    const request = spawner.mock.calls[0]![0];
+    expect(request.env?.CLAUDE_CONFIG_DIR).toBeUndefined();
+    expect(request.unsetEnv).toEqual(["CLAUDE_CONFIG_DIR"]);
+    const account = await createAgentAccountRepository(ctx.db).defaultFor(created.agentConfigId!);
+    const [row] = await ctx.db.select().from(session).where(eq(session.id, created.id));
+    expect(row?.agentAccountId).toBe(account!.id);
+  });
+
+  it("a conta pedida chega ao spawner com o diretório dela, e a linha nasce nela", async () => {
+    const { acpManager, spawner } = fakeAcp();
+    const { ctx, worktreeId } = await setup({ acpManager });
+    stageManagedAdapter(ctx.config.stateDir);
+    const configId = (
+      await ctx.api.session.createAgent({
+        scopeType: "worktree",
+        scopeId: worktreeId,
+        adapterId: CLAUDE_ADAPTER.id,
+      })
+    ).agentConfigId!;
+    const second = await createAgentAccountRepository(ctx.db).create({
+      agentConfigId: configId,
+      label: "trabalho",
+      configDir: "/contas/trabalho",
+    });
+
+    const row = await startAgentSession(ctx.ctx, {
+      scopeType: "worktree",
+      scopeId: worktreeId,
+      agent: { agentConfigId: configId },
+      agentAccountId: second.id,
+    });
+
+    expect(spawner.mock.calls.at(-1)![0].env?.CLAUDE_CONFIG_DIR).toBe("/contas/trabalho");
+    expect(row.agentAccountId).toBe(second.id);
+  });
+
   it("pelo adaptador: o desconhecido é recusado como argumento", async () => {
     const { acpManager, spawner } = fakeAcp();
     const { ctx, worktreeId } = await setup({ acpManager });
@@ -781,10 +832,15 @@ describe("session.resume", () => {
     await ctx.db
       .insert(agentConfig)
       .values({ id: "ac_old", name: "claude-code", command: "claude", retiredAt: new Date() });
+    // A conta que a `0035` dá também à configuração aposentada (`034` T4).
+    await ctx.db
+      .insert(agentAccount)
+      .values({ id: "acct_old", agentConfigId: "ac_old", label: "claude-code" });
     await ctx.db.insert(session).values({
       id: "s_old",
       kind: "agent",
       agentConfigId: "ac_old",
+      agentAccountId: "acct_old",
       scopeType: "worktree",
       scopeId: worktreeId,
       cwd: worktreePath,
@@ -985,5 +1041,342 @@ describe("removal blocked by live sessions", () => {
     await expect(ctx.api.project.remove({ id: projectId })).rejects.toThrow(
       /1 sessão\(ões\) rodando/,
     );
+  });
+});
+
+/*
+ * O trio padrão da conta (`034` T9, emenda da Q1): a conversa nova nasce no
+ * modelo e no effort que a conta guardou, quando quem abriu não escolheu outro.
+ */
+describe("session.createAgent — o trio padrão da conta (034 T9)", () => {
+  const MODEL = FAKE_CONFIG_OPTIONS[0]!;
+  const EFFORT = {
+    id: "effort",
+    name: "Effort",
+    category: "thought_level",
+    type: "select" as const,
+    currentValue: "high",
+    options: [
+      { value: "low", name: "Low" },
+      { value: "high", name: "High" },
+    ],
+  };
+
+  /** `sonnet` oferece effort; `opus[1m]` não — como no adaptador de verdade com `haiku`. */
+  function trioScript(): { script: FakeAgentScript; calls: string[] } {
+    const calls: string[] = [];
+    let model = "opus[1m]";
+    let effort = "high";
+    const options = () =>
+      [
+        { ...MODEL, currentValue: model },
+        ...(model === "sonnet" ? [{ ...EFFORT, currentValue: effort }] : []),
+      ] as unknown as typeof FAKE_CONFIG_OPTIONS;
+    return {
+      calls,
+      script: {
+        setConfigOption: (configId, value) => {
+          calls.push(`${configId}=${String(value)}`);
+          if (configId === "model") model = String(value);
+          if (configId === "effort") effort = String(value);
+          return options();
+        },
+      },
+    };
+  }
+
+  async function withDefaults(model: string | null, effort: string | null, script: FakeAgentScript) {
+    const { acpManager, spawner } = fakeAcp(script);
+    const { ctx, worktreeId } = await setup({ acpManager });
+    stageManagedAdapter(ctx.config.stateDir);
+    const configId = await configForAdapter(ctx.db, CLAUDE_ADAPTER.id);
+    const account = (await createAgentAccountRepository(ctx.db).defaultFor(configId))!;
+    await createAgentAccountRepository(ctx.db).setDefaults(account.id, { model, effort });
+    return { ctx, worktreeId, account, spawner };
+  }
+
+  it("nasce no modelo e no effort padrão da conta", async () => {
+    const { script, calls } = trioScript();
+    const { ctx, worktreeId } = await withDefaults("sonnet", "low", script);
+
+    const created = await ctx.api.session.createAgent({
+      scopeType: "worktree",
+      scopeId: worktreeId,
+      adapterId: CLAUDE_ADAPTER.id,
+    });
+
+    // O modelo primeiro: o effort só existe depois de escolher um modelo que o tenha.
+    expect(calls).toEqual(["model=sonnet", "effort=low"]);
+    expect(created.model).toBe("sonnet");
+  });
+
+  it("o effort não é aplicado num modelo que não o oferece", async () => {
+    const { script, calls } = trioScript();
+    const { ctx, worktreeId } = await withDefaults("opus[1m]", "low", script);
+
+    await ctx.api.session.createAgent({
+      scopeType: "worktree",
+      scopeId: worktreeId,
+      adapterId: CLAUDE_ADAPTER.id,
+    });
+
+    expect(calls).toEqual([]);
+  });
+
+  it("o que quem abriu escolheu ganha do padrão da conta", async () => {
+    const { script, calls } = trioScript();
+    const { ctx, worktreeId } = await withDefaults("sonnet", null, script);
+
+    await ctx.api.session.createAgent({
+      scopeType: "worktree",
+      scopeId: worktreeId,
+      adapterId: CLAUDE_ADAPTER.id,
+      config: { model: "opus[1m]" },
+    });
+
+    expect(calls).not.toContain("model=sonnet");
+  });
+
+  it("o modelo padrão sumiu: a conversa abre no do adaptador, diz na conversa, e a conta fica indisponível", async () => {
+    const { script, calls } = trioScript();
+    const { ctx, worktreeId, account } = await withDefaults("fable-9", "low", script);
+
+    const created = await ctx.api.session.createAgent({
+      scopeType: "worktree",
+      scopeId: worktreeId,
+      adapterId: CLAUDE_ADAPTER.id,
+    });
+
+    expect(created.state).toBe("running");
+    expect(created.model).toBe("opus[1m]");
+    expect(calls).toEqual([]);
+    expect(ctx.acpManager.transcript(created.id).map((entry) => entry.event)).toContainEqual({
+      type: "account_default_unavailable",
+      requested: "fable-9",
+      got: "opus[1m]",
+    });
+    const listed = (await ctx.api.agentAccount.list({ adapterId: "claude" })).find(
+      (row) => row.id === account.id,
+    );
+    expect(listed?.defaultsUnavailable).toBe(true);
+  });
+
+  it("a conta cujo modelo padrão está na lista não fica indisponível", async () => {
+    const { script } = trioScript();
+    const { ctx, worktreeId, account } = await withDefaults("sonnet", null, script);
+
+    await ctx.api.session.createAgent({ scopeType: "worktree", scopeId: worktreeId, adapterId: "claude" });
+
+    const listed = (await ctx.api.agentAccount.list({ adapterId: "claude" })).find(
+      (row) => row.id === account.id,
+    );
+    expect(listed?.defaultsUnavailable).toBe(false);
+  });
+});
+
+/*
+ * Continuar em outra conta (`034` T11, Q3/Q3a/Q3b): uma sessão nova, na conta
+ * escolhida — que pode ser de outro agente —, com o corte da origem como
+ * primeiro turno. A origem não é tocada além da linha de vínculo.
+ */
+describe("session.continueIn (034 T11)", () => {
+  function stageAdapter(state: string, spec: typeof CLAUDE_ADAPTER): void {
+    const bin = join(state, ADAPTERS_DIR_NAME, spec.id, "node_modules", ".bin");
+    mkdirSync(bin, { recursive: true });
+    writeFileSync(join(bin, spec.command), "#!/bin/sh\ncat\n");
+    chmodSync(join(bin, spec.command), 0o755);
+  }
+
+  const LONG_OUTPUT = Array.from({ length: 90 }, (_, index) => `linha ${String(index)} ${"y".repeat(40)}`).join("\n");
+
+  const script: FakeAgentScript = {
+    async prompt(text, turn) {
+      if (!text.includes("conserta o /orders")) return "end_turn";
+      await turn.update({
+        sessionUpdate: "agent_message_chunk",
+        messageId: "a-1",
+        content: { type: "text", text: "Li o handler e achei o bug." },
+      } as never);
+      await turn.update({
+        sessionUpdate: "tool_call",
+        toolCallId: "toolu_1",
+        title: "Read src/orders.ts",
+        kind: "read",
+        status: "in_progress",
+      } as never);
+      // A saída vem na atualização: o `tool_call` do Lumem não tem conteúdo.
+      await turn.update({
+        sessionUpdate: "tool_call_update",
+        toolCallId: "toolu_1",
+        status: "completed",
+        content: [{ type: "content", content: { type: "text", text: LONG_OUTPUT } }],
+      } as never);
+      return "end_turn";
+    },
+  };
+
+  async function scene() {
+    const fake = fakeAcp(script);
+    const { ctx, worktreeId } = await setup({ acpManager: fake.acpManager });
+    stageAdapter(ctx.config.stateDir, CLAUDE_ADAPTER);
+    stageAdapter(ctx.config.stateDir, CODEX_ADAPTER);
+
+    const source = await ctx.api.session.createAgent({
+      scopeType: "worktree",
+      scopeId: worktreeId,
+      adapterId: CLAUDE_ADAPTER.id,
+    });
+    await ctx.acpManager.prompt(source.id, "conserta o /orders");
+
+    const codexConfig = await configForAdapter(ctx.db, CODEX_ADAPTER.id);
+    const codexAccount = await createAgentAccountRepository(ctx.db).create({
+      agentConfigId: codexConfig,
+      label: "trabalho",
+      configDir: "/contas/codex-trabalho",
+    });
+    return { ...fake, ctx, worktreeId, source, codexAccount };
+  }
+
+  it("abre a sessão nova na conta pedida, de outro agente, no mesmo escopo, e grava de onde veio", async () => {
+    const { ctx, worktreeId, source, codexAccount, spawner } = await scene();
+
+    const continued = await ctx.api.session.continueIn({
+      sessionId: source.id,
+      agentAccountId: codexAccount.id,
+    });
+
+    expect(continued.id).not.toBe(source.id);
+    expect(continued.agentAccountId).toBe(codexAccount.id);
+    expect(continued.agentConfigId).toBe(codexAccount.agentConfigId);
+    expect(continued.continuedFromId).toBe(source.id);
+    expect(continued).toMatchObject({ scopeType: "worktree", scopeId: worktreeId, cwd: source.cwd });
+    // O processo é o do Codex, no diretório da conta — e não o Claude com outro rótulo.
+    const request = spawner.mock.calls.at(-1)![0];
+    expect(request.command).toContain(CODEX_ADAPTER.command);
+    expect(request.env?.["CODEX_HOME"]).toBe("/contas/codex-trabalho");
+  });
+
+  it("manda o corte como primeiro turno, com a frase que diz de onde ele veio", async () => {
+    const { ctx, source, codexAccount, spawned } = await scene();
+
+    await ctx.api.session.continueIn({ sessionId: source.id, agentAccountId: codexAccount.id });
+
+    const target = spawned.at(-1)!;
+    await vi.waitFor(() => expect(target.promptBlocks.length).toBeGreaterThan(0));
+    const sent = target.promptBlocks[0]!.join("\n");
+    // O nome que a aba e o cabeçalho usam — o da `agent_config` —, e não o do catálogo.
+    expect(sent).toContain("Continuação de uma conversa em claude · principal.");
+    expect(sent).toContain("O que foi dito até aqui:");
+    expect(sent).toContain("conserta o /orders");
+    expect(sent).toContain("Li o handler e achei o bug.");
+    expect(sent).toContain("[Read src/orders.ts — 90 linhas, omitido]");
+    expect(sent).not.toContain("linha 42 yyyy");
+  });
+
+  it("as duas conversas ganham a linha de vínculo, com agente · conta e o tamanho do que foi levado", async () => {
+    const { ctx, source, codexAccount } = await scene();
+
+    const continued = await ctx.api.session.continueIn({
+      sessionId: source.id,
+      agentAccountId: codexAccount.id,
+    });
+
+    const fresh = ctx.acpManager.storedTranscript(continued.id).map((entry) => entry.event);
+    const from = fresh.find((event) => event.type === "continued_from");
+    expect(from).toMatchObject({ type: "continued_from", sessionId: source.id });
+    expect(from).toMatchObject({ label: "claude · principal" });
+    expect(from && "messages" in from ? from.messages : 0).toBe(2);
+    expect(from && "approxTokens" in from ? from.approxTokens : 0).toBeGreaterThan(0);
+    // A linha vem antes do turno que leva o corte.
+    const firstUser = fresh.findIndex((event) => event.type === "message" && event.role === "user");
+    expect(fresh.findIndex((event) => event.type === "continued_from")).toBeLessThan(
+      firstUser === -1 ? Number.POSITIVE_INFINITY : firstUser,
+    );
+
+    const origin = ctx.acpManager.storedTranscript(source.id).map((entry) => entry.event);
+    expect(origin.at(-1)).toEqual({ type: "continued_in", sessionId: continued.id, label: "codex · trabalho" });
+  });
+
+  it("a origem continua viva e aceitando prompt", async () => {
+    const { ctx, source, codexAccount } = await scene();
+
+    await ctx.api.session.continueIn({ sessionId: source.id, agentAccountId: codexAccount.id });
+
+    const origin = await ctx.api.session.getDetail({ id: source.id });
+    expect(origin.state).toBe("running");
+    expect(origin.continuedFromId).toBeNull();
+    await expect(ctx.acpManager.prompt(source.id, "e agora?")).resolves.toBe("end_turn");
+  });
+
+  it("uma origem já encerrada também continua, e a linha dela vai para o disco", async () => {
+    const { ctx, source, codexAccount } = await scene();
+    ctx.acpManager.kill(source.id);
+    await vi.waitFor(() => expect(ctx.acpManager.get(source.id)?.state).toBe("exited"));
+
+    const continued = await ctx.api.session.continueIn({
+      sessionId: source.id,
+      agentAccountId: codexAccount.id,
+    });
+
+    expect(continued.continuedFromId).toBe(source.id);
+    const origin = ctx.acpManager.storedTranscript(source.id).map((entry) => entry.event);
+    expect(origin.at(-1)).toMatchObject({ type: "continued_in", sessionId: continued.id });
+  });
+
+  it("recusa uma conta desconectada sem subir processo nem gravar nada", async () => {
+    const { ctx, source, codexAccount, spawner } = await scene();
+    await createAgentAccountRepository(ctx.db).disconnect(codexAccount.id);
+    const spawnsBefore = spawner.mock.calls.length;
+    const sessionsBefore = (await ctx.db.select().from(session)).length;
+
+    await expect(
+      ctx.api.session.continueIn({ sessionId: source.id, agentAccountId: codexAccount.id }),
+    ).rejects.toThrow(/reconecte a conta/);
+
+    expect(spawner.mock.calls.length).toBe(spawnsBefore);
+    expect((await ctx.db.select().from(session)).length).toBe(sessionsBefore);
+    const origin = ctx.acpManager.storedTranscript(source.id).map((entry) => entry.event);
+    expect(origin.some((event) => event.type === "continued_in")).toBe(false);
+  });
+
+  it("recusa um shell, e uma conversa em que nada foi dito", async () => {
+    const { ctx, worktreeId, codexAccount } = await scene();
+    const shell = await ctx.api.session.createShell({ scopeType: "worktree", scopeId: worktreeId });
+    const silent = await ctx.api.session.createAgent({
+      scopeType: "worktree",
+      scopeId: worktreeId,
+      adapterId: CLAUDE_ADAPTER.id,
+    });
+
+    await expect(
+      ctx.api.session.continueIn({ sessionId: shell.id, agentAccountId: codexAccount.id }),
+    ).rejects.toThrow(/conversa de agente/);
+    await expect(
+      ctx.api.session.continueIn({ sessionId: silent.id, agentAccountId: codexAccount.id }),
+    ).rejects.toThrow(/nada foi dito/);
+  });
+
+  it("a vista diz a conta, e só pede o nome dela quando o agente tem mais de uma", async () => {
+    const { ctx, source, codexAccount } = await scene();
+
+    const claude = await ctx.api.session.getDetail({ id: source.id });
+    expect(claude.agentAccountLabel).not.toBeNull();
+    expect(claude.multiAccount).toBe(false);
+
+    const continued = await ctx.api.session.continueIn({
+      sessionId: source.id,
+      agentAccountId: codexAccount.id,
+    });
+    // O Codex tem a padrão (criada ao resolver a configuração) e a `trabalho`.
+    const codexAccounts = await createAgentAccountRepository(ctx.db).listByConfig(codexAccount.agentConfigId);
+    expect(continued.agentAccountLabel).toBe("trabalho");
+    expect(continued.multiAccount).toBe(codexAccounts.length > 1);
+
+    await createAgentAccountRepository(ctx.db).create({
+      agentConfigId: source.agentConfigId!,
+      label: "segunda",
+      configDir: "/contas/claude-2",
+    });
+    expect((await ctx.api.session.getDetail({ id: source.id })).multiAccount).toBe(true);
   });
 });

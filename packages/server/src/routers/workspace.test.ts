@@ -1,7 +1,10 @@
 import { newId } from "@lumem/shared";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { createAgentCatalog } from "../agents/catalog.js";
 import { project } from "../db/schema.js";
+import { createAgentAccountRepository } from "../repositories/agentAccount.js";
+import { configForAdapter } from "../repositories/agentConfig.js";
 import { createTestCaller, type TestCaller } from "../testing/caller.js";
 
 let context: TestCaller;
@@ -239,5 +242,86 @@ describe("workspace.setAutonomy", () => {
     await expect(
       api.workspace.setAutonomy({ id: created.id, autonomy: "manual", maxParallel: -1 }),
     ).rejects.toThrow();
+  });
+});
+
+/*
+ * O trio de cada encaixe da esteira, no nível do workspace (`034` T16, Q5).
+ *
+ * A tela de `/settings` lê o que o workspace diz para cada encaixe — ou o
+ * default, com esse nome — e troca conta, modelo e effort de um encaixe só.
+ */
+describe("workspace.slots e workspace.setSlot", () => {
+  it("sem nada configurado, os três encaixes são o default, herdando tudo", async () => {
+    const { api } = caller();
+    const created = await api.workspace.create({ name: "acme" });
+
+    const slots = await api.workspace.slots({ id: created.id });
+
+    expect(slots.map((slot) => slot.role)).toEqual(["implementador", "revisor", "testador"]);
+    for (const slot of slots) {
+      expect(slot).toMatchObject({
+        from: "default",
+        adapter: "claude",
+        accountId: null,
+        accountLabel: null,
+        model: null,
+        effort: null,
+      });
+    }
+  });
+
+  it("trocar só o revisor: ele vem do workspace com o trio novo, e os outros não mudam", async () => {
+    const { api, db } = caller();
+    const created = await api.workspace.create({ name: "acme" });
+    const codex = await configForAdapter(db, "codex");
+    const conta = await createAgentAccountRepository(db).create({
+      agentConfigId: codex,
+      label: "trabalho",
+      configDir: "/contas/trabalho",
+    });
+
+    await api.workspace.setSlot({
+      id: created.id,
+      role: "revisor",
+      adapter: "codex",
+      accountId: conta.id,
+      model: "gpt-5.5",
+      effort: "high",
+    });
+    const slots = await api.workspace.slots({ id: created.id });
+
+    expect(slots.find((slot) => slot.role === "revisor")).toMatchObject({
+      from: "workspace",
+      adapter: "codex",
+      accountId: conta.id,
+      accountLabel: "trabalho",
+      model: "gpt-5.5",
+      effort: "high",
+    });
+    expect(slots.find((slot) => slot.role === "implementador")).toMatchObject({ from: "default" });
+  });
+
+  it("trocar de novo reescreve o mesmo agente do encaixe, sem empilhar", async () => {
+    const { api, db } = caller();
+    const created = await api.workspace.create({ name: "acme" });
+
+    await api.workspace.setSlot({ id: created.id, role: "revisor", adapter: "claude", accountId: null, model: "sonnet", effort: null });
+    await api.workspace.setSlot({ id: created.id, role: "revisor", adapter: "claude", accountId: null, model: "haiku", effort: null });
+
+    expect((await api.workspace.slots({ id: created.id }))[1]).toMatchObject({ from: "workspace", model: "haiku" });
+    expect(await createAgentCatalog(db).listByWorkspace(created.id)).toHaveLength(1);
+  });
+
+  it("uma conta de outro agente é recusada, e nada muda", async () => {
+    const { api, db } = caller();
+    const created = await api.workspace.create({ name: "acme" });
+    const codex = await configForAdapter(db, "codex");
+    const conta = (await createAgentAccountRepository(db).defaultFor(codex))!;
+
+    await expect(
+      api.workspace.setSlot({ id: created.id, role: "revisor", adapter: "claude", accountId: conta.id, model: null, effort: null }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect((await api.workspace.slots({ id: created.id }))[1]).toMatchObject({ from: "default" });
   });
 });

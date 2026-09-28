@@ -498,6 +498,30 @@ compondo o primeiro prompt e abre novos agentes numa aba rascunho. A discovery m
 retomada e tempos dos adaptadores Claude e Codex sem enviar prompt; o custo que ficou é manter o
 catálogo de adaptadores, a espera do `setup` e o fluxo de sessão pendente no daemon.
 
+A [`034`](docs/features/034-agent-accounts/prd.md) — **completa, 20 tasks**; a última conectou uma
+segunda assinatura de verdade e achou a entrada dela no Keychain — dá **mais de uma conta por agente**: Opus numa conta, Fable noutra,
+lado a lado, cada uma gastando na sua. A fase 0 mediu antes de escrever, e o
+[ADR](docs/adr/2026-09-26-0148-an-account-is-a-whole-agent-config-dir.md) saiu dela: o Keychain
+**não colide** (o Claude Code põe `sha256(dir)[0:8]` no nome da entrada), mas `CLAUDE_CONFIG_DIR` e
+`CODEX_HOME` **não são cirúrgicos** — levam a configuração inteira do agente, então a conta nova recebe
+por link o que é comportamento (plugins, skills, `CLAUDE.md`) e nunca a identidade. A forma que isola
+só a credencial existe e perde, porque a conta 1 passaria a se apresentar com o e-mail da conta 2. A
+**primeira conta é a variável ausente**, e não o caminho padrão escrito nela: com ele, a conta de hoje
+aparece deslogada. O login passou a ser **conferido pela identidade** (`--cli auth status`, e o
+`_auth/status_update` do Codex), porque o `session/new` do Claude `0.75.1` fecha sem credencial
+nenhuma — e o rodapé dizia `conectado` numa máquina sem login. O que a feature consertou de graça, por
+medir no produto e não no mock: o daemon pedia o comando de login no lugar errado, e **ninguém entraria
+numa conta nova do Claude pela tela** (achado pelo e2e); e o teste de design no app de verdade achou o
+primeiro acesso dizendo *"pede autenticação"* numa máquina logada, e `/settings` esperando ~10 s porque
+o `setup.probe` viajava no mesmo lote das consultas rápidas. As contas moram em `/settings` → Agentes,
+a casa que a `030-settings` já tinha marcado para o login. E a primeira cota **de verdade** esgotada — o limite semanal de
+uma das contas, em 2026-09-28 — fechou a metade da T17 da `028` que esperava por ela: a recusa chega
+como `-32603` genérico, mas com **`data.errorKind: "rate_limit"`**, e é por isso, e nunca pelo texto,
+que o daemon a reconhece. A conversa diz qual conta bateu no limite e oferece *continuar em outra
+conta* — nunca troca sozinha —, e a esteira pausa o cartão em vez de gastar tentativa. De brinde:
+qualquer outra falha de `session/prompt` deixava a conversa presa em *respondendo* para sempre, e
+passou a fechar o turno dizendo por quê.
+
 Comece pelo [índice da documentação](docs/README.md).
 
 | Onde | O quê |

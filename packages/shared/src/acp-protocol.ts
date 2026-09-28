@@ -442,6 +442,43 @@ export const acpEventSchema = z.discriminatedUnion("type", [
    */
   z.object({ type: z.literal("model_unavailable"), model: z.string(), current: z.string() }),
   /**
+   * O modelo padrão da conta não está na lista desta sessão (`034` T9, Q9).
+   *
+   * Irmã da de cima, e separada dela: aquela é a **retomada** que não trouxe o
+   * modelo de ontem; esta é a **conta** cujo trio guardado envelheceu — o
+   * adaptador atualizou, ou a conta perdeu o plano. A sessão abre no que o
+   * adaptador escolheu (`got`) em vez de falhar ou trocar em silêncio.
+   */
+  z.object({
+    type: z.literal("account_default_unavailable"),
+    requested: z.string(),
+    got: z.string(),
+  }),
+  /**
+   * Esta conversa continuou noutra conta (`034` T11, Q3b) — a linha no fim da
+   * **origem**.
+   *
+   * Navegação e nada mais: a origem continua viva e aceitando prompt. `label` é
+   * o `agente · conta` de destino, montado pelo daemon, porque a linha tem de
+   * dizer o mesmo depois que alguém renomear a conta.
+   */
+  z.object({ type: z.literal("continued_in"), sessionId: z.string(), label: z.string() }),
+  /**
+   * Esta conversa é a continuação de outra (`034` T11, Q3a e Q3b) — a linha no
+   * começo da **nova**.
+   *
+   * `messages` e `approxTokens` são do corte que ela levou: a passagem não pode
+   * ser invisível, e *"levou 40 mensagens, ~18 mil tokens"* é o que diz quanto
+   * a conta nova pagou para saber do que se falava.
+   */
+  z.object({
+    type: z.literal("continued_from"),
+    sessionId: z.string(),
+    label: z.string(),
+    messages: z.number().int().nonnegative(),
+    approxTokens: z.number().int().nonnegative(),
+  }),
+  /**
    * O núcleo da memória entrou no prompt (workspace-memory, D2).
    *
    * Evento, e não silêncio: injeção invisível é o que o §12 do PRD proíbe por
@@ -482,6 +519,45 @@ export const acpEventSchema = z.discriminatedUnion("type", [
     /** A frase pronta, porque quem monta a frase é quem sabe a unidade. */
     message: z.string(),
   }),
+  /**
+   * A conta desta sessão bateu no limite do agente (`028` T17).
+   *
+   * **Traduzido, e não repassado.** O que chega do adaptador é um
+   * `session/prompt` recusado com `-32603` e um `data.errorKind` que só a `spec`
+   * dele sabe ler; o que sai daqui é o conceito do Lumem — *esta conta não pode
+   * mais responder agora* —, com a conta nomeada, porque desde a
+   * [`034`](../../../docs/features/034-agent-accounts/prd.md) *"o Claude bateu no
+   * limite"* não diz qual.
+   *
+   * **Fecha o turno.** O adaptador não manda `turn_end` numa recusa, e sem este
+   * evento a conversa ficaria dizendo que o agente ainda está respondendo. Ele
+   * não é um `turn_end` de propósito: o turno não aconteceu, e contar um turno
+   * aqui gastaria o teto de `turnsPerSession` num turno que a conta recusou.
+   *
+   * `message` é o texto do adaptador, **só para mostrar** — *"resets 7pm"* está
+   * nele e em nenhum outro campo, e nada no daemon o interpreta. `accountId` e
+   * `accountLabel` são nulos quando a sessão não sabe a conta; `agent` é o
+   * rótulo do catálogo.
+   */
+  z.object({
+    type: z.literal("quota_refused"),
+    accountId: z.string().nullable(),
+    accountLabel: z.string().nullable(),
+    agent: z.string(),
+    message: z.string(),
+  }),
+  /**
+   * O `session/prompt` foi recusado, e não por cota (irmão do `quota_refused`).
+   *
+   * **Fecha o turno**, pelo mesmo motivo: numa recusa o adaptador não manda
+   * `turn_end`, e sem este evento a conversa ficava em `streaming` para sempre —
+   * o botão de interromper aceso sobre um turno morto, e um `internal error`
+   * genérico por cima. E **não** é um `turn_end`, que é onde o contador de turnos
+   * vira: um turno que não aconteceu não gasta o teto de `turnsPerSession`.
+   *
+   * `message` é a frase do erro, **só para mostrar** — nada decide por ela.
+   */
+  z.object({ type: z.literal("turn_failed"), message: z.string() }),
   /**
    * An event the daemon received and could not name.
    *

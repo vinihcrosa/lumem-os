@@ -559,6 +559,33 @@ describe("o rascunho que a chegada preenche", () => {
   });
 });
 
+describe("um turno que falhou", () => {
+  it("fecha o turno, diz por quê, e a conversa aceita a próxima pergunta", async () => {
+    const user = userEvent.setup();
+    const { socket } = mount();
+    socket.deliver(attached([entry({ type: "message", messageId: "u-1", role: "user", text: "vai" })]));
+    await screen.findByRole("button", { name: /interromper/ });
+
+    socket.deliver({
+      type: "event",
+      at: clock,
+      event: { type: "turn_failed", message: "Internal error: o adaptador desistiu" },
+    });
+
+    // A linha é do Lumem, em vermelho, e a frase do erro vai inteira.
+    const line = await screen.findByText("o turno falhou — Internal error: o adaptador desistiu");
+    expect(line.closest(".banner")).toHaveClass("banner--danger");
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: /interromper/ })).not.toBeInTheDocument();
+    });
+
+    await user.type(screen.getByLabelText("mensagem para o agente"), "de novo");
+    await user.click(screen.getByRole("button", { name: /enviar/ }));
+
+    expect(socket.sent).toContainEqual({ type: "prompt", text: "de novo" });
+  });
+});
+
 describe("interrupting", () => {
   it("offers to interrupt only while a turn is in flight", async () => {
     const { socket } = mount();
@@ -1256,6 +1283,44 @@ describe("the mark between two conversations", () => {
     );
     // A sessão se declarando, e não um evento que ninguém reconheceu.
     expect(line).toHaveClass("meta--conversation");
+  });
+
+  it("diz quando o modelo padrão da conta não estava na lista (`034` T9)", async () => {
+    const { socket } = mount();
+
+    socket.deliver(
+      attached([entry({ type: "account_default_unavailable", requested: "fable-9", got: "opus[1m]" })]),
+    );
+
+    const line = await screen.findByText(
+      "o modelo padrão da conta — fable-9 — não está mais na lista; abriu em opus[1m]",
+    );
+    expect(line).toHaveClass("meta--conversation");
+  });
+
+  it("as linhas de vínculo de continuar em outra conta (`034` T11)", async () => {
+    const { socket } = mount();
+
+    socket.deliver(
+      attached([
+        entry({
+          type: "continued_from",
+          sessionId: "origem",
+          label: "claude · pessoal",
+          messages: 12,
+          approxTokens: 3400,
+        }),
+        entry({ type: "message", messageId: "m-1", role: "agent", text: "segui daqui" }),
+        entry({ type: "continued_in", sessionId: "outra", label: "codex · trabalho" }),
+      ]),
+    );
+
+    const from = await screen.findByText(
+      "continuação de claude · pessoal — levou 12 mensagens, ~3400 tokens",
+    );
+    const into = screen.getByText("continuada em codex · trabalho →");
+    expect(from).toHaveClass("meta--conversation");
+    expect(into).toHaveClass("meta--conversation");
   });
 });
 

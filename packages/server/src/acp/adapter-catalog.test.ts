@@ -110,6 +110,7 @@ describe("persistir e reler", () => {
 
     expect(claudeOf(second, "project-a")).toEqual({
       adapterId: "claude",
+      accountId: null,
       label: CLAUDE_ADAPTER.label,
       authRequired: true,
       configOptions: [MODEL, EFFORT],
@@ -189,6 +190,7 @@ describe("arquivo corrompido", () => {
 
     expect(claudeOf(catalog, "project-a")).toEqual({
       adapterId: "claude",
+      accountId: null,
       label: CLAUDE_ADAPTER.label,
       authRequired: null,
       configOptions: [],
@@ -383,5 +385,96 @@ describe("comandos por projeto", () => {
     await catalog.recordOptions("claude", [MODEL], { authRequired: false });
 
     expect(claudeOf(catalog, "project-a").commands).toEqual([REVIEW]);
+  });
+});
+
+/*
+ * O catálogo por conta (`034` T9). A lista de modelos **é** por conta — medido
+ * no §3.3 do estudo: a conta ChatGPT e a chave de API do Codex oferecem listas e
+ * escalas de effort diferentes —, e guardá-la por agente mentiria para a conta 2.
+ */
+describe("por conta (034 T9)", () => {
+  function accounted(defaults: Record<string, string | null> = {}) {
+    const stateDir = tempDir("lumem-catalog-");
+    const open = () =>
+      new AdapterCatalog({ stateDir, defaultAccountOf: (adapterId) => defaults[adapterId] ?? null });
+    return { stateDir, open };
+  }
+
+  it("guarda uma entrada por conta, e a padrão vem primeiro na leitura do agente", async () => {
+    const { open } = accounted({ claude: "acct-2" });
+    const catalog = open();
+    await catalog.load();
+
+    await catalog.recordOptions({ adapterId: "claude", accountId: "acct-1" }, [MODEL], { authRequired: false });
+    await catalog.recordOptions({ adapterId: "claude", accountId: "acct-2" }, [EFFORT], { authRequired: true });
+
+    const claude = catalog.view().filter((reading) => reading.adapterId === "claude");
+    expect(claude.map((reading) => reading.accountId)).toEqual(["acct-2", "acct-1"]);
+    expect(claude[0]).toMatchObject({ configOptions: [EFFORT], authRequired: true });
+    expect(claude[1]).toMatchObject({ configOptions: [MODEL], authRequired: false });
+    // É o que a pílula de hoje lê — o primeiro do agente — até ela escolher conta.
+    expect(catalog.view().find((reading) => reading.adapterId === "claude")?.accountId).toBe("acct-2");
+  });
+
+  it("sobrevive a reabrir o arquivo, com as contas separadas", async () => {
+    const { open } = accounted({ claude: "acct-1" });
+    const before = open();
+    await before.load();
+    await before.recordOptions({ adapterId: "claude", accountId: "acct-1" }, [MODEL], { authRequired: false });
+    await before.recordOptions({ adapterId: "claude", accountId: "acct-2" }, [EFFORT], { authRequired: false });
+
+    const after = open();
+    await after.load();
+
+    expect(
+      after.view().filter((reading) => reading.adapterId === "claude").map((reading) => reading.accountId),
+    ).toEqual(["acct-1", "acct-2"]);
+  });
+
+  it("migra a entrada do arquivo de antes, que era por agente, para a conta padrão dele", async () => {
+    const { stateDir, open } = accounted({ claude: "acct-padrao" });
+    mkdirSync(join(stateDir, "_system"), { recursive: true });
+    writeFileSync(
+      join(stateDir, ADAPTER_CATALOG_FILE),
+      JSON.stringify({
+        claude: {
+          adapterId: "claude",
+          adapterVersion: CLAUDE_ADAPTER.pinnedVersion,
+          configOptions: [MODEL],
+          optionsByModel: {},
+          authRequired: false,
+          commandsByProject: {},
+          capturedAt: 1,
+        },
+      }),
+    );
+
+    const catalog = open();
+    await catalog.load();
+
+    const [claude] = catalog.view().filter((reading) => reading.adapterId === "claude");
+    expect(claude).toMatchObject({ accountId: "acct-padrao", configOptions: [MODEL] });
+  });
+
+  it("os comandos também são por conta — as skills de um CLAUDE.md ligado podem diferir", async () => {
+    const { open } = accounted({ claude: "acct-1" });
+    const catalog = open();
+    await catalog.load();
+
+    await catalog.recordCommands({ adapterId: "claude", accountId: "acct-2" }, "p1", [REVIEW]);
+
+    const byAccount = new Map(catalog.view("p1").map((reading) => [reading.accountId, reading.commands]));
+    expect(byAccount.get("acct-2")).toEqual([REVIEW]);
+    expect(byAccount.get("acct-1") ?? []).toEqual([]);
+  });
+
+  it("um agente sem entrada nenhuma continua com a leitura vazia, sem conta", async () => {
+    const { open } = accounted();
+    const catalog = open();
+    await catalog.load();
+
+    const codex = catalog.view().filter((reading) => reading.adapterId === "codex");
+    expect(codex).toEqual([expect.objectContaining({ accountId: null, configOptions: [] })]);
   });
 });

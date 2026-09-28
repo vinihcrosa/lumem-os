@@ -9,7 +9,17 @@ import { useSessionsByScope, type Scope } from "./useSessionsByScope.js";
 
 export interface SessionTab {
   sessionId: string;
+  /**
+   * O que a faixa de abas escreve: o agente e, quando ele tem mais de uma
+   * conta, a conta (`034`) — senão duas conversas em contas diferentes eram
+   * `claude` e `claude 2`, e só o cabeçalho sabia qual era qual.
+   */
   label: string;
+  /**
+   * Quem fala, pelo nome da `agent_config` — o que o cabeçalho recebe, e junta
+   * à conta sozinho. `shell` para um shell.
+   */
+  agentName: string;
   kind: string;
   state: string;
   exitCode: number | null;
@@ -24,6 +34,13 @@ export interface SessionTab {
   transport: "pty" | "acp";
   /** Only the second and later homonyms carry one. */
   ordinal?: number;
+  /** Em que conta a conversa roda (`034`); `null` para um shell. */
+  accountId: string | null;
+  /**
+   * O rótulo da conta, só quando o agente tem mais de uma (`multiAccount` do
+   * daemon): com uma conta só, o nome dela no cabeçalho é ruído.
+   */
+  accountLabel: string | null;
 }
 
 /**
@@ -88,6 +105,20 @@ export interface WorktreeTabs {
    */
   addDraft(initialText?: string): void;
   /**
+   * Continua uma conversa noutra conta (`034` T15, Q3): a sessão nova é a aba
+   * que abre, e a de origem continua onde estava.
+   */
+  continueIn(sessionId: string, agentAccountId: string): void;
+  /** A sessão de origem de um *continuar* em voo, ou null. */
+  continuing: string | null;
+  /** A recusa do daemon, na sessão que pediu. */
+  continueError: { sessionId: string; message: string } | null;
+  /**
+   * O que a linha de vínculo faz ao ser clicada: abrir a aba da outra sessão,
+   * se ela é deste escopo. `null` quando não é — a linha fica texto.
+   */
+  linkTo(sessionId: string): (() => void) | null;
+  /**
    * Descarta um rascunho — pura troca de estado do cliente, nada sai para o
    * daemon (Q1). Fechar o rascunho ativo devolve a seleção para o checkout.
    */
@@ -113,6 +144,11 @@ export function useWorktreeTabs(scope: Scope): WorktreeTabs {
   /** Exited sessions the user asked to see again, and ones they dismissed. */
   const [reopened, setReopened] = useState<ReadonlySet<string>>(new Set());
   const [dismissed, setDismissed] = useState<ReadonlySet<string>>(new Set());
+  /**
+   * A sessão que um gesto acabou de criar (`resume`, `continueIn`) e que ainda
+   * não está na lista — ela é selecionada quando chegar, e não antes.
+   */
+  const [pendingSelect, setPendingSelect] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<readonly DraftHandle[]>([]);
 
   const list = useMemo(() => sessions.data ?? [], [sessions.data]);
@@ -128,19 +164,26 @@ export function useWorktreeTabs(scope: Scope): WorktreeTabs {
     // labelled "claude-code 3" beside no 1 or 2 is a puzzle, not a hint.
     const seen = new Map<string, number>();
     return visible.map((session) => {
-      const label = session.agentName ?? "shell";
+      const agentName = session.agentName ?? "shell";
+      const accountLabel = session.multiAccount ? session.agentAccountLabel : null;
+      // A numeração conta o rótulo inteiro: `claude · trabalho` ao lado de
+      // `claude · pessoal` não é homônimo.
+      const label = accountLabel === null ? agentName : `${agentName} · ${accountLabel}`;
       const nth = (seen.get(label) ?? 0) + 1;
       seen.set(label, nth);
 
       return {
         sessionId: session.id,
         label,
+        agentName,
         kind: session.kind,
         state: session.state,
         exitCode: session.exitCode,
         command: session.command,
         transport: session.transport === "acp" ? "acp" : "pty",
         ...(nth > 1 ? { ordinal: nth } : {}),
+        accountId: session.agentAccountId ?? null,
+        accountLabel,
       };
     });
   }, [list, reopened, dismissed]);
@@ -163,7 +206,24 @@ export function useWorktreeTabs(scope: Scope): WorktreeTabs {
     }
   }, [tabs, drafts, activeId]);
 
-  const select = useCallback((sessionId: string | null) => setActiveId(sessionId), []);
+  /*
+   * O espelho do efeito de `arrival` do `ScopePanel`: a aba da sessão nova vem
+   * para a frente quando ela **está** na lista. Selecionar no `onSuccess` perdia
+   * a corrida — o `invalidateQueries` resolve antes de a lista nova chegar ao
+   * render, e o efeito acima devolvia a seleção para o checkout, com a aba nova
+   * aparecendo atrás (o e2e da `034` pegou, 3 de 3).
+   */
+  useEffect(() => {
+    if (pendingSelect === null || !tabs.some((tab) => tab.sessionId === pendingSelect)) return;
+    setActiveId(pendingSelect);
+    setPendingSelect(null);
+  }, [tabs, pendingSelect]);
+
+  // Escolher uma aba vale mais que a seleção pendente de um gesto anterior.
+  const select = useCallback((sessionId: string | null) => {
+    setPendingSelect(null);
+    setActiveId(sessionId);
+  }, []);
 
   /*
    * `draft:<uuid>`, and not `newId()` (`@lumem/shared`): that helper mints an
@@ -230,25 +290,48 @@ export function useWorktreeTabs(scope: Scope): WorktreeTabs {
   }, []);
 
   /*
-   * The new session is selected in `onSuccess`, not optimistically.
+   * The new session is selected once the list knows it, not in `onSuccess`.
    *
-   * A tab only exists for a session the list knows about, so selecting an id before the
-   * refetch would set an active tab that is not in `tabs` — and the effect above would
-   * immediately bounce the selection back to the context tab.
+   * A tab only exists for a session the list knows about, so selecting an id before
+   * the list has it sets an active tab that is not in `tabs` — and the effect above
+   * bounces the selection back to the context tab. Awaiting the invalidation was not
+   * enough: it resolves before the new list reaches the render. `pendingSelect` waits
+   * for it instead.
    */
   const resumption = useMutation({
     mutationFn: (sessionId: string) => trpc.session.resume.mutate({ id: sessionId }),
     onSuccess: async (row) => {
+      setPendingSelect(row.id);
       await queryClient.invalidateQueries({
         queryKey: sessionsKey(scope.scopeType, scope.scopeId),
       });
-      setActiveId(row.id);
     },
   });
 
   const resume = useCallback(
     (sessionId: string) => resumption.mutate(sessionId),
     [resumption],
+  );
+
+  /* Pelo mesmo motivo do `resume`: a aba nova só é selecionada depois de a lista saber dela. */
+  const continuation = useMutation({
+    mutationFn: (input: { sessionId: string; agentAccountId: string }) => trpc.session.continueIn.mutate(input),
+    onSuccess: async (row) => {
+      setPendingSelect(row.id);
+      await queryClient.invalidateQueries({
+        queryKey: sessionsKey(scope.scopeType, scope.scopeId),
+      });
+    },
+  });
+
+  const continueIn = useCallback(
+    (sessionId: string, agentAccountId: string) => continuation.mutate({ sessionId, agentAccountId }),
+    [continuation],
+  );
+
+  const linkTo = useCallback(
+    (sessionId: string) => (list.some((session) => session.id === sessionId) ? () => reopen(sessionId) : null),
+    [list, reopen],
   );
 
   return {
@@ -267,5 +350,12 @@ export function useWorktreeTabs(scope: Scope): WorktreeTabs {
     sessions,
     addDraft,
     closeDraft,
+    continueIn,
+    continuing: continuation.isPending ? (continuation.variables?.sessionId ?? null) : null,
+    continueError:
+      continuation.isError && continuation.variables !== undefined
+        ? { sessionId: continuation.variables.sessionId, message: continuation.error.message }
+        : null,
+    linkTo,
   };
 }

@@ -1,25 +1,38 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { newId } from "@lumem/shared";
+import { ADAPTERS_DIR_NAME, CLAUDE_ADAPTER, newId, type AcpRateLimit } from "@lumem/shared";
 import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  agentAccount,
   agentConfig,
   project,
   session,
   worktree,
+  workspace as workspaceTable,
   task,
   taskComment,
   taskFinding,
   taskReview,
 } from "../db/schema.js";
+import { DomainError } from "../errors.js";
 import { createTaskFindingRepository } from "../repositories/task-finding.js";
 import { createTaskReviewRepository } from "../repositories/task-review.js";
 import { createTaskRepository } from "../repositories/task.js";
 import { createTestCaller, type TestCaller } from "../testing/caller.js";
+import { AcpManager } from "../acp/AcpManager.js";
+import type { AcpSpawnRequest } from "../acp/process.js";
+import { createAgentCatalog } from "../agents/catalog.js";
+import { createAgentAccountRepository } from "../repositories/agentAccount.js";
+import { configForAdapter } from "../repositories/agentConfig.js";
+import { appRouter } from "../routers/index.js";
+import { FAKE_CONFIG_OPTIONS, fakeAgentProcess } from "../testing/acp-fake-agent.js";
+import { cleanupGitFixtures, createRepo } from "../testing/git-fixtures.js";
+import { createCallerFactory } from "../trpc.js";
+import { createConveyorSessionOpeners } from "./conveyor-sessions.js";
 
 import {
   createConveyorPorts,
@@ -45,6 +58,7 @@ let context: TestCaller;
 
 afterEach(async () => {
   await context?.cleanup();
+  cleanupGitFixtures();
 });
 
 /** O que a reprodução responde, quando o caso a exercita. */
@@ -62,6 +76,10 @@ interface SceneOptions {
    * `createWorktree` que recusa, porque cortar worktree não é o que eles testam.
    */
   withCheckout?: boolean;
+  /** O `session/prompt`, quando o caso manda um. O default recusa: não devia haver prompt. */
+  prompt?: () => Promise<void>;
+  /** O último relato de cota de uma sessão, quando o caso tem um. */
+  rateLimitOf?: (sessionId: string) => AcpRateLimit | null;
 }
 
 /** O que a esteira pediu aos scripts do projeto, em ordem. */
@@ -163,7 +181,8 @@ async function scene(status: string, options: SceneOptions = {}) {
       resumed.push(input);
       return Promise.resolve({ sessionId: `${input.sessionId}-retomada` });
     },
-    prompt: () => Promise.reject(new Error("não devia mandar prompt")),
+    prompt: options.prompt ?? (() => Promise.reject(new Error("não devia mandar prompt"))),
+    ...(options.rateLimitOf === undefined ? {} : { rateLimitOf: options.rateLimitOf }),
     cancel: () => Promise.resolve(),
     closeSession: () => Promise.resolve(),
     reproduce:
@@ -193,6 +212,8 @@ async function scene(status: string, options: SceneOptions = {}) {
     entry,
     statusNow,
     taskId: created.id,
+    workspaceId: space.id,
+    api,
     tasks,
     db,
     findings: createTaskFindingRepository(db),
@@ -618,12 +639,17 @@ describe("a conversa do encaixe volta na postura em que nasceu (Parte 7 — T57)
         adapterVersion: "1.0.0",
       })
       .returning();
+    const [account] = await base.db
+      .insert(agentAccount)
+      .values({ id: newId(), agentConfigId: config!.id, label: config!.name })
+      .returning();
     const [row] = await base.db
       .insert(session)
       .values({
         id: newId(),
         kind: "agent",
         agentConfigId: config!.id,
+        agentAccountId: account!.id,
         scopeType: "worktree",
         scopeId: "wt-1",
         cwd: "/wt/1",
@@ -646,6 +672,8 @@ describe("a conversa do encaixe volta na postura em que nasceu (Parte 7 — T57)
       role: "implementador",
       adapter: "claude",
       model: null,
+      accountId: null,
+      effort: null,
       cwd: "/wt/1",
       worktreeId: "wt-1",
     });
@@ -654,7 +682,7 @@ describe("a conversa do encaixe volta na postura em que nasceu (Parte 7 — T57)
     expect(base.resumed).toEqual([
       // O mesmo modo com que ela teria nascido: sai da `spec` do adaptador, e
       // nunca de uma string escrita aqui (Q41).
-      { sessionId: base.previous.id, agentMode: "bypassPermissions", model: null },
+      { sessionId: base.previous.id, agentMode: "bypassPermissions", model: null, effort: null },
     ]);
     // E não abriu uma segunda conversa: o contexto da primeira é o que a T57
     // existe para não pagar de novo.
@@ -669,6 +697,8 @@ describe("a conversa do encaixe volta na postura em que nasceu (Parte 7 — T57)
       role: "implementador",
       adapter: "claude",
       model: null,
+      accountId: null,
+      effort: null,
       cwd: "/wt/1",
       worktreeId: "wt-1",
     });
@@ -715,5 +745,307 @@ describe("os scripts do projeto têm o teto da esteira, e não o da remoção", 
     // portão não roda nada, e o caso passaria contra uma lista vazia.
     expect(base.scripts).toEqual([{ phase: "test", timeoutMs: TEST_TIMEOUT_MS }]);
     expect(TEST_TIMEOUT_MS).toBeGreaterThan(20_000);
+  });
+});
+
+/*
+ * A esteira escolhe conta (`034` T10): o encaixe amarrado a uma conta abre a
+ * conversa **no diretório dela**. Com as aberturas de verdade — as mesmas que o
+ * `bootstrap` liga — e um spawner que diz o que recebeu: é a única asserção que
+ * pega a conta errada, porque a linha diria a certa e o processo subiria na outra.
+ */
+const EFFORT_OPTION = {
+  id: "effort",
+  name: "Effort",
+  category: "effort",
+  type: "select" as const,
+  currentValue: "medium",
+  options: [
+    { value: "medium", name: "medium" },
+    { value: "high", name: "high" },
+  ],
+} as unknown as (typeof FAKE_CONFIG_OPTIONS)[number];
+
+describe("a conta do encaixe chega ao processo (034 T10)", () => {
+  async function accountScene() {
+    const requests: AcpSpawnRequest[] = [];
+    // O que cada adaptador ouviu de `set_config_option`, e um fake que devolve o
+    // valor pedido como o corrente — senão a retomada não teria o que conferir.
+    const configCalls: { configId: string; value: string | boolean }[] = [];
+    const acpManager = new AcpManager({
+      spawner: (request) => {
+        requests.push(request);
+        // Com effort, para a retomada ter um effort que **poderia** mexer.
+        let options = [...FAKE_CONFIG_OPTIONS, EFFORT_OPTION];
+        return fakeAgentProcess({
+          newSession: () => ({ configOptions: options }),
+          loadSession: () => ({ configOptions: options }),
+          setConfigOption: (configId, value) => {
+            configCalls.push({ configId, value });
+            options = options.map((option) =>
+              option.id === configId ? ({ ...option, currentValue: value } as typeof option) : option,
+            );
+            return options;
+          },
+        }).process;
+      },
+      isAvailable: () => true,
+    });
+    context = createTestCaller({ SHELL: "/bin/sh" }, { acpManager });
+    const { api, db } = context;
+    const bin = join(context.config.stateDir, ADAPTERS_DIR_NAME, CLAUDE_ADAPTER.id, "node_modules", ".bin");
+    mkdirSync(bin, { recursive: true });
+    writeFileSync(join(bin, CLAUDE_ADAPTER.command), "#!/bin/sh\n");
+    chmodSync(join(bin, CLAUDE_ADAPTER.command), 0o755);
+
+    const space = await api.workspace.create({ name: `acme-${newId()}` });
+    const repo = await createRepo({ branch: "main" });
+    const added = await api.project.add({ workspaceId: space.id, path: repo, name: "acme" });
+    const checkout = await api.worktree.create({ projectId: added.id, name: "encaixe" });
+    const created = await createTaskRepository(db).create({
+      workspaceId: space.id,
+      projectId: added.id,
+      title: "o /orders devolve 500",
+    });
+
+    const configId = await configForAdapter(db, CLAUDE_ADAPTER.id);
+    const reviewerAccount = await createAgentAccountRepository(db).create({
+      agentConfigId: configId,
+      label: "revisor",
+      configDir: "/contas/revisor",
+    });
+    const agents = createAgentCatalog(db);
+    const reviewer = await agents.create({
+      workspaceId: space.id,
+      name: "revisor-do-trabalho",
+      adapter: CLAUDE_ADAPTER.id,
+      accountId: reviewerAccount.id,
+    });
+    await agents.bind({ scopeType: "workspace", scopeId: space.id, role: "revisor", agentId: reviewer.id });
+
+    // O chamador interno, como o do `bootstrap`: só ele abre sessão de esteira.
+    const internal = createCallerFactory(appRouter)({ ...context.ctx, internal: true });
+    const openers = createConveyorSessionOpeners({
+      db,
+      api: () => internal,
+      acp: acpManager,
+      sessionStore: context.sessionStore,
+      conveyorAgent: null,
+    });
+    const ports = createConveyorPorts({
+      db,
+      git: {} as never,
+      scripts: {} as never,
+      createWorktree: () => Promise.reject(new Error("não devia cortar worktree")),
+      ...openers,
+      prompt: () => Promise.reject(new Error("não devia mandar prompt")),
+      cancel: () => Promise.resolve(),
+      closeSession: () => Promise.resolve(),
+      reproduce: () => Promise.reject(new Error("não devia rerodar nada")),
+      liveTurns: () => [],
+      prVerdictOf: () => Promise.resolve(null),
+      prNumberOf: () => Promise.resolve(null),
+      prHost: {} as never,
+    });
+    return {
+      ports,
+      openers,
+      acpManager,
+      requests,
+      configCalls,
+      db,
+      taskId: created.id,
+      checkout,
+      reviewerAccount,
+      configId,
+    };
+  }
+
+  it("o revisor amarrado a uma conta sobe no diretório dela", async () => {
+    const { ports, requests, db, taskId, checkout, reviewerAccount } = await accountScene();
+
+    const agent = await ports.agentFor({ taskId, role: "revisor" });
+    const { sessionId } = await ports.openSession({
+      taskId,
+      role: "revisor",
+      ...agent,
+      cwd: checkout.path,
+      worktreeId: checkout.id,
+    });
+
+    expect(agent.accountId).toBe(reviewerAccount.id);
+    expect(requests.at(-1)?.env?.["CLAUDE_CONFIG_DIR"]).toBe("/contas/revisor");
+    const [row] = await db.select().from(session).where(eq(session.id, sessionId));
+    expect(row?.agentAccountId).toBe(reviewerAccount.id);
+  });
+
+  it("o implementador sem amarração herda a conta padrão — a que sobe sem a variável", async () => {
+    const { ports, requests, taskId, checkout } = await accountScene();
+
+    const agent = await ports.agentFor({ taskId, role: "implementador" });
+    await ports.openSession({ taskId, role: "implementador", ...agent, cwd: checkout.path, worktreeId: checkout.id });
+
+    expect(agent.accountId).toBeNull();
+    expect(requests.at(-1)?.env?.["CLAUDE_CONFIG_DIR"]).toBeUndefined();
+    expect(requests.at(-1)?.unsetEnv).toContain("CLAUDE_CONFIG_DIR");
+  });
+
+  /*
+   * O padrão da conta é de conversa **nova** (Q1: *"trocar o padrão não mexe em
+   * sessão aberta"*). Retomar é continuar a mesma, e o `session/load` devolve o
+   * padrão **local** do adaptador — sem o modelo da própria linha, o encaixe sem
+   * modelo voltava calado no `opus[1m]` do fake.
+   */
+  it("a retomada sem modelo no encaixe volta no modelo da conversa, e não no do adaptador", async () => {
+    const { ports, openers, acpManager, configCalls, db, taskId, checkout } = await accountScene();
+    const agent = await ports.agentFor({ taskId, role: "implementador" });
+    const { sessionId } = await ports.openSession({
+      taskId,
+      role: "implementador",
+      ...agent,
+      cwd: checkout.path,
+      worktreeId: checkout.id,
+    });
+    acpManager.kill(sessionId);
+    await db.update(session).set({ model: "sonnet", state: "exited" }).where(eq(session.id, sessionId));
+    configCalls.length = 0;
+
+    const resumed = await openers.resumeSession({
+      sessionId,
+      agentMode: null,
+      model: null,
+      effort: null,
+    });
+    if (resumed === null) throw new Error("a retomada não devolveu sessão");
+
+    expect(configCalls).toEqual([{ configId: "model", value: "sonnet" }]);
+    expect(acpManager.get(resumed.sessionId)?.model).toBe("sonnet");
+    const [row] = await db.select().from(session).where(eq(session.id, resumed.sessionId));
+    expect(row?.model).toBe("sonnet");
+  });
+  it("a retomada não herda o effort padrão da conta, mesmo quando o encaixe troca o modelo", async () => {
+    const { ports, openers, acpManager, configCalls, db, taskId, checkout, reviewerAccount } =
+      await accountScene();
+    const agent = await ports.agentFor({ taskId, role: "revisor" });
+    const { sessionId } = await ports.openSession({
+      taskId,
+      role: "revisor",
+      ...agent,
+      cwd: checkout.path,
+      worktreeId: checkout.id,
+    });
+    acpManager.kill(sessionId);
+    await db.update(session).set({ state: "exited" }).where(eq(session.id, sessionId));
+    // O padrão mudou **depois** de a conversa existir: é de conversa nova.
+    await createAgentAccountRepository(db).setDefaults(reviewerAccount.id, { model: null, effort: "high" });
+    configCalls.length = 0;
+
+    await openers.resumeSession({ sessionId, agentMode: null, model: "sonnet", effort: null });
+
+    expect(configCalls.filter((call) => call.configId === "effort")).toEqual([]);
+  });
+});
+
+describe("a cota recusou, e o banco guarda a espera (`028` T17)", () => {
+  /*
+   * A política mora no `conveyor.test.ts`; aqui é a tradução — e é o arquivo que
+   * faltou na T49, quando a política estava certa e o banco recusava.
+   */
+  const REASON = "a conta technomar-ted bateu no limite do Claude Code";
+  const row = async (db: Awaited<ReturnType<typeof scene>>["db"], id: string) =>
+    (await db.select().from(task)).find((each) => each.id === id)!;
+
+  it("a recusa devolve a tentativa e conta a recusa, numa escrita só", async () => {
+    const { ports, taskId, db } = await scene("in_progress");
+    await ports.countAttempt(taskId);
+
+    const refusals = await ports.quotaRefused(taskId);
+
+    expect(refusals).toBe(1);
+    // Esperar a cota não é tentar (Q32): o cartão volta com a tentativa intacta.
+    expect(await row(db, taskId)).toMatchObject({ attempts: 0, quotaRefusals: 1 });
+  });
+
+  it("a pausa tira o cartão da fila até a hora — e ele volta sozinho quando ela passa", async () => {
+    const { ports, taskId, workspaceId, db } = await scene("in_progress");
+    await db.update(workspaceTable).set({ autonomy: "autonomo" }).where(eq(workspaceTable.id, workspaceId));
+    const due = () => ports.queue(workspaceId).entries.some((entry) => entry.task.id === taskId);
+    expect(due()).toBe(true);
+
+    await ports.pause({ taskId, until: new Date(Date.now() + 60 * 60_000) });
+    expect(due()).toBe(false);
+
+    // Nenhuma escrita para voltar: a hora passou, e a fila lê.
+    await ports.pause({ taskId, until: new Date(Date.now() - 1_000) });
+    expect(due()).toBe(true);
+  });
+
+  it("`null` é *a cota reabriu*: limpa a espera e zera as recusas", async () => {
+    const { ports, taskId, db } = await scene("in_progress");
+    await ports.quotaRefused(taskId);
+    await ports.pause({ taskId, until: new Date(Date.now() + 60_000) });
+
+    await ports.pause({ taskId, until: null });
+
+    expect(await row(db, taskId)).toMatchObject({ quotaRefusals: 0, pausedUntil: null });
+  });
+
+  it("mudar de etapa zera a espera, como zera a tentativa", async () => {
+    const { ports, entry, taskId, db } = await scene("in_progress");
+    await ports.quotaRefused(taskId);
+    await ports.pause({ taskId, until: new Date(Date.now() + 60_000) });
+
+    await ports.advance({ task: entry().task, role: "implementador" });
+
+    expect(await row(db, taskId)).toMatchObject({ quotaRefusals: 0, pausedUntil: null });
+  });
+
+  it("o `QUOTA_REFUSED` do daemon vira resposta, e não exceção", async () => {
+    const { ports } = await scene("in_progress", {
+      prompt: () => Promise.reject(new DomainError("QUOTA_REFUSED", REASON)),
+    });
+
+    const answer = await ports.prompt({ sessionId: "ses-1", text: "vai" });
+
+    // Sem sinal do agente, sem hora: o caso medido chegou com `rateLimit: null`.
+    expect(answer).toEqual({ kind: "quota", reason: REASON, reopensAt: null });
+  });
+
+  it("quando o agente relatou a janela gasta, a hora de reabrir vai junto", async () => {
+    const resetsAt = Math.floor(new Date("2026-09-28T22:00:00Z").getTime() / 1000);
+    const { ports } = await scene("in_progress", {
+      prompt: () => Promise.reject(new DomainError("QUOTA_REFUSED", REASON)),
+      rateLimitOf: (sessionId) =>
+        sessionId === "ses-1"
+          ? { utilization: 1, isUsingOverage: false, resetsAt, surpassedThreshold: null, kind: "seven_day" }
+          : null,
+    });
+
+    const answer = await ports.prompt({ sessionId: "ses-1", text: "vai" });
+
+    expect(answer).toEqual({ kind: "quota", reason: REASON, reopensAt: new Date(resetsAt * 1000) });
+  });
+
+  it("o quadro pinta `pausada até` com a hora que a esteira decidiu", async () => {
+    const { ports, taskId, workspaceId, api } = await scene("in_progress");
+    const until = new Date(Date.now() + 45 * 60_000);
+
+    await ports.pause({ taskId, until });
+
+    const board = await api.task.board({ workspaceId });
+    const card = board.flatMap((column) => column.cards).find((each) => each.id === taskId);
+    // A pausa que a recusa decide é guardada; a que o agente relata continua
+    // derivada. As duas chegam ao mesmo selo.
+    expect(card?.seal).toEqual({ kind: "paused", until: until.toISOString() });
+  });
+
+  it("uma pausa que já passou não pinta nada", async () => {
+    const { ports, taskId, workspaceId, api } = await scene("in_progress");
+
+    await ports.pause({ taskId, until: new Date(Date.now() - 60_000) });
+
+    const board = await api.task.board({ workspaceId });
+    const card = board.flatMap((column) => column.cards).find((each) => each.id === taskId);
+    expect(card?.seal.kind).not.toBe("paused");
   });
 });

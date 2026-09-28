@@ -132,6 +132,22 @@ describe("invalidateFor", () => {
     expect(invalidate).toHaveBeenCalledExactlyOnceWith({ queryKey: ["adapterCatalog", "list"] });
   });
 
+  it("`account.changed` recarrega as contas e o catálogo, que é por conta (`034`)", () => {
+    // Conectar, desconectar ou trocar a padrão muda a lista de contas **e** qual
+    // leitura do catálogo a pílula mostra primeiro. A seção Agentes de
+    // `/settings` (T13) é quem lê a lista.
+    const queryClient = new QueryClient();
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    invalidateFor(queryClient, { type: "account.changed", adapterId: "claude" });
+
+    expect(invalidate).toHaveBeenCalledTimes(2);
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["agentAccount"] });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["adapterCatalog", "list"] });
+    expect(warn).not.toHaveBeenCalled();
+  });
+
   it("um evento fora da união invalida tudo e avisa, em vez de matar a assinatura", () => {
     /*
      * Não é `toThrow`: isto corre dentro do `onData` de uma assinatura tRPC,

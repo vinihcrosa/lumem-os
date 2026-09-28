@@ -28,6 +28,14 @@ export interface AcpSpawnRequest {
   args: readonly string[];
   cwd: string;
   env?: Readonly<Record<string, string>>;
+  /**
+   * Variáveis que o processo **não** herda do daemon (`034` T5).
+   *
+   * Existe porque o `env` acima só acrescenta: a conta que sobe sem a variável
+   * do CLI a receberia de volta do `process.env` de um daemon aberto num
+   * terminal que a exportou — e subiria no diretório de outra conta.
+   */
+  unsetEnv?: readonly string[];
 }
 
 export type AcpProcessSpawner = (request: AcpSpawnRequest) => AcpProcess;
@@ -40,10 +48,18 @@ export type AcpProcessSpawner = (request: AcpSpawnRequest) => AcpProcess;
  * someone has to remember to drain the pipe, and a full stderr buffer blocks
  * the child, which looks exactly like a hung agent.
  */
-export function spawnAcpProcess({ command, args, cwd, env }: AcpSpawnRequest): AcpProcess {
+export function spawnAcpProcess({
+  command,
+  args,
+  cwd,
+  env,
+  unsetEnv = [],
+}: AcpSpawnRequest): AcpProcess {
+  const merged: Record<string, string> = { ...(process.env as Record<string, string>), ...env };
+  for (const name of unsetEnv) delete merged[name];
   const child = spawn(command, [...args], {
     cwd,
-    env: { ...(process.env as Record<string, string>), ...env },
+    env: merged,
     stdio: ["pipe", "pipe", "inherit"],
   });
 
@@ -67,4 +83,53 @@ export function spawnAcpProcess({ command, args, cwd, env }: AcpSpawnRequest): A
       child.kill(signal);
     },
   };
+}
+
+/** Um comando curto do próprio adaptador, fora do protocolo (`034` T6). */
+export interface AcpCliRequest {
+  command: string;
+  args: readonly string[];
+  cwd: string;
+  env?: Readonly<Record<string, string>>;
+  unsetEnv?: readonly string[];
+  timeoutMs: number;
+}
+
+export interface AcpCliResult {
+  stdout: string;
+  /** `null` quando o processo morreu por sinal ou pelo teto de tempo. */
+  exitCode: number | null;
+}
+
+/**
+ * Roda `<adaptador> --cli …` e devolve o que ele escreveu.
+ *
+ * É a conferência de conta do Claude (`--cli auth status`), e passa pelo mesmo
+ * ambiente da conta que o `spawn` — o `unsetEnv` inclusive, pelo mesmo motivo.
+ * O código de saída **não** decide nada aqui: o `auth status` deslogado sai com
+ * erro e escreve o JSON que diz isso, e quem lê o JSON é quem decide.
+ */
+export function runCliProcess({
+  command,
+  args,
+  cwd,
+  env,
+  unsetEnv = [],
+  timeoutMs,
+}: AcpCliRequest): Promise<AcpCliResult> {
+  const merged: Record<string, string> = { ...(process.env as Record<string, string>), ...env };
+  for (const name of unsetEnv) delete merged[name];
+
+  return new Promise((resolve) => {
+    const child = spawn(command, [...args], { cwd, env: merged, stdio: ["ignore", "pipe", "ignore"] });
+    const chunks: Buffer[] = [];
+    const timer = setTimeout(() => child.kill("SIGKILL"), timeoutMs);
+    child.stdout.on("data", (chunk: Buffer) => chunks.push(chunk));
+    const done = (exitCode: number | null) => {
+      clearTimeout(timer);
+      resolve({ stdout: Buffer.concat(chunks).toString("utf8"), exitCode });
+    };
+    child.once("close", (code) => done(code));
+    child.once("error", () => done(null));
+  });
 }

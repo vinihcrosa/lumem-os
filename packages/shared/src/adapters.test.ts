@@ -48,6 +48,77 @@ describe("ADAPTERS", () => {
   });
 });
 
+describe("accounts", () => {
+  /*
+   * A conta é um diretório de config inteiro, passado por uma variável do
+   * próprio CLI (ADR de 2026-09-26). O que este bloco protege é a Q6: a
+   * variável muda **só** onde o CLI procura o login, e nunca o ambiente em que o
+   * agente roda comando no seu repositório.
+   */
+  it("every spec declares the three account fields", () => {
+    for (const spec of ADAPTERS) {
+      expect(spec.accountEnv, spec.id).toMatch(/^[A-Z][A-Z0-9_]*$/);
+      expect(spec.defaultConfigDir, spec.id).toMatch(/^\.[a-z]+$/);
+      expect(spec.inheritLinks.length, spec.id).toBeGreaterThan(0);
+      expect(spec.identity, spec.id).not.toBeNull();
+    }
+  });
+
+  it("never isolates by rewriting HOME or an XDG variable", () => {
+    // Q6 e a alternativa que o ADR recusou: um agente num `HOME` que não é o
+    // seu commita sem autor, dá `push` sem chave e roda outro `node`.
+    for (const spec of ADAPTERS) {
+      expect(spec.accountEnv, spec.id).not.toBe("HOME");
+      expect(spec.accountEnv ?? "", spec.id).not.toMatch(/^XDG_/);
+    }
+  });
+
+  it("links only relative behaviour items, never an identity file", () => {
+    // A identidade nunca é herdada (Q10): um link para a credencial faria duas
+    // contas serem a mesma, com duas linhas na tela.
+    const identityFiles = [".claude.json", ".credentials.json", "auth.json"];
+    for (const spec of ADAPTERS) {
+      for (const item of spec.inheritLinks) {
+        expect(item, spec.id).not.toMatch(/^\/|\.\./);
+        expect(identityFiles, `${spec.id}: ${item}`).not.toContain(item);
+      }
+    }
+  });
+
+  it("says what a new account does not inherit — the Claude user MCPs live beside the identity", () => {
+    // Q10: `~/.claude.json` carries the `mcpServers` of the user *and* the
+    // `oauthAccount`; no link brings one without the other.
+    expect(CLAUDE_ADAPTER.notInherited.length).toBeGreaterThan(0);
+    expect(CLAUDE_ADAPTER.notInherited.join(" ")).toContain(".claude.json");
+    expect(CODEX_ADAPTER.notInherited).toEqual([]);
+  });
+
+  it("claude isolates by CLAUDE_CONFIG_DIR and confers by `--cli auth status`", () => {
+    expect(CLAUDE_ADAPTER).toMatchObject({
+      accountEnv: "CLAUDE_CONFIG_DIR",
+      defaultConfigDir: ".claude",
+      identity: "cli-auth-status",
+    });
+    expect(CLAUDE_ADAPTER.inheritLinks).toEqual([
+      "settings.json",
+      "CLAUDE.md",
+      "rules",
+      "skills",
+      "plugins",
+      "agents",
+    ]);
+  });
+
+  it("codex isolates by CODEX_HOME and confers by the auth notification", () => {
+    expect(CODEX_ADAPTER).toMatchObject({
+      accountEnv: "CODEX_HOME",
+      defaultConfigDir: ".codex",
+      identity: "auth-status-notification",
+    });
+    expect(CODEX_ADAPTER.inheritLinks).toEqual(["config.toml", "AGENTS.md", "skills"]);
+  });
+});
+
 describe("the claude spec", () => {
   it("carries the five strings that used to be constants", () => {
     // The reason this test is literal: the migration from constants to a
@@ -97,6 +168,21 @@ describe("the claude spec", () => {
      * *is* was measured, and is asserted above.
      */
     expect(CLAUDE_ADAPTER.pinnedVersion).not.toBe("0.40.0");
+  });
+});
+
+describe("a recusa por cota é declarada, não descoberta", () => {
+  it("o claude recusa com `data.errorKind: rate_limit` — medido em 2026-09-28", () => {
+    // A forma veio de uma cota semanal esgotada de verdade, no `0.75.1`: `-32603`,
+    // a mensagem do adaptador, e `data: { errorKind: "rate_limit" }`. O código é
+    // o genérico; o que distingue é o `errorKind` (Q46 da `028`).
+    expect(CLAUDE_ADAPTER.quotaRefusalKind).toBe("rate_limit");
+  });
+
+  it("o codex não foi medido, e o catálogo não inventa a palavra dele", () => {
+    // Não medido não é não existe: `null` é "a recusa dele vira falha de turno
+    // comum" até uma cota do Codex fechar de verdade (ADR de 2026-09-13).
+    expect(CODEX_ADAPTER.quotaRefusalKind).toBeNull();
   });
 });
 

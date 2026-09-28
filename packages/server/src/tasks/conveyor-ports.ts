@@ -1,4 +1,4 @@
-import { adapterById } from "@lumem/shared";
+import { adapterById, type AcpRateLimit } from "@lumem/shared";
 import { and, desc, eq } from "drizzle-orm";
 import { existsSync } from "node:fs";
 
@@ -18,6 +18,7 @@ import type { ScriptRunner } from "../scripts/ScriptRunner.js";
 
 import type { ConveyorPorts, GateVerdict, PreparedCheckout } from "./conveyor.js";
 import { decideGate } from "./gate.js";
+import { pausedUntil } from "./pause.js";
 import { matches, type Reproducer } from "./reproduce.js";
 import { queueOf, type QueueEntry } from "./queue.js";
 
@@ -54,7 +55,10 @@ export interface ConveyorDeps {
   openAgentSession(input: {
     taskId: string;
     adapter: string;
+    /** A conta do encaixe; `null` é a padrão do agente (`034` T10). */
+    accountId: string | null;
     model: string | null;
+    effort: string | null;
     cwd: string;
     worktreeId: string;
     /** `null` quando o adaptador não declara um modo que não pergunta. */
@@ -78,8 +82,22 @@ export interface ConveyorDeps {
     /** `null` quando o adaptador não declara um modo que não pergunta. */
     agentMode: string | null;
     model: string | null;
+    /**
+     * O effort do encaixe (`034` T10). A **conta** não vem: a retomada sobe na
+     * conta da sessão, sempre — a conversa mora no diretório dela.
+     */
+    effort: string | null;
   }): Promise<{ sessionId: string } | null>;
   prompt(input: { sessionId: string; text: string }): Promise<void>;
+  /**
+   * O último relato de cota da sessão, ou `null` (`028` T17).
+   *
+   * É o único sinal de *quando reabre* que a esteira lê: o `resetsAt` que o
+   * agente relatou num `usage`. O texto da recusa também diz — *"resets 7pm"* —,
+   * e não é lido. Opcional: sem ele, toda recusa é *sem sinal*, que é o caso
+   * medido.
+   */
+  rateLimitOf?(sessionId: string): AcpRateLimit | null;
   /** Interrompe um turno que passou do teto. Falhar aqui não é fatal. */
   cancel(sessionId: string): Promise<void>;
   /** Encerra a sessão do encaixe quando o turno acabou (Parte 7 — T52). */
@@ -279,7 +297,9 @@ export function createConveyorPorts(deps: ConveyorDeps): ConveyorPorts {
       const resolved = await catalog.resolve({ taskId, role });
       return {
         adapter: resolved.adapter,
+        accountId: resolved.accountId,
         model: resolved.model,
+        effort: resolved.effort,
         instructions: resolved.instructions,
       };
     },
@@ -314,7 +334,7 @@ export function createConveyorPorts(deps: ConveyorDeps): ConveyorPorts {
       return { worktreeId: checkout.id, path: checkout.path, dirty: !status.clean, head };
     },
 
-    openSession: async ({ taskId, role, adapter, model, cwd, worktreeId }) => {
+    openSession: async ({ taskId, role, adapter, accountId, model, effort, cwd, worktreeId }) => {
       /*
        * A postura de permissão vem da **spec do adaptador**, nunca escrita aqui
        * (Q41 e Q43). A Q43 mediu que dos cinco modos do Claude só
@@ -370,12 +390,22 @@ export function createConveyorPorts(deps: ConveyorDeps): ConveyorPorts {
          * ninguém para responder.
          */
         const resumed = await deps
-          .resumeSession({ sessionId: found.id, agentMode, model })
+          .resumeSession({ sessionId: found.id, agentMode, model, effort })
           .catch(() => null);
         if (resumed !== null) return resumed;
       }
 
-      return deps.openAgentSession({ taskId, adapter, model, cwd, worktreeId, agentMode, role });
+      return deps.openAgentSession({
+        taskId,
+        adapter,
+        accountId,
+        model,
+        effort,
+        cwd,
+        worktreeId,
+        agentMode,
+        role,
+      });
     },
 
     /*
@@ -393,6 +423,12 @@ export function createConveyorPorts(deps: ConveyorDeps): ConveyorPorts {
       } catch (error) {
         if (isDomainError(error) && error.code === "BLOCKED") {
           return { kind: "refused" as const, reason: error.message };
+        }
+        // A **conta** disse não (`028` T17). A frase já nomeia a conta; a hora
+        // de reabrir, quando o agente a relatou, sai do `rateLimit` — e só dele.
+        if (isDomainError(error) && error.code === "QUOTA_REFUSED") {
+          const reopensAt = pausedUntil(deps.rateLimitOf?.(input.sessionId) ?? null);
+          return { kind: "quota" as const, reason: error.message, reopensAt };
         }
         throw error;
       }
@@ -595,6 +631,10 @@ export function createConveyorPorts(deps: ConveyorDeps): ConveyorPorts {
 
     countAttempt: (taskId) => tasks.countAttempt(taskId),
 
+    quotaRefused: (taskId) => tasks.refuseForQuota(taskId),
+
+    pause: ({ taskId, until }) => tasks.pauseUntil(taskId, until),
+
     bounce: async ({ taskId, reason }) => {
       const voltas = await tasks.countBounce(taskId);
       /*
@@ -676,7 +716,9 @@ export function createConveyorPorts(deps: ConveyorDeps): ConveyorPorts {
         worktreeId: checkout.id,
         checkoutPath: checkout.path,
         adapter: agent.adapter,
+        accountId: agent.accountId,
         model: agent.model,
+        effort: agent.effort,
       };
     },
   };

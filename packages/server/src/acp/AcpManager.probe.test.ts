@@ -433,3 +433,131 @@ describe("AcpManager.probe — a primeira fonte do catálogo (033 T8)", () => {
     expect(killed).toBe(true);
   });
 });
+
+/*
+ * Conferir por identidade, e não pelo `session/new` (`034` T6, ADR de
+ * 2026-09-26). O `session/new` do Claude `0.75.1` fecha **sem credencial
+ * nenhuma**, e o do Codex aceita uma chave falsa: quem responde *há login?* e
+ * *qual conta?* é uma leitura própria de cada agente.
+ */
+describe("AcpManager.probe — a conferência de identidade (034 T6)", () => {
+  /** Um `runCli` que responde o JSON medido do `--cli auth status`. */
+  function authStatus(json: unknown) {
+    return vi.fn(async () => ({ stdout: `${JSON.stringify(json)}\n`, exitCode: 0 }));
+  }
+
+  it("Claude deslogado: `loggedIn: false`, mesmo com o `session/new` fechando", async () => {
+    const runCli = authStatus({ loggedIn: false, authMethod: "none", apiProvider: "firstParty" });
+    const fake = fakeAgentProcess();
+    const manager = new AcpManager({ spawner: () => fake.process, isAvailable: () => true, runCli });
+
+    const report = await manager.probe(
+      { command: "/opt/claude-agent-acp", cwd: cwd(), env: { CLAUDE_CONFIG_DIR: "/contas/2" } },
+      { identity: "cli-auth-status" },
+    );
+
+    // O `session/new` fechou: é exatamente o caso que o `-32000` não pegava.
+    expect(report.acpSessionId).not.toBe("");
+    expect(report).toMatchObject({ loggedIn: false, authRequired: true, identity: null });
+    // Com o env da conta, e pelo `--cli` do próprio adaptador — não um `claude` do PATH.
+    expect(runCli).toHaveBeenCalledWith(
+      expect.objectContaining({
+        command: "/opt/claude-agent-acp",
+        args: ["--cli", "auth", "status"],
+        env: { CLAUDE_CONFIG_DIR: "/contas/2" },
+      }),
+    );
+  });
+
+  it("Claude logado: e-mail e plano saem do JSON", async () => {
+    const runCli = authStatus({
+      loggedIn: true,
+      authMethod: "claude.ai",
+      email: "vini@exemplo.com",
+      orgName: "Exemplo",
+      subscriptionType: "team",
+    });
+    const fake = fakeAgentProcess();
+    const manager = new AcpManager({ spawner: () => fake.process, isAvailable: () => true, runCli });
+
+    const report = await manager.probe(
+      { command: "/opt/claude-agent-acp", cwd: cwd() },
+      { identity: "cli-auth-status" },
+    );
+
+    expect(report).toMatchObject({
+      loggedIn: true,
+      authRequired: false,
+      identity: { email: "vini@exemplo.com", plan: "team" },
+    });
+  });
+
+  it("uma resposta que não é JSON não vira um *sim* nem um *não*: é falha dita", async () => {
+    const runCli = vi.fn(async () => ({ stdout: "Segmentation fault\n", exitCode: 139 }));
+    const fake = fakeAgentProcess();
+    const manager = new AcpManager({ spawner: () => fake.process, isAvailable: () => true, runCli });
+
+    await expect(
+      manager.probe({ command: "/opt/claude-agent-acp", cwd: cwd() }, { identity: "cli-auth-status" }),
+    ).rejects.toMatchObject({ code: "SPAWN_FAILED" });
+  });
+
+  it("Codex: presença pelo `session/new`, identidade pela notificação `_auth/status_update`", async () => {
+    const fake = fakeAgentProcess({
+      newSession: () => {
+        void fake.sendRaw({
+          jsonrpc: "2.0",
+          method: "_auth/status_update",
+          params: {
+            authStatus: {
+              kind: "account",
+              label: "ChatGPT Plus",
+              account: { email: "vini@exemplo.com", plan: "plus" },
+            },
+          },
+        });
+      },
+    });
+    const runCli = vi.fn();
+    const manager = new AcpManager({ spawner: () => fake.process, isAvailable: () => true, runCli });
+
+    const report = await manager.probe(
+      { command: "/opt/codex-acp", cwd: cwd() },
+      { identity: "auth-status-notification" },
+    );
+
+    expect(report).toMatchObject({
+      loggedIn: true,
+      authRequired: false,
+      identity: { email: "vini@exemplo.com", plan: "plus" },
+    });
+    expect(runCli).not.toHaveBeenCalled();
+  });
+
+  it("Codex sem login: o `-32000` do `session/new` continua sendo a resposta", async () => {
+    const fake = fakeAgentProcess({
+      newSession: () => {
+        throw RequestError.authRequired();
+      },
+    });
+    const manager = new AcpManager({ spawner: () => fake.process, isAvailable: () => true });
+
+    const report = await manager.probe(
+      { command: "/opt/codex-acp", cwd: cwd() },
+      { identity: "auth-status-notification", authStatusGraceMs: 0 },
+    );
+
+    expect(report).toMatchObject({ loggedIn: false, authRequired: true, identity: null });
+  });
+
+  it("sem leitura de identidade declarada, vale o `session/new` — como sempre foi", async () => {
+    const runCli = vi.fn();
+    const fake = fakeAgentProcess();
+    const manager = new AcpManager({ spawner: () => fake.process, isAvailable: () => true, runCli });
+
+    const report = await manager.probe({ command: "/opt/outro-acp", cwd: cwd() });
+
+    expect(report).toMatchObject({ loggedIn: true, authRequired: false, identity: null });
+    expect(runCli).not.toHaveBeenCalled();
+  });
+});

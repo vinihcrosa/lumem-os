@@ -69,6 +69,12 @@ interface CreateSessionFields {
   /** Required for `kind: "script"`, forbidden for the others — the CHECK agrees. */
   scriptName?: ScriptPhase | null;
   agentConfigId?: string | null;
+  /**
+   * Em que conta a sessão de agente roda (`034`). Obrigatória para `agent` — a
+   * CHECK `session_agent_config` cobra —, e escolhida por quem abre a conversa:
+   * é quem escolhe que resolveu o env do processo para ela.
+   */
+  agentAccountId?: string | null;
   scopeType: ScopeType;
   scopeId: string;
   cwd: string;
@@ -153,7 +159,8 @@ const CONSTRAINTS: ConstraintMap = {
   foreignKey: { code: "NOT_FOUND", message: "a configuração de agente informada não existe" },
   "check:session_agent_config": {
     code: "INVALID_ARGUMENT",
-    message: "sessão de agente exige uma configuração, e sessão de shell não pode ter uma",
+    message:
+      "sessão de agente exige uma configuração e uma conta, e sessão de shell não pode ter nenhuma",
   },
   "check:session_kind": { code: "INVALID_ARGUMENT", message: "tipo de sessão inválido" },
   "check:session_scope_type": { code: "INVALID_ARGUMENT", message: "escopo de sessão inválido" },
@@ -175,12 +182,12 @@ const CONSTRAINTS: ConstraintMap = {
 
 export function createSessionRepository(db: Db): SessionRepository {
   return {
-    async create({ agentConfigId = null, scriptName = null, ...input }) {
+    async create({ agentConfigId = null, agentAccountId = null, scriptName = null, ...input }) {
       const [row] = await withConstraints(
         () =>
           db
             .insert(session)
-            .values({ ...input, agentConfigId, scriptName })
+            .values({ ...input, agentConfigId, agentAccountId, scriptName })
             .returning(),
         CONSTRAINTS,
       );

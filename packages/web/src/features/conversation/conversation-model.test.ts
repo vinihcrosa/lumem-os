@@ -817,3 +817,80 @@ describe("o fecho de turno da política", () => {
     ]);
   });
 });
+
+describe("a recusa por cota (`028` T17)", () => {
+  const LIMIT = "You've hit your weekly limit · resets 7pm (America/Sao_Paulo)";
+  const refused = (accountLabel: string | null = "technomar-ted"): AcpTranscriptEntry =>
+    at({
+      type: "quota_refused",
+      accountId: accountLabel === null ? null : "acct_ted",
+      accountLabel,
+      agent: "Claude Code",
+      message: `Internal error: ${LIMIT}`,
+    });
+
+  it("fecha o turno: o adaptador não manda `turn_end` numa recusa", () => {
+    // A forma medida: o texto do limite como mensagem do agente, e a recusa.
+    // Sem o fecho, a conversa diria que ele ainda está respondendo — o botão de
+    // interromper aceso sobre um turno que já morreu.
+    const state = from(userSaid("oi"), agentSaid(LIMIT), refused());
+
+    expect(state.streaming).toBe(false);
+  });
+
+  it("é o daemon falando, em turno próprio, com a conta e o texto do adaptador", () => {
+    const state = from(userSaid("oi"), agentSaid(LIMIT), refused());
+
+    const last = state.turns.at(-1);
+    expect(last?.role).toBe("agent");
+    // Turno próprio, e não colado na mensagem do agente: quem diz que a conta
+    // parou é o Lumem, e a linha não pode parecer parte da resposta.
+    expect(state.turns).toHaveLength(3);
+    expect(last?.blocks).toEqual([
+      {
+        kind: "quota",
+        text: `a conta technomar-ted bateu no limite do Claude Code — Internal error: ${LIMIT}`,
+      },
+    ]);
+  });
+
+  it("sem conta conhecida, diz o agente e não inventa um nome", () => {
+    const state = from(userSaid("oi"), refused(null));
+
+    expect(state.turns.at(-1)?.blocks).toEqual([
+      { kind: "quota", text: `o Claude Code recusou por limite de uso — Internal error: ${LIMIT}` },
+    ]);
+  });
+
+  it("relida do disco, desenha o mesmo que ao vivo", () => {
+    const entries = [userSaid("oi"), agentSaid(LIMIT), refused()];
+
+    expect(replayConversation(entries)).toEqual(from(...entries));
+  });
+});
+
+describe("um turno que falhou, sem ser cota", () => {
+  const failed = (): AcpTranscriptEntry =>
+    at({ type: "turn_failed", message: "Internal error: o adaptador desistiu" });
+
+  it("fecha o turno: sem isso a conversa ficava respondendo para sempre", () => {
+    expect(from(userSaid("oi"), failed()).streaming).toBe(false);
+  });
+
+  it("é o Lumem falando, em turno próprio, com a frase do erro", () => {
+    const state = from(userSaid("oi"), agentSaid("começando"), failed());
+
+    expect(state.turns).toHaveLength(3);
+    expect(state.turns.at(-1)?.blocks).toEqual([
+      { kind: "failure", text: "o turno falhou — Internal error: o adaptador desistiu" },
+    ]);
+    // Não houve parada: o `StopReason` do ACP não tem palavra para recusa.
+    expect(state.lastStopReason).toBeNull();
+  });
+
+  it("relida do disco, desenha o mesmo que ao vivo", () => {
+    const entries = [userSaid("oi"), failed()];
+
+    expect(replayConversation(entries)).toEqual(from(...entries));
+  });
+});

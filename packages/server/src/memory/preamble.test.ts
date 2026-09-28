@@ -56,6 +56,7 @@ async function world(): Promise<{
     id: "ses_1",
     kind: "agent",
     agentConfigId: agent.id,
+    agentAccountId: agent.defaultAccountId,
     scopeType: "project",
     scopeId: project.id,
     cwd: project.path,

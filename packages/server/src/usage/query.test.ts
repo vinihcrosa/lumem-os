@@ -13,12 +13,15 @@ import { createWorktreeRepository } from "../repositories/worktree.js";
 
 import {
   usageByProject,
+  usageByProjectAndAccount,
   usageByProjectAndAgent,
   usageByWorktree,
+  usageByWorktreeAndAccount,
   usageByWorktreeAndAgent,
   usageOutsideWorktrees,
   windowStart,
 } from "./query.js";
+import { createAgentAccountRepository } from "../repositories/agentAccount.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
 
 const databases: TestDb[] = [];
@@ -36,10 +39,13 @@ interface World {
   projects: Record<string, string>;
   worktrees: Record<string, string>;
   agents: Record<string, string>;
+  /** Duas contas do mesmo Claude (`034` T12). */
+  accounts: Record<string, string>;
   spend(input: {
     projectId: string;
     worktreeId?: string;
     agentConfigId?: string | null;
+    agentAccountId?: string | null;
     tokens: number;
     cost?: number;
     at: Date;
@@ -90,6 +96,18 @@ async function world(): Promise<World> {
     command: "codex-acp",
     adapterVersion: "1.0.0",
   });
+  const accounts = createAgentAccountRepository(db);
+  // As duas com diretório: a sem diretório o agente já tem, desde a criação.
+  const pessoal = await accounts.create({
+    agentConfigId: claude.id,
+    label: "pessoal",
+    configDir: join(tmpdir(), "conta-pessoal"),
+  });
+  const trabalho = await accounts.create({
+    agentConfigId: claude.id,
+    label: "trabalho",
+    configDir: join(tmpdir(), "conta-trabalho"),
+  });
 
   return {
     db,
@@ -97,7 +115,8 @@ async function world(): Promise<World> {
     projects: { api: api.id, web: web.id },
     worktrees: { feat: feat.id, fix: fix.id },
     agents: { claude: claude.id, codex: codex.id },
-    spend({ projectId, worktreeId = "", agentConfigId = null, tokens, cost, at }) {
+    accounts: { pessoal: pessoal.id, trabalho: trabalho.id },
+    spend({ projectId, worktreeId = "", agentConfigId = null, agentAccountId = null, tokens, cost, at }) {
       db.insert(sessionUsage)
         .values({
           id: newId(),
@@ -105,6 +124,7 @@ async function world(): Promise<World> {
           projectId,
           worktreeId,
           agentConfigId,
+          agentAccountId,
           tokens,
           ...(cost === undefined ? {} : { cost, currency: "USD" }),
           createdAt: at,
@@ -479,5 +499,105 @@ describe("usageByWorktreeAndAgent", () => {
     });
 
     expect(rows).toEqual([expect.objectContaining({ worktreeId: "", tokens: 3_000 })]);
+  });
+});
+
+/*
+ * O consumo por conta (`034` T12): a sub-linha embaixo do agente. Duas contas
+ * do mesmo agente somam separadas, e as duas juntas têm de dar o número que a
+ * consulta por agente já dava — senão uma das duas telas mente.
+ */
+describe("usageByProjectAndAccount", () => {
+  async function twoAccounts() {
+    const app = await world();
+    const claude = app.agents.claude!;
+    app.spend({ projectId: app.projects.api!, agentConfigId: claude, agentAccountId: app.accounts.pessoal!, tokens: 6_000, cost: 0.6, at: daysAgo(1) });
+    app.spend({ projectId: app.projects.api!, agentConfigId: claude, agentAccountId: app.accounts.pessoal!, tokens: 1_000, cost: 0.1, at: daysAgo(2) });
+    app.spend({ projectId: app.projects.api!, agentConfigId: claude, agentAccountId: app.accounts.trabalho!, tokens: 3_000, cost: 0.3, at: daysAgo(1) });
+    app.spend({ projectId: app.projects.api!, agentConfigId: app.agents.codex!, tokens: 500, at: daysAgo(1) });
+    return app;
+  }
+
+  it("duas contas do mesmo agente somam separadas, com o rótulo e o agente de cada uma", async () => {
+    const app = await twoAccounts();
+
+    const rows = usageByProjectAndAccount(app.db, { workspaceId: app.workspaceId, period: "7d", now: NOW });
+
+    const pessoal = rows.find((row) => row.agentAccountId === app.accounts.pessoal);
+    const trabalho = rows.find((row) => row.agentAccountId === app.accounts.trabalho);
+    expect(pessoal).toMatchObject({
+      projectId: app.projects.api,
+      agentConfigId: app.agents.claude,
+      name: "claude-code",
+      label: "pessoal",
+      tokens: 7_000,
+      turns: 2,
+    });
+    expect(pessoal?.cost).toBeCloseTo(0.7);
+    expect(trabalho).toMatchObject({ agentConfigId: app.agents.claude, label: "trabalho", tokens: 3_000 });
+  });
+
+  it("a soma das contas de um agente bate com a consulta por agente", async () => {
+    const app = await twoAccounts();
+
+    const byAccount = usageByProjectAndAccount(app.db, { workspaceId: app.workspaceId, period: "7d", now: NOW });
+    const byAgent = usageByProjectAndAgent(app.db, { workspaceId: app.workspaceId, period: "7d", now: NOW });
+
+    for (const agent of byAgent) {
+      const mine = byAccount.filter(
+        (row) => row.projectId === agent.projectId && row.agentConfigId === agent.agentConfigId,
+      );
+      expect(mine.reduce((total, row) => total + row.tokens, 0)).toBe(agent.tokens);
+      expect(mine.reduce((total, row) => total + row.turns, 0)).toBe(agent.turns);
+    }
+    expect(byAgent.find((row) => row.agentConfigId === app.agents.claude)?.tokens).toBe(10_000);
+  });
+
+  it("consumo sem conta fica sem conta, embaixo do agente dele, sem rótulo inventado", async () => {
+    const app = await twoAccounts();
+
+    const codex = usageByProjectAndAccount(app.db, { workspaceId: app.workspaceId, period: "7d", now: NOW }).filter(
+      (row) => row.agentConfigId === app.agents.codex,
+    );
+
+    expect(codex).toEqual([
+      expect.objectContaining({ agentAccountId: null, label: null, name: "codex", tokens: 500 }),
+    ]);
+  });
+
+  it("respeita a janela", async () => {
+    const app = await world();
+    app.spend({
+      projectId: app.projects.api!,
+      agentConfigId: app.agents.claude!,
+      agentAccountId: app.accounts.trabalho!,
+      tokens: 9_000,
+      at: daysAgo(20),
+    });
+
+    expect(usageByProjectAndAccount(app.db, { workspaceId: app.workspaceId, period: "7d", now: NOW })).toEqual([]);
+    expect(usageByProjectAndAccount(app.db, { workspaceId: app.workspaceId, period: "1m", now: NOW })).toHaveLength(1);
+  });
+});
+
+describe("usageByWorktreeAndAccount", () => {
+  it("dá uma linha por worktree × conta, e fecha com a consulta por agente", async () => {
+    const app = await world();
+    const claude = app.agents.claude!;
+    app.spend({ projectId: app.projects.api!, worktreeId: app.worktrees.feat!, agentConfigId: claude, agentAccountId: app.accounts.pessoal!, tokens: 4_000, at: daysAgo(1) });
+    app.spend({ projectId: app.projects.api!, worktreeId: app.worktrees.feat!, agentConfigId: claude, agentAccountId: app.accounts.trabalho!, tokens: 2_500, at: daysAgo(1) });
+    app.spend({ projectId: app.projects.api!, agentConfigId: claude, agentAccountId: app.accounts.trabalho!, tokens: 100, at: daysAgo(1) });
+
+    const rows = usageByWorktreeAndAccount(app.db, { projectId: app.projects.api!, period: "7d", now: NOW });
+
+    expect(rows).toHaveLength(3);
+    expect(
+      rows.find((row) => row.worktreeId === app.worktrees.feat && row.label === "trabalho")?.tokens,
+    ).toBe(2_500);
+    expect(rows.find((row) => row.worktreeId === "")).toMatchObject({ label: "trabalho", tokens: 100 });
+    const byAgent = usageByWorktreeAndAgent(app.db, { projectId: app.projects.api!, period: "7d", now: NOW });
+    expect(rows.reduce((total, row) => total + row.tokens, 0)).toBe(
+      byAgent.reduce((total, row) => total + row.tokens, 0),
+    );
   });
 });

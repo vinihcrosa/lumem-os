@@ -1,8 +1,8 @@
 import { useState } from "react";
 
 import { describeMethod, needsKey, type AuthMethodView } from "./agent-words.js";
-import type { AgentConfigView } from "./AgentRow.js";
 import {
+  type LoginTarget,
   useAgentLoginByCall,
   useAgentLoginByCommand,
   useAuthState,
@@ -24,11 +24,12 @@ import { Banner, Button, CopyCommand, Input } from "../../ui/index.js";
  * para executar, o painel diz isso — nunca um botão que não existe.
  */
 export function LoginOptions({
-  config,
+  target,
   methods,
   onDone,
 }: {
-  config: AgentConfigView;
+  /** Uma configuração (o rodapé) ou uma conta (`/settings`, `034`). */
+  target: LoginTarget;
   methods: readonly AuthMethodView[];
   onDone: () => void;
 }) {
@@ -45,8 +46,6 @@ export function LoginOptions({
       onDone();
     },
   });
-
-  const target = { command: config.command, args: [...config.args] };
 
   const byCommand = useAgentLoginByCommand();
   const byCall = useAgentLoginByCall();
@@ -106,7 +105,7 @@ export function LoginOptions({
           onClick={() => {
             if (method.type === "terminal") {
               byCommand.mutate(
-                { methodId: method.id, ...target },
+                { methodId: method.id, target },
                 { onSuccess: (started) => setLoginPty(started.ptySessionId) },
               );
               return;
@@ -118,7 +117,7 @@ export function LoginOptions({
               return;
             }
             byCall.mutate(
-              { methodId: method.id, ...target },
+              { methodId: method.id, target },
               { onSuccess: (started) => setLoginId(started.id) },
             );
           }}
@@ -286,7 +285,7 @@ export function LoginOptions({
             disabled={apiKey.trim() === "" || byCall.isPending}
             onClick={() => {
               byCall.mutate(
-                { methodId: method.id, apiKey: apiKey.trim(), ...target },
+                { methodId: method.id, apiKey: apiKey.trim(), target },
                 { onSuccess: (started) => setLoginId(started.id) },
               );
               // Apagada da tela no mesmo gesto que a envia: ela atravessa o daemon

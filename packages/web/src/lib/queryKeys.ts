@@ -6,6 +6,15 @@
  */
 export const WORKSPACES_KEY = ["workspace", "list"] as const;
 
+/**
+ * O trio de cada encaixe da esteira num workspace (`034` T16). Sob `workspace`
+ * porque é o degrau do workspace da cascata — o do projeto e o da tarefa não
+ * aparecem nesta leitura.
+ */
+export function workspaceSlotsKey(workspaceId: string) {
+  return ["workspace", "slots", workspaceId] as const;
+}
+
 export const PTY_SESSIONS_KEY = ["pty", "list"] as const;
 
 export function projectsKey(workspaceId: string) {
@@ -204,6 +213,11 @@ export function usageByProjectAndAgentKey(workspaceId: string, period: string) {
   return ["usage", "byProjectAndAgent", workspaceId, period] as const;
 }
 
+/** E um nível abaixo do agente, por conta (`034` T16) — chave própria pelo mesmo motivo. */
+export function usageByProjectAndAccountKey(workspaceId: string, period: string) {
+  return ["usage", "byProjectAndAccount", workspaceId, period] as const;
+}
+
 /** Os playbooks de um escopo. `archived` é filtro, e por isso entra na chave. */
 export function playbooksKey(workspaceId: string | null, archived: boolean) {
   return ["memory", "playbooks", workspaceId ?? "-", archived ? "arquivados" : "ativos"] as const;
@@ -265,6 +279,17 @@ export function adapterCatalogKey(projectId: string | null) {
   return ["adapterCatalog", "list", projectId ?? "-"] as const;
 }
 
+/**
+ * As contas de agente (`034`), de todos os agentes numa leitura só.
+ *
+ * Uma chave e não uma por agente: a seção Agentes de `/settings` desenha todos
+ * de uma vez, e a pílula filtra o do rascunho. O `account.changed` diz qual
+ * agente mudou, mas uma lista de poucas linhas não paga duas chaves.
+ */
+export function agentAccountsKey() {
+  return ["agentAccount", "list"] as const;
+}
+
 export function secretsKey() {
   return ["secrets"] as const;
 }
@@ -287,6 +312,17 @@ export const SETUP_PROBE_KEY = ["setup", "probe"] as const;
  */
 export function agentProbeKey(command: string, args: readonly string[]) {
   return ["setup", "probe", command, args.join(" ")] as const;
+}
+
+/**
+ * O probe de **uma conta** (`034`): o que o login dela pergunta ao adaptador.
+ *
+ * Sob `SETUP_PROBE_KEY` pelo mesmo motivo do `agentProbeKey`: o "verificar de
+ * novo" do painel de login invalida o prefixo, e é esse reprobe que confere o
+ * login e vira a conta `connected` no daemon.
+ */
+export function agentAccountProbeKey(accountId: string) {
+  return ["setup", "probe", "account", accountId] as const;
 }
 
 export const PREFLIGHT_KEY = ["setup", "preflight"] as const;
@@ -342,5 +378,7 @@ export const PROJECT_DETAIL_PREFIX = ["project", "detail"] as const;
 export const TASK_DETAIL_PREFIX = ["task", "get"] as const;
 export const TASK_BOARD_PREFIX = ["task", "board"] as const;
 export const TASK_SETTINGS_PREFIX = ["task", "settings"] as const;
+/** O começo de `agentAccountsKey`: o `account.changed` diz o agente, e a lista é uma só. */
+export const AGENT_ACCOUNT_PREFIX = ["agentAccount"] as const;
 /** O começo de `adapterCatalogKey`: o `catalog.changed` diz o ACP, não o projeto. */
 export const ADAPTER_CATALOG_PREFIX = ["adapterCatalog", "list"] as const;

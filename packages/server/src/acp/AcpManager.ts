@@ -14,6 +14,7 @@ import {
   ACP_AUTH_REQUIRED_CODE,
   acpToolKindSchema,
   adapterByCommand,
+  adapterById,
   newId,
   type AcpConfigOption,
   type AcpEvent,
@@ -22,6 +23,7 @@ import {
   type AcpToolKind,
   type AcpToolLocation,
   type AcpTranscriptEntry,
+  type AdapterIdentity,
   type LumemMode,
   type LumemModeDefault,
 } from "@lumem/shared";
@@ -34,7 +36,14 @@ import { createFileService, type FileService } from "../files/FileService.js";
 import { createFsBridge, type FsBridge } from "./fs-bridge.js";
 import { createTerminalBridge, type TerminalBridge } from "./terminal-bridge.js";
 import type { PtyManager } from "../pty/PtyManager.js";
-import { spawnAcpProcess, type AcpProcess, type AcpProcessSpawner } from "./process.js";
+import {
+  runCliProcess,
+  spawnAcpProcess,
+  type AcpCliRequest,
+  type AcpCliResult,
+  type AcpProcess,
+  type AcpProcessSpawner,
+} from "./process.js";
 import { createMemoryTranscriptStore, type TranscriptStore } from "./TranscriptStore.js";
 import { decidePermission } from "./permission-policy.js";
 import type { TurnFailureSink } from "./turn-failures.js";
@@ -50,6 +59,30 @@ const LUMEM_CLIENT_VERSION = "0.1.0";
 /** How long the handshake may take before it is called a failure. */
 export const DEFAULT_HANDSHAKE_TIMEOUT_MS = 15_000;
 
+/**
+ * Quanto a conferência de conta do Claude pode levar (`034` T6). Medido em
+ * 0,57 s na fase 0; dez vezes isso ainda é uma resposta, e não um processo
+ * pendurado.
+ */
+export const AUTH_STATUS_TIMEOUT_MS = 10_000;
+
+/**
+ * Quanto o probe espera o `_auth/status_update` do Codex depois do
+ * `session/new`. Medido (§3.3 do estudo da `034`): ela chega **antes** da
+ * resposta, então a espera é só folga — resolvida assim que ela chega; sem
+ * ela, a conta confere presença e fica sem e-mail.
+ */
+export const AUTH_STATUS_GRACE_MS = 1_000;
+
+/** Quem roda o `--cli` do adaptador. Injetável porque o binário de teste não tem um. */
+export type AcpCliRunner = (request: AcpCliRequest) => Promise<AcpCliResult>;
+
+/** O que a conferência leu da conta. */
+export interface AcpAccountIdentity {
+  email: string | null;
+  plan: string | null;
+}
+
 export type AcpSessionState = "running" | "exited";
 
 export interface AcpSpawnOptions {
@@ -57,6 +90,8 @@ export interface AcpSpawnOptions {
   args?: readonly string[];
   cwd: string;
   env?: Readonly<Record<string, string>>;
+  /** O que o processo não herda do daemon — ver `AcpSpawnRequest.unsetEnv`. */
+  unsetEnv?: readonly string[];
   /**
    * The pinned adapter version (A12).
    *
@@ -90,6 +125,42 @@ export interface AcpSpawnOptions {
    * quem está olhando.
    */
   driver?: AcpDriver;
+  /**
+   * Qual adaptador do catálogo é este (`AdapterSpec.id`), quando é um.
+   *
+   * Passado por quem abre a sessão, e não deduzido do comando: uma configuração
+   * fora do catálogo pode chamar qualquer binário, e o que depende disto é ler o
+   * erro do `session/prompt` com o vocabulário **daquele** adaptador — a recusa
+   * por cota (`AdapterSpec.quotaRefusalKind`, `028` T17). Ausente, nenhuma
+   * leitura específica: toda falha é falha comum.
+   */
+  adapterId?: string;
+  /**
+   * A conta em que a sessão roda (`034`), para a recusa por cota dizer qual.
+   *
+   * Carregada e não consultada: o manager não tem banco, e desde a `034` *"o
+   * Claude bateu no limite"* não diz nada — são duas contas do mesmo agente, e
+   * a frase útil é a que nomeia a que parou.
+   */
+  account?: { id: string; label: string };
+}
+
+/**
+ * Um `session/prompt` recusado que a conversa já registrou como `turn_failed`.
+ *
+ * Carrega o `code` e o `data` do erro original, para quem lia o erro cru — o
+ * retrato da Q46, um log — continuar lendo o mesmo; a mensagem é a dele.
+ */
+export class AcpTurnFailedError extends Error {
+  readonly code: unknown;
+  readonly data: unknown;
+
+  constructor(cause: unknown) {
+    super(cause instanceof Error ? cause.message : String(cause), { cause });
+    this.name = "AcpTurnFailedError";
+    this.code = (cause as { code?: unknown } | null)?.code ?? null;
+    this.data = (cause as { data?: unknown } | null)?.data ?? null;
+  }
 }
 
 /**
@@ -249,8 +320,21 @@ export interface AcpProbeReport {
    * reported here as unusable rather than drawn as a button that fails.
    */
   authMethods: readonly AcpAuthMethod[];
-  /** `session/new` refused with `auth_required`: there is no usable credential. */
+  /**
+   * `!loggedIn`, mantido pela tela que já o lê.
+   *
+   * Até a `034` T6 era *"o `session/new` recusou com `auth_required`"* — e o do
+   * Claude `0.75.1` fecha sem credencial nenhuma, então o rodapé dizia
+   * `conectado` numa máquina sem login.
+   */
   authRequired: boolean;
+  /**
+   * Há login nesta conta — conferido pela leitura de identidade do adaptador
+   * (`AdapterSpec.identity`), e pelo `session/new` só quando não há uma.
+   */
+  loggedIn: boolean;
+  /** Qual conta: e-mail e plano, quando a leitura os trouxe. */
+  identity: AcpAccountIdentity | null;
   capabilities: readonly string[];
   /** The test session's id. It is dead by the time this is read. */
   acpSessionId: string;
@@ -316,6 +400,10 @@ interface Session {
   info: AcpSessionInfo;
   process: AcpProcess;
   connection: ClientConnection;
+  /** O último `_auth/status_update`, cru (`034` T6). Só o probe lê. */
+  authStatus: unknown;
+  /** Quem espera por ele, quando alguém espera. */
+  onAuthStatus: (() => void) | undefined;
   /**
    * Para onde vai um `elicitation/create`, quando há para onde ir.
    *
@@ -404,6 +492,17 @@ interface Session {
    * aquilo de novo para não dizer nada de novo.
    */
   coreInjected: boolean;
+  /**
+   * A palavra com que este adaptador recusa por cota, ou `null` (`028` T17).
+   *
+   * Da `spec`, resolvida no `launch` pelo `adapterId` — a capacidade é
+   * declarada, e não descoberta no turno (ADR de 2026-09-13).
+   */
+  quotaRefusalKind: string | null;
+  /** O rótulo do agente, para a frase da recusa. */
+  agentLabel: string;
+  /** A conta da sessão, quando quem a abriu disse. */
+  account: { id: string; label: string } | null;
 }
 
 export interface AcpManagerOptions {
@@ -464,6 +563,11 @@ export interface AcpManagerOptions {
    * injeta nada, e a conversa é exatamente a que era antes desta feature.
    */
   preamble?: AcpPreambleSource;
+  /**
+   * Quem roda o `--cli auth status` do adaptador (`034` T6). O padrão é o
+   * processo de verdade; um teste cujo binário é um arquivo vazio passa o seu.
+   */
+  runCli?: AcpCliRunner;
   /**
    * O teto do workspace, conferido antes de o turno custar (`028` Parte 3, T16).
    *
@@ -559,6 +663,7 @@ export class AcpManager {
   private readonly preamble: AcpPreambleSource | undefined;
   private readonly budget: AcpBudgetSource | undefined;
   private readonly turnFailures: TurnFailureSink | undefined;
+  private readonly runCli: AcpCliRunner;
 
   constructor({
     spawner = spawnAcpProcess,
@@ -572,6 +677,7 @@ export class AcpManager {
     preamble,
     budget,
     turnFailures,
+    runCli = runCliProcess,
   }: AcpManagerOptions = {}) {
     this.spawner = spawner;
     this.handshakeTimeoutMs = handshakeTimeoutMs;
@@ -584,6 +690,7 @@ export class AcpManager {
     this.preamble = preamble;
     this.budget = budget;
     this.turnFailures = turnFailures;
+    this.runCli = runCli;
   }
 
   /**
@@ -799,7 +906,16 @@ export class AcpManager {
    */
   async probe(
     options: AcpSpawnOptions,
-    { walkModels = false }: { walkModels?: boolean } = {},
+    {
+      walkModels = false,
+      identity: reading = null,
+      authStatusGraceMs = AUTH_STATUS_GRACE_MS,
+    }: {
+      walkModels?: boolean;
+      /** Como conferir a conta (`AdapterSpec.identity`). Nulo: só o `session/new`. */
+      identity?: AdapterIdentity | null;
+      authStatusGraceMs?: number;
+    } = {},
   ): Promise<AcpProbeReport> {
     const startedAt = this.now();
     const { session, child } = this.launch(options, { probe: true });
@@ -843,6 +959,11 @@ export class AcpManager {
       }
       const createdAt = this.now();
 
+      const account =
+        created === null
+          ? { loggedIn: false, identity: null }
+          : await this.checkAccount(session, options, reading, authStatusGraceMs);
+
       // From the response, not from a notification: waiting for one would be
       // waiting for something the adapter never promised to send.
       const configOptions =
@@ -864,7 +985,9 @@ export class AcpManager {
       return {
         command: options.command,
         args: [...(options.args ?? [])],
-        authRequired: created === null,
+        authRequired: !account.loggedIn,
+        loggedIn: account.loggedIn,
+        identity: account.identity,
         agentInfo:
           initialize.agentInfo === undefined || initialize.agentInfo === null
             ? null
@@ -903,6 +1026,72 @@ export class AcpManager {
       this.probing.delete(child);
       child.kill();
     }
+  }
+
+  /**
+   * *Há login?* e *qual conta?*, pela leitura que o adaptador declara (`034` T6).
+   *
+   * Chamado só depois de o `session/new` fechar: um `-32000` já respondeu que
+   * não há login, e é a única resposta que o `session/new` dá com certeza.
+   */
+  private async checkAccount(
+    session: Session,
+    options: AcpSpawnOptions,
+    reading: AdapterIdentity | null,
+    graceMs: number,
+  ): Promise<{ loggedIn: boolean; identity: AcpAccountIdentity | null }> {
+    if (reading === "cli-auth-status") return this.cliAuthStatus(options);
+    if (reading === "auth-status-notification") {
+      if (session.authStatus === undefined && graceMs > 0) {
+        await new Promise<void>((resolve) => {
+          const timer = setTimeout(resolve, graceMs);
+          session.onAuthStatus = () => {
+            clearTimeout(timer);
+            resolve();
+          };
+        });
+        session.onAuthStatus = undefined;
+      }
+      return { loggedIn: true, identity: identityFromAuthStatus(session.authStatus) };
+    }
+    return { loggedIn: true, identity: null };
+  }
+
+  /**
+   * `<adaptador> --cli auth status`, com o ambiente da conta.
+   *
+   * O `--cli` é do próprio adaptador — o mesmo que os `authMethods` mandam rodar
+   * para entrar —, então conferir não reintroduz um `claude` do PATH (ADR de
+   * 2026-09-08). Uma resposta que não é JSON **não** vira *"deslogado"*: seria o
+   * produto afirmando o que não leu.
+   */
+  private async cliAuthStatus(
+    options: AcpSpawnOptions,
+  ): Promise<{ loggedIn: boolean; identity: AcpAccountIdentity | null }> {
+    const result = await this.runCli({
+      command: options.command,
+      args: ["--cli", "auth", "status"],
+      cwd: options.cwd,
+      ...(options.env ? { env: options.env } : {}),
+      ...(options.unsetEnv ? { unsetEnv: options.unsetEnv } : {}),
+      timeoutMs: AUTH_STATUS_TIMEOUT_MS,
+    });
+    const parsed = parseAuthStatus(result.stdout);
+    if (parsed === null) {
+      throw new DomainError(
+        "SPAWN_FAILED",
+        `a conferência de login do adaptador (--cli auth status) não respondeu JSON` +
+          ` (saiu com ${result.exitCode ?? "sinal"}): ${result.stdout.trim().slice(0, 200)}`,
+      );
+    }
+    if (parsed["loggedIn"] !== true) return { loggedIn: false, identity: null };
+    return {
+      loggedIn: true,
+      identity: {
+        email: stringOrNull(parsed["email"]),
+        plan: stringOrNull(parsed["subscriptionType"]),
+      },
+    };
   }
 
   /**
@@ -959,7 +1148,8 @@ export class AcpManager {
     options: AcpSpawnOptions,
     { probe = false }: { probe?: boolean } = {},
   ): { session: Session; child: AcpProcess } {
-    const { command, args = [], cwd, env, adapterVersion } = options;
+    const { command, args = [], cwd, env, unsetEnv, adapterVersion } = options;
+    const spec = options.adapterId === undefined ? null : adapterById(options.adapterId);
 
     if (command.trim() === "") {
       throw new DomainError("INVALID_ARGUMENT", "command must not be empty");
@@ -977,7 +1167,7 @@ export class AcpManager {
     const id = newId();
     let child: AcpProcess;
     try {
-      child = this.spawner({ command, args, cwd, env });
+      child = this.spawner({ command, args, cwd, env, ...(unsetEnv ? { unsetEnv } : {}) });
     } catch (error) {
       throw launchFailure(command, adapterVersion, error);
     }
@@ -1008,6 +1198,8 @@ export class AcpManager {
       },
       process: child,
       connection: undefined as unknown as ClientConnection,
+      authStatus: undefined,
+      onAuthStatus: undefined,
       elicit: undefined,
       elicitDone: undefined,
       listeners: new Set(),
@@ -1031,6 +1223,11 @@ export class AcpManager {
       turnId: newId(),
       replaying: false,
       coreInjected: false,
+      quotaRefusalKind: spec?.quotaRefusalKind ?? null,
+      // "agente" quando o catálogo não conhece: a frase continua sendo uma frase,
+      // e o nome do binário não é o que alguém chama de agente.
+      agentLabel: spec?.label ?? "agente",
+      account: options.account ?? null,
     };
 
     // The sniffer sits between the adapter and the SDK. See `unknown-updates.ts`
@@ -1165,7 +1362,8 @@ export class AcpManager {
       session.turnStartedAt = null;
       session.openToolCalls.clear();
       this.observeTurnFailure(session, error);
-      throw error;
+      if (isQuotaRefusal(error, session.quotaRefusalKind)) throw this.quotaRefused(session, error);
+      throw this.turnFailed(session, error);
     }
 
     // The fifth card state, and the only place it can be derived (A14). ACP has
@@ -1240,6 +1438,48 @@ export class AcpManager {
 
     this.log?.warn(portrait, "turno falhou");
     this.turnFailures?.(portrait);
+  }
+
+  /**
+   * A conta bateu no limite: a conversa fica sabendo, e quem chamou também.
+   *
+   * O evento é o que **fecha o turno** para a tela — o adaptador não manda
+   * `turn_end` numa recusa, e a conversa ficaria dizendo que ele ainda responde.
+   * A exceção é o que a esteira lê para pausar em vez de gastar tentativa
+   * (`028` T17): `QUOTA_REFUSED`, e não o erro cru, porque o erro cru é
+   * vocabulário do adaptador e a esteira não o fala.
+   */
+  private quotaRefused(session: Session, error: unknown): DomainError {
+    const { account, agentLabel } = session;
+    this.emit(session, {
+      type: "quota_refused",
+      accountId: account?.id ?? null,
+      accountLabel: account?.label ?? null,
+      agent: agentLabel,
+      // O texto do adaptador, e só para ler: o *"resets 7pm"* está nele e em mais
+      // nenhum lugar, e interpretá-lo seria casar a prosa de outro produto.
+      message: error instanceof Error ? error.message : String(error),
+    });
+    const whose = account === null ? "a conta desta sessão" : `a conta ${account.label}`;
+    return new DomainError("QUOTA_REFUSED", `${whose} bateu no limite do ${agentLabel}`, {
+      cause: error,
+    });
+  }
+
+  /**
+   * Qualquer outra recusa do `session/prompt`: a conversa fica sabendo que o
+   * turno acabou, e por quê.
+   *
+   * O erro **continua subindo**, e não vira `DomainError`: não é uma falha
+   * esperada com código do Lumem — é o adaptador que desistiu —, e a esteira o
+   * trata como tentativa gasta. O que muda é a marca `AcpTurnFailedError`, que
+   * diz a quem o recebe que a conversa já contou; o `websocket` a lê para não
+   * pintar um `internal error` em cima da linha.
+   */
+  private turnFailed(session: Session, error: unknown): AcpTurnFailedError {
+    const failed = new AcpTurnFailedError(error);
+    this.emit(session, { type: "turn_failed", message: failureText(failed) });
+    return failed;
   }
 
   /**
@@ -1371,6 +1611,34 @@ export class AcpManager {
   reportModelUnavailable(id: string, model: string): void {
     const session = this.require(id);
     this.emit(session, { type: "model_unavailable", model, current: session.info.model });
+  }
+
+  /**
+   * O modelo padrão da conta não está na lista desta sessão (`034` T9).
+   *
+   * Verbo próprio pela mesma razão do de cima: quem decide é quem abre a
+   * conversa, e a linha pertence à conversa — no disco e na aba aberta.
+   */
+  reportAccountDefaultUnavailable(id: string, requested: string): void {
+    const session = this.require(id);
+    this.emit(session, { type: "account_default_unavailable", requested, got: session.info.model });
+  }
+
+  /**
+   * Uma linha do daemon na conversa, viva ou não (`034` T11).
+   *
+   * A linha de vínculo de *continuar em outra conta* cai na origem, e a origem
+   * pode estar morta há dias — é justamente o caso de quem continua uma conversa
+   * velha noutra conta. Viva, ela passa pelo `emit`, e a aba aberta a vê na hora;
+   * morta, vai direto para o disco, que é de onde a aba a relê.
+   */
+  recordEvent(sessionId: string, event: AcpEvent): void {
+    const session = this.sessions.get(sessionId);
+    if (session) {
+      this.emit(session, event);
+      return;
+    }
+    this.transcripts.append(sessionId, { at: this.now(), event });
   }
 
   /**
@@ -1621,6 +1889,19 @@ export class AcpManager {
       .onNotification("elicitation/complete", ({ params }) => {
         session.elicitDone?.(params.elicitationId);
       })
+      /*
+       * Qual conta o Codex está usando (`034` T6): o `_auth/status_update` do
+       * handshake traz e-mail e plano no login ChatGPT, e só `api_key` na chave.
+       * Guardado cru; quem traduz é o probe, que é o único que pergunta.
+       */
+      .onNotification(
+        "_auth/status_update",
+        (params: unknown) => params,
+        ({ params }) => {
+          session.authStatus = params;
+          session.onAuthStatus?.();
+        },
+      )
       .onRequest("session/request_permission", ({ params }) => {
         const requestId = newId();
         const options = params.options.map((option) => ({
@@ -1840,6 +2121,17 @@ export class AcpManager {
            */
           ...(this.ptyManager ? { auth: { terminal: true } } : {}),
           /*
+           * E o pedido do **comando exato**, dentro de `clientCapabilities` —
+           * é onde o `claude-agent-acp` o lê
+           * (`request.clientCapabilities?._meta?.["terminal-auth"]`). Até
+           * 2026-09-26 ele ia no topo dos parâmetros, e o adaptador nunca o via:
+           * os dois logins voltavam sem `_meta`, com `command: null`, e a tela
+           * recusava os dois botões — medido contra o `0.75.1`, o mesmo
+           * `initialize` com a marca em cada lugar. É o login de toda conta
+           * nova do Claude (`034`) que passava por aqui.
+           */
+          ...(this.ptyManager ? { _meta: { "terminal-auth": true } } : {}),
+          /*
            * "Eu sei mostrar uma URL", declarado porque os dois métodos existem.
            *
            * Medido na fase 0 da `second-agent` (§4.2): sem isto, o `codex-acp`
@@ -1853,7 +2145,6 @@ export class AcpManager {
            */
           elicitation: { url: {} },
         },
-        ...(this.ptyManager ? { _meta: { "terminal-auth": true } } : {}),
         clientInfo: { name: "lumem", version: LUMEM_CLIENT_VERSION },
       }),
       "initialize",
@@ -2408,9 +2699,80 @@ export function codeIn(message: string): string | null {
  * By code, not by message: the text is the adapter's and may be translated or
  * reworded, while `-32000` is the protocol's (`RequestError.authRequired`).
  */
+/** O objeto JSON que o `auth status` escreveu, ou `null` se não há um. */
+function parseAuthStatus(stdout: string): Record<string, unknown> | null {
+  const start = stdout.indexOf("{");
+  const end = stdout.lastIndexOf("}");
+  if (start === -1 || end < start) return null;
+  try {
+    const value: unknown = JSON.parse(stdout.slice(start, end + 1));
+    return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+function stringOrNull(value: unknown): string | null {
+  return typeof value === "string" && value !== "" ? value : null;
+}
+
+/**
+ * A identidade de um `_auth/status_update`, nas duas formas que aparecem:
+ * embrulhada em `authStatus` e solta. `null` quando não há nada a ler.
+ */
+function identityFromAuthStatus(params: unknown): AcpAccountIdentity | null {
+  if (typeof params !== "object" || params === null) return null;
+  const record = params as Record<string, unknown>;
+  const status = (typeof record["authStatus"] === "object" && record["authStatus"] !== null
+    ? record["authStatus"]
+    : record) as Record<string, unknown>;
+  const account =
+    typeof status["account"] === "object" && status["account"] !== null
+      ? (status["account"] as Record<string, unknown>)
+      : {};
+  return { email: stringOrNull(account["email"]), plan: stringOrNull(account["plan"]) };
+}
+
 function isAuthRequired(error: unknown): boolean {
   const code = (error as { code?: unknown }).code;
   return code === ACP_AUTH_REQUIRED_CODE;
+}
+
+/**
+ * The sentence a failed turn shows: the error's message, plus the SDK's
+ * `data.details` when it has one.
+ *
+ * `details` is the SDK's own wrapping, not the adapter's: an agent that throws a
+ * bare `Error` reaches the client as `-32603 "Internal error"` with its text in
+ * `data.details` — measured in this file's tests, and the trap `testing.md`
+ * records. Without it the line would read "Internal error" and say nothing.
+ * Display only: nothing branches on it.
+ */
+function failureText(error: AcpTurnFailedError): string {
+  const details =
+    typeof error.data === "object" && error.data !== null
+      ? (error.data as Record<string, unknown>)["details"]
+      : undefined;
+  if (typeof details !== "string" || details === "" || error.message.includes(details)) {
+    return error.message;
+  }
+  return `${error.message}: ${details}`;
+}
+
+/**
+ * Whether a refused `session/prompt` is the account hitting its limit (`028` T17).
+ *
+ * By the structure the adapter's spec declares, and never by the message: the
+ * code is the generic `-32603`, and the only thing that separates a quota refusal
+ * from any other internal error is `data.errorKind` — measured against a real
+ * exhausted weekly limit on `claude-agent-acp@0.75.1`. An adapter that declares no
+ * kind (`null`, Codex today) has no quota refusal: its failures stay failures.
+ */
+function isQuotaRefusal(error: unknown, kind: string | null): boolean {
+  if (kind === null) return false;
+  const data = (error as { data?: unknown }).data;
+  if (typeof data !== "object" || data === null) return false;
+  return (data as Record<string, unknown>)["errorKind"] === kind;
 }
 
 /**

@@ -3,6 +3,7 @@ import type { AcpServerMessage } from "@lumem/shared";
 import { Banner, Button, Glyph } from "../../ui/index.js";
 import { type AcpConnect } from "./acp-socket.js";
 import { Composer } from "./Composer.js";
+import { ContinueInMenu, type ContinueInProps } from "./ContinueInMenu.js";
 import { PendingConversation } from "./PendingConversation.js";
 import { PendingPrompt } from "./PendingPrompt.js";
 import { useSessionDetail } from "./queries.js";
@@ -27,6 +28,18 @@ export interface ConversationProps {
    * a aba usa, para a aba e o cabeçalho nunca discordarem.
    */
   agentName?: string;
+  /**
+   * O rótulo da conta, só quando o agente tem mais de uma (`034` T15) — vem do
+   * daemon (`agentAccountLabel` + `multiAccount`), e não de string escrita aqui.
+   */
+  accountLabel?: string | null;
+  /** O gesto de continuar noutra conta; ausente quando quem monta não tem onde abrir a aba nova. */
+  continueIn?: ContinueInProps;
+  /**
+   * O que uma linha de vínculo faz ao ser clicada: abrir a outra aba. `null`
+   * quando a outra sessão não é deste escopo — a linha fica texto.
+   */
+  sessionLink?: (sessionId: string) => (() => void) | null;
   /**
    * False for a conversation that has ended (D13).
    *
@@ -71,6 +84,9 @@ export function Conversation({
   // "agente" e não "claude": um default que nomeia um agente específico é o
   // defeito que a F4 achou, com outro valor.
   agentName = "agente",
+  accountLabel = null,
+  continueIn,
+  sessionLink,
   live,
   connect,
   load,
@@ -119,7 +135,7 @@ export function Conversation({
       <div className="conv__head">
         <span className="conv__who">
           <Glyph tone="agent">◆</Glyph>
-          {agentName}
+          {accountLabel === null ? agentName : `${agentName} · ${accountLabel}`}
         </span>
         {session && (
           <span className="conv__adapter">
@@ -127,6 +143,7 @@ export function Conversation({
           </span>
         )}
         <span className="spacer" />
+        {continueIn && <ContinueInMenu {...continueIn} empty={conversation.turns.length === 0} />}
         {/* Resuming is an act, not something a tab does by being opened (D13). */}
         {readOnly && onResume && (
           <Button variant="primary" size="sm" disabled={resuming} onClick={onResume}>
@@ -148,6 +165,11 @@ export function Conversation({
           <Banner tone="danger">{resumeError}</Banner>
         </div>
       )}
+      {continueIn?.error && (
+        <div className="conv__banner">
+          <Banner tone="danger">{continueIn.error}</Banner>
+        </div>
+      )}
 
       {row !== undefined && row.pendingPrompt !== null ? (
         readOnly ? (
@@ -167,7 +189,15 @@ export function Conversation({
         )
       ) : (
         <>
-          <Transcript conversation={conversation} session={session} failure={failure} readOnly={readOnly} answer={answer} />
+          <Transcript
+            conversation={conversation}
+            session={session}
+            failure={failure}
+            readOnly={readOnly}
+            answer={answer}
+            {...(sessionLink === undefined ? {} : { sessionLink })}
+            {...(continueIn === undefined ? {} : { continueIn })}
+          />
           {composer}
         </>
       )}

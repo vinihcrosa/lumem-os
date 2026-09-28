@@ -15,7 +15,8 @@ antes de existir código. A Q45 foi respondida na proposta — **avisa quem est�
 não está** —, e com ela o portão da T16 virou uma **função pura de três saídas**. A Q44 segue aberta e é de tela, e a
 [Q46](#q46--como-o-daemon-reconhece-uma-recusa-por-cota) nasceu da T17 ter entregado metade: a pausa
 **prevista** tem fonte, a recusa **observada** não — o protocolo não tem código para cota, como tem
-para login.
+para login. Ela foi **respondida pela medição em 2026-09-28**, quando uma cota de verdade fechou: o
+código continua genérico, e quem distingue é o `data.errorKind` do adaptador.
 
 A sétima rodada é a primeira que nasceu de **gastar token** — 20 turnos, US$ 4,60, Haiku e Opus. A
 [Q41](#q41--em-que-modo-a-esteira-abre-a-sessão-e-quem-escolhe) apareceu ao montar a bancada, quando o
@@ -793,6 +794,14 @@ esta feature depende de um sinal que precisa ser consertado antes, e o conserto 
 **A dependência fica registrada:** o sinal vem do `rateLimit` que o adaptador reporta, e ele está
 apagado hoje — a [adapter-provenance](../027-adapter-provenance/prd.md) é quem conserta. Sem ele, só
 resta o caminho dos 3 retries, que é o pior dos dois.
+
+> **Nota (2026-09-28): o pior dos dois é o caso comum.** A primeira recusa por cota de verdade
+> ([Q46](#q46--como-o-daemon-reconhece-uma-recusa-por-cota)) chegou com `rateLimit: null` — o
+> *"resets 7pm"* só no texto do adaptador, que não se lê. Então o caminho dos 3 retries não é o
+> fallback: é o que roda. As esperas são **15 min, 45 min e 2 h** — escolha, com a âncora escrita na
+> [T17](tasks.md#t17-cota-não-é-orçamento--pausada): três horas somadas, abaixo do teto de 4 h, e
+> cobrindo os dois casos da sua observação (10 min pega a primeira, 3h50 pega a última). O resto da
+> resposta fica como está.
 ## Q33 — agentes nomeados, e papel por projeto
 
 A [Q23](#q23--papel-é-outro-agente-ou-o-mesmo-agente-com-outra-instrução) pediu extensibilidade no
@@ -1465,6 +1474,37 @@ jq 'select(.windowSpent)' ~/.lumem/_system/turn-failures.jsonl
 > **Respondida como instrumento, não como comportamento.** A Q32 continua sem poder ser implementada —
 > as 3 tentativas e o corte de 4 h esperam a primeira amostra. O que mudou é que a amostra **não vai
 > se perder**.
+
+> **Respondida pela medição — 2026-09-28.** A amostra chegou, e não por bancada: uma conta do Claude
+> conectada pela [`034`](../034-agent-accounts/prd.md) (`technomar-ted`) bateu no **limite semanal**
+> no meio de uma conversa, com o `claude-agent-acp@0.75.1`. O retrato ficou no
+> `turn-failures.jsonl`, como esta pergunta queria:
+>
+> ```
+> {"code":-32603,"message":"Internal error: You've hit your weekly limit · resets 7pm (America/Sao_Paulo)","data":{"errorKind":"rate_limit"}}
+> ```
+>
+> Antes dele, um `agent_message_chunk` com o mesmo texto e um `usage_update` zerado; depois dele,
+> **nenhum `turn_end`**. O estudo inteiro está no
+> [§7 das medições das contas](../../project/agent-accounts-measurements.md#7-a-conta-que-bateu-no-limite--medida-em-2026-09-28).
+>
+> **A resposta, então, é a primeira das três saídas acima — reconhecer pela forma medida — com a
+> terceira como mecanismo:** a forma entra na `spec` do adaptador (`AdapterSpec.quotaRefusalKind`,
+> `"rate_limit"` no Claude, `null` no Codex, que não foi medido), e o daemon reconhece a recusa por
+> `data.errorKind` contra ela — nunca pelo texto. O comportamento da Q32 passa a existir inteiro
+> (a [T17](tasks.md#t17-cota-não-é-orçamento--pausada)).
+>
+> **Duas coisas que esta pergunta dizia estavam erradas, e ficam corrigidas aqui:**
+>
+> - ~~o texto do adaptador enterrado em `data.details`~~ — `data.details` é o que o SDK põe quando o
+>   adaptador lança um `Error` cru, que é o caso do teste que escreveu isso. Na recusa por cota de
+>   verdade o adaptador lança o erro dele, e a chave é **`data.errorKind`**. O texto vai na
+>   `message`, não no `data`;
+> - ~~uma falha que chega com a janela gasta e sem excedente é, com altíssima probabilidade, a recusa
+>   que esta pergunta procura~~ — a recusa medida chegou com **`rateLimit: null`** e
+>   `windowSpent: false`. O filtro `jq 'select(.windowSpent)'` **não teria achado** a amostra; quem a
+>   achou foi o `data` guardado cru. O `windowSpent` fica no retrato — ele não custa nada e pode valer
+>   para o limite de cinco horas, que não foi medido —, mas deixou de ser *"o primeiro filtro"*.
 
 ---
 

@@ -52,7 +52,7 @@ export function AgentPanel({
     if (probe.data?.authRequired === true) {
       return (
         <LoginOptions
-          config={config}
+          target={{ command: config.command, args: config.args }}
           methods={probe.data.authMethods}
           onDone={() => void reprobe()}
         />
@@ -77,7 +77,7 @@ export function AgentPanel({
           <div className="acct__r">
             <span className="acct__k">entrada</span>
             <span className="acct__v">
-              {report?.authMethods.length === 0 ? "credencial local, já válida" : "credencial local"}
+              {report?.loggedIn === true ? "credencial local, já válida" : "credencial local"}
             </span>
           </div>
           <div className="acct__r">

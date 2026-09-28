@@ -60,6 +60,11 @@ export interface BoardCardRow {
   preparedPrompt: string | null;
   /** Por que a esteira parou aqui, ou `null`. É o que o selo `bloqueada` lê. */
   blockedReason: string | null;
+  /**
+   * Até quando a esteira espera a cota (`028` T17), ou `null`. Não vai ao fio: o
+   * selo `pausada até` já carrega a hora.
+   */
+  pausedUntil: Date | null;
   /** `null` quando você ainda não foi avisado sobre o estado atual (T35). */
   notifiedAt: Date | null;
   /**
@@ -150,6 +155,7 @@ export function boardOf(
       attempts: task.attempts,
       autonomy: task.autonomy,
       blockedReason: task.blockedReason,
+      pausedUntil: task.pausedUntil,
       preparedPrompt: task.preparedPrompt,
       notifiedAt: task.notifiedAt,
       projectId: project.id,
@@ -203,6 +209,7 @@ export function boardOf(
           autonomy: row.autonomy,
           preparedPrompt: row.preparedPrompt,
           blockedReason: row.blockedReason,
+          pausedUntil: row.pausedUntil,
           queuedBeyondSlots: waiting.has(row.id),
           notifiedAt: row.notifiedAt,
         };

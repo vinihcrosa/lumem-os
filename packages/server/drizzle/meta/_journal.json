@@ -246,6 +246,41 @@
       "when": 1790358212193,
       "tag": "0034_motivo_do_pendente",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "6",
+      "when": 1790426115232,
+      "tag": "0035_conta_de_agente",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "6",
+      "when": 1790430947638,
+      "tag": "0036_conta_do_encaixe",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "6",
+      "when": 1790432598934,
+      "tag": "0037_continuacao_de_conta",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "6",
+      "when": 1790437877726,
+      "tag": "0038_conta_principal",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "6",
+      "when": 1790619329977,
+      "tag": "0039_espera_da_cota",
+      "breakpoints": true
     }
   ]
 }

@@ -36,6 +36,17 @@ export interface AdapterCli {
   install: string | null;
 }
 
+/**
+ * Como se confere **qual** conta um diretório tem — a regra *conferido, não
+ * acreditado* da `021`, com a leitura que o §4 do estudo da `034` mediu.
+ *
+ * - `cli-auth-status`: `<adaptador> --cli auth status`, JSON com `loggedIn`,
+ *   e-mail e plano, sem gastar token;
+ * - `auth-status-notification`: a notificação `_auth/status_update` que o
+ *   adaptador manda no handshake.
+ */
+export type AdapterIdentity = "cli-auth-status" | "auth-status-notification";
+
 export interface AdapterSpec {
   /** Curto, estável, e o nome do diretório em `<stateDir>/adapters/<id>`. */
   id: string;
@@ -105,6 +116,56 @@ export interface AdapterSpec {
    * inventa uma palavra para um catálogo que não é dela.
    */
   autonomousMode: string | null;
+  /**
+   * A variável que aponta o CLI para o diretório de config de uma conta.
+   *
+   * O [ADR de 2026-09-26](../../../docs/adr/2026-09-26-0148-an-account-is-a-whole-agent-config-dir.md):
+   * uma conta é um diretório de config **inteiro**, passado por uma variável do
+   * próprio CLI — e nunca por `HOME` ou `XDG_*`, que mudariam também o git, a
+   * chave SSH e o `node` com que o agente trabalha (Q6). A primeira conta é a
+   * variável **ausente**: medido, escrever o caminho padrão nela faz o Claude
+   * procurar outra entrada do Keychain e a conta de hoje aparecer deslogada.
+   *
+   * `null` quer dizer *este adaptador tem uma conta só*.
+   */
+  accountEnv: string | null;
+  /**
+   * O diretório de config padrão do CLI, relativo ao `HOME` — de onde saem os
+   * `inheritLinks`. `null` quando o adaptador não tem conta (`accountEnv: null`).
+   */
+  defaultConfigDir: string | null;
+  /**
+   * O que uma conta nova recebe por link do diretório padrão (Q10).
+   *
+   * Só **comportamento**. A identidade — credencial, `.claude.json`, `auth.json`
+   * — nunca entra aqui, porque é o que separa uma conta da outra (§2.5 do
+   * estudo). Relativos ao `defaultConfigDir`; o que não existir no disco não é
+   * ligado.
+   */
+  inheritLinks: readonly string[];
+  /**
+   * O que uma conta nova **não** leva, dito em voz alta na tela de conectar
+   * (Q10). Frases, porque é o que a tela escreve; vazio quando tudo o que é
+   * comportamento vem pelo `inheritLinks`.
+   */
+  notInherited: readonly string[];
+  /** Como se confere a identidade de uma conta. `null` quando não há leitura medida. */
+  identity: AdapterIdentity | null;
+  /**
+   * Como este adaptador diz *"a conta bateu no limite"* ao recusar um
+   * `session/prompt` — o valor de `data.errorKind` no erro JSON-RPC (`028` T17).
+   *
+   * **O código não serve**: a recusa chega como `-32603`, o *internal error*
+   * genérico, e é o `errorKind` que a distingue. **O texto também não**: ele é do
+   * adaptador (*"You've hit your weekly limit · resets 7pm"*), pode ser traduzido
+   * ou reescrito, e casar prosa é o que o
+   * [ADR de 2026-09-13](../../../docs/adr/2026-09-13-0038-our-model-is-king-outsiders-adapt.md)
+   * proíbe. O texto vai para a tela; quem decide é esta palavra.
+   *
+   * `null` quer dizer *não medido*: a recusa deste adaptador é tratada como
+   * qualquer falha de turno.
+   */
+  quotaRefusalKind: string | null;
 }
 
 /** O comando que instala um adaptador globalmente — a sugestão de um erro de spawn. */
@@ -159,6 +220,30 @@ export const CLAUDE_ADAPTER: AdapterSpec = {
   // Medido na Q43, e é o único dos cinco que fecha o laço: `default`, `plan`,
   // `acceptEdits` e `dontAsk` param no primeiro `Edit` esperando alguém.
   autonomousMode: "bypassPermissions",
+  // Medido na fase 0 da `034` (§2.1): com a variável, a entrada do Keychain
+  // ganha o sufixo `-<sha256(dir)[0:8]>` e não colide com a de hoje.
+  accountEnv: "CLAUDE_CONFIG_DIR",
+  defaultConfigDir: ".claude",
+  /*
+   * A lista da Q10 mais `agents/`: os subagentes do usuário moram lá, e a Q10
+   * os conta entre o que a conta nova perde (§2.5 do estudo). Os MCPs de
+   * usuário ficam **fora** — moram no `.claude.json`, junto do `oauthAccount`.
+   */
+  inheritLinks: ["settings.json", "CLAUDE.md", "rules", "skills", "plugins", "agents"],
+  // §2.5 do estudo: os `mcpServers` do usuário moram no `~/.claude.json`, junto
+  // do `oauthAccount` — nenhum link traz um sem trazer o outro.
+  notInherited: ["os servidores MCP do usuário, que moram no ~/.claude.json junto da identidade"],
+  // §4 do estudo: 0,57 s, zero token, com `email` e `subscriptionType` no JSON.
+  // O `session/new` não serve: o do `0.75.1` fecha sem credencial nenhuma.
+  identity: "cli-auth-status",
+  /*
+   * Medido em 2026-09-28, com uma cota semanal esgotada de verdade no `0.75.1`
+   * (`docs/project/agent-accounts-measurements.md` §7): `session/prompt` recusado
+   * com `{ code: -32603, message: "Internal error: You've hit your weekly limit ·
+   * …", data: { errorKind: "rate_limit" } }`, depois de um `agent_message_chunk`
+   * com o mesmo texto e de um `usage_update` zerado, e sem `turn_end`.
+   */
+  quotaRefusalKind: "rate_limit",
 };
 
 export const CODEX_ADAPTER: AdapterSpec = {
@@ -186,6 +271,25 @@ export const CODEX_ADAPTER: AdapterSpec = {
    * preencher é rodar, não deduzir.
    */
   autonomousMode: null,
+  // Medido na fase 0 da `034` (§3.2): um login num `CODEX_HOME` descartável
+  // gravou só lá, e o `~/.codex/auth.json` ficou com o mesmo mtime.
+  accountEnv: "CODEX_HOME",
+  defaultConfigDir: ".codex",
+  /*
+   * A lista da Q10 mais `skills/`. O `config.toml` compartilhado é o ponto não
+   * medido da Q10 — se ele arrastar um `cli_auth_credentials_store`, a herança
+   * cai para cópia, e quem mede é a T8.
+   */
+  inheritLinks: ["config.toml", "AGENTS.md", "skills"],
+  // Os `[mcp_servers]` do Codex moram no `config.toml`, que vem pelo link.
+  notInherited: [],
+  // §3.3 do estudo: `_auth/status_update` traz e-mail e plano no login ChatGPT.
+  // O `session/new` confere presença e não validade — aceitou uma chave falsa.
+  identity: "auth-status-notification",
+  // Não medido: nenhuma cota do Codex fechou contra este repositório. Até fechar,
+  // a recusa dele é uma falha de turno comum — o palpite `rate_limit` seria
+  // vocabulário de outro adaptador escrito no dele.
+  quotaRefusalKind: null,
 };
 
 export const ADAPTERS: readonly AdapterSpec[] = [CLAUDE_ADAPTER, CODEX_ADAPTER];

@@ -109,6 +109,12 @@ export interface ServerConfig {
    * usuário, e não é o único possível.
    */
   conveyorAgent: string | null;
+  /**
+   * O `HOME` de quem roda o daemon (`034` T8): conectar uma conta herda por
+   * link o que mora em `$HOME/.claude` ou `$HOME/.codex` (Q10). Configuração, e
+   * não `homedir()` lido na hora, para um teste poder apontar outro.
+   */
+  homeDir: string;
 }
 
 /** Only the variables this module reads. Keeps tests from touching process.env. */
@@ -126,6 +132,7 @@ export type ConfigEnv = Partial<
   | "LUMEM_TASKS_BUDGET"
   | "LUMEM_CONVEYOR_AGENT"
     | "LUMEM_RUN_PORT_RANGE"
+    | "HOME"
     | "SHELL",
     string
   >
@@ -205,5 +212,6 @@ export function loadConfig(env: ConfigEnv = process.env): ServerConfig {
     taskBudget: readBudget(env.LUMEM_TASKS_BUDGET, DEFAULT_TASK_BUDGET),
     runPortRange: parsePortRange(env.LUMEM_RUN_PORT_RANGE),
     conveyorAgent: env.LUMEM_CONVEYOR_AGENT ?? null,
+    homeDir: env.HOME === undefined || env.HOME === "" ? homedir() : env.HOME,
   };
 }

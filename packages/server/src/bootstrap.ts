@@ -1,12 +1,14 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 
-import { ADAPTERS, ADAPTERS_DIR_NAME } from "@lumem/shared";
+import { ADAPTERS, ADAPTERS_DIR_NAME, type AdapterSpec } from "@lumem/shared";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import type { FastifyBaseLogger, FastifyInstance } from "fastify";
 
 import { reconcileOnBoot } from "./boot/reconcile.js";
 import type { ServerConfig } from "./config.js";
-import { openDatabase, type Database_ } from "./db/index.js";
+import { openDatabase, type Database_, type Db } from "./db/index.js";
+import { agentAccount, agentConfig, type AgentAccountRow } from "./db/schema.js";
 import { createEventBus } from "./events.js";
 import { AcpManager } from "./acp/AcpManager.js";
 import { AdapterCatalog } from "./acp/adapter-catalog.js";
@@ -18,9 +20,11 @@ import { trackPlaybookLoads } from "./memory/playbook-tracking.js";
 import { trackSessionUsage } from "./usage/record.js";
 import { trackTaskProgress } from "./tasks/progress.js";
 import { createAgentAuthService } from "./setup/agent-auth.js";
+import { recordProbedIdentity } from "./setup/account-launch.js";
 import {
+  accountEnvFor,
   adapterCommandFor,
-  adapterCommandForConfig,
+  adapterInvocationFor,
   catalogedAdapterOf,
 } from "./setup/adapter-command.js";
 import { reconcileAdapters } from "./setup/reconcile-adapters.js";
@@ -28,12 +32,14 @@ import { createMemoryPreamble } from "./memory/preamble.js";
 import { createBudgetSource } from "./tasks/budget-source.js";
 import { createConveyor } from "./tasks/conveyor.js";
 import { createConveyorPorts } from "./tasks/conveyor-ports.js";
+import { createConveyorSessionOpeners } from "./tasks/conveyor-sessions.js";
 import { runConveyorLoop } from "./tasks/conveyor-loop.js";
 import { createLinearHost } from "./tracker/LinearHost.js";
 import { createSecretStore } from "./secrets/SecretStore.js";
 import { runTrackerLoop } from "./tracker/loop.js";
 import { writeMark, type Mark } from "./tracker/marks.js";
 import { numberOfWorktree, verdictOfWorktree } from "./tasks/conveyor-wiring.js";
+import { defaultAccountIdOf } from "./repositories/agentAccount.js";
 import { configForAdapter } from "./repositories/agentConfig.js";
 import { reproduce } from "./tasks/reproduce.js";
 import { createCallerFactory } from "./trpc.js";
@@ -130,11 +136,15 @@ export async function bootstrap({
    * que vale — e o que falta é o que o aquecimento vai sondar depois do
    * `listen`.
    */
-  const adapterCatalog = new AdapterCatalog({ stateDir: config.stateDir });
-  await adapterCatalog.load();
-
   const owned = database === undefined;
   const openedDatabase = database ?? openDatabase({ path: config.databasePath });
+  // Depois do banco (`034` T9): o catálogo é por conta, e é a conta padrão de
+  // cada agente que decide a ordem da leitura e para onde vai o arquivo antigo.
+  const adapterCatalog = new AdapterCatalog({
+    stateDir: config.stateDir,
+    defaultAccountOf: (adapterId) => defaultAccountIdOf(openedDatabase.db, adapterId),
+  });
+  await adapterCatalog.load();
   const ownedTranscripts = transcripts === undefined;
   const openedTranscripts = transcripts ?? createTranscriptStore({ dir: config.transcriptsDir });
   // One bus, shared: the session store emits from the PTY exit callback and
@@ -217,15 +227,20 @@ export async function bootstrap({
    * que ninguém desliga.
    */
   const agentAuth = createAgentAuthService({ acpManager: acp });
+  // O cofre, antes do store: a conta de chave (`034` T5) sai dele no `spawn`
+  // e na retomada, e o tracker abaixo usa a mesma instância.
+  const secrets = createSecretStore({ stateDir: config.stateDir });
   const sessionStore = createSessionStore({
     db: openedDatabase.db,
     ptyManager,
     acpManager: acp,
     events,
     // Retomar relança o adaptador **de hoje**, não o caminho gravado na sessão
-    // morta. A costura é opcional no store e obrigatória aqui: sem esta linha,
-    // toda unidade passa e o daemon real retoma na versão velha.
-    resolveAcpCommand: (agent) => adapterCommandForConfig(agent, config.stateDir),
+    // morta — e na conta **da sessão**, com o env dela (`034` T5). A costura é
+    // opcional no store e obrigatória aqui: sem esta linha, toda unidade passa e
+    // o daemon real retoma na versão velha e na conta errada.
+    resolveInvocation: (agent, account) =>
+      adapterInvocationFor({ config: agent, account, stateDir: config.stateDir, secrets }),
     // Duas das três fontes do catálogo: o handshake de cada sessão e os `/`
     // que ela recebe, por projeto.
     adapterCatalog,
@@ -241,6 +256,7 @@ export async function bootstrap({
       db: openedDatabase.db,
       stateDir: config.stateDir,
       acpManager: acp,
+      secrets,
       enabled: config.distill,
       log: {
         warn: (...args: Parameters<FastifyBaseLogger["warn"]>) => {
@@ -337,7 +353,6 @@ export async function bootstrap({
    * seguinte — e guardar a chave é um gesto na tela, não uma variável de
    * ambiente que pede reinício.
    */
-  const secrets = createSecretStore({ stateDir: config.stateDir });
   const tracker = createLinearHost({ secrets });
 
   /*
@@ -359,49 +374,20 @@ export async function bootstrap({
         const created = await api.worktree.create({ projectId, name, taskId });
         return { id: created.id, path: created.path };
       },
-      openAgentSession: async ({ taskId, role, adapter, model, cwd, worktreeId, agentMode }) => {
-        // `cwd` não é usado: a sessão da esteira é **de escopo**, e o escopo é a
-        // worktree — o daemon resolve o diretório dela, como faz para toda
-        // conversa aberta pela tela.
-        void cwd;
-        const configured = await configForAdapter(
-          openedDatabase.db,
-          adapter,
-          config.conveyorAgent,
-        );
-        const opened = await api.session.createAgent({
-          scopeType: "worktree",
-          scopeId: worktreeId,
-          agentConfigId: configured,
-          taskId,
-          // O encaixe que ela serve: é o que a deixa ser **reencontrada** na
-          // tentativa seguinte, em vez de a esteira abrir a sétima conversa
-          // sobre a mesma tarefa (Parte 7 — T57).
-          taskRole: role,
-          // Não há ninguém do outro lado. Ver a nota da procedure: é **nascer**
-          // liberada, e não trocar — o portão do `016` protege a troca.
-          autonomous: true,
-        });
-        /*
-         * O modo do agente é escolhido **depois** do handshake, e não podia ser
-         * antes: ele é uma `configOption` que o próprio adaptador declara, e o
-         * daemon só conhece a lista dela quando a sessão existe.
-         *
-         * Falhar aqui não derruba o turno — um adaptador que não tem aquele modo
-         * vai perguntar alguma coisa e o turno vai morrer, que é a tentativa
-         * gasta com o motivo, e não um erro de boot.
-         */
-        if (agentMode !== null) {
-          await acp.setConfig(opened.id, "mode", agentMode).catch(() => undefined);
-        }
-        if (model !== null) {
-          await acp.setConfig(opened.id, "model", model).catch(() => undefined);
-        }
-        return { sessionId: opened.id };
-      },
+      // A conta, o modelo e o effort do encaixe viram processo aqui (`034` T10).
+      ...createConveyorSessionOpeners({
+        db: openedDatabase.db,
+        api: () => api,
+        acp,
+        sessionStore,
+        conveyorAgent: config.conveyorAgent,
+      }),
       prompt: async ({ sessionId, text }) => {
         await acp.prompt(sessionId, text);
       },
+      // O sinal de quando a cota reabre, quando o agente o relatou (`028` T17).
+      rateLimitOf: (sessionId) =>
+        acp.rateLimits().find((one) => one.sessionId === sessionId)?.rateLimit ?? null,
       cancel: (sessionId) => {
         acp.cancel(sessionId);
         return Promise.resolve();
@@ -415,33 +401,6 @@ export async function bootstrap({
        */
       closeSession: async (sessionId) => {
         await sessionStore.close(sessionId);
-      },
-      /*
-       * Retomar a conversa do encaixe (Parte 7 — T57).
-       *
-       * `resume` produz uma linha **nova** carregando o `acp_session_id` da
-       * velha: `session/load` sobe um adaptador e manda a conversa de volta, e
-       * não ressuscita o processo de ontem. É como o produto já faz *"retomar"*
-       * desde a `006`.
-       */
-      resumeSession: async ({ sessionId, agentMode, model }) => {
-        const row = await sessionStore.resume(sessionId);
-        /*
-         * O mesmo par do nascimento, e pelo mesmo motivo (Parte 7).
-         *
-         * `session/load` traz a conversa e **sobe um adaptador novo**, que nasce
-         * no modo padrão dele. Sem estas duas linhas a segunda vez de cada
-         * encaixe rodava perguntando permissão — e numa sessão de esteira não há
-         * ninguém do outro lado. Falhar aqui não derruba o turno, igual ao
-         * nascimento: o que sobra é o teto de tempo, com o motivo escrito.
-         */
-        if (agentMode !== null) {
-          await acp.setConfig(row.id, "mode", agentMode).catch(() => undefined);
-        }
-        if (model !== null) {
-          await acp.setConfig(row.id, "model", model).catch(() => undefined);
-        }
-        return { sessionId: row.id };
       },
       reproduce,
       liveTurns: () => acp.liveTurns(),
@@ -662,8 +621,11 @@ export async function bootstrap({
   stopWarmup = warmAdapterCatalog({
     catalog: adapterCatalog,
     acpManager: acp,
+    db: openedDatabase.db,
+    secrets,
     stateDir: config.stateDir,
     log: app.log,
+    onAccountChecked: (adapterId) => events.emit({ type: "account.changed", adapterId }),
   });
   return app;
 }
@@ -688,31 +650,78 @@ export async function bootstrap({
  * Falha de probe vira log e o laço segue — o catálogo é cache, e o adaptador
  * que não subiu aqui vai dizer por quê na primeira sessão.
  */
+/** Uma conferência do aquecimento: a conta, ou nenhuma quando ainda não há configuração. */
+interface WarmupTarget {
+  spec: AdapterSpec;
+  command: string;
+  account: AgentAccountRow | null;
+  catalogDue: boolean;
+}
+
 function warmAdapterCatalog({
   catalog,
   acpManager,
+  db,
+  secrets,
   stateDir,
   log,
+  onAccountChecked,
 }: {
   catalog: AdapterCatalog;
   acpManager: AcpManager;
+  db: Db;
+  secrets: { read(id: string): string | null };
   stateDir: string;
   log: Pick<FastifyBaseLogger, "warn">;
+  /** Uma conta conferida logada: a identidade e o estado dela podem ter mudado. */
+  onAccountChecked: (adapterId: string) => void;
 }): () => void {
   const readings = catalog.view();
-  const due = ADAPTERS.flatMap((spec) => {
-    const known = readings.find((reading) => reading.adapterId === spec.id)?.authRequired;
-    if (known === false) return [];
+  /*
+   * Cada conta conectada é conferida (`034` T6), e com o env dela: o login de
+   * uma conta pode ter vencido fora do Lumem, e a identidade gravada é o que a
+   * tela mostra. A desconectada não — o login dela foi desfeito de propósito
+   * (Q8). Sem configuração ainda, sobra a conferência de antes: uma, na
+   * variável ausente, só quando o catálogo pede.
+   *
+   * O plano é montado **síncrono**, pelas leituras do `better-sqlite3`: o
+   * primeiro probe tem que sair antes de o `bootstrap` devolver, e um `await`
+   * antes dele o empurraria para depois.
+   */
+  const plan = ADAPTERS.flatMap((spec): WarmupTarget[] => {
+    let command: string;
     try {
-      return [{ spec, command: adapterCommandFor(spec, stateDir) }];
+      command = adapterCommandFor(spec, stateDir);
     } catch {
       // Não instalado: a tela de login já diz isso, com a versão do pino.
       return [];
     }
+    /** A leitura daquela conta pede sondagem: nunca lida, ou lida sem login. */
+    const dueFor = (accountId: string | null) =>
+      readings.find((reading) => reading.adapterId === spec.id && reading.accountId === accountId)
+        ?.authRequired !== false;
+    const config = db
+      .select()
+      .from(agentConfig)
+      .where(and(eq(agentConfig.name, spec.id), isNull(agentConfig.retiredAt)))
+      .get();
+    const connected =
+      config === undefined
+        ? []
+        : db
+            .select()
+            .from(agentAccount)
+            .where(and(eq(agentAccount.agentConfigId, config.id), eq(agentAccount.state, "connected")))
+            .orderBy(asc(agentAccount.createdAt))
+            .all();
+    if (connected.length === 0) {
+      return dueFor(null) ? [{ spec, command, account: null, catalogDue: true }] : [];
+    }
+    return connected.map((account) => ({ spec, command, account, catalogDue: dueFor(account.id) }));
   });
 
   let stopped = false;
-  if (due.length === 0) return () => {};
+  if (plan.length === 0) return () => {};
 
   // Síncrono de propósito: o mesmo diretório vazio que o `setup.probe` usa, e o
   // primeiro probe sai antes de o `bootstrap` devolver.
@@ -725,20 +734,43 @@ function warmAdapterCatalog({
   }
 
   void (async () => {
-    for (const { spec, command } of due) {
+    // Uma conta por vez: cada probe sobe um adaptador de centenas de MB, e o
+    // boot não pode disputar a máquina com a primeira conversa de alguém.
+    for (const { spec, command, account, catalogDue } of plan) {
       if (stopped) return;
       try {
+        const launch =
+          account === null
+            ? { env: {}, unsetEnv: spec.accountEnv === null ? [] : [spec.accountEnv] }
+            : accountEnvFor(spec, account, {}, secrets);
         const report = await acpManager.probe(
-          { command, cwd, adapterVersion: spec.pinnedVersion },
-          { walkModels: true },
+          {
+            command,
+            cwd,
+            adapterVersion: spec.pinnedVersion,
+            ...(Object.keys(launch.env).length > 0 ? { env: launch.env } : {}),
+            ...(launch.unsetEnv.length > 0 ? { unsetEnv: launch.unsetEnv } : {}),
+          },
+          // Cada conta percorre os modelos dela quando a leitura dela pede
+          // (`034` T9): a lista é por conta, e a da padrão não vale para a 2.
+          { walkModels: catalogDue, identity: spec.identity },
         );
         if (stopped) return;
-        await catalog.recordOptions(spec.id, report.configOptions, {
-          authRequired: report.authRequired,
-          optionsByModel: report.optionsByModel,
-        });
+        await recordProbedIdentity(db, account, report);
+        if (account !== null && report.loggedIn) onAccountChecked(spec.id);
+        await catalog.recordOptions(
+          { adapterId: spec.id, accountId: account?.id ?? null },
+          report.configOptions,
+          {
+            authRequired: report.authRequired,
+            ...(catalogDue ? { optionsByModel: report.optionsByModel } : {}),
+          },
+        );
       } catch (error) {
-        log.warn({ adapter: spec.id, err: error }, `aquecimento do catálogo: o probe de ${spec.id} falhou`);
+        log.warn(
+          { adapter: spec.id, account: account?.id ?? null, err: error },
+          `aquecimento do catálogo: o probe de ${spec.id} falhou`,
+        );
       }
     }
   })();

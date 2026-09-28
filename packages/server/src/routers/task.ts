@@ -195,7 +195,13 @@ export const taskRouter = router({
             const seal = sealOf({
               status: column.status,
               liveTurns: byTask.get(card.id) ?? [],
-              pausedUntil: paused.get(card.id) ?? null,
+              pausedUntil: laterOf(
+                paused.get(card.id) ?? null,
+                // A espera que a esteira **decidiu** depois de uma recusa (`028`
+                // T17). Só a que ainda não passou: a que passou já devolveu o
+                // cartão à fila, e pintá-la prometeria uma volta que já veio.
+                card.pausedUntil !== null && card.pausedUntil > new Date() ? card.pausedUntil : null,
+              ),
               blockedReason: card.blockedReason,
               // A tarefa que você assumiu não espera máquina nenhuma, e o selo
               // dela tem que dizer isso — senão o cartão promete uma esteira
@@ -624,4 +630,11 @@ async function sessionsOfWorkspace(
     total: rows.length,
     withTask: rows.filter((row) => row.taskId !== null).length,
   };
+}
+
+/** A mais tarde de duas pausas: prometer a volta mais cedo prometeria uma que não vem. */
+function laterOf(one: Date | null, other: Date | null): Date | null {
+  if (one === null) return other;
+  if (other === null) return one;
+  return one > other ? one : other;
 }

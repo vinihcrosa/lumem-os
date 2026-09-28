@@ -106,6 +106,9 @@ function createTrpcMock() {
        * é `undefined.mutate`, e o sintoma é um erro que não fala de orçamento.
        */
       setBudget: { mutate: vi.fn() },
+      // O trio de cada encaixe da esteira (`034` T16), lido e escrito por `/settings`.
+      slots: { query: vi.fn() },
+      setSlot: { mutate: vi.fn() },
       list: { query: vi.fn() },
       get: { query: vi.fn() },
       create: { mutate: vi.fn() },
@@ -185,6 +188,20 @@ function createTrpcMock() {
     adapterCatalog: {
       list: { query: vi.fn() },
     },
+    /**
+     * As contas de agente (`034`). Entraram junto com o contrato, antes da
+     * seção de configuração que as lê (T13), para ela não quebrar cinco testes
+     * distantes por não achá-las.
+     */
+    agentAccount: {
+      list: { query: vi.fn() },
+      connect: { mutate: vi.fn() },
+      disconnect: { mutate: vi.fn() },
+      purge: { mutate: vi.fn() },
+      setDefault: { mutate: vi.fn() },
+      setDefaults: { mutate: vi.fn() },
+      rename: { mutate: vi.fn() },
+    },
     files: {
       listDir: { query: vi.fn() },
       read: { query: vi.fn() },
@@ -240,6 +257,9 @@ function createTrpcMock() {
       // quem quer asserir sobre a divisão diz qual é a divisão.
       byProjectAndAgent: { query: vi.fn().mockResolvedValue([]) },
       byWorktreeAndAgent: { query: vi.fn().mockResolvedValue([]) },
+      // E por conta (`034` T12), embaixo do agente. Vazio por default.
+      byProjectAndAccount: { query: vi.fn().mockResolvedValue([]) },
+      byWorktreeAndAccount: { query: vi.fn().mockResolvedValue([]) },
       // O custo por tarefa (`022` F5). Vazio por default, como os outros.
       byTask: { query: vi.fn().mockResolvedValue([]) },
       byWorktree: {
@@ -264,6 +284,8 @@ function createTrpcMock() {
       // O prompt pendente (`033` T21) — `mandar assim mesmo` e `editar`.
       sendPending: { mutate: vi.fn() },
       discardPending: { mutate: vi.fn() },
+      // Continuar em outra conta (`034` T11). A tela chega na T15.
+      continueIn: { mutate: vi.fn() },
     },
     pr: {
       getByWorktree: { query: vi.fn().mockResolvedValue(NO_PULL_REQUEST) },
@@ -356,6 +378,20 @@ export function installTrpcDefaults(mock: TrpcMock = trpcMock): void {
   // O caso mais comum: worktree sem tarefa. Tarefa não é obrigatória (T1).
   mock.task.getByWorktree.query.mockResolvedValue(null);
   mock.secrets.list.query.mockResolvedValue([]);
+  // A seção Agentes de `/settings` lê as contas no `mount` (`034` T13).
+  mock.agentAccount.list.query.mockResolvedValue([]);
+  // Os encaixes nunca configurados: o default do produto nos três.
+  mock.workspace.slots.query.mockResolvedValue(
+    (["implementador", "revisor", "testador"] as const).map((role) => ({
+      role,
+      from: "default" as const,
+      adapter: "claude",
+      accountId: null,
+      accountLabel: null,
+      model: null,
+      effort: null,
+    })),
+  );
   /*
    * O quadro chama isto no `mount` para todo cartão que tem aviso (`028` T35).
    *

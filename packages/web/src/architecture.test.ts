@@ -457,7 +457,12 @@ describe("regra 7 — um `index.css` por feature", () => {
 //   reescrita da Q8 é quem resolve a divergência de verdade. **Cresceu para
 //   740 na `033` T11**: o `AcpEvent` ganhou `model_unavailable`, e o `switch`
 //   exaustivo do fold não compila sem o `case` — é o contrato cobrando, não
-//   o arquivo acumulando.
+//   o arquivo acumulando. A `034` T9 o trouxe a 733 tirando frases para
+//   `unavailable-text.ts`, e a T11 o levou a 743 pelo mesmo motivo da `033`:
+//   `continued_in` e `continued_from`, com a frase já fora, em
+//   `continuation-text.ts` — o que sobra é o `case`. A `028` T17 o levou a
+//   751 pelo mesmo motivo: `quota_refused` e `turn_failed`, com as frases em
+//   `turn-close-text.ts`.
 // - `LocalPanel.tsx` (444) — não estava em nenhuma lista da T25 nem da Q8; o
 //   disco tinha mais um arquivo do que o texto contava, a mesma classe de
 //   achado que a T2 já registrou para `lib/trpc.js`.
@@ -472,9 +477,8 @@ const LARGE_FILE_CEILING: Readonly<Record<string, number>> = {
   "features/checkout/LocalPanel.tsx": 444,
   "features/checkout/RunDock.tsx": 587,
   "features/checkout/useFileBuffer.ts": 605,
-  "features/conversation/conversation-model.ts": 740,
-  "features/settings/SettingsPanel.tsx": 632,
-  "features/workspace/WorkspacePanel.tsx": 423,
+  "features/conversation/conversation-model.ts": 751,
+  "features/settings/SettingsPanel.tsx": 567,
 };
 
 /** Como `wc -l`: conta quebras de linha, não elementos do `split`. */

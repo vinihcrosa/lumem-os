@@ -6,7 +6,7 @@ import { newId } from "@lumem/shared";
 
 import { project, session } from "../db/schema.js";
 import { createTestCaller } from "../testing/caller.js";
-import { pausedUntil } from "./pause.js";
+import { QUOTA_MAX_WAIT_MS, QUOTA_RETRIES, pausedUntil, quotaWait } from "./pause.js";
 import { pausesByTask, sealOf } from "./seal.js";
 
 /**
@@ -134,5 +134,69 @@ describe("pausesByTask", () => {
     } finally {
       await context.cleanup();
     }
+  });
+});
+
+/**
+ * A metade da T17 que esperava a recusa ter forma (Q32, medida em 2026-09-28).
+ *
+ * *Sem sinal de quando reabre: 3 tentativas com espera crescente, e depois
+ * bloqueia; espera maior que 4 h vira bloqueio.* A recusa medida chegou com
+ * `rateLimit: null` e o *"resets 7pm"* só no texto — então o caso comum é o de
+ * baixo, sem sinal, e o texto não é lido.
+ */
+describe("quotaWait", () => {
+  const NOW = new Date("2026-09-28T18:00:00Z");
+  const minutes = (until: Date) => (until.getTime() - NOW.getTime()) / 60_000;
+
+  it("sem sinal, espera e tenta de novo — cada espera maior que a anterior", () => {
+    const waits = [1, 2, 3].map((refusals) => quotaWait({ refusals, reopensAt: null, now: NOW }));
+
+    for (const wait of waits) expect(wait.kind).toBe("pause");
+    const lengths = waits.map((wait) => (wait.kind === "pause" ? minutes(wait.until) : NaN));
+    expect(lengths[0]).toBeGreaterThan(0);
+    expect(lengths[1]).toBeGreaterThan(lengths[0]!);
+    expect(lengths[2]).toBeGreaterThan(lengths[1]!);
+    // Nenhuma das três é a que a Q32 já chamou de longa demais.
+    expect(lengths.every((length) => length * 60_000 <= QUOTA_MAX_WAIT_MS)).toBe(true);
+  });
+
+  it("depois das três, bloqueia dizendo que tentou", () => {
+    expect(QUOTA_RETRIES).toBe(3);
+
+    const wait = quotaWait({ refusals: QUOTA_RETRIES + 1, reopensAt: null, now: NOW });
+
+    expect(wait).toEqual({ kind: "block", why: "tentei de novo 3 vezes e ela não reabriu" });
+  });
+
+  it("com sinal de quando reabre, espera até lá", () => {
+    const reopensAt = new Date(NOW.getTime() + 50 * 60_000);
+
+    expect(quotaWait({ refusals: 1, reopensAt, now: NOW })).toEqual({ kind: "pause", until: reopensAt });
+  });
+
+  it("se reabre em mais de 4 h, não é pausa: é sua vez de decidir", () => {
+    // Limite semanal, que reabre em dois dias: trocar o agente do encaixe, ou
+    // deixar para depois — a Q32 põe a decisão com você.
+    const reopensAt = new Date(NOW.getTime() + QUOTA_MAX_WAIT_MS + 60_000);
+
+    expect(quotaWait({ refusals: 1, reopensAt, now: NOW })).toEqual({
+      kind: "block",
+      why: "ela só reabre daqui a mais de 4 h",
+    });
+  });
+
+  it("um sinal que já passou não vale: a recusa desmentiu, e a espera volta a crescer", () => {
+    const stale = new Date(NOW.getTime() - 60_000);
+
+    const wait = quotaWait({ refusals: 2, reopensAt: stale, now: NOW });
+
+    expect(wait).toEqual(quotaWait({ refusals: 2, reopensAt: null, now: NOW }));
+  });
+
+  it("com sinal ou sem, o teto de tentativas vale — um sinal errado não vira laço", () => {
+    const reopensAt = new Date(NOW.getTime() + 10 * 60_000);
+
+    expect(quotaWait({ refusals: QUOTA_RETRIES + 1, reopensAt, now: NOW }).kind).toBe("block");
   });
 });

@@ -2,20 +2,25 @@ import { useState } from "react";
 
 import type { AdapterCatalogView } from "@lumem/shared";
 
-import { useAdapterCatalog } from "../agent/index.js";
+import { useAdapterCatalog, useAgentAccounts, type AgentAccountView } from "../agent/index.js";
 import {
+  accountNeedsLogin,
+  chooseAccount,
   chooseModel,
   effortOptionOf,
   initialChoice,
   modelOf,
   modelOptionOf,
   optionsForModel,
+  pickableAccounts,
   unavailableReason,
+  viewForChoice,
   type AgentModelChoice,
 } from "./agent-model.js";
 import { ConfigPills } from "./ConfigPills.js";
 
 const NO_CATALOG: readonly AdapterCatalogView[] = [];
+const NO_ACCOUNTS: readonly AgentAccountView[] = [];
 
 /**
  * A escolha de agente e modelo, com o catálogo de verdade do projeto (`033` T16).
@@ -29,12 +34,14 @@ const NO_CATALOG: readonly AdapterCatalogView[] = [];
  */
 export function useAgentModelChoice(projectId: string | null): {
   catalog: readonly AdapterCatalogView[];
+  accounts: readonly AgentAccountView[];
   choice: AgentModelChoice;
   choose(next: AgentModelChoice): void;
 } {
   const catalog = useAdapterCatalog(projectId).data ?? NO_CATALOG;
+  const accounts = useAgentAccounts().data ?? NO_ACCOUNTS;
   const [chosen, setChosen] = useState<AgentModelChoice | null>(null);
-  return { catalog, choice: chosen ?? initialChoice(catalog), choose: setChosen };
+  return { catalog, accounts, choice: chosen ?? initialChoice(catalog, accounts), choose: setChosen };
 }
 
 /**
@@ -53,6 +60,11 @@ export function useAgentModelChoice(projectId: string | null): {
 
 export interface AgentModelPillProps {
   catalog: readonly AdapterCatalogView[];
+  /**
+   * As contas lidas (`034` T14). A escolha de conta só aparece com duas ou
+   * mais do agente escolhido — com uma, a pílula é a de antes, pixel a pixel.
+   */
+  accounts?: readonly AgentAccountView[];
   value: AgentModelChoice;
   onChange(next: AgentModelChoice): void;
   /** Enquanto a sessão abre, ou com o compositor travado. */
@@ -71,6 +83,7 @@ export interface AgentModelPillProps {
 
 export function AgentModelPill({
   catalog,
+  accounts = NO_ACCOUNTS,
   value,
   onChange,
   disabled = false,
@@ -78,15 +91,20 @@ export function AgentModelPill({
   onLogin,
 }: AgentModelPillProps) {
   const [open, setOpen] = useState(defaultOpen);
-  const view = catalog.find((entry) => entry.adapterId === value.adapterId) ?? null;
-  const model = view === null ? null : modelOf(view, value);
+  const view = viewForChoice(catalog, value, accounts);
+  const account = accounts.find((each) => each.id === value.accountId) ?? null;
+  const model = view === null ? null : modelOf(view, value, account);
   const modelName =
     view === null || model === null
       ? null
       : (modelOptionOf(view.configOptions)?.choices.find((choice) => choice.value === model)?.name ?? model);
 
   const label = view === null ? value.adapterId : view.label;
-  const effort = view === null || model === null ? null : effortFor(view, model, value);
+  const effort = view === null || model === null ? null : effortFor(view, model, value, account);
+  // A conta só entra no botão e no menu quando há o que escolher.
+  const choosable = pickableAccounts(accounts, value.adapterId);
+  const accountLabel = choosable.length > 1 ? (account?.label ?? null) : null;
+  const who = accountLabel === null ? label : `${label} · ${accountLabel}`;
 
   return (
     <>
@@ -96,11 +114,12 @@ export function AgentModelPill({
           className="pill pill--agent focus-ring"
           aria-haspopup="menu"
           aria-expanded={open}
-          aria-label={`agente e modelo: ${label} · ${modelName ?? "carregando modelos"}`}
+          aria-label={`agente e modelo: ${who} · ${modelName ?? "carregando modelos"}`}
           disabled={disabled}
           onClick={() => setOpen(!open)}
         >
           <span className="pill__who">{label}</span>
+          {accountLabel !== null && <span className="pill__acct">{accountLabel}</span>}
           <span className="pill__model">{modelName ?? "carregando modelos…"}</span>
           <span className="pill__caret" aria-hidden="true">
             ▾
@@ -109,15 +128,22 @@ export function AgentModelPill({
 
         {open && !disabled && (
           <div className="slash agent-menu" role="menu" aria-label="agente e modelo">
-            {catalog.map((entry) => (
+            {groupsOf(catalog, value, view).map((entry) => (
               <AdapterGroup
                 key={entry.adapterId}
                 view={entry}
                 chosen={entry.adapterId === value.adapterId ? model : null}
+                accounts={entry.adapterId === value.adapterId && choosable.length > 1 ? choosable : []}
+                needsLogin={(account) => accountNeedsLogin(catalog, account, accounts)}
+                chosenAccount={value.accountId ?? null}
                 onLogin={onLogin}
+                onChooseAccount={(accountId) => {
+                  setOpen(false);
+                  onChange(chooseAccount(entry.adapterId, accountId));
+                }}
                 onChoose={(next) => {
                   setOpen(false);
-                  onChange(chooseModel(entry, next));
+                  onChange(chooseModel(entry, next, value, accounts));
                 }}
               />
             ))}
@@ -145,26 +171,72 @@ export function AgentModelPill({
   );
 }
 
-/** A opção de *effort* do modelo, com o valor que a escolha já tem. */
-function effortFor(view: AdapterCatalogView, model: string, choice: AgentModelChoice) {
+/**
+ * Um grupo por agente, com a leitura que vale para cada um.
+ *
+ * O catálogo tem uma leitura **por conta** desde a `034` T9; desenhar uma por
+ * entrada punha dois grupos `Claude Code` no menu. O do agente escolhido usa a
+ * leitura da conta escolhida; os outros, a primeira — a da padrão.
+ */
+function groupsOf(
+  catalog: readonly AdapterCatalogView[],
+  choice: AgentModelChoice,
+  chosenView: AdapterCatalogView | null,
+): AdapterCatalogView[] {
+  const groups: AdapterCatalogView[] = [];
+  for (const entry of catalog) {
+    if (groups.some((group) => group.adapterId === entry.adapterId)) continue;
+    groups.push(entry.adapterId === choice.adapterId && chosenView !== null ? chosenView : entry);
+  }
+  return groups;
+}
+
+/**
+ * A opção de *effort* do modelo, com o valor que a escolha já tem — ou o padrão
+ * da conta, quando o modelo o oferece: é o que o daemon aplica sem pedido.
+ */
+function effortFor(
+  view: AdapterCatalogView,
+  model: string,
+  choice: AgentModelChoice,
+  account: AgentAccountView | null,
+) {
   const options = optionsForModel(view, model);
   const option = options === null ? null : effortOptionOf(options);
   if (option === null) return null;
+  const offered = (value: string | null | undefined): value is string =>
+    value !== undefined && value !== null && option.choices.some((entry) => entry.value === value);
   const chosen = choice.config[option.id];
-  const valid = chosen !== undefined && option.choices.some((entry) => entry.value === chosen);
-  return valid ? { ...option, currentValue: chosen } : option;
+  if (offered(chosen)) return { ...option, currentValue: chosen };
+  const fallback = account?.defaultEffort;
+  return offered(fallback) ? { ...option, currentValue: fallback } : option;
 }
 
 interface AdapterGroupProps {
   view: AdapterCatalogView;
   /** O modelo marcado neste grupo, ou `null` quando a escolha é de outro ACP. */
   chosen: string | null;
+  /** As contas a escolher neste grupo — vazio quando não há o que escolher. */
+  accounts: readonly AgentAccountView[];
+  chosenAccount: string | null;
+  /** A conta que pede login antes: aparece, mas não se escolhe. */
+  needsLogin(account: AgentAccountView): boolean;
   onChoose(model: string): void;
+  onChooseAccount(accountId: string): void;
   onLogin?(adapterId: string): void;
 }
 
-/** Um ACP: o nome no cabeçalho, e os modelos dele — ou o motivo de não ter. */
-function AdapterGroup({ view, chosen, onChoose, onLogin }: AdapterGroupProps) {
+/** Um ACP: o nome no cabeçalho, as contas dele, e os modelos — ou o motivo de não ter. */
+function AdapterGroup({
+  view,
+  chosen,
+  accounts,
+  chosenAccount,
+  needsLogin,
+  onChoose,
+  onChooseAccount,
+  onLogin,
+}: AdapterGroupProps) {
   const reason = unavailableReason(view);
   const models = modelOptionOf(view.configOptions);
   const headId = `agent-menu-${view.adapterId}`;
@@ -175,6 +247,30 @@ function AdapterGroup({ view, chosen, onChoose, onLogin }: AdapterGroupProps) {
         {view.label}
         {reason !== null && <span className="agent-menu__why">{reason}</span>}
       </div>
+
+      {/* Só o rótulo, que é seu (Q2): o e-mail mora em `/settings`. */}
+      {accounts.length > 0 && (
+        <div className="agent-menu__accts" role="group" aria-label={`conta do ${view.label}`}>
+          {accounts.map((account) => {
+            // Aparece, porque existe; não se escolhe, porque a conversa morreria no primeiro prompt.
+            const locked = needsLogin(account);
+            return (
+              <button
+                type="button"
+                role="menuitemradio"
+                aria-checked={account.id === chosenAccount}
+                className={`agent-menu__acct focus-ring${account.id === chosenAccount ? " agent-menu__acct--on" : ""}`}
+                key={account.id}
+                disabled={locked}
+                {...(locked ? { title: "entre em Configurações → Agentes" } : {})}
+                onClick={() => onChooseAccount(account.id)}
+              >
+                {locked ? `${account.label} · sem login` : account.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {reason !== null ? (
         /*

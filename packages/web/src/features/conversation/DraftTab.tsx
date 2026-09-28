@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import type { AdapterCatalogView } from "@lumem/shared";
 
+import type { AgentAccountView } from "../agent/index.js";
 import { arrive } from "../../lib/navigation.js";
 import { useSessionMutations, type Scope } from "../checkout/index.js";
 import { Banner, Button, Glyph } from "../../ui/index.js";
@@ -24,6 +25,8 @@ export interface DraftTabProps {
   /** O nome da worktree, dito no estado vazio. */
   worktreeName: string;
   catalog: readonly AdapterCatalogView[];
+  /** As contas lidas (`034` T14); a pílula só as mostra com duas ou mais. */
+  accounts?: readonly AgentAccountView[];
   choice: AgentModelChoice;
   onChoiceChange(next: AgentModelChoice): void;
   draft: string;
@@ -39,6 +42,7 @@ export interface DraftTabProps {
 export function DraftTab({
   worktreeName,
   catalog,
+  accounts,
   choice,
   onChoiceChange,
   draft,
@@ -128,6 +132,7 @@ export function DraftTab({
           <AgentModelPill
             key={error ?? "ok"}
             catalog={catalog}
+            {...(accounts === undefined ? {} : { accounts })}
             value={choice}
             onChange={onChoiceChange}
             disabled={opening}
@@ -176,7 +181,7 @@ export function DraftAgentTab({
   initialText = "",
   onCreated,
 }: DraftAgentTabProps) {
-  const { catalog, choice, choose } = useAgentModelChoice(projectId);
+  const { catalog, accounts, choice, choose } = useAgentModelChoice(projectId);
   const [draft, setDraft] = useState(initialText);
   const { createAgent } = useSessionMutations(scope);
 
@@ -184,7 +189,11 @@ export function DraftAgentTab({
     const text = draft;
     if (text.trim() === "" || createAgent.isPending) return;
     createAgent.mutate(
-      { adapterId: choice.adapterId, config: { ...choice.config } },
+      {
+        adapterId: choice.adapterId,
+        config: { ...choice.config },
+        ...(choice.accountId === undefined ? {} : { agentAccountId: choice.accountId }),
+      },
       {
         onSuccess: (created) => {
           arrive({ sessionId: created.id, text, send: true });
@@ -199,6 +208,7 @@ export function DraftAgentTab({
       <DraftTab
         worktreeName={worktreeName}
         catalog={catalog}
+        accounts={accounts}
         choice={choice}
         onChoiceChange={choose}
         draft={draft}

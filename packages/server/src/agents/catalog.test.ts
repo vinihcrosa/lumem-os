@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { project, roleBinding, type NamedAgentRow } from "../db/schema.js";
 import { createAgentCatalog, resolveFromBindings } from "./catalog.js";
+import { createAgentAccountRepository } from "../repositories/agentAccount.js";
+import { configForAdapter } from "../repositories/agentConfig.js";
 import { createTestCaller, type TestCaller } from "../testing/caller.js";
 
 /**
@@ -26,6 +28,8 @@ function fakeAgent(name: string, patch: Partial<NamedAgentRow> = {}): NamedAgent
     name,
     adapter: "claude",
     model: null,
+    accountId: null,
+    effort: null,
     instructions: "",
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -111,7 +115,58 @@ async function scene() {
   return { api, db, workspaceId: space.id, withProject, catalog: createAgentCatalog(db) };
 }
 
+describe("a conta e o effort na cascata (`034` T10)", () => {
+  it("encaixe que diz só o adaptador herda conta, modelo e effort — tudo `null`", () => {
+    // `null` é *herde da conta*: a conta padrão do agente, e o trio dela. Quem
+    // resolve é a costura impura; a cascata só não inventa um valor.
+    const resolved = resolveFromBindings({ workspace: fakeAgent("revisor") });
+
+    expect(resolved).toMatchObject({ adapter: "claude", accountId: null, model: null, effort: null });
+  });
+
+  it("encaixe que nomeia conta e effort os leva adiante", () => {
+    const resolved = resolveFromBindings({
+      project: fakeAgent("revisor-do-trabalho", { accountId: "acct-2", model: "sonnet", effort: "low" }),
+    });
+
+    expect(resolved).toMatchObject({ accountId: "acct-2", model: "sonnet", effort: "low" });
+  });
+
+  it("o default também herda tudo", () => {
+    expect(resolveFromBindings({})).toMatchObject({ accountId: null, effort: null });
+  });
+});
+
 describe("o catálogo", () => {
+  it("guarda conta e effort, e recusa uma conta de outro agente (`034` T10)", async () => {
+    context = createTestCaller();
+    const workspace = await context.api.workspace.create({ name: "pessoal" });
+    const agents = createAgentCatalog(context.db);
+    const claude = await configForAdapter(context.db, "claude");
+    const codex = await configForAdapter(context.db, "codex");
+    const accounts = createAgentAccountRepository(context.db);
+    const claudeAccount = (await accounts.defaultFor(claude))!;
+    const codexAccount = (await accounts.defaultFor(codex))!;
+
+    const created = await agents.create({
+      workspaceId: workspace.id,
+      name: "revisor",
+      adapter: "claude",
+      accountId: claudeAccount.id,
+      effort: "high",
+    });
+
+    expect(created).toMatchObject({ accountId: claudeAccount.id, effort: "high" });
+    await expect(
+      agents.create({
+        workspaceId: workspace.id,
+        name: "revisor-errado",
+        adapter: "claude",
+        accountId: codexAccount.id,
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_ARGUMENT" });
+  });
+
   it("recusa um adaptador que não existe, e diz qual veio", async () => {
     const { catalog, workspaceId } = await scene();
 

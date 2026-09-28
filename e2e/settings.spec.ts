@@ -189,3 +189,34 @@ test("a lista de tarefas ficou sem os controles", async ({ page }) => {
   await expect(page.getByRole("button", { name: "assistido" })).toHaveCount(0);
   await expect(page.getByText("LUMEM_TASKS_BUDGET")).toHaveCount(0);
 });
+
+/**
+ * A tela passa da janela desde que as contas da `034` entraram, e ela não
+ * rolava: `.set` não tinha `overflow`, e a coluna do meio cortava o resto. O
+ * teste de componente não vê isso — jsdom não tem layout —, e `toBeVisible`
+ * também não, porque o elemento recortado continua "visível". Quem responde é
+ * `elementFromPoint`, depois de rolar com a roda do mouse, como uma pessoa.
+ */
+test("a tela rola até a última seção", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto("/");
+  await ensureWorkspace(page);
+  await openSettings(page);
+
+  const last = page.getByRole("heading", { name: "Exibição" });
+  await expect(last).toBeAttached();
+
+  await page.locator(".set").hover();
+  for (let i = 0; i < 12; i += 1) await page.mouse.wheel(0, 600);
+
+  await expect
+    .poll(() =>
+      last.evaluate((element) => {
+        const box = element.getBoundingClientRect();
+        const y = box.top + box.height / 2;
+        if (y < 0 || y > window.innerHeight) return false;
+        return document.elementFromPoint(box.left + 4, y)?.closest("h2") === element;
+      }),
+    )
+    .toBe(true);
+});

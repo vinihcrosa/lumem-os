@@ -648,3 +648,41 @@ describe("o modo do Lumem", () => {
     });
   });
 });
+
+describe("a recusa por cota (`028` T17, medida em 2026-09-28)", () => {
+  const refused: AcpEvent = {
+    type: "quota_refused",
+    accountId: "acct_ted",
+    accountLabel: "technomar-ted",
+    agent: "Claude Code",
+    message: "Internal error: You've hit your weekly limit · resets 7pm (America/Sao_Paulo)",
+  };
+
+  it("atravessa o fio com a conta e o texto do adaptador", () => {
+    const wire = encodeAcpServerMessage({ type: "event", at: 1, event: refused });
+    const result = decodeAcpServerMessage(wire);
+
+    expect(result.ok && result.message.type === "event" && result.message.event).toEqual(refused);
+  });
+
+  it("uma sessão sem conta conhecida ainda é uma recusa", () => {
+    // Nulos, e não ausentes: a linha tem de dizer *o que* ela não sabe, e uma
+    // sessão aberta antes da `034` não tem conta para nomear.
+    const wire = encodeAcpServerMessage({
+      type: "event",
+      at: 1,
+      event: { ...refused, accountId: null, accountLabel: null },
+    });
+
+    expect(decodeAcpServerMessage(wire).ok).toBe(true);
+  });
+});
+
+describe("o turno que falhou", () => {
+  it("atravessa o fio com a frase do adaptador", () => {
+    const event: AcpEvent = { type: "turn_failed", message: "Internal error: o adaptador desistiu" };
+    const result = decodeAcpServerMessage(encodeAcpServerMessage({ type: "event", at: 1, event }));
+
+    expect(result.ok && result.message.type === "event" && result.message.event).toEqual(event);
+  });
+});

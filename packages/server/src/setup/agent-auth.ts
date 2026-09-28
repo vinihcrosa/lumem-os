@@ -40,6 +40,9 @@ export interface StartAgentAuthOptions {
   methodId: string;
   apiKey?: string;
   adapterVersion?: string;
+  /** O ambiente da conta que está entrando (`034` T6). */
+  env?: Readonly<Record<string, string>>;
+  unsetEnv?: readonly string[];
 }
 
 export interface AgentAuthService {
@@ -105,6 +108,10 @@ export function createAgentAuthService({
           command: options.command,
           ...(options.args ? { args: options.args } : {}),
           cwd: options.cwd,
+          ...(options.env === undefined ? {} : { env: options.env }),
+          ...(options.unsetEnv === undefined || options.unsetEnv.length === 0
+            ? {}
+            : { unsetEnv: options.unsetEnv }),
           methodId: options.methodId,
           ...(options.apiKey === undefined ? {} : { apiKey: options.apiKey }),
           ...(options.adapterVersion === undefined

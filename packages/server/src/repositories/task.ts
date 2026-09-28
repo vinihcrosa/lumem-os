@@ -194,6 +194,21 @@ export interface TaskRepository {
    */
   countBounce(id: string): Promise<number>;
   /**
+   * A cota recusou o turno (`028` T17): devolve a tentativa e conta a recusa.
+   *
+   * **Uma escrita só**, como o `countAttempt`: devolver numa e contar noutra
+   * abriria a janela em que a recusa já foi contada e a tentativa ainda não
+   * voltou — e é a tentativa que a fila lê para decidir se ainda há vez.
+   * Devolve quantas recusas seguidas já houve.
+   */
+  refuseForQuota(id: string): Promise<number>;
+  /**
+   * Até quando a esteira espera a cota (`028` T17). `null` é *a cota reabriu*:
+   * limpa a espera **e** zera as recusas, porque a próxima recusa é outro
+   * episódio.
+   */
+  pauseUntil(id: string, until: Date | null): Promise<void>;
+  /**
    * O interruptor da [Q40](../../../../docs/features/028-autonomous-orchestration/open-questions.md).
    *
    * `off` é o que **assumir** o volante escreve, e `inherit` é voltar a seguir
@@ -466,6 +481,9 @@ export function createTaskRepository(db: Db): TaskRepository {
               // O aviso é sobre o estado, e o estado mudou: o que foi avisado
               // não é mais o que está lá.
               notifiedAt: null,
+              // Mudar de etapa é um turno que rodou: a cota reabriu (`028` T17).
+              quotaRefusals: 0,
+              pausedUntil: null,
               updatedAt: new Date(),
             })
             .where(eq(task.id, id))
@@ -533,6 +551,8 @@ export function createTaskRepository(db: Db): TaskRepository {
                           preparedRole: null,
                           blockedReason: null,
                           notifiedAt: null,
+                          quotaRefusals: 0,
+                          pausedUntil: null,
                         }),
                     updatedAt: new Date(),
                   }
@@ -571,6 +591,9 @@ export function createTaskRepository(db: Db): TaskRepository {
           // `attempts` zera porque a etapa mudou — é a mesma regra de sempre, e
           // é justamente por ela que `bounces` precisa existir em separado.
           attempts: 0,
+          // A volta é um turno do revisor que rodou: a cota não está fechada.
+          quotaRefusals: 0,
+          pausedUntil: null,
           statusChangedAt: new Date(),
           updatedAt: new Date(),
         })
@@ -591,6 +614,34 @@ export function createTaskRepository(db: Db): TaskRepository {
       // apagada e nunca saberia.
       if (!row) throw new DomainError("NOT_FOUND", `tarefa ${id} não existe`);
       return row.attempts;
+    },
+
+    async refuseForQuota(id) {
+      const [row] = await db
+        .update(task)
+        .set({
+          // `max` e não `- 1` seco: uma recusa sem tentativa contada antes — o
+          // clique do `assistido` — não pode deixar o contador negativo.
+          attempts: sql`max(${task.attempts} - 1, 0)`,
+          quotaRefusals: sql`${task.quotaRefusals} + 1`,
+          updatedAt: new Date(),
+        })
+        .where(eq(task.id, id))
+        .returning({ quotaRefusals: task.quotaRefusals });
+      if (!row) throw new DomainError("NOT_FOUND", `tarefa ${id} não existe`);
+      return row.quotaRefusals;
+    },
+
+    async pauseUntil(id, until) {
+      await require_(id);
+      await db
+        .update(task)
+        .set(
+          until === null
+            ? { pausedUntil: null, quotaRefusals: 0, updatedAt: new Date() }
+            : { pausedUntil: until, updatedAt: new Date() },
+        )
+        .where(eq(task.id, id));
     },
 
     async setAutonomy(id, autonomy) {

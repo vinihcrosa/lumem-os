@@ -28,6 +28,12 @@ export interface LoginOptions {
   args: readonly string[];
   /** Somewhere that exists. The login writes to the user's home, not here. */
   cwd: string;
+  /**
+   * O ambiente da conta que está entrando (`034` T6): o login grava no
+   * diretório que a variável aponta, e na conta sem diretório ela fica ausente.
+   */
+  env?: Readonly<Record<string, string>>;
+  unsetEnv?: readonly string[];
   cols?: number | undefined;
   rows?: number | undefined;
 }
@@ -44,6 +50,8 @@ export function startLogin({
   command,
   args,
   cwd,
+  env,
+  unsetEnv,
   cols,
   rows,
 }: LoginOptions): LoginTerminal {
@@ -62,6 +70,8 @@ export function startLogin({
     command,
     args,
     cwd,
+    ...(env === undefined ? {} : { env }),
+    ...(unsetEnv === undefined || unsetEnv.length === 0 ? {} : { unsetEnv }),
     ...(cols === undefined ? {} : { cols }),
     ...(rows === undefined ? {} : { rows }),
   });
