@@ -32,15 +32,28 @@ As três que a [auditoria](../../project/harness-audit.md) fez ao time humano, r
 
 ## Abertas
 
-- [ ] **Q1 — O ruleset da `main` tem `bypass_actor`, ou não tem ninguém? ([T2](tasks.md))**
+- [x] **Q1 — O ruleset da `main` tem `bypass_actor`, ou não tem ninguém? ([T2](tasks.md))**
   Com uma pessoa só, um bypass de admin é confortável — e é exatamente a inércia da A2 voltando por
   outra porta: um portão que o dono atravessa sem atrito não é portão nos dias em que ele está com
   pressa, que são os dias que importam.
   **Recomendação:** `bypass_actors: []`. A saída de emergência passa a ser desativar o ruleset, que é
   um evento no audit log — visível e datado — em vez de um push que não deixa rastro de exceção.
   **O que a resposta muda:** um campo no JSON da T2.
+  **R:** **ninguém — `bypass_actors: []`**, respondido em 2026-09-28. O argumento que decidiu não estava
+  na recomendação: **o `bypass` é da conta, não da pessoa.** Os agentes usam o `gh` e o token do dono;
+  um bypass para ele é um bypass para qualquer agente na máquina dele, e aí o `git push origin main`
+  que o guarda da [T18](tasks.md) recusa continuaria aceito pelo GitHub. Duas consequências, as duas
+  aceitas:
+  - **a release deixa de ir direto para a `main`.** Os `chore(release): vX.Y.Z` de 0.3.0 a 0.6.0 foram
+    push direto, sem PR; com o ruleset ativo, a release vira branch com `pnpm version:set` → PR → CI
+    verde → mescla → tag no commit mesclado. O `release.yml` dispara pela tag e não muda. Em troca,
+    toda versão publicada passou pelo CI, o que hoje não é garantido;
+  - **o check do SonarQube não entra** entre os obrigatórios: depende de serviço de terceiro, e o
+    próprio `sonarqube.yml` diz que ficou separado para que uma queda dele não pareça suíte quebrada.
+  Em 2026-09-28 já existe um ruleset `main-protect` com `bypass_actors: []`, **desligado** e sem
+  `required_status_checks`: a T2 o atualiza em vez de criar outro.
 
-- [ ] **Q2 — `oxlint` ou `typescript-eslint`? ([T9](tasks.md))**
+- [x] **Q2 — `oxlint` ou `typescript-eslint`? ([T9](tasks.md))**
   A regra de maior valor neste repositório é `no-floating-promises` (o daemon é cheio de `void` e de
   `async` disparado), e ela **precisa de informação de tipo** — o que hoje só o `typescript-eslint`
   entrega, e ele custa segundos de CI. O `oxlint` é quase instantâneo e não faz análise de tipo.
@@ -50,6 +63,26 @@ As três que a [auditoria](../../project/harness-audit.md) fez ao time humano, r
   ele ganha, porque as regras com tipo são as que pegam defeito de verdade; acima disso, `oxlint`
   agora e o type-aware fica no backlog.
   **O que a resposta muda:** o arquivo de configuração e o tempo do `gate:build`.
+  **R:** **`oxlint --type-aware`**, respondido em 2026-09-28 — **contra a letra do critério**, porque o
+  critério se apoiava numa premissa que envelheceu: o oxlint **passou a ter** análise com tipo
+  (`--type-aware`, pelo `oxlint-tsgolint`). Medido no mesmo dia sobre `packages`, `scripts` e `e2e`,
+  com as duas ferramentas instaladas fora do repositório:
+
+  | | Tempo | `no-floating-promises` | `no-misused-promises` |
+  |---|---|---|---|
+  | `oxlint@1.86.0 --type-aware` | **2,7 s** | 0 | 2 |
+  | `typescript-eslint@8.71.0`, `projectService` | **18,9 s** | 0 | 2 — os **mesmos** |
+  | `oxlint`, regras padrão, sem tipo | **0,8 s** | — | — (42 outros achados) |
+
+  Um canário — um arquivo com uma promise flutuante de propósito — foi acusado, então o zero é real.
+  Os dois `no-misused-promises` são os mesmos nas duas ferramentas (`App.tsx:128`, `MainColumn.tsx:61`:
+  função `async` num atributo JSX que espera `void`). As regras padrão acham mais 42 — 18 variáveis sem
+  uso, 10 *spread* inútil, 7 `no-control-regex` (provavelmente as regex de ANSI, de propósito), **4
+  `no-unsafe-optional-chaining`**, que são as que podem ser defeito, e 3 outras. Com achados idênticos,
+  o que decide é **7× mais rápido** e ~500 regras de correção embutidas sem configuração. O risco
+  aceito é a maturidade: o `tsgolint` usa o `typescript-go`, que pode divergir do `tsc 5.9` em casos de
+  borda — e trocar pelo `typescript-eslint` custa uma tarde e 20 s de CI, com gatilho no
+  [backlog](../../project/backlog.md).
 
 - [ ] **Q3 — Onde mora o teste de arquitetura? ([T10](tasks.md))**
   Candidatos: `scripts/` (projeto vitest `scripts`, ferramenta do repositório) ou `packages/shared`

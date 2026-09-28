@@ -480,7 +480,7 @@ uma Fase 0 que mede se os agentes que a esteira sobe carregam a configuração d
 | Arquivo | O quê |
 |---|---|
 | [prd.md](features/024-dev-harness/prd.md) | o problema, as três fases, as três classes de N3, os não-objetivos com motivo, e o que muda arquivo por arquivo |
-| [open-questions.md](features/024-dev-harness/open-questions.md) | 3 respondidas antes da PRD existir (o token era só do CD; `main` desprotegida por inércia; as classes de N3 confirmadas) e 12 da emenda e da v0.1 — as Q9–Q15, da emenda, respondidas em 2026-09-28 |
+| [open-questions.md](features/024-dev-harness/open-questions.md) | 3 respondidas antes da PRD existir (o token era só do CD; `main` desprotegida por inércia; as classes de N3 confirmadas); as Q9–Q15, da emenda, respondidas em 2026-09-28; as Q1–Q8 abertas |
 | [tasks.md](features/024-dev-harness/tasks.md) | 22 tasks: a Fase 0 (T0, entregue) e as 3 fases, com T17–T21 na F1 — e o aceite de cada uma é comportamento observado, não configuração lida |
 
 ### [workspace-tasks/](features/022-workspace-tasks/) — tarefa como entidade

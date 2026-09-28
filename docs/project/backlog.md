@@ -821,6 +821,17 @@ cada linha existe.
 pessoa no repositório — a partir daí a discussão de estilo passa a custar tempo de duas pessoas, que é
 exatamente o que um formatador compra.
 
+### `typescript-eslint` no lugar do `oxlint --type-aware` — `P`
+
+A [Q2](../features/024-dev-harness/open-questions.md) escolheu o `oxlint --type-aware` (2,7 s) contra o
+`typescript-eslint` (18,9 s), com os mesmos achados medidos em 2026-09-28. O que se aceitou foi a
+maturidade: a análise com tipo do oxlint usa o `typescript-go` pelo `oxlint-tsgolint`, que pode
+divergir do `tsc` que o repositório usa. Trocar custa uma tarde e ~20 s de CI.
+
+**De onde veio:** [dev-harness Q2](../features/024-dev-harness/open-questions.md) · **Volta quando:** o
+lint com tipo discordar do `tsc` num caso real — um falso positivo que não se cala sem desligar a regra,
+ou um defeito que o `typescript-eslint` pega e ele não.
+
 ### Sandbox de filesystem para o agente — `M`
 
 A [T4](../features/024-dev-harness/tasks.md) versiona um `deny` com alvos **nomeados** (`~/.npmrc`, `~/.aws`,

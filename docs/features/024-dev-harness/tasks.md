@@ -130,7 +130,15 @@ de 72h e o número da versão não volta nunca). Hoje custa um comando e não pa
 **Classe:** permissão · **Previne:** `git push --force origin main` (324 commits, um comando) e
 merge de PR vermelha — hoje `gh pr merge` funciona com CI falhando, porque não existe check
 obrigatório. É o que converte todo o estoque de sensores de conselho em portão.
-**Trava:** [Q1](open-questions.md) — `bypass_actor` ou ninguém.
+**Trava:** ~~[Q1](open-questions.md)~~ — respondida em 2026-09-28: **ninguém**.
+
+> **Nota — 2026-09-28.** Já existe um ruleset, `main-protect` (id `23258383`), com `deletion`,
+> `non_fast_forward`, `required_linear_history` e `pull_request`, `bypass_actors: []` — mas
+> **`enforcement: disabled`** e **sem `required_status_checks`**. O passo 1 **atualiza esse** (`PUT
+> …/rulesets/23258383`) em vez de criar um segundo; o JSON abaixo continua sendo o alvo, mais o
+> `required_linear_history` que ele já tem. Os nomes dos contextos foram conferidos de novo em
+> `gh pr checks 92`: `typecheck, build e testes` e `e2e`. O `SonarQube` **não** entra
+> ([Q1](open-questions.md)).
 
 **What**:
 1. Criar o ruleset. Os nomes dos contextos são os **nomes dos jobs**, conferidos em `gh pr checks 55`:
@@ -175,6 +183,10 @@ JSON
    fecha o buraco de "verde num commit que não é o que vai mesclar".
 4. Ligar `delete_branch_on_merge` (hoje `false`), porque com PR obrigatória a branch passa a ser
    descartável: `gh api -X PATCH repos/:owner/:repo -F delete_branch_on_merge=true`.
+5. **A release passa por PR** ([Q1](open-questions.md)): branch com `pnpm version:set x.y.z` → PR → CI
+   verde → mescla → `git tag vx.y.z` no commit mesclado → `git push origin vx.y.z`. Escrever isso no
+   runbook *Publishing a release* do Outline (`Lumem · Team` › Runbooks) e na linha do `version:set`
+   no `CLAUDE.md`.
 
 **Where**: configuração do repositório no GitHub. Nada no git.
 
@@ -183,7 +195,8 @@ JSON
 - uma branch descartável com um teste deliberadamente quebrado, aberta como PR, mostra o merge
   **bloqueado** na UI e `gh pr merge` **recusa** (fechar a PR e apagar a branch depois — o experimento
   é o aceite);
-- `gh api repos/:owner/:repo/rulesets --jq '.[].name'` devolve `main protegida` (confirmação
+- a primeira release depois disto sai pelo caminho do passo 5, e o `release.yml` dispara pela tag;
+- `gh api repos/:owner/:repo/rulesets/23258383 --jq .enforcement` devolve `active` (confirmação
   secundária, não o aceite).
 
 **Gate**: o experimento da PR vermelha acima
@@ -668,26 +681,29 @@ só na skill: sem isto, o `check-docs` acusaria toda feature nova de `Status:` e
 tem sensor nenhum** — promessa não-aguardada (o daemon é cheio de `void` e de `async` disparado),
 `catch` vazio, `await` em laço, import não usado, variável sombreada. E previne a deriva de estilo que
 o agente **copia do que encontra**: inconsistência existente é dívida composta.
-**Trava:** [Q2](open-questions.md).
+**Trava:** ~~[Q2](open-questions.md)~~ — respondida em 2026-09-28: **`oxlint --type-aware`**.
 
 **What**:
-1. **Medir antes de escolher**, no molde da fase 0 da [second-agent](../021-second-agent/prd.md). Rodar
-   `oxlint` e `typescript-eslint` (perfil só-correção) sobre `packages/*/src`, `e2e` e `scripts`, e
-   registrar: tempo de execução e número de achados por regra. Critério declarado **antes** da
-   medição: se o `typescript-eslint` couber em **60s**, ele ganha — as regras com informação de tipo
-   são as que pegam defeito de verdade; acima disso, `oxlint` agora e o type-aware vai para o backlog
-   com o número medido como gatilho.
+1. ~~**Medir antes de escolher**~~ — **feito em 2026-09-28**, e a tabela está na
+   [Q2](open-questions.md): os dois acham os mesmos 2 `no-misused-promises` e 0 `no-floating-promises`;
+   o `oxlint --type-aware` em 2,7 s, o `typescript-eslint` em 18,9 s. O passo começa daqui:
+   `oxlint` e `oxlint-tsgolint` como dependências de desenvolvimento da raiz, `.oxlintrc.json` com a
+   categoria `correctness` mais `typescript/no-floating-promises`, `typescript/no-misused-promises` e
+   `typescript/await-thenable`, e os **44 achados** de hoje triados um a um — consertados, ou
+   desligados **na linha** com o motivo. Os `eslint-disable` que já existem no código (`react/…`,
+   `no-bitwise`) são lidos pelo oxlint: os que não calam nada saem.
 2. Configurar **só correção**. Nada de estilo, nada de ordem de import, nada que um formatador
    resolveria — formatador está fora de escopo por decisão do §4 da PRD (reformatar 105k linhas apaga
    o `git blame` de um repositório de 24 dias).
 3. `pnpm lint` na raiz, com `--max-warnings 0`: warning que não falha é ruído que se aprende a ignorar.
 4. Entrar no `gate:build` (que é o gate que hoje responde "o repositório compila") e no job `checks`
-   do CI, **depois** do `typecheck` — erro de tipo primeiro, porque é o mais legível dos dois.
+   do CI, **depois** do `typecheck` — erro de tipo primeiro, porque é o mais legível dos dois. Com
+   2,7 s medidos, ele cabe também no `pre-push` da [T17](#t17-hooks-de-git-versionados-ligados-pelo-setup).
 5. Registrar em `docs/project/testing.md`: o que o lint garante, o que ele **não** garante, e o tempo
    medido.
 
-**Where**: `eslint.config.ts` ou `.oxlintrc.json` (conforme a Q2), `package.json` (raiz),
-`.github/workflows/ci.yml`, `docs/project/testing.md`.
+**Where**: `.oxlintrc.json` (novo), `package.json` e `pnpm-lock.yaml` (raiz),
+`.github/workflows/ci.yml`, os arquivos dos 44 achados, `docs/project/testing.md`.
 
 **Done when**:
 - `pnpm lint` sai **0** no HEAD;
