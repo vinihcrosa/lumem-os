@@ -885,15 +885,23 @@ decisão de ferramenta, não de repositório.
 **De onde veio:** [harness-audit §6](harness-audit.md), itens 6 e 7 · **Volta quando:** o `deny` da T4
 for atravessado por um caminho que ele não previu, ou quando o agente rodar sem supervisão de tela.
 
-### `CODEOWNERS` e aprovação obrigatória em PR — `P`
+### `CODEOWNERS` e aprovação obrigatória em PR — `P` · **a lista do primeiro colaborador**
 
 A [T2](../features/024-dev-harness/tasks.md) protege a `main` com PR e checks obrigatórios, mas com
 `required_approving_review_count: 0` — o GitHub não permite aprovar a própria PR, e exigir uma
 aprovação num repositório de uma pessoa travaria o merge para sempre. `CODEOWNERS` teria a regra
 `* @vinihcrosa`, que não regula nada.
 
+**No dia em que entrar a segunda pessoa**, este item é a lista — os outros continuam onde estão, e
+aqui ficam os links ([Q8](../features/024-dev-harness/open-questions.md), 2026-09-28):
+- [ ] `required_approving_review_count` vai a **1**, e o `CODEOWNERS` nasce;
+- [ ] reabrir o [formatador no repositório inteiro](#formatador-no-repositório-inteiro--m);
+- [ ] reabrir o [revisor de IA no CI](#revisor-de-ia-no-ci--m);
+- [ ] reler a [Q1 da dev-harness](../features/024-dev-harness/open-questions.md): *ninguém passa por
+  cima* continua valendo, mas a saída de emergência — desligar o ruleset — passa a afetar outra pessoa.
+
 **De onde veio:** [dev-harness Q8](../features/024-dev-harness/open-questions.md) · **Volta quando:** o primeiro
-colaborador — no mesmo dia, `required_approving_review_count` vai a 1 e o `CODEOWNERS` nasce.
+colaborador — no mesmo dia, esta lista inteira.
 
 ### Grading de qualidade por domínio, com histórico — `M`
 

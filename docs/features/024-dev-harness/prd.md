@@ -2,7 +2,7 @@
 
 > **Status:** em execução
 > **Histórico:** v0.1 — proposto em **2026-09-07**, a partir da [auditoria de harness](../../project/harness-audit.md) medida no commit `40a0883` (v0.3.1). v0.2 — **2026-09-28**: remedido, e o escopo cresce para **hooks** (de git e de agente) e **skills** — ver o [§8](#8-emenda--2026-09-28-hooks-skills-e-o-que-três-semanas-não-mudaram).
-> **Perguntas:** [open-questions.md](open-questions.md) — 15 depois da emenda; Q9–Q15 respondidas em 2026-09-28, Q1–Q8 abertas
+> **Perguntas:** [open-questions.md](open-questions.md) — **todas as 18 respondidas** (A1–A3 em 2026-09-07; Q1–Q15 em 2026-09-28)
 > **Tasks:** [tasks.md](tasks.md) — 23 tasks: a Fase 0 (T0, entregue) e as 3 fases, com T17–T21 na F1 e a T22 na F2; a T15 saiu de escopo
 > **Issue de rastreio:** [#72](https://github.com/vinihcrosa/lumem-os/issues/72), com marco por fase
 > **Depende de:** nada. A [daemon-auth](../019-daemon-auth/prd.md) é vizinha e **não** é pré-requisito:

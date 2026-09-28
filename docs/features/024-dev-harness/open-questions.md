@@ -179,13 +179,20 @@ As três que a [auditoria](../../project/harness-audit.md) fez ao time humano, r
   acabou de ser adiada, e a Fase 1 ainda não rodou. Ele está no [backlog](../../project/backlog.md) com
   gatilho.
 
-- [ ] **Q8 — Quando entrar a segunda pessoa, o que muda?**
+- [x] **Q8 — Quando entrar a segunda pessoa, o que muda?**
   A T2 nasce com zero aprovações e a PRD tira `CODEOWNERS` de escopo, os dois por causa do "uma pessoa
   só" da A2. Isso é uma decisão com data de validade.
   **Recomendação:** registrar o gatilho no [backlog](../../project/backlog.md) em vez de deixar a
   reversão para a memória: no primeiro colaborador, `required_approving_review_count` vai a 1 e o
   `CODEOWNERS` nasce.
   **O que a resposta muda:** nada hoje; evita a arqueologia depois.
+  **R:** **a recomendação, que já estava aplicada — e virou lista de conferência**, respondido em
+  2026-09-28. O item *`CODEOWNERS` e aprovação obrigatória em PR* do [backlog](../../project/backlog.md)
+  já existia com o gatilho; o que mudou é que o gatilho *segunda pessoa* passou a morar em três itens do
+  repositório (aprovação e `CODEOWNERS`, formatador, revisor de IA no CI — este último nascido na
+  [Q5](#abertas)). O item do `CODEOWNERS` passa a ser a **lista do primeiro colaborador**, com link para
+  os outros, e mais uma linha: reler a [Q1](#abertas), porque a saída de emergência *"desligar o ruleset"*
+  passa a afetar outra pessoa.
 
 ---
 
