@@ -85,6 +85,11 @@ Monorepo pnpm + Turborepo. `packages/shared` (contratos), `packages/server` (dae
 
 Antes de dizer que uma task está pronta, rode o gate que ela declara. Detalhes em [docs/project/testing.md](docs/project/testing.md).
 
+**Teste de fronteira:** regra **dentro** de um pacote mora no pacote (o `web` tem a dele em
+`packages/web/src/architecture.test.ts`); regra **entre** pacotes mora em
+`scripts/package-boundaries.test.ts`. Arquivo acima do teto (400 em `web/src/features/`, 700 no resto)
+só cresce subindo o número no mapa **com motivo**.
+
 **A política do agente é do repositório**: `.claude/settings.json`, com o motivo de cada `deny` em
 `scripts/harness/policy.ts`, e um **guarda** (`scripts/harness/guard.ts`, no `PreToolUse`) que lê o
 comando inteiro — `git push origin +main`, `HUSKY=0`, escrita fora do checkout. O `~/.claude/settings.json`

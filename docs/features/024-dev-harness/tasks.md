@@ -888,7 +888,18 @@ difícil de testar do repositório, e o que mais cresce.
 - o mapa tem exatamente os arquivos acima do teto no dia, e o teste passa no HEAD.
 
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ não iniciada
+**Status**: ✅ entregue em 2026-09-28. `scripts/package-boundaries.test.ts` com as três asserções mais
+uma — nenhum import relativo de produção sai do próprio pacote —, e as três provadas vermelhas de
+propósito: um `import` de `@lumem/server` dentro do `shared`, o `@lumem/server` tirado das devDependencies
+do `web`, e 20 linhas a mais no `bootstrap.ts` (*"cresceu de 780 para 800"*). O mapa nasceu com os
+**12** arquivos acima de 700 no dia, cada um com `reason`, e a regra 8 da `032` ganhou o mesmo campo.
+
+Duas coisas que o sensor achou no primeiro dia:
+- **o crescimento, e era meu:** as exceções de lint na linha da T9 somaram 5 linhas ao `AcpManager` e 1
+  ao `worktree.ts` — o mapa subiu com esse motivo escrito, que é exatamente o mecanismo da Q4;
+- **um import que atravessa o pacote em produção:** `cli/src/postinstall.ts` importa
+  `scripts/ensure-pty-helper.js` da raiz. Fica, como exceção nomeada: o esbuild o embute no
+  `bin/postinstall.mjs`, e nada de fora do pacote é lido na instalação.
 
 ---
 
