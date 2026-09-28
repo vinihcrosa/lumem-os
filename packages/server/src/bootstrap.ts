@@ -40,7 +40,6 @@ import { runTrackerLoop } from "./tracker/loop.js";
 import { writeMark, type Mark } from "./tracker/marks.js";
 import { numberOfWorktree, verdictOfWorktree } from "./tasks/conveyor-wiring.js";
 import { defaultAccountIdOf } from "./repositories/agentAccount.js";
-import { configForAdapter } from "./repositories/agentConfig.js";
 import { reproduce } from "./tasks/reproduce.js";
 import { createCallerFactory } from "./trpc.js";
 import { appRouter } from "./routers/index.js";

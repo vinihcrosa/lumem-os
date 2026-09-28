@@ -90,7 +90,9 @@ export function useLoginTerminal({
  */
 function lines(chunk: string): string[] {
   return chunk
+    // oxlint-disable-next-line no-control-regex -- the control characters are the point: this strips ANSI/terminal escapes
     .replace(/\u001B\[[0-9;?]*[A-Za-z]/g, "")
+    // oxlint-disable-next-line no-control-regex -- the control characters are the point: this strips ANSI/terminal escapes
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "")
     .split(/\r?\n/)
     .map((line) => line.trim())

@@ -38,5 +38,5 @@ export function trackWrite(write: Promise<unknown>): void {
  * starts after this call belongs to typing that happened after the gesture.
  */
 export async function whenWritesSettle(): Promise<void> {
-  await Promise.allSettled([...inFlight]);
+  await Promise.allSettled(inFlight);
 }

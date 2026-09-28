@@ -1371,6 +1371,7 @@ export class AcpManager {
     // stop would otherwise stay `running` forever, or be painted red as though
     // it had failed.
     if (stopReason === "cancelled") {
+      // oxlint-disable-next-line unicorn/no-useless-spread -- a copy on purpose: emitting may close a tool call while the loop runs
       for (const toolCallId of [...session.openToolCalls]) {
         this.emit(session, { type: "tool_call_update", toolCallId, status: "cancelled" });
       }
@@ -1878,7 +1879,7 @@ export class AcpManager {
         }
 
         session.elicit({
-          elicitationId: String(record["elicitationId"] ?? ""),
+          elicitationId: typeof record["elicitationId"] === "string" ? record["elicitationId"] : "",
           url,
           message: params.message,
           code: codeIn(params.message),
@@ -2342,6 +2343,7 @@ export class AcpManager {
       lumemModeDefault: session.info.lumemModeDefault,
     });
 
+    // oxlint-disable-next-line unicorn/no-useless-spread -- a copy on purpose: a listener may unsubscribe while the loop runs
     for (const watcher of [...this.configWatchers]) {
       try {
         watcher({ ...session.info });
@@ -2425,6 +2427,7 @@ export class AcpManager {
 
     // A throwing listener must not take down the daemon or starve the other
     // attached clients — the same rule the PTY manager follows.
+    // oxlint-disable-next-line unicorn/no-useless-spread -- a copy on purpose: a listener may unsubscribe while the loop runs
     for (const listener of [...session.listeners]) {
       try {
         listener(entry);
@@ -2435,6 +2438,7 @@ export class AcpManager {
 
     // E os observadores globais, pela mesma regra: um que estoura não pode levar
     // o turno com ele.
+    // oxlint-disable-next-line unicorn/no-useless-spread -- a copy on purpose: a listener may unsubscribe while the loop runs
     for (const watcher of [...this.eventWatchers]) {
       try {
         watcher({ sessionId: session.info.id, event });
@@ -2476,6 +2480,7 @@ export class AcpManager {
     // A probe has no row anywhere, so there is nothing for a watcher to update.
     if (session.probe) return;
 
+    // oxlint-disable-next-line unicorn/no-useless-spread -- a copy on purpose: a listener may unsubscribe while the loop runs
     for (const watcher of [...this.exitWatchers]) {
       try {
         watcher({ ...session.info });

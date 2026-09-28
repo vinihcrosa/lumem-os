@@ -126,6 +126,7 @@ const REPO_FIELDS = [
  * escreva isto num arquivo ou num log. Recusado antes de virar argumento, e não
  * depois (§4.2.11 do PRD).
  */
+// oxlint-disable-next-line no-control-regex -- the control characters are the point: this strips ANSI/terminal escapes
 const CONTROL = /[\u0000-\u001f\u007f]/;
 
 export interface GhHostOptions {

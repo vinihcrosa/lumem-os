@@ -528,7 +528,7 @@ describe("o aviso de que o dado mudou (F6.3)", () => {
 
   it("avisa quando a leitura traz dado diferente", async () => {
     let numero = 19;
-    const { cache, changed, time } = watching(() => ({
+    const { cache, changed } = watching(() => ({
       ok: true,
       snapshot: snapshot([pull({ number: numero })], "2026-09-05T12:00:00Z"),
     }));

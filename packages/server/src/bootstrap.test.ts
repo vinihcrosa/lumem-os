@@ -462,10 +462,10 @@ describe("bootstrap", () => {
         expect((await accounts.get(work.id))?.identity?.email).toBe("trabalho@exemplo.com");
         expect((await accounts.defaultFor(config.id))?.identity?.email).toBe("padrao@exemplo.com");
       });
-      expect(requests.map((request) => request.env?.["CLAUDE_CONFIG_DIR"] ?? null).sort()).toEqual([
+      expect(requests.map((request) => request.env?.["CLAUDE_CONFIG_DIR"] ?? null).sort((a, b) => String(a).localeCompare(String(b)))).toEqual([
         "/contas/trabalho",
         null,
-      ].sort());
+      ].sort((a, b) => String(a).localeCompare(String(b))));
       // E cada uma ganha a leitura dela no catálogo (`034` T9): a lista é por
       // conta, e a da padrão não vale para a conta `trabalho`.
       await vi.waitFor(() => {

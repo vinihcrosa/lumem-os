@@ -10,6 +10,8 @@ import {
 import type { FastifyInstance } from "fastify";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
 
+import { frameText } from "../ws-text.js";
+
 import { isDomainError, type DomainErrorCode } from "../errors.js";
 import { onUpgradePath } from "../ws/upgrade.js";
 import { AcpTurnFailedError, modeOwnerOf } from "./AcpManager.js";
@@ -121,7 +123,7 @@ export function registerAcpWebSocket({
         return;
       }
 
-      const decoded = decodeAcpClientMessage(raw.toString());
+      const decoded = decodeAcpClientMessage(frameText(raw));
       if (!decoded.ok) {
         // One bad frame is not a reason to drop a live conversation.
         send({ type: "error", code: "INVALID_MESSAGE", message: decoded.error });

@@ -72,7 +72,7 @@ describe("migration", () => {
   it("creates every table the model needs", async () => {
     const { db } = freshDatabase();
 
-    const tables = await db.all<{ name: string }>(
+    const tables = db.all<{ name: string }>(
       sql`SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name`,
     );
 
@@ -284,7 +284,7 @@ describe("agent configuration", () => {
   it("has no transport column any more", async () => {
     const { db } = freshDatabase();
 
-    const columns = await db.all<{ name: string }>(sql`PRAGMA table_info(agent_config)`);
+    const columns = db.all<{ name: string }>(sql`PRAGMA table_info(agent_config)`);
 
     expect(columns.map((column) => column.name)).not.toContain("transport");
     expect(columns.map((column) => column.name)).toContain("retired_at");
@@ -740,7 +740,7 @@ describe("state constraints", () => {
       }
     }
 
-    const [row] = await db.all<{ total: number }>(
+    const [row] = db.all<{ total: number }>(
       sql`SELECT count(*) AS total FROM memory_proposal`,
     );
     expect(row?.total).toBe(7 * 3 * 5 * 3);

@@ -66,7 +66,7 @@ function leadingLiterals(text: string, index: number): string[] {
 /**
  * Todo `export const`/`export function` do arquivo, com os arrays-literais
  * que o corpo dele contém. Comentários saem primeiro — sem isso, um `["task",
- * "board"]` de prosa dentro de um `/** ... *​/` seria lido como declaração.
+ * "board"]` de prosa dentro de um `/** ... *\/` seria lido como declaração.
  */
 function declarations(): readonly Declaration[] {
   const text = readFileSync(SOURCE_PATH, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");

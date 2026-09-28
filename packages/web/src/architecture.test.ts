@@ -474,10 +474,10 @@ const LARGE_FILE_LIMIT = 400;
 const LARGE_FILE_CEILING: Readonly<Record<string, number>> = {
   "features/checkout/FileTree.tsx": 640,
   "features/checkout/FileViewer.tsx": 461,
-  "features/checkout/LocalPanel.tsx": 444,
+  "features/checkout/LocalPanel.tsx": 442,
   "features/checkout/RunDock.tsx": 587,
   "features/checkout/useFileBuffer.ts": 605,
-  "features/conversation/conversation-model.ts": 751,
+  "features/conversation/conversation-model.ts": 750,
   "features/settings/SettingsPanel.tsx": 567,
 };
 

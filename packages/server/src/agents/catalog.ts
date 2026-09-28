@@ -273,7 +273,7 @@ export function createAgentCatalog(db: Db): AgentCatalog {
        * comum é ninguém ter configurado nada, que é três viagens para três
        * vazios.
        */
-      const rows = await db
+      const rows = db
         .select({ scopeType: roleBinding.scopeType, agent: namedAgent })
         .from(roleBinding)
         .innerJoin(namedAgent, eq(namedAgent.id, roleBinding.agentId))
@@ -299,7 +299,7 @@ export function createAgentCatalog(db: Db): AgentCatalog {
     },
 
     async resolveWorkspace({ workspaceId, role }) {
-      const row = await db
+      const row = db
         .select({ agent: namedAgent })
         .from(roleBinding)
         .innerJoin(namedAgent, eq(namedAgent.id, roleBinding.agentId))
@@ -322,7 +322,7 @@ export function createAgentCatalog(db: Db): AgentCatalog {
       if (accountId !== null) await requireAccountOf(db, adapter, accountId);
 
       const name = slotAgentName(role);
-      const existing = await db
+      const existing = db
         .select()
         .from(namedAgent)
         .where(and(eq(namedAgent.workspaceId, workspaceId), eq(namedAgent.name, name)))

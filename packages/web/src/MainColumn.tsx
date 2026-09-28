@@ -58,9 +58,7 @@ export function MainColumn({ workspaceId, workspaceName }: MainColumnProps) {
         workspaceName={workspaceName}
         view={route === "tasks" ? "board" : "home"}
         onView={(view) => navigate(view === "board" ? "tasks" : "home")}
-        onRemoved={async () => {
-          await invalidateWorkspaces();
-        }}
+        onRemoved={() => void invalidateWorkspaces()}
         onWorkOnTask={(target) => {
           arrive({ sessionId: target.sessionId, text: target.draft, send: false });
           selectScope({

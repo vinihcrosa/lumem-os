@@ -72,7 +72,8 @@ Fonte de verdade da estratégia de teste. O campo `Tests`/`Gate` de toda task sa
 |---|---|---|
 | `quick` | `pnpm gate:quick` | Testes afetados pelo trabalho atual |
 | `full` | `pnpm gate:full` | Suíte inteira + e2e |
-| `build` | `pnpm gate:build` | Typecheck de todo TS do repositório + build do web **e do bundle do daemon** |
+| `build` | `pnpm gate:build` | Typecheck de todo TS do repositório, **lint de correção** (`pnpm lint`) e build do web **e do bundle do daemon** |
+| `lint` | `pnpm lint` | `oxlint --type-aware`: a categoria `correctness` mais `no-floating-promises`, `no-misused-promises` e `await-thenable`, com `--max-warnings 0`. 2,7 s. Não vê estilo, e é de propósito. `unbound-method` desligado: 162 achados, todos `const { f } = useHook()` sobre interface com sintaxe de método, sem `this` em jogo. Exceção na linha, sempre com `-- motivo` |
 | `docs` | `pnpm docs:check` | Link, âncora e `**Status:**` da documentação. Já roda dentro do `gate:full` pelo `check-docs.test.ts`; o comando existe para rodar em 200 ms sem a suíte |
 | `smoke` | `pnpm smoke:install` | O pacote publicado instala num prefixo limpo e sobe. Não faz parte dos três gates de todo dia: roda no release, e à mão antes de publicar |
 

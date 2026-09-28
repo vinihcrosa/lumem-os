@@ -276,6 +276,11 @@ async function main(): Promise<number> {
       say(`pre-push: sem gate — ${plan.why}`);
       return 0;
     }
+    say("pre-push: pnpm lint (2,7 s medidos)");
+    if (run(["pnpm", "-s", "lint"]) !== 0) {
+      say("pre-push: o lint reprovou — o push não sai.");
+      return 1;
+    }
     say(`pre-push: pnpm gate:quick desde ${plan.base.slice(0, 12)} (${plan.why})`);
     const status = spawnSync("pnpm", ["-s", "gate:quick"], {
       stdio: "inherit",

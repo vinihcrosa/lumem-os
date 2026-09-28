@@ -798,7 +798,31 @@ o agente **copia do que encontra**: inconsistência existente é dívida compost
 - o CI continua abaixo de 6min.
 
 **Gate**: `pnpm gate:build`
-**Status**: ⬜ não iniciada
+**Status**: ✅ entregue em 2026-09-28. `oxlint@1.86` + `oxlint-tsgolint`, `.oxlintrc.json`, `pnpm lint`
+com `--max-warnings 0`, dentro do `gate:build` (e portanto do job `checks` do CI) e do `pre-push`. O
+`gate:build` inteiro ficou em **21 s**. Um canário com uma promise flutuante reprova nomeando arquivo e
+linha.
+
+A triagem não foi de 44 itens, como a medição da Q2 previa, e o motivo é instrutivo: com `--type-aware`
+a categoria `correctness` liga **mais** regras com tipo, e o total foi **231**. Destes, **162** eram
+`unbound-method` sobre `const { f } = useHook()` — desligado, com o motivo no `testing.md`. Os **69**
+restantes, um a um:
+- **consertados** — 2 `no-misused-promises` (o `void` ficou explícito, e a rejeição cai no registro de
+  erros pelo `unhandledrejection`); 12 `await-thenable` (o `.all()`/`.run()` do drizzle com
+  `better-sqlite3` é síncrono); 18 variáveis e imports sem uso; 11 `no-base-to-string` — o `RawData` do
+  `ws` é `Buffer | ArrayBuffer | Buffer[]`, e `.toString()` só acerta o primeiro: nasceu
+  `server/src/ws-text.ts`; 4 `no-unsafe-optional-chaining` nos testes; 2 `sort()` sem comparador;
+  um *spread* inútil e um *fallback* vazio;
+- **um defeito real e engraçado:** em `web/src/lib/shiki-codemirror.ts`, um `` `*/` `` dentro do JSDoc
+  **fechava o comentário no meio**, e o resto da frase virava uma template literal solta no módulo
+  (`no-unused-expressions`). O `queryKeys.test.ts` tinha o mesmo problema contornado com um espaço de
+  largura zero (`no-irregular-whitespace`); os dois passaram a escrever `*\/`;
+- **exceção na linha, com motivo** — 7 `no-control-regex` (as regex **são** de caractere de controle:
+  tiram escape ANSI) e 8 `no-useless-spread` que são **cópia de propósito**, porque o laço pode
+  remover da coleção que percorre.
+
+A regra 8 da `032` reprovou no caminho porque dois arquivos **encolheram**, e o mapa foi atualizado —
+o sensor funcionando.
 
 ---
 

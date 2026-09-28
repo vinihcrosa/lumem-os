@@ -347,7 +347,7 @@ describe("o interruptor manda", () => {
 
     // A promessa do degrau é *"você vê o que ele **ia** fazer"*. Se o texto
     // preparado e o texto enviado divergissem, o degrau seria uma demonstração.
-    const parked = (spies.park.mock.calls[0]?.[0] as { prompt: string }).prompt;
+    const parked = (spies.park.mock.calls[0]?.[0] as { prompt: string } | undefined)?.prompt;
     expect(parked).toBe(
       promptFor({
         role: "implementador",
@@ -949,7 +949,7 @@ describe("o revisor devolve, e o vaivém tem fim (Parte 7 — T58)", () => {
 
     await createConveyor(ports).tick("w1");
 
-    const enviado = (spies.prompt.mock.calls[0]?.[0] as { text: string }).text;
+    const enviado = (spies.prompt.mock.calls[0]?.[0] as { text: string } | undefined)?.text;
     expect(enviado).toContain("O que a revisão devolveu");
     expect(enviado).toContain("pnpm vitest run scripts");
   });
@@ -964,7 +964,7 @@ describe("o revisor devolve, e o vaivém tem fim (Parte 7 — T58)", () => {
 
     await createConveyor(ports).tick("w1");
 
-    expect((spies.prompt.mock.calls[0]?.[0] as { text: string }).text).not.toContain(
+    expect((spies.prompt.mock.calls[0]?.[0] as { text: string } | undefined)?.text).not.toContain(
       "O que a revisão devolveu",
     );
   });
@@ -974,7 +974,7 @@ describe("o revisor devolve, e o vaivém tem fim (Parte 7 — T58)", () => {
 
     await createConveyor(ports).tick("w1");
 
-    expect((spies.prompt.mock.calls[0]?.[0] as { text: string }).text).not.toContain(
+    expect((spies.prompt.mock.calls[0]?.[0] as { text: string } | undefined)?.text).not.toContain(
       "O que a revisão devolveu",
     );
   });

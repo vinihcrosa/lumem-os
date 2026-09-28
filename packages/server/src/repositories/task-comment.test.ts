@@ -129,7 +129,7 @@ describe("o que o banco garante, e o que este arquivo garante", () => {
     await db.delete(session).where(eq(session.taskId, taskId));
     await db.delete(task).where(eq(task.id, taskId));
 
-    expect(await db.select().from(taskComment).all()).toEqual([]);
+    expect(db.select().from(taskComment).all()).toEqual([]);
   });
 
   it("tarefa que não existe é NOT_FOUND, e não um erro de estrangeiro", async () => {

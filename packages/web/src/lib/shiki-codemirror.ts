@@ -93,7 +93,7 @@ export const shikiConfig = Facet.define<ShikiConfig | null, ShikiConfig | null>(
  * One line's tokens, plus the grammar state that produced them.
  *
  * The state entering line N is what makes tokenizing line N correct — it is
- * how `*/` on line 40 knows it is closing the `/*` from line 12. Keeping it
+ * how `*\/` on line 40 knows it is closing the `/*` from line 12. Keeping it
  * per line is the whole reason an edit costs the lines below it instead of the
  * document: everything above the change keeps its state, so it keeps its
  * tokens.

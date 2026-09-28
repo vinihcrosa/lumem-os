@@ -320,7 +320,9 @@ function lastMeaningfulLine(stderr: string): string {
 export function clean(line: string): string {
   const stripped = line
     // CSI and the rest of the ANSI zoo.
+    // oxlint-disable-next-line no-control-regex -- the control characters are the point: this strips ANSI/terminal escapes
     .replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, "")
+    // oxlint-disable-next-line no-control-regex -- the control characters are the point: this strips ANSI/terminal escapes
     .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "")
     .trim();
   return stripped.length > MAX_LINE ? `${stripped.slice(0, MAX_LINE)}…` : stripped;

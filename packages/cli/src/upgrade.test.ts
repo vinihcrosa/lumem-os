@@ -151,8 +151,9 @@ describe("a consulta ao registry", () => {
   it("pede só o dist-tag latest e devolve a versão", async () => {
     const request = vi.fn(
       async (url: string | URL | Request) => {
-        expect(String(url)).toContain("/latest");
-        expect(String(url)).toContain(encodeURIComponent(PACKAGE_NAME));
+        const href = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
+        expect(href).toContain("/latest");
+        expect(href).toContain(encodeURIComponent(PACKAGE_NAME));
         return new Response(JSON.stringify({ version: "9.9.9" }), { status: 200 });
       },
     ) as unknown as typeof fetch;

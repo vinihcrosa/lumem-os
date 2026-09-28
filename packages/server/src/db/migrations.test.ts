@@ -658,7 +658,7 @@ describe("0015 — o quadro de sete colunas", () => {
     const handle = openDatabase({ path: databaseBeforeBoard() });
     open.push(handle);
 
-    const rows = await handle.db.all<{ name: string }>(
+    const rows = handle.db.all<{ name: string }>(
       sql`SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'task'`,
     );
 

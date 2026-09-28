@@ -125,7 +125,9 @@ export function App() {
         <SetupFlow
           daemonVersion={health.data?.version ?? null}
           daemonUnreachable={health.isError}
-          onFinish={async (result) => {
+          // `void`, and not an `async` handler: `onFinish` returns nothing, and a
+          // rejection here lands in the error log through `unhandledrejection`.
+          onFinish={(result) => void (async () => {
             await invalidateWorkspaces();
             if (result.workspaceId !== undefined) select(result.workspaceId);
             // Land on what was created, not on "selecione uma worktree": the
@@ -141,7 +143,7 @@ export function App() {
               });
             }
             setSetupOpen(false);
-          }}
+          })()}
         />
       );
     }

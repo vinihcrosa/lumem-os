@@ -35,7 +35,7 @@ describe("withTestDb", () => {
   it("deletes the file afterwards", async () => {
     let path = "";
     await withTestDb(async (db) => {
-      const [row] = await db.all<{ file: string }>(sql`PRAGMA database_list`);
+      const [row] = db.all<{ file: string }>(sql`PRAGMA database_list`);
       path = (row as unknown as { file: string }).file;
       expect(existsSync(path)).toBe(true);
     });
@@ -48,7 +48,7 @@ describe("withTestDb", () => {
 
     await expect(
       withTestDb(async (db) => {
-        const [row] = await db.all<{ file: string }>(sql`PRAGMA database_list`);
+        const [row] = db.all<{ file: string }>(sql`PRAGMA database_list`);
         path = (row as unknown as { file: string }).file;
         throw new Error("the test failed");
       }),
