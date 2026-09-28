@@ -471,11 +471,16 @@ verifica muito e não bloqueia nada**. Os sensores são bons e rápidos (3151 te
 `main` sem proteção, sem check obrigatório, sem hook, e a política de permissão do agente fora do git.
 No mesmo ambiente, uma credencial de publicação permanente para um pacote público.
 
+**Em execução desde 2026-09-28**, e remedida: três semanas depois, nenhum dos quatro itens
+irreversíveis da auditoria tinha mudado. A emenda (§8 da PRD) acrescenta **hooks de git**, **um guarda
+chamado pelo Claude e pelo Codex**, o **`Stop` que cobra o gate** e **as skills de documentação** — e
+uma Fase 0 que mede se os agentes que a esteira sobe carregam a configuração do repositório.
+
 | Arquivo | O quê |
 |---|---|
 | [prd.md](features/024-dev-harness/prd.md) | o problema, as três fases, as três classes de N3, os não-objetivos com motivo, e o que muda arquivo por arquivo |
-| [open-questions.md](features/024-dev-harness/open-questions.md) | 3 respondidas antes da PRD existir (o token era só do CD; `main` desprotegida por inércia; as classes de N3 confirmadas) e 8 abertas |
-| [tasks.md](features/024-dev-harness/tasks.md) | 16 tasks em 3 fases, nenhuma iniciada — e o aceite de cada uma é comportamento observado, não configuração lida |
+| [open-questions.md](features/024-dev-harness/open-questions.md) | 3 respondidas antes da PRD existir (o token era só do CD; `main` desprotegida por inércia; as classes de N3 confirmadas) e 14 abertas — as Q9–Q14 são da emenda |
+| [tasks.md](features/024-dev-harness/tasks.md) | 21 tasks: a Fase 0 (T0) e as 3 fases, com T17–T20 na F1 — e o aceite de cada uma é comportamento observado, não configuração lida |
 
 ### [workspace-tasks/](features/022-workspace-tasks/) — tarefa como entidade
 

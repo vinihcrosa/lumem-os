@@ -1,6 +1,6 @@
 # Perguntas — o harness deste repositório
 
-> **PRD:** [prd.md](prd.md) · **Tasks:** [tasks.md](tasks.md)
+> **PRD:** [prd.md](prd.md) · **Tasks:** [tasks.md](tasks.md) · **Emenda:** as Q9–Q14 são de 2026-09-28
 > **Como usar:** responda embaixo de cada pergunta no campo `**R:**` e marque `[x]`. Nada é apagado —
 > pergunta respondida vira registro de decisão. Pergunta que trava uma task tem o número da task ao
 > lado, e a task não começa antes da resposta.
@@ -94,6 +94,8 @@ As três que a [auditoria](../../project/harness-audit.md) fez ao time humano, r
   isso, N3 é uma promessa verbal.
   **O que a resposta muda:** existe ou não uma T17, e se N3 chega a ser real ou continua sendo N2 bem
   feito.
+  > **Nota — 2026-09-28.** O número T17 foi para os hooks de git da emenda. Se esta pergunta criar
+  > task, ela é a **T21**.
 
 - [ ] **Q8 — Quando entrar a segunda pessoa, o que muda?**
   A T2 nasce com zero aprovações e a PRD tira `CODEOWNERS` de escopo, os dois por causa do "uma pessoa
@@ -102,3 +104,71 @@ As três que a [auditoria](../../project/harness-audit.md) fez ao time humano, r
   reversão para a memória: no primeiro colaborador, `required_approving_review_count` vai a 1 e o
   `CODEOWNERS` nasce.
   **O que a resposta muda:** nada hoje; evita a arqueologia depois.
+
+---
+
+## Abertas pela emenda de 2026-09-28
+
+As seis que o [§8 da PRD](prd.md#8-emenda--2026-09-28-hooks-skills-e-o-que-três-semanas-não-mudaram)
+abriu — hooks de git, hooks de agente e skills. A Q13 é a única que só se responde medindo, e é ela
+que decide o tamanho da T18, da T19 e da T20.
+
+- [ ] **Q9 — Qual ferramenta liga os hooks de git? ([T17](tasks.md))**
+  Três candidatos: `core.hooksPath` apontando para `.githooks/` versionado, `lefthook` e `husky`.
+  O que pesa aqui é que **toda worktree compartilha o mesmo `.git`** — Conductor e Superset criam
+  dezenas —, e que o repositório não tem hoje nenhuma dependência de hook.
+  **Recomendação:** `core.hooksPath=.githooks`, ligado pelo `scripts/workspace/setup.sh`. Zero
+  dependência, o caminho relativo resolve na raiz de cada worktree, e o script do hook é arquivo
+  comum que o teste lê. `lefthook` compra paralelismo e filtro por glob, que três hooks curtos não
+  precisam; `husky` depende do `prepare` do `pnpm install`, que o `--ignore-scripts` do CI desliga.
+  **O que a resposta muda:** se a T17 adiciona uma dependência.
+
+- [ ] **Q10 — O que roda em cada hook de git? ([T17](tasks.md))**
+  O custo é o que decide: um `pre-commit` lento é um `pre-commit` que se atravessa.
+  **Recomendação:**
+  - `pre-commit` — **abaixo de 10 s**, só o que é barato e do arquivo em stage: `docs:check` se há
+    `.md` em stage, `design:derive --check` se há CSS de token, e a recusa de commit direto em `main`;
+  - `commit-msg` — Conventional Commits, assunto até 72 caracteres, e o trailer `Co-Authored-By`
+    **não** é exigido (commit humano também existe);
+  - `pre-push` — o `gate:quick` (84 s medidos em 2026-09-28 no pior caso, quando seleciona a suíte
+    inteira). É o último ponto antes de o CI gastar 4 min.
+  **O que a resposta muda:** o corpo de três arquivos, e o tempo que cada commit custa.
+
+- [ ] **Q11 — A política do agente mora em `permissions.deny`, num hook, ou nos dois? ([T4](tasks.md), [T18](tasks.md))**
+  O `deny` é nativo, barato e só o Claude o lê. O hook `PreToolUse` existe no Claude e no Codex, e
+  sabe ler o comando inteiro — `git push --force` escrito como `git push origin +main` não casa com
+  um padrão de prefixo, mas casa com um parser.
+  **Recomendação:** os dois, com papéis diferentes. O `deny` da T4 fica como primeira camada; o guarda
+  da T18 é **um script só** (`scripts/harness/guard.ts`) chamado pelo `PreToolUse` dos dois agentes,
+  e é ele que o teste exercita com o JSON de entrada de cada agente. O que um agente recusa e o
+  outro deixa passar é o defeito que o teste existe para pegar.
+  **O que a resposta muda:** se a T18 existe, ou se a T4 basta.
+
+- [ ] **Q12 — O `Stop` cobra o gate antes de o agente dizer *"pronto"*? ([T19](tasks.md))**
+  É a regra *"antes de dizer que uma task está pronta, rode o gate que ela declara"* virando mecânica.
+  O custo é o tempo: 84 s no pior caso, a cada vez que o agente para.
+  **Recomendação:** sim, com três limites — só roda se a árvore mudou desde o último `gate:quick`
+  verde (um carimbo com o hash do `git diff`), bloqueia **uma vez** por turno (o `stop_hook_active`
+  do Claude, e o equivalente do Codex), e na esteira ele **não** roda, porque lá o portão da
+  [`028`](../028-autonomous-orchestration/prd.md) já é quem julga.
+  **O que a resposta muda:** se a T19 existe, e quanto tempo cada turno custa.
+
+- [ ] **Q13 — Os agentes que o Lumem sobe carregam o que está no repositório? ([T0](tasks.md))**
+  Não dá para responder sem medir. Quatro superfícies, cada uma pode ler ou não
+  `.claude/settings.json` (permissões e hooks), `.codex/hooks.json`, `CLAUDE.md`/`AGENTS.md` e as
+  skills: o Claude Code interativo, o Codex interativo, o `claude-agent-acp@0.75.1` e o `codex-acp`
+  como a esteira os sobe.
+  **Recomendação:** a T0 mede as dezesseis células com um hook que só escreve um arquivo-marca, e
+  **a resposta decide o desenho**: se os adaptadores não carregam o projeto, o guarda da esteira tem
+  que ser o **daemon** (a política do Lumem da [`016`](../016-session-mode/prd.md) já é um guarda), e
+  isso é assunto de produto, com ADR próprio — não de repositório.
+  **O que a resposta muda:** o alcance da T18, T19 e T20, e se nasce uma feature de produto.
+
+- [ ] **Q14 — Onde moram as skills, para que os dois agentes as leiam? ([T20](tasks.md))**
+  O Claude lê `.claude/skills/`. O Codex desta máquina tem `~/.codex/skills` e `~/.agents/skills`,
+  e a leitura de projeto dele é o que a T0 mede.
+  **Recomendação:** a fonte em `.claude/skills/lumem-*`, e o que a T0 disser que o Codex lê vira um
+  link simbólico versionado — uma cópia só, pela mesma razão do [ADR de 2026-09-28](../../adr/2026-09-28-1726-outline-discusses-the-repo-decides.md).
+  E as cinco skills de terceiro que já moram em `.claude/skills/` passam pela mesma auditoria: a
+  auditoria de 2026-09-07 achou uma delas **contradizendo o `CLAUDE.md`** (D3).
+  **O que a resposta muda:** um caminho, e se o repositório carrega skill que não escreveu.

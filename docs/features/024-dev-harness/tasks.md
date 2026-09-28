@@ -3,8 +3,8 @@
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md) · **Linha de base:**
 [harness-audit.md](../../project/harness-audit.md)
 
-**Status:** proposta
-**Histórico:** **16 tasks em 3 fases, nenhuma iniciada** (2026-09-07). Três perguntas já respondidas (A1–A3); oito abertas, e as que travam task estão marcadas na coluna `Trava`.
+**Status:** em execução
+**Histórico:** **16 tasks em 3 fases, nenhuma iniciada** (2026-09-07). **Emenda de 2026-09-28:** mais a Fase 0 (T0) e quatro tasks na Fase 1 (T17–T20) — hooks de git, o guarda dos agentes, o `Stop` e as skills; ver o [§8 da PRD](prd.md#8-emenda--2026-09-28-hooks-skills-e-o-que-três-semanas-não-mudaram). Três perguntas já respondidas (A1–A3); oito abertas, e as que travam task estão marcadas na coluna `Trava`.
 **Issues:** [#72](https://github.com/vinihcrosa/lumem-os/issues/72) rastreia a feature; cada task tem a
 sua, na coluna `Issue`. Marco por fase no GitHub.
 
@@ -22,12 +22,14 @@ aprovação.
 
 | Fase | Tasks | Habilita | Esforço somado |
 |---|---|---|---|
-| **F1 — contenção e loop** | T1 · T2 · T3 · T4 · T5 · T6 · T7 · T8 | [#56](https://github.com/vinihcrosa/lumem-os/issues/56) | N2 com segurança | ~1 dia |
+| **Fase 0 — o que os agentes carregam** | T0 | — | o alcance da T18, T19 e T20 | ~2 h |
+| **F1 — contenção e loop** | T1 · T2 · T3 · T4 · T5 · T6 · T7 · T8 · T17 · T18 · T19 · T20 | [#56](https://github.com/vinihcrosa/lumem-os/issues/56) | N2 com segurança | ~1 dia |
 | **F2 — comportamento e arquitetura** | T9 · T10 · T11 · T12 · T13 | [#64](https://github.com/vinihcrosa/lumem-os/issues/64) | N3 em CSS/token, dependência e docs | ~3 dias |
 | **F3 — entropia e revisão inferencial** | T14 · T15 · T16 | [#69](https://github.com/vinihcrosa/lumem-os/issues/69) | ampliar N3 por número | ~3 dias |
 
 | Task | Issue | Classe | Trava | Esforço |
 |---|---|---|---|---|
+| T0 o que cada agente carrega do repositório, medido | — | medição | [Q13](open-questions.md) | P |
 | T1 credencial de publicação fora do ambiente | [#56](https://github.com/vinihcrosa/lumem-os/issues/56) | permissão | — | P |
 | T2 `main` protegida, dois checks obrigatórios | [#57](https://github.com/vinihcrosa/lumem-os/issues/57) | permissão | [Q1](open-questions.md) | P |
 | T3 environment com reviewer, `delete_repo` revogado | [#58](https://github.com/vinihcrosa/lumem-os/issues/58) | permissão | — | P |
@@ -36,6 +38,10 @@ aprovação.
 | T6 frescor de documentação como teste | [#61](https://github.com/vinihcrosa/lumem-os/issues/61) | sensor computacional | — | M |
 | T7 os 24 itens que o T6 acusa | [#62](https://github.com/vinihcrosa/lumem-os/issues/62) | — | — | P |
 | T8 `AGENTS.md`, e o `CLAUDE.md` encolhe | [#63](https://github.com/vinihcrosa/lumem-os/issues/63) | guide inferencial | — | M |
+| T17 hooks de git versionados, ligados pelo setup | — | sensor computacional | [Q9](open-questions.md), [Q10](open-questions.md) | P |
+| T18 um guarda, chamado pelos dois agentes | — | permissão | [Q11](open-questions.md), T0 | M |
+| T19 o `Stop` cobra o gate antes de *"pronto"* | — | sensor computacional | [Q12](open-questions.md), T0 | P |
+| T20 as três skills de documentação, e a auditoria das de terceiro | — | guide inferencial | [Q14](open-questions.md), T0, T8 | M |
 | T9 lint de correção, bloqueante | [#64](https://github.com/vinihcrosa/lumem-os/issues/64) | sensor computacional | [Q2](open-questions.md) | M |
 | T10 fitness arquitetural como teste | [#65](https://github.com/vinihcrosa/lumem-os/issues/65) | sensor computacional | [Q3](open-questions.md), [Q4](open-questions.md) | M |
 | T11 log do daemon consultável pelo agente | [#66](https://github.com/vinihcrosa/lumem-os/issues/66) | ambiente | — | M |
@@ -44,6 +50,39 @@ aprovação.
 | T14 mutation testing com piso | [#69](https://github.com/vinihcrosa/lumem-os/issues/69) | sensor computacional | — | G |
 | T15 revisor inferencial no CI, com taxa medida | [#70](https://github.com/vinihcrosa/lumem-os/issues/70) | sensor inferencial | [Q5](open-questions.md), [Q6](open-questions.md) | M |
 | T16 PR menor por contrato | [#71](https://github.com/vinihcrosa/lumem-os/issues/71) | ambiente | — | P |
+
+---
+
+## Fase 0 — o que os agentes carregam
+
+### T0: O que cada agente carrega do repositório, medido
+
+**Classe:** medição · **Previne:** escrever um guarda que protege quem está olhando e deixa de fora
+quem trabalha sozinho. A esteira da [`028`](../028-autonomous-orchestration/prd.md) sobe
+`claude-agent-acp` e `codex-acp`, e nada neste repositório diz se eles leem a configuração do projeto.
+**Trava:** a [Q13](open-questions.md) é esta medição.
+
+**What**:
+1. Numa worktree descartável, criar `.claude/settings.json` e `.codex/hooks.json` com **um hook
+   `PreToolUse` que só escreve um arquivo-marca** (`/tmp/lumem-t0/<agente>-<superfície>`), mais uma
+   linha distintiva em `CLAUDE.md`, em `AGENTS.md` e numa skill de teste.
+2. Rodar as quatro superfícies com um prompt que dispare uma ferramenta inofensiva (`ls`): Claude Code
+   interativo, Codex interativo, e os dois adaptadores pelo daemon, como a esteira os sobe — no modo
+   que a esteira usa (`bypassPermissions` no Claude).
+3. Para cada superfície, registrar as quatro células: **hook disparou?** (a marca existe), **`deny`
+   valeu?**, **o arquivo de instrução chegou?** (o agente cita a linha distintiva), **a skill
+   apareceu?**. Dezesseis células, e o custo em token de cada rodada.
+4. Registrar no `docs/project/harness-audit.md`, como **§11**, com a data, as versões e a tabela.
+
+**Where**: `docs/project/harness-audit.md`. Nenhum código de produção.
+
+**Done when**:
+- as dezesseis células têm resposta observada, e nenhuma é *"deve funcionar"*;
+- a [Q13](open-questions.md) está respondida com a tabela, e o alcance da T18, T19 e T20 está escrito
+  nelas antes de começarem.
+
+**Gate**: a tabela
+**Status**: ⬜ não iniciada
 
 ---
 
@@ -380,6 +419,15 @@ agente, e apodrecendo a cada feature nova.
 
 **Where**: `AGENTS.md` (novo), `CLAUDE.md`, `docs/project/history.md` (novo), `docs/README.md`.
 
+> **Nota — 2026-09-28.** O passo 2 foi feito por outro caminho: a
+> [PR #92](https://github.com/vinihcrosa/lumem-os/pull/92) moveu a narrativa para o **Outline**, e não
+> para `docs/project/history.md` — o [ADR de 2026-09-28](../../adr/2026-09-28-1726-outline-discusses-the-repo-decides.md)
+> põe crônica fora do repositório. O `CLAUDE.md` caiu de 9 792 para 2 435 palavras (227 linhas). O que
+> sobra de pé nesta task: o `AGENTS.md` (passo 1), o `CLAUDE.md` só com o que é de Claude Code
+> (passo 3) e a exceção da raiz (passo 4). O teto de **100 linhas** do *Done when* continua valendo, e
+> a [T20](#t20-as-três-skills-de-documentação-e-a-auditoria-das-de-terceiro) é o que o alcança — o
+> formato de cada documento sai do `CLAUDE.md` para as skills.
+
 **Done when**:
 - `wc -l CLAUDE.md` abaixo de **100**;
 - `AGENTS.md` cobre as seis seções, e um agente sem contexto consegue rodar `setup` → `dev` → os três
@@ -387,6 +435,149 @@ agente, e apodrecendo a cada feature nova.
 - nenhuma regra perdida: as quatro do `CLAUDE.md` de hoje (design, documentação, convenções, gate
   antes de dizer pronto) aparecem no `AGENTS.md` com o mesmo peso;
 - o teste da T6 verde (os links novos resolvem).
+
+**Gate**: `pnpm gate:quick`
+**Status**: ⬜ não iniciada
+
+---
+
+### T17: Hooks de git versionados, ligados pelo setup
+
+**Classe:** sensor computacional · **Previne:** que o primeiro sinal de um commit ruim seja o CI, 4 min
+e um push depois — e que um agente commite em `main`. A auditoria mediu a ausência (`core.hooksPath`
+indefinido, só `.sample`) e nenhuma task da v0.1 a tratava.
+**Trava:** [Q9](open-questions.md) (a ferramenta) e [Q10](open-questions.md) (o que roda em cada um).
+
+**What** — escrito com as recomendações; muda se as respostas mudarem:
+1. `.githooks/pre-commit`, `.githooks/commit-msg`, `.githooks/pre-push`, cada um **uma linha** que
+   chama `scripts/harness/git-hook.ts <nome>` — a lógica mora em TypeScript, com teste, e não em shell.
+2. `pre-commit`: recusa commit com `HEAD` em `main`; roda `docs:check` se há `.md` em stage e
+   `design:derive --check` se há `tokens.css` em stage. Teto medido de **10 s**, e a mensagem diz o
+   que rodou.
+3. `commit-msg`: Conventional Commits (`tipo(escopo)?: assunto`), assunto até 72 caracteres. A
+   recusa mostra a mensagem recebida e um exemplo.
+4. `pre-push`: `pnpm gate:quick`. Vermelho recusa o push com o resumo do gate.
+5. `scripts/workspace/setup.sh` liga `git config core.hooksPath .githooks` — idempotente, e o
+   `run.sh` avisa se encontrar o hook desligado.
+6. `scripts/harness/git-hook.test.ts`: cada decisão como função pura (arquivos em stage e mensagem →
+   veredito), mais um teste que confere que os três arquivos de `.githooks/` existem, são executáveis
+   e chamam o nome certo.
+7. `docs/project/testing.md` ganha a linha: **hook de git é feedback, não portão** — quem garante é o
+   ruleset da T2 e o CI; quem impede o agente de atravessar com `--no-verify` é a T18.
+
+**Where**: `.githooks/` (novo), `scripts/harness/git-hook.ts` (+ teste, novos),
+`scripts/workspace/setup.sh`, `docs/project/testing.md`, `docs/project/workspaces.md`.
+
+**Done when**:
+- numa worktree nova, depois do `setup.sh`, `git commit -m "wip"` é **recusado** pelo `commit-msg`, e
+  um commit em `main` é recusado pelo `pre-commit` — os dois observados;
+- `git push` com um teste quebrado de propósito é recusado pelo `pre-push`, nomeando o teste;
+- o `pre-commit` de um commit só de código roda em menos de 10 s, medido;
+- `pnpm gate:quick` verde.
+
+**Gate**: `pnpm gate:quick`
+**Status**: ⬜ não iniciada
+
+---
+
+### T18: Um guarda, chamado pelos dois agentes
+
+**Classe:** permissão · **Previne:** que a política valha para um agente e não para o outro, e que um
+padrão de prefixo deixe passar a mesma ação escrita de outro jeito (`git push origin +main` é um push
+forçado que `Bash(git push --force:*)` não casa).
+**Trava:** [Q11](open-questions.md), e a [T0](#t0-o-que-cada-agente-carrega-do-repositório-medido) —
+o alcance é o que ela medir.
+
+**What**:
+1. `scripts/harness/guard.ts`: lê o JSON de `PreToolUse` da entrada padrão (o formato do Claude e o do
+   Codex, que têm o mesmo miolo `tool_name`/`tool_input`), decide, e sai `2` com a frase no `stderr`
+   quando recusa. Decisão como **função pura** — comando → veredito com motivo —, separada da leitura.
+2. O que ele recusa, com o motivo de cada um: a lista da [T4](#t4-a-política-de-permissão-do-agente-vira-arquivo-do-repositório-com-teste--59),
+   mais `git commit --no-verify` e `git push --no-verify` (é o que faz a T17 valer para agente),
+   push direto para `main`, push forçado em **qualquer** forma (`--force`, `-f`, `+refspec`,
+   `--force-with-lease` para `main`), `git reset --hard` com mudança não commitada, e escrita fora do
+   checkout.
+3. Ligar nas tomadas que a T0 disser que existem: `hooks.PreToolUse` do `.claude/settings.json` e
+   `.codex/hooks.json`, os dois chamando o mesmo script.
+4. `scripts/harness/guard.test.ts`: uma tabela de casos, **com a entrada crua de cada agente** — o
+   caso que um agente recusa e o outro deixa passar é o defeito. E o teste da T4 passa a exigir que
+   as duas tomadas existam e apontem para o mesmo arquivo.
+5. `AGENTS.md`: o que o guarda recusa, e que recusa é o comportamento — não um erro para contornar.
+
+**Where**: `scripts/harness/guard.ts` (+ teste, novos), `.claude/settings.json`, `.codex/hooks.json`
+(novo), `scripts/agent-policy.test.ts`, `AGENTS.md`.
+
+**Done when**:
+- cada ação da lista, tentada **pelos dois agentes** na forma inofensiva, é recusada com a frase do
+  guarda — observado, não lido;
+- apagar uma tomada, ou fazer as duas apontarem para scripts diferentes, deixa `pnpm test` vermelho;
+- `pnpm gate:quick` verde.
+
+**Gate**: `pnpm gate:quick`
+**Status**: ⬜ não iniciada
+
+---
+
+### T19: O `Stop` cobra o gate antes de *"pronto"*
+
+**Classe:** sensor computacional · **Previne:** a regra *"antes de dizer que uma task está pronta,
+rode o gate que ela declara"* depender de o agente lembrar dela.
+**Trava:** [Q12](open-questions.md), e a [T0](#t0-o-que-cada-agente-carrega-do-repositório-medido).
+
+**What** — escrito com a recomendação da Q12:
+1. `scripts/harness/stop.ts`: se a árvore mudou desde o último `gate:quick` verde (carimbo em
+   `.git/lumem-gate-green` com o hash do `git diff HEAD`), roda o `gate:quick`; vermelho devolve
+   `{"decision":"block","reason":…}` com o resumo, verde grava o carimbo.
+2. **Uma vez por turno**: com `stop_hook_active` (Claude) ou o equivalente do Codex, sai sem rodar.
+3. **Fora da esteira**: com a variável que o daemon põe nas sessões da esteira, sai sem rodar — o
+   portão da [`028`](../028-autonomous-orchestration/prd.md) já julga lá.
+4. Ligar no `Stop` dos dois agentes, onde a T0 disser que existe.
+
+**Where**: `scripts/harness/stop.ts` (+ teste, novos), `.claude/settings.json`, `.codex/hooks.json`.
+
+**Done when**:
+- uma sessão que quebra um teste e tenta encerrar recebe o bloqueio com o nome do teste, uma vez;
+- uma sessão que não mexeu em nada encerra sem rodar gate nenhum;
+- `pnpm gate:quick` verde.
+
+**Gate**: `pnpm gate:quick`
+**Status**: ⬜ não iniciada
+
+---
+
+### T20: As três skills de documentação, e a auditoria das de terceiro
+
+**Classe:** guide inferencial · **Previne:** duas coisas. O formato de cada documento competindo com
+contexto ativo em todo turno, dentro do `CLAUDE.md`; e skill de terceiro no repositório mandando o
+contrário da regra — a auditoria achou uma (D3), e hoje são cinco em `.claude/skills/`.
+**Trava:** [Q14](open-questions.md), a [T0](#t0-o-que-cada-agente-carrega-do-repositório-medido) e a
+[T8](#t8-agentsmd-na-raiz-e-o-claudemd-encolhe--63) (o `AGENTS.md` é onde a regra de *onde mora*
+fica).
+
+**What**:
+1. `lumem-adr` — os três testes, o frontmatter, `supersedes`, reafirmar o que fica, o estudo em
+   `docs/project/` que o sustenta. Primeiro passo: listar `docs/adr/` e ler o frontmatter.
+2. `lumem-feature-docs` — `prd.md`, `open-questions.md`, `tasks.md`, numeração `NNN`, a gramática do
+   `Status:`, a nota no requisito contradito; e ao fechar a feature, a linha no §Estado atual e o
+   parágrafo no History do Outline.
+3. `lumem-outline` — discovery, postmortem, runbook, a entrada no Work log: a coleção certa, a regra
+   do segredo, *linka, não copia*, e o fechamento discovery → ADR.
+4. O `CLAUDE.md` (ou o `AGENTS.md`, pela T8) fica com a tabela de **onde cada coisa mora** e as sete
+   regras; o formato sai para as skills.
+5. As cinco skills de terceiro em `.claude/skills/` passam, uma a uma, pela pergunta *"o que ela manda
+   contradiz o `CLAUDE.md`?"* — e a que contradiz sai do repositório ou ganha a exceção escrita.
+6. O que a T0 disser que o Codex lê recebe um link simbólico para as mesmas skills.
+7. Um teste em `scripts/` exige que cada `lumem-*` tenha `name` e `description`, e que toda regra que
+   uma skill cita (`check-docs`, `Status:`) exista no código que ela cita.
+
+**Where**: `.claude/skills/lumem-adr/`, `.claude/skills/lumem-feature-docs/`,
+`.claude/skills/lumem-outline/` (novos), `CLAUDE.md`, o caminho do Codex, `scripts/`.
+
+**Done when**:
+- um agente sem histórico, pedido *"escreve um ADR sobre X"*, carrega a `lumem-adr` sozinho e produz
+  um arquivo que o `docs:check` aceita — observado nos dois agentes, até onde a T0 disser;
+- `wc -l CLAUDE.md` abaixo de **100**, junto com a T8;
+- `pnpm gate:quick` verde.
 
 **Gate**: `pnpm gate:quick`
 **Status**: ⬜ não iniciada

@@ -1,9 +1,9 @@
 # PRD — O harness deste repositório
 
-> **Status:** proposta
-> **Histórico:** v0.1 — proposto em **2026-09-07**, a partir da [auditoria de harness](../../project/harness-audit.md) medida no commit `40a0883` (v0.3.1).
-> **Perguntas:** [open-questions.md](open-questions.md) — 8 abertas, 3 já respondidas
-> **Tasks:** [tasks.md](tasks.md) — 16 tasks em 3 fases, uma issue cada
+> **Status:** em execução
+> **Histórico:** v0.1 — proposto em **2026-09-07**, a partir da [auditoria de harness](../../project/harness-audit.md) medida no commit `40a0883` (v0.3.1). v0.2 — **2026-09-28**: remedido, e o escopo cresce para **hooks** (de git e de agente) e **skills** — ver o [§8](#8-emenda--2026-09-28-hooks-skills-e-o-que-três-semanas-não-mudaram).
+> **Perguntas:** [open-questions.md](open-questions.md) — 14 abertas, 3 já respondidas
+> **Tasks:** [tasks.md](tasks.md) — 21 tasks: uma Fase 0 de medição e as 3 fases de 2026-09-07
 > **Issue de rastreio:** [#72](https://github.com/vinihcrosa/lumem-os/issues/72), com marco por fase
 > **Depende de:** nada. A [daemon-auth](../019-daemon-auth/prd.md) é vizinha e **não** é pré-requisito:
 > ela protege o produto de quem fala com ele, esta protege o repositório de quem escreve nele
@@ -118,3 +118,74 @@ Nada além dessas três, e cada uma só depois de o portão da F1 existir.
 6. Um rollback de versão foi executado, medido e registrado.
 7. O mutation score dos três diretórios de núcleo está registrado em `testing.md`, com piso que só
    sobe.
+
+## 8. Emenda — 2026-09-28: hooks, skills, e o que três semanas não mudaram
+
+### 8.1 A remedição
+
+Três semanas depois da auditoria, **nenhuma das 16 tasks começou**, e o repositório passou de 3 151
+para **4 468 testes**. Medido em 2026-09-28, contra a linha de base do §6 da
+[auditoria](../../project/harness-audit.md):
+
+| # da auditoria | Em 2026-09-07 | Em 2026-09-28 |
+|---|---|---|
+| 1 — `npm publish` com o token do ambiente | `~/.npmrc` com `_authToken` | **igual**: a linha continua lá, três semanas depois da [A1](open-questions.md) dizer *"pode retirar"* |
+| 2 e 5 — push forçado em `main`, merge de PR vermelha | `rulesets` → `[]` | existe um ruleset `main-protect` com `deletion`, `non_fast_forward`, `required_linear_history` e `pull_request` — **`enforcement: disabled`** e **sem `required_status_checks`**. `branches/main/protection` continua **404** |
+| 3 — `git push --tags` publica | environment `npm` sem regra | **igual** |
+| 4 — `gh api -X DELETE` | scope `delete_repo` | **igual** |
+| 6 e 7 — credencial e `~/.lumem` | `~/.claude/settings.json`: 101 `allow`, 0 `deny` | **103 `allow`, 0 `deny`**, e nada em `.claude/settings.json` do repositório |
+| hook de git | nenhum | **nenhum** — `core.hooksPath` indefinido |
+| `AGENTS.md` | não existe | **não existe**. O Lumem roda Codex na esteira, e o Codex não lê `CLAUDE.md` |
+
+O que mudou é o que a [`025`](../025-docs-contract/prd.md) e a
+[PR #92](https://github.com/vinihcrosa/lumem-os/pull/92) fizeram na documentação: o link-checker
+virou gate, e o `CLAUDE.md` perdeu a crônica (de 9 792 para 2 435 palavras) — metade da
+[T8](tasks.md#t8-agentsmd-na-raiz-e-o-claudemd-encolhe--63), por outro caminho.
+
+A leitura é a do §1, e piorou de sentido: **o repositório verifica mais e continua não bloqueando
+nada**, e cada semana de N2 sem portão é uma semana de sorte.
+
+### 8.2 O que entra
+
+O pedido de 2026-09-28 é *"armar o harness para poder confiar cada vez mais no trabalho de agentes"*,
+e ele nomeia três coisas que a v0.1 não tinha:
+
+1. **Hooks de git.** A auditoria mediu a ausência e nenhuma task a tratava. Um hook de git é
+   **feedback, não portão**: `--no-verify` o atravessa. Ele vale pelo que devolve *antes* do CI — e só
+   vira regra para o agente quando o guarda do item 2 recusa o `--no-verify`.
+2. **Hooks de agente.** A [T4](tasks.md#t4-a-política-de-permissão-do-agente-vira-arquivo-do-repositório-com-teste--59)
+   põe um `deny` no `.claude/settings.json`, e isso protege **um** agente. O Codex tem hooks próprios
+   (`.codex/hooks.json`, com `PreToolUse` que bloqueia), e a política precisa valer para os dois. A
+   forma que a emenda propõe é **um guarda, três tomadas**: um script só decide, e o git, o Claude e o
+   Codex o chamam.
+3. **Skills.** O formato de cada tipo de documento sai do `CLAUDE.md` para três skills do repositório
+   — ADR, documentos de feature e Outline —, e a regra de *onde cada coisa mora* fica. O desenho está
+   na conversa que abriu a [PR #92](https://github.com/vinihcrosa/lumem-os/pull/92): regra sempre
+   carregada, formato sob demanda.
+
+E uma pergunta que a v0.1 não fez e que decide o valor dos itens 2 e 3: **os agentes que o próprio
+Lumem sobe carregam o que está no repositório?** A esteira da [`028`](../028-autonomous-orchestration/prd.md)
+roda `claude-agent-acp` e `codex-acp`, não o Claude Code interativo. Se os adaptadores não leem
+`.claude/settings.json` nem `.codex/hooks.json`, o guarda protege quem está olhando e deixa de fora
+quem trabalha sozinho — o caso que mais precisa dele. Por isso a emenda abre uma **Fase 0** que mede
+antes de escrever, no molde da [`021`](../021-second-agent/prd.md) e da [`034`](../034-agent-accounts/prd.md).
+
+### 8.3 O que muda, arquivo por arquivo — só o que é novo
+
+| Onde | O quê | Task |
+|---|---|---|
+| `docs/project/harness-audit.md` §11 | o que cada agente carrega do repositório, medido | T0 |
+| `.githooks/`, `scripts/workspace/setup.sh`, `scripts/harness/*.test.ts` | `pre-commit`, `commit-msg`, `pre-push`; o setup liga o `core.hooksPath` | T17 |
+| `scripts/harness/guard.ts` (+ teste), `.claude/settings.json`, `.codex/hooks.json` | um guarda, chamado pelos dois agentes | T18 |
+| `.claude/settings.json`, `.codex/hooks.json` | o `Stop` que cobra o gate antes de *"pronto"* | T19 |
+| `.claude/skills/lumem-*`, e onde o Codex as lê | as três skills de documentação; auditoria das cinco de terceiro | T20 |
+
+### 8.4 Critério de aceite — acrescido
+
+8. Um agente — Claude **e** Codex, interativo **e** pela esteira, até onde a T0 disser que alcança —
+   tentando `git commit --no-verify`, `git push --force` ou `npm publish` é **recusado pelo guarda**,
+   com a frase dizendo por quê. Conferido tentando, não lendo a configuração.
+9. `git commit` com mensagem fora do Conventional Commits é recusado pelo `commit-msg`; `git push` com
+   o `gate:quick` vermelho é recusado pelo `pre-push`, dizendo o que rodou.
+10. Um clone novo mais `scripts/workspace/setup.sh` deixa os hooks ligados sem passo manual.
+

@@ -38,7 +38,7 @@ feature fecha, ela ganha a linha aqui e o parágrafo lá.
 | [021 second-agent](docs/features/021-second-agent/prd.md) | completa | o Codex como segundo agente, e o catálogo `ADAPTERS` |
 | [022 workspace-tasks](docs/features/022-workspace-tasks/prd.md) | completa | tarefa como entidade; `in_progress` derivado, agente escreve para cima por proposta |
 | [023 composer-menus](docs/features/023-composer-menus/prd.md) | completa | os menus do composer aparecem inteiros |
-| [024 dev-harness](docs/features/024-dev-harness/prd.md) | proposta | o harness deste repositório |
+| [024 dev-harness](docs/features/024-dev-harness/prd.md) | em execução | o harness deste repositório: portão no merge, hooks de git e de agente, skills |
 | [025 docs-contract](docs/features/025-docs-contract/prd.md) | completa | o número ordena, o ADR decide, e o gate de documentação |
 | [026 worktree-from](docs/features/026-worktree-from/prd.md) | completa | worktree a partir de branch, issue ou PR |
 | [027 adapter-provenance](docs/features/027-adapter-provenance/prd.md) | em execução | o daemon é dono da cópia do adaptador; o PATH nunca decide |
