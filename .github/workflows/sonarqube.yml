@@ -23,6 +23,11 @@ concurrency:
   group: sonarqube-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# O `prepare` do `pnpm install` liga o husky (T17 da `024-dev-harness`), e num
+# runner não há commit nenhum para ele vigiar.
+env:
+  HUSKY: 0
+
 jobs:
   sonarqube:
     name: SonarQube

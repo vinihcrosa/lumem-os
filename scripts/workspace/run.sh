@@ -12,6 +12,12 @@ cd "$REPO_ROOT"
 
 resolve_ports
 
+# Os hooks de git (T17 da `024-dev-harness`) ligam no `prepare` do `pnpm install`.
+# Uma worktree que nunca rodou o install fica sem eles, em silêncio: avisa, e segue.
+if [ "$(git config --get core.hooksPath 2>/dev/null || true)" != ".husky/_" ] || [ ! -d .husky/_ ]; then
+  echo "aviso: os hooks de git não estão ligados nesta worktree — rode \`pnpm install\` (ou ./scripts/workspace/setup.sh)" >&2
+fi
+
 # O vite lê as duas: LUMEM_WEB_PORT para escutar, LUMEM_PORT para apontar o
 # proxy de /trpc, /pty e /acp. Definir só uma deixa a UI conversando com o
 # daemon errado — ou com nenhum. `resolve_ports` já exporta as duas;
