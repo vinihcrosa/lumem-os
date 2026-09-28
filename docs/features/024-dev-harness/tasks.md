@@ -294,7 +294,22 @@ do usuário) gravável, num repositório cuja suíte já escreveu ali uma vez.
 - `pnpm gate:quick` verde.
 
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ não iniciada
+**Status**: ✅ entregue em 2026-09-28. `.claude/settings.json` com **37** regras de `deny`, os motivos em
+`scripts/harness/policy.ts`, e `scripts/agent-policy.test.ts` amarrando os dois (provado vermelho tirando
+uma linha). O aceite por comportamento: um Claude Haiku em `bypassPermissions`, numa bancada em
+`/tmp/lumem-t4`, tentou a forma inofensiva de **15** ações e teve as **15** recusadas; o controle
+(`git log`) passou; nenhum arquivo nem commit ficou para trás (US$ 0,10).
+
+> **SPEC_DEVIATION — três, todas medidas ou lidas na documentação do Claude Code de 2026-09-28:**
+> - **`Write(~/.lumem/**)` virou `Edit(~/.lumem/**)`.** O Claude Code **aceita uma regra `Write(...)` de
+>   caminho e nunca a consulta**; `Edit(...)` é a que cobre Write, Edit e NotebookEdit. Escrita como
+>   estava, a linha nasceria sem efeito, e o teste passa a recusar `Write(`/`MultiEdit(`/`NotebookEdit(`.
+> - **`Write(~/.claude/**)` virou três regras estreitas** (`settings.json`, `settings.local.json`,
+>   `hooks/**`): o `~/.claude/projects/*/memory/` é a memória do agente, e a regra larga a proibiria.
+> - **Entraram** `git commit --no-verify`/`-n`, `git push --no-verify` e `Edit(~/.config/husky/**)` —
+>   as portas de fuga da [Q9](open-questions.md) —, e cada comando de Bash tem as duas formas
+>   (`Bash(x)` e `Bash(x *)`), porque o prefixo com espaço não casa o comando sem argumento.
+> - O passo 4 escreve no `CLAUDE.md`, e não num `AGENTS.md` (repositório só Claude, [Q11](open-questions.md)).
 
 ---
 

@@ -81,9 +81,14 @@ Monorepo pnpm + Turborepo. `packages/shared` (contratos), `packages/server` (dae
 | `pnpm gate:build` | typecheck de tudo + build |
 | `pnpm adapters:check` | pergunta ao npm se o pino de cada adaptador ACP envelheceu — e se o **runtime que ele embute** envelheceu, que é o que quebra turno. Sem rede, passa |
 | `pnpm smoke:install` | empacota o `lumem`, instala num prefixo descartável e sobe — a prova de que o pacote publicado presta |
-| `pnpm version:set <x.y.z>` | escreve a versão nos três lugares que têm que concordar |
+| `pnpm version:set <x.y.z>` | escreve a versão nos três lugares que têm que concordar. A release passa **por PR** desde 2026-09-28 — a `main` recusa push direto — e publica pela tag do commit mesclado: runbook *Publishing a release* no Outline (`Lumem · Team`) |
 
 Antes de dizer que uma task está pronta, rode o gate que ela declara. Detalhes em [docs/project/testing.md](docs/project/testing.md).
+
+**A política do agente é do repositório**: `.claude/settings.json`, com o motivo de cada `deny` em
+`scripts/harness/policy.ts`. O `~/.claude/settings.json` é preferência de máquina, não guardrail — e um
+`deny` daqui vale contra qualquer `allow` de lá, inclusive em `bypassPermissions`. Recusa é o
+comportamento, não um erro para contornar.
 
 ## Regra de design
 
