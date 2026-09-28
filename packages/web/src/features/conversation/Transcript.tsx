@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from "react";
 
 import { absoluteStamp } from "../../lib/relative-time.js";
 import { Banner, Coach } from "../../ui/index.js";
+import { ContinueInMenu, type ContinueInProps } from "./ContinueInMenu.js";
 import { type Block, type ConversationState, type TerminalView } from "./conversation-model.js";
 import { Message, Thought, TurnFrame } from "./Message.js";
 import { PermissionRequest } from "./PermissionRequest.js";
@@ -25,9 +26,19 @@ export interface TranscriptProps {
   answer(requestId: string, optionId: string): void;
   /** Abre a outra aba de uma linha de vínculo (`034` T15), ou `null` quando ela não é deste escopo. */
   sessionLink?: (sessionId: string) => (() => void) | null;
+  /** O gesto de continuar noutra conta, que a recusa por cota oferece (`028` T17). */
+  continueIn?: ContinueInProps;
 }
 
-export function Transcript({ conversation, session, failure, readOnly, answer, sessionLink }: TranscriptProps) {
+export function Transcript({
+  conversation,
+  session,
+  failure,
+  readOnly,
+  answer,
+  sessionLink,
+  continueIn,
+}: TranscriptProps) {
   const [openThoughts, setOpenThoughts] = useState<ReadonlySet<string>>(new Set());
   /**
    * The first permission on this machine gets an explanation (F5.4).
@@ -101,6 +112,12 @@ export function Transcript({ conversation, session, failure, readOnly, answer, s
                 }}
                 coach={coach}
                 sessionLink={sessionLink}
+                /*
+                 * Só a recusa do **último** turno oferece o gesto: com conversa
+                 * depois dela, a cota já reabriu, e continuar noutra conta por
+                 * causa de um limite que passou é o cabeçalho, não esta linha.
+                 */
+                continueIn={turnIndex === conversation.turns.length - 1 ? continueIn : undefined}
               />
             ))}
           </TurnFrame>
@@ -142,6 +159,7 @@ interface BlockViewProps {
   /** The first-time explanation of `Auto`, if it is still owed. */
   coach: FirstPermissionCoach;
   sessionLink: TranscriptProps["sessionLink"];
+  continueIn: ContinueInProps | undefined;
 }
 
 function BlockView({
@@ -153,6 +171,7 @@ function BlockView({
   onRespond,
   coach,
   sessionLink,
+  continueIn,
 }: BlockViewProps) {
   switch (block.kind) {
     case "message":
@@ -202,9 +221,22 @@ function BlockView({
       // nome, forma diferente.
       return <MetaLine text={block.text} open={block.link === undefined ? null : (sessionLink?.(block.link) ?? null)} />;
     case "quota":
-      // Aviso, e não perigo: nada quebrou, a conta espera reabrir. A família é a
-      // de estado (`warning`), nunca a da marca.
-      return <Banner tone="warning">{block.text}</Banner>;
+      /*
+       * Aviso, e não perigo: nada quebrou, a conta espera reabrir. A família é a
+       * de estado (`warning`), nunca a da marca.
+       *
+       * O gesto é o mesmo do cabeçalho, e **só oferece** — nada troca de conta
+       * sozinho (Q4 da `034`: o Lumem não mede nem gira conta). Sem outra conta
+       * conectada o `ContinueInMenu` não desenha nada, e a linha fica só a frase.
+       */
+      return (
+        <Banner
+          tone="warning"
+          {...(continueIn === undefined ? {} : { actions: <ContinueInMenu {...continueIn} empty={false} /> })}
+        >
+          {block.text}
+        </Banner>
+      );
   }
 }
 

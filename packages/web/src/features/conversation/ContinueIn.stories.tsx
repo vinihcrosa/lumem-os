@@ -133,3 +133,36 @@ export const LinhasDeVinculo: Story = {
     />
   ),
 };
+
+const LIMIT = "You've hit your weekly limit · resets 7pm (America/Sao_Paulo)";
+
+/**
+ * A recusa por cota, na forma medida em 2026-09-28 (`028` T17): o agente escreve
+ * o limite, e o Lumem diz qual conta parou.
+ */
+const REFUSED: AcpTranscriptEntry[] = [
+  { at: Date.parse("2026-09-28T18:00:00Z"), event: { type: "message", messageId: "u-1", role: "user", text: "roda o gate e me diz o que quebrou" } },
+  { at: Date.parse("2026-09-28T18:00:02Z"), event: { type: "message", messageId: "m-1", role: "agent", text: LIMIT } },
+  {
+    at: Date.parse("2026-09-28T18:00:02Z"),
+    event: {
+      type: "quota_refused",
+      accountId: PESSOAL.id,
+      accountLabel: "pessoal",
+      agent: "Claude Code",
+      message: `Internal error: ${LIMIT}`,
+    },
+  },
+];
+
+/** A conta bateu no limite, e há outra conectada: a linha oferece continuar nela. */
+export const CotaComOutraConta: Story = {
+  name: "Cota esgotada, com outra conta",
+  render: () => <Stage accounts={[PESSOAL, TRABALHO, CODEX]} accountLabel="pessoal" transcript={REFUSED} />,
+};
+
+/** A conta bateu no limite, e é a única: a linha é só a frase — não há para onde ir. */
+export const CotaSemOutraConta: Story = {
+  name: "Cota esgotada, conta única",
+  render: () => <Stage accounts={[PESSOAL]} transcript={REFUSED} />,
+};

@@ -175,3 +175,93 @@ describe("as linhas de vínculo", () => {
     expect(screen.getByText("continuada em codex · chatgpt →")).toHaveClass("meta--conversation");
   });
 });
+
+describe("a conta bateu no limite (`028` T17)", () => {
+  const LIMIT = "You've hit your weekly limit · resets 7pm (America/Sao_Paulo)";
+  const REFUSED: AcpTranscriptEntry[] = [
+    { at: 1, event: { type: "message", messageId: "u-1", role: "user", text: "oi" } },
+    { at: 2, event: { type: "message", messageId: "m-1", role: "agent", text: LIMIT } },
+    {
+      at: 3,
+      event: {
+        type: "quota_refused",
+        accountId: "acct_pessoal",
+        accountLabel: "pessoal",
+        agent: "Claude Code",
+        message: `Internal error: ${LIMIT}`,
+      },
+    },
+  ];
+  const TWO = [
+    accountRow(),
+    accountRow({ id: "acct_trabalho", label: "trabalho", isDefault: false, bare: false }),
+  ];
+
+  /** A linha da recusa — um aviso, e não um alerta: nada quebrou, a conta espera. */
+  async function refusalLine(): Promise<HTMLElement> {
+    const text = await screen.findByText(/a conta pessoal bateu no limite do Claude Code — Internal error:/);
+    return text.closest(".banner") as HTMLElement;
+  }
+
+  it("diz qual conta parou, com o texto do adaptador, e o turno acabou", async () => {
+    const socket = mount({ continueIn: { currentAccountId: "acct_pessoal", onContinue: vi.fn(), pending: false } });
+    socket.deliver(attached(REFUSED));
+
+    const line = await refusalLine();
+
+    expect(line).toHaveClass("banner--warning");
+    expect(line).toHaveTextContent(`resets 7pm (America/Sao_Paulo)`);
+    // O adaptador não manda `turn_end` numa recusa; sem o fecho, o botão de
+    // interromper ficaria aceso sobre um turno morto.
+    expect(screen.queryByRole("button", { name: /interromper/ })).toBeNull();
+  });
+
+  it("com outra conta conectada, oferece continuar nela ali mesmo — e só oferece", async () => {
+    const user = userEvent.setup();
+    trpcMock.agentAccount.list.query.mockResolvedValue(TWO);
+    const onContinue = vi.fn();
+    const socket = mount({ continueIn: { currentAccountId: "acct_pessoal", onContinue, pending: false } });
+    socket.deliver(attached(REFUSED));
+
+    const line = await refusalLine();
+    const offer = await within(line).findByRole("button", { name: /continuar em outra conta/ });
+    await waitFor(() => expect(offer).toBeEnabled());
+    // Nada troca sozinho (Q4 da `034`): a linha oferece, e quem escolhe é você.
+    expect(onContinue).not.toHaveBeenCalled();
+
+    await user.click(offer);
+    const menu = within(line).getByRole("menu", { name: "continuar em outra conta" });
+    await user.click(within(menu).getByRole("menuitem", { name: "claude · trabalho" }));
+
+    expect(onContinue).toHaveBeenCalledWith("acct_trabalho");
+  });
+
+  it("sem outra conta conectada, a linha não oferece o que não existe", async () => {
+    const socket = mount({ continueIn: { currentAccountId: "acct_pessoal", onContinue: vi.fn(), pending: false } });
+    socket.deliver(attached(REFUSED));
+
+    const line = await refusalLine();
+    await waitFor(() => expect(trpcMock.agentAccount.list.query).toHaveBeenCalled());
+
+    expect(within(line).queryByRole("button")).toBeNull();
+  });
+
+  it("uma recusa antiga, com conversa depois dela, não oferece nada", async () => {
+    // A cota reabriu e a conversa seguiu: o gesto ali seria sobre um limite que
+    // já passou. Quem quer continuar noutra conta tem o do cabeçalho.
+    trpcMock.agentAccount.list.query.mockResolvedValue(TWO);
+    const socket = mount({ continueIn: { currentAccountId: "acct_pessoal", onContinue: vi.fn(), pending: false } });
+    socket.deliver(
+      attached([
+        ...REFUSED,
+        { at: 4, event: { type: "message", messageId: "u-2", role: "user", text: "e agora?" } },
+        { at: 5, event: { type: "message", messageId: "m-2", role: "agent", text: "voltei" } },
+      ]),
+    );
+
+    const line = await refusalLine();
+    await screen.findAllByRole("button", { name: /continuar em outra conta/ });
+
+    expect(within(line).queryByRole("button")).toBeNull();
+  });
+});

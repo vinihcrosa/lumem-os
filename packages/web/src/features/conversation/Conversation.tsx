@@ -196,6 +196,7 @@ export function Conversation({
             readOnly={readOnly}
             answer={answer}
             {...(sessionLink === undefined ? {} : { sessionLink })}
+            {...(continueIn === undefined ? {} : { continueIn })}
           />
           {composer}
         </>
