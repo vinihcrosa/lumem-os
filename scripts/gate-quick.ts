@@ -67,6 +67,28 @@ export const FULL_SUITE_GLOBS = [
   ":(exclude)docs/**",
 ];
 
+/**
+ * Documentation, which `FULL_SUITE_GLOBS` excludes on purpose — a `.md` commit
+ * must not run the whole suite. Its own check instead, and not a vitest
+ * selection: `docs:check` reads the tree by path, which is exactly the kind of
+ * test `--changed` never selects (T6 of docs/features/024-dev-harness).
+ */
+export const DOCS_GLOBS = ["*.md", "docs/**"];
+
+/**
+ * Whether the documentation check runs: any doc changed, or git could not say.
+ * Independent of the vitest decision — a doc beside a source change still has
+ * its links checked, and a doc beside a lockfile still does too.
+ */
+export function docsCheckNeeded(docs: readonly string[] | null): boolean {
+  return docs === null || docs.length > 0;
+}
+
+export function describeDocs(docs: readonly string[] | null, base: string): string {
+  if (docs === null) return `gate:quick — cannot tell which docs changed since ${base}; running docs:check.`;
+  return `gate:quick — ${docs.length} doc file(s) changed since ${base}; running docs:check.`;
+}
+
 export const DEFAULT_BASE = "HEAD^";
 
 /**

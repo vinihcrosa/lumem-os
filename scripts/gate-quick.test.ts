@@ -9,6 +9,8 @@ import {
   changedFiles,
   decide,
   describeDecision,
+  describeDocs,
+  docsCheckNeeded,
   E2E_GLOBS,
   FULL_SUITE_GLOBS,
   GRAPH_GLOBS,
@@ -406,5 +408,25 @@ describe("describeDecision", () => {
     expect(describeDecision({ run: "all", reason: "unresolved-base" }, "bad", 0)).not.toContain(
       "nothing to run",
     );
+  });
+});
+
+describe("a categoria docs", () => {
+  it("um commit só de documentação roda o docs:check, e diz que rodou", () => {
+    expect(docsCheckNeeded(["docs/x.md"])).toBe(true);
+    expect(describeDocs(["docs/x.md"], "HEAD^")).toContain("running docs:check");
+  });
+
+  it("documentação ao lado de código ainda roda o docs:check — a doc não encolhe a seleção", () => {
+    expect(docsCheckNeeded(["CLAUDE.md"])).toBe(true);
+    expect(decide(["packages/server/src/config.ts"], [], []).run).toBe("changed");
+  });
+
+  it("sem doc mudada, não roda", () => {
+    expect(docsCheckNeeded([])).toBe(false);
+  });
+
+  it("\"não sei\" nunca vira \"nada a fazer\"", () => {
+    expect(docsCheckNeeded(null)).toBe(true);
   });
 });

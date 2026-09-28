@@ -13,6 +13,8 @@ import { describe, expect, it } from "vitest";
 import {
   anchorsOf,
   checkDocs,
+  checkCodePaths,
+  checkIndexDuplicates,
   checkLinks,
   checkStatus,
   formatFindings,
@@ -207,6 +209,61 @@ describe("checkStatus", () => {
       "docs/features/001-a/tasks.md": `${tasks("em execução")}\n- [x] um\n`,
     });
     expect(checkStatus(ticked)).toEqual([]);
+  });
+});
+
+describe("checkCodePaths", () => {
+  const done = "# PRD\n\n**Status:** completa\n";
+  it("reports a backtick path to code that does not exist, in a finished feature", () => {
+    const root = tree({
+      "docs/features/001-a/prd.md": `${done}\nO arquivo \`packages/web/src/Gone.tsx\` foi criado.\n`,
+      "docs/features/001-a/tasks.md": "**Status:** completa\n",
+    });
+    const findings = checkCodePaths(root);
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.kind).toBe("stale-code-path");
+    expect(findings[0]?.message).toContain("packages/web/src/Gone.tsx");
+  });
+
+  it("accepts a path that exists, and a historical one written without backticks", () => {
+    const root = tree({
+      "packages/web/src/Here.tsx": "",
+      "docs/project/x.md": "Vive em `packages/web/src/Here.tsx`; antes, em packages/web/src/Gone.tsx.\n",
+    });
+    expect(checkCodePaths(root)).toEqual([]);
+  });
+
+  it("does not check a plan — a feature that is not `completa` names files it is about to create", () => {
+    const root = tree({
+      "docs/features/002-b/prd.md": "**Status:** em execução\n\nCria `scripts/new-thing.ts`.\n",
+      "docs/features/002-b/tasks.md": "**Status:** em execução\n",
+    });
+    expect(checkCodePaths(root)).toEqual([]);
+  });
+
+  it("does not check an ADR, which is never edited, nor a reference, which describes another product", () => {
+    const root = tree({
+      "docs/adr/2026-01-01-0000-x.md": "Apaga `scripts/design-sync.ts`.\n",
+      "docs/references/other.md": "Lá existe `packages/desktop/src/main.ts`.\n",
+    });
+    expect(checkCodePaths(root)).toEqual([]);
+  });
+
+  it("ignores a path inside a fence", () => {
+    const root = tree({ "docs/project/x.md": "```\n`packages/web/src/Gone.tsx`\n```\n" });
+    expect(checkCodePaths(root)).toEqual([]);
+  });
+});
+
+describe("checkIndexDuplicates", () => {
+  it("reports the same target twice in one table of the index", () => {
+    const root = tree({ "docs/README.md": "| a | b |\n|---|---|\n| [x](adr/x.md) | 1 |\n| [x de novo](adr/x.md) | 2 |\n" });
+    expect(checkIndexDuplicates(root).map((f) => f.line)).toEqual([4]);
+  });
+
+  it("accepts the same target in two different tables", () => {
+    const root = tree({ "docs/README.md": "| [x](adr/x.md) | 1 |\n\ntexto\n\n| [o ADR](adr/x.md) | 2 |\n" });
+    expect(checkIndexDuplicates(root)).toEqual([]);
   });
 });
 

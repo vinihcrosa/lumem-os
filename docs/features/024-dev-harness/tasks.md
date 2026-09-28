@@ -428,7 +428,16 @@ o gate é criar um sensor que dorme.
 - `pnpm gate:quick` verde depois da T7.
 
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ não iniciada
+**Status**: ✅ entregue em 2026-09-28, **dentro do `check-docs`** e não num `docs-freshness.test.ts` à
+parte: é o mesmo sensor de documentação, e dois fariam o agente procurar em dois lugares. Duas checagens
+novas — `stale-code-path` e `duplicate-index-row` (por tabela, porque o mesmo ADR é linkado de novo na
+tabela da feature que o produziu) — e o `gate:quick` roda o `docs:check` sempre que uma doc mudou, e diz.
+
+> **SPEC_DEVIATION — três exclusões que a task não previa:** `docs/adr/` (ADR nunca se edita, então um
+> caminho nele é um fato do dia dele), `docs/references/` (como previsto) e **feature que não está
+> `completa`** — um plano cita os arquivos que vai criar, e esta própria `024` citava `stop.ts` e
+> `pr-class.ts` antes de existirem. E a medição do dia: não 24 itens, mas **198 ocorrências em 50
+> arquivos** — a `032` moveu 113 arquivos para `features/<domínio>/`.
 
 ---
 

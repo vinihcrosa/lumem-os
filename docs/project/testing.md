@@ -74,7 +74,7 @@ Fonte de verdade da estratégia de teste. O campo `Tests`/`Gate` de toda task sa
 | `full` | `pnpm gate:full` | Suíte inteira + e2e |
 | `build` | `pnpm gate:build` | Typecheck de todo TS do repositório, **lint de correção** (`pnpm lint`) e build do web **e do bundle do daemon** |
 | `lint` | `pnpm lint` | `oxlint --type-aware`: a categoria `correctness` mais `no-floating-promises`, `no-misused-promises` e `await-thenable`, com `--max-warnings 0`. 2,7 s. Não vê estilo, e é de propósito. `unbound-method` desligado: 162 achados, todos `const { f } = useHook()` sobre interface com sintaxe de método, sem `this` em jogo. Exceção na linha, sempre com `-- motivo` |
-| `docs` | `pnpm docs:check` | Link, âncora e `**Status:**` da documentação. Já roda dentro do `gate:full` pelo `check-docs.test.ts`; o comando existe para rodar em 200 ms sem a suíte |
+| `docs` | `pnpm docs:check` | Link, âncora, `**Status:**`, **caminho de código em crase que não existe** (fora de ADR, de `references/` e de feature não `completa`) e **linha duplicada numa tabela do índice**. Já roda dentro do `gate:full` pelo `check-docs.test.ts`, e o `gate:quick` o roda sozinho sempre que uma doc mudou — o `--changed` do vitest nunca selecionaria um teste que lê arquivo por caminho |
 | `smoke` | `pnpm smoke:install` | O pacote publicado instala num prefixo limpo e sobe. Não faz parte dos três gates de todo dia: roda no release, e à mão antes de publicar |
 
 ### Os hooks de git: feedback, não portão
@@ -304,7 +304,7 @@ a variável só existe dentro dele.
 
 ### Documentação não tinha gate nenhum, e a convenção falhava 1 em 5
 
-**Sintoma:** quatro links apontavam para `docs/features/003-worktree-tabs/prd.md`, arquivo que nunca
+**Sintoma:** quatro links apontavam para docs/features/003-worktree-tabs/prd.md, arquivo que nunca
 existiu sob nome nenhum — a pasta só tem `tasks.md`. **Dois deles foram criados por tasks marcadas
 `[x]`** cujo trabalho era propagar uma nota de reversão, e ficaram lá por dias. Em paralelo, cinco
 `prd.md` declaravam um `**Status:**` que discordava do próprio `tasks.md` da mesma pasta, e os dois

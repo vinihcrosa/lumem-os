@@ -5,6 +5,9 @@ import {
   decide,
   DEFAULT_BASE,
   describeDecision,
+  describeDocs,
+  DOCS_GLOBS,
+  docsCheckNeeded,
   E2E_GLOBS,
   FULL_SUITE_GLOBS,
   GRAPH_GLOBS,
@@ -21,6 +24,13 @@ const graph = changedFiles(GRAPH_GLOBS, base);
 const untraceable = changedFiles(FULL_SUITE_GLOBS, base);
 const e2e = changedFiles(E2E_GLOBS, base);
 const decision = decide(graph, untraceable, e2e);
+
+const docs = changedFiles(DOCS_GLOBS, base);
+if (docsCheckNeeded(docs)) {
+  console.log(describeDocs(docs, requested));
+  const checked = spawnSync("pnpm", ["-s", "docs:check"], { stdio: "inherit" });
+  if (checked.status !== 0) process.exit(checked.status ?? 1);
+}
 
 console.log(describeDecision(decision, requested, graph?.length ?? 0));
 
