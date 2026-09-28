@@ -192,7 +192,7 @@ de propósito (a regra da `025` sobre gate que nasce verde).
   arrastar `cli_auth_credentials_store`. **Se falhar, a herança vira cópia**, e a Q10 recebe a nota.
 
 **Gate**: `pnpm gate:quick`
-**Status**: ✅ entregue — `c084a72`. A herança da Q10 foi medida contra os binários reais; um plugin **carregar** por link continua não medido
+**Status**: ✅ entregue — `c084a72`. A herança da Q10 foi medida contra os binários reais, e um plugin **carregar** por link foi medido em 2026-09-28, numa conta de verdade: carrega
 
 #### T9: O catálogo por conta, o trio padrão, e o modelo que sumiu
 

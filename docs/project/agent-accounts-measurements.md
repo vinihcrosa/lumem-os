@@ -148,6 +148,12 @@ Medido na lista de `configOptions`: na conta de hoje, o `session/new` oferece um
 os subagentes dos plugins instalados, o modelo `opus[1m]` e o effort `xhigh` que o `settings.json`
 fixa. Com `CLAUDE_CONFIG_DIR=a`, o seletor `agent` **some**, e modelo e effort voltam a `default`.
 
+**E com a herança por link** ([Q10](../features/034-agent-accounts/open-questions.md)), medido em
+2026-09-28 numa conta de verdade: o `session/new` da conta nova devolve o seletor `agent` com os
+mesmos subagentes de plugin, e o modelo e o effort do `settings.json` — idêntico ao da conta de hoje.
+O que a tabela acima diz que a conta nova **não** vê passa a ser só a identidade e os MCPs de
+usuário, que moram no `.claude.json`.
+
 A última linha da tabela é a que pesa na implementação: o `session/load` de uma conversa do Claude lê
 o transcript de `<config>/projects/`, então **o diretório da conta tem de viver tanto quanto as
 conversas dela** — o que a [Q8](../features/034-agent-accounts/open-questions.md) já decidiu

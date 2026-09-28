@@ -420,6 +420,13 @@ só com cópias num `HOME` descartável:
   nem arriscar escrever lá. A primeira conta conectada com plugins é a medição; se o seletor de
   subagentes não aparecer nela, a herança de `plugins/` cai para cópia.
 
+**Medido (2026-09-28), e o link fica:** a primeira conta conectada de verdade (`technomar-ted`,
+com `settings.json`, `CLAUDE.md`, `rules`, `skills` e `plugins` ligados) abriu o `session/new` com o
+**mesmo** seletor `agent` da conta de hoje — os três subagentes do plugin `caveman` —, e no modelo
+`opus[1m]` com effort `xhigh` que o `settings.json` ligado fixa. Um diretório limpo não tem o
+seletor e abre no padrão do adaptador. Os plugins carregam por link, e a herança **não** cai para
+cópia ([estudo](../../project/agent-accounts-measurements.md), §2.5).
+
 ---
 
 ### [x] Q11 — Uma conta de assinatura herda o `ANTHROPIC_API_KEY` do daemon?
