@@ -188,3 +188,56 @@ Respondidas pelo Vinicius em **2026-09-07**, e é delas que sai o corte da PRD:
    confirmado: **CSS/token** (porte nas duas direções + 119 pares de contraste), **atualização de
    dependência** (com `smoke:install` de 3,4s) e **documentação** (com o teste de frescor da T6). São
    as três classes candidatas a N3, e nada além delas.
+
+## 11. O que o Claude carrega do repositório — a T0 da dev-harness, 2026-09-28
+
+Medido para responder a [Q13](../features/024-dev-harness/open-questions.md): os hooks, o `deny`, o
+`CLAUDE.md` e as skills **do projeto** chegam ao agente que o Lumem sobe? Só Claude, porque o
+repositório só é desenvolvido com ele ([Q11](../features/024-dev-harness/open-questions.md)).
+
+**A bancada.** Um repositório descartável em `/tmp/lumem-t0/repo`, com:
+- um `.claude/settings.json` com `deny` de `Bash(ls /tmp/lumem-t0/proibido)` (e a forma `:*`), um
+  `PreToolUse` e um `Stop` que só gravam a própria entrada num arquivo-marca;
+- uma linha distintiva no `CLAUDE.md` (*"a cor deste projeto é GIRASSOL-T0"*);
+- uma skill `t0-sonda` cuja **descrição** carrega a palavra `MARACUJA-T0`.
+
+Modelo Haiku 4.5, `bypassPermissions` nas duas superfícies, que é o modo da esteira. O cliente ACP
+está em `.context/t0/probe.mjs`, fora do git.
+
+| | Claude Code `2.1.284`, `claude -p` | `claude-agent-acp@0.75.1`, por ACP, como a esteira |
+|---|---|---|
+| `PreToolUse` do projeto disparou | ✅ nas duas chamadas de Bash, **inclusive a que o `deny` recusou** | ✅ idem |
+| `Stop` do projeto disparou | ✅ | ✅ |
+| `deny` do projeto recusou, em `bypassPermissions` | ✅ *"Permission to use Bash with command ls /tmp/lumem-t0/proibido 2>&1 has been denied"* — o `:*` pegou o `2>&1` | ✅ a mesma frase |
+| `CLAUDE.md` do projeto chegou | ✅ | ✅ |
+| a skill do projeto apareceu | ⚠️ **pela metade**: listada e invocável pelo nome, mas **sem a descrição** — o modelo disse *"t0-sonda (sem descrição fornecida)"* e não conhecia a palavra | ✅ com a descrição: sabia `MARACUJA-T0` sem ser pedido |
+| o `permission_mode` que o hook recebeu | `bypassPermissions` | `bypassPermissions` |
+| custo | ~US$ 0,13 em quatro rodadas | ~60 k tokens por rodada, quase todos cache, em três rodadas |
+
+**Três achados além da tabela:**
+
+1. **O hook vê o que o `deny` recusa.** O `PreToolUse` disparou para `ls /tmp/lumem-t0/proibido`
+   antes de o `deny` o barrar. O guarda da [T18](../features/024-dev-harness/tasks.md) enxerga toda
+   tentativa, e pode registrá-la, mesmo nas que o piso já segura.
+2. **Declarar `terminal: true` não muda o caminho.** O daemon declara essa capacidade; a sonda repetiu
+   a superfície ACP declarando-a também, com os cinco métodos de `terminal/*` implementados. O
+   adaptador fez **zero** chamadas de `terminal/create` e rodou o Bash dentro dele. Hook e `deny`
+   disparam igual.
+3. **A descrição da skill some no Claude Code desta máquina, e não no adaptador.** Skill que dispara
+   sozinha depende da descrição, e esta máquina tem dezenas de skills globais de plugins. A
+   **hipótese** — não medida — é o orçamento da lista de skills: o CLI carrega os plugins do
+   `enabledPlugins` e corta descrições; o adaptador, com outro runtime embutido, não. Fica para a
+   [T20](../features/024-dev-harness/tasks.md) medir, porque é ela que depende de a skill disparar
+   sozinha.
+
+**O que isto não mediu:**
+- **o caminho inteiro do daemon** (`AcpManager` → `spawnAcpProcess`): a sonda sobe o **mesmo
+  binário**, com o mesmo `cwd`, o mesmo `env` do processo e o mesmo modo, mas não passa pela esteira;
+- **uma conta secundária da [`034`](../features/034-agent-accounts/prd.md)**: com `CLAUDE_CONFIG_DIR`,
+  a camada `user` passa a ser o diretório da conta. A camada `project`, que é a que o harness usa,
+  não depende dela;
+- **o Claude Code interativo (TUI)**: medido em `-p`, que lê as mesmas camadas de configuração.
+
+**A leitura:** o que o repositório declarar em `.claude/settings.json` e no `CLAUDE.md` **vale nas
+duas superfícies**, em `bypassPermissions`. O guarda e o `Stop` servem à esteira sem código a mais,
+e não nasce feature de produto.

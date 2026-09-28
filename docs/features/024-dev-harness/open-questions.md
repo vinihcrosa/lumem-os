@@ -202,7 +202,7 @@ que decide o tamanho da T18, da T19 e da T20.
   conserta ou diz por que o vermelho é esperado. Só roda com a árvore mudada desde o carimbo da
   [Q10](#abertas-pela-emenda-de-2026-09-28), não roda na esteira, e tem `timeout` explícito acima do pior caso do gate.
 
-- [ ] **Q13 — Os agentes que o Lumem sobe carregam o que está no repositório? ([T0](tasks.md))**
+- [x] **Q13 — Os agentes que o Lumem sobe carregam o que está no repositório? ([T0](tasks.md))**
   Não dá para responder sem medir. Quatro superfícies, cada uma pode ler ou não
   `.claude/settings.json` (permissões e hooks), `.codex/hooks.json`, `CLAUDE.md`/`AGENTS.md` e as
   skills: o Claude Code interativo, o Codex interativo, o `claude-agent-acp@0.75.1` e o `codex-acp`
@@ -216,6 +216,13 @@ que decide o tamanho da T18, da T19 e da T20.
   > Claude**. As superfícies caem de quatro para **duas** — o Claude Code interativo e o
   > `claude-agent-acp@0.75.1` como a esteira o sobe —, e as células de dezesseis para **oito**. A
   > pergunta continua aberta: é a do adaptador que decide o desenho.
+  **R:** **sim, nas duas superfícies**, medido em 2026-09-28 — a tabela está no
+  [§11 da auditoria](../../project/harness-audit.md#11-o-que-o-claude-carrega-do-repositório--a-t0-da-dev-harness-2026-09-28).
+  O `claude-agent-acp@0.75.1` abre cada sessão com `settingSources: ["user", "project", "local"]`
+  (lido no `dist/acp-agent.js`), e a medição confirmou: `PreToolUse` e `Stop` do projeto disparam,
+  o `deny` do projeto recusa **em `bypassPermissions`**, e o `CLAUDE.md` chega. A T18 e a T19 servem à
+  esteira sem código a mais, e **não nasce feature de produto**. Uma célula ficou pela metade, e é da
+  [T20](tasks.md): no Claude Code desta máquina a skill do projeto aparece **sem a descrição**.
 
 - [ ] **Q14 — Onde moram as skills, para que os dois agentes as leiam? ([T20](tasks.md))**
   O Claude lê `.claude/skills/`. O Codex desta máquina tem `~/.codex/skills` e `~/.agents/skills`,

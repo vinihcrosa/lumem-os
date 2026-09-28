@@ -82,7 +82,9 @@ o repositório não é desenvolvido com outro agente ([Q11](open-questions.md)).
   nelas antes de começarem.
 
 **Gate**: a tabela
-**Status**: ⬜ não iniciada
+**Status**: ✅ entregue em 2026-09-28 — [§11 da auditoria](../../project/harness-audit.md#11-o-que-o-claude-carrega-do-repositório--a-t0-da-dev-harness-2026-09-28).
+Hook, `Stop`, `deny` e `CLAUDE.md` do projeto chegam às duas superfícies em `bypassPermissions`; a
+skill chega sem descrição no Claude Code desta máquina.
 
 ---
 
@@ -517,8 +519,8 @@ o alcance é o que ela medir.
    push direto para `main`, push forçado em **qualquer** forma (`--force`, `-f`, `+refspec`,
    `--force-with-lease` para `main`), `git reset --hard` com mudança não commitada, e escrita fora do
    checkout.
-3. Ligar em `hooks.PreToolUse` do `.claude/settings.json` — e, pelo que a T0 medir, também onde a
-   esteira sobe o `claude-agent-acp`.
+3. Ligar em `hooks.PreToolUse` do `.claude/settings.json`. A [T0](#t0-o-que-cada-agente-carrega-do-repositório-medido)
+   mediu que o `claude-agent-acp` da esteira lê o mesmo arquivo: uma tomada serve às duas superfícies.
 4. `scripts/harness/guard.test.ts`: uma tabela de casos com a **entrada crua do Claude**, cada forma
    alternativa de cada ação (`--force`, `-f`, `+refspec`, variável na frente, `git -C`). E o teste da
    T4 passa a exigir que o piso do `deny` seja **subconjunto** do que o guarda recusa.
@@ -593,7 +595,12 @@ contrário da regra — a auditoria achou uma (D3), e hoje são cinco em `.claud
    regras; o formato sai para as skills.
 5. As cinco skills de terceiro em `.claude/skills/` passam, uma a uma, pela pergunta *"o que ela manda
    contradiz o `CLAUDE.md`?"* — e a que contradiz sai do repositório ou ganha a exceção escrita.
-6. Um teste em `scripts/` exige que cada `lumem-*` tenha `name` e `description`, e que toda regra que
+6. **A descrição que some.** A [T0](#t0-o-que-cada-agente-carrega-do-repositório-medido) viu a skill do
+   projeto aparecer **sem descrição** no Claude Code desta máquina — e skill sem descrição não
+   dispara sozinha. Medir a causa (a hipótese é o orçamento da lista, com dezenas de skills globais
+   de plugin) antes de escrever as três, e registrar no `testing.md` o que a skill precisa para
+   disparar.
+7. Um teste em `scripts/` exige que cada `lumem-*` tenha `name` e `description`, e que toda regra que
    uma skill cita (`check-docs`, `Status:`) exista no código que ela cita.
 
 **Where**: `.claude/skills/lumem-adr/`, `.claude/skills/lumem-feature-docs/`,
