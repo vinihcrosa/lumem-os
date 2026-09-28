@@ -204,7 +204,19 @@ JSON
   secundária, não o aceite).
 
 **Gate**: o experimento da PR vermelha acima
-**Status**: ⬜ não iniciada
+**Status**: ✅ entregue em 2026-09-28. O ruleset `main-protect` (`23258383`) está **`active`**, com
+`bypass_actors: []`, `deletion`, `non_fast_forward`, `required_linear_history`, `pull_request` (0
+aprovações, merge por `squash` ou `rebase` — o `merge` saiu, porque o histórico linear o recusaria de
+qualquer jeito) e `required_status_checks` estrito com `typecheck, build e testes` e `e2e`;
+`delete_branch_on_merge` ligado. Os dois aceites por tentativa:
+- um push direto de um commit descendente de `main` foi **recusado pelo servidor**: *"Changes must be
+  made through a pull request. 2 of 2 required status checks are expected."*;
+- a PR descartável [#93](https://github.com/vinihcrosa/lumem-os/pull/93), com um teste vermelho de
+  propósito, ficou em **`mergeStateStatus: BLOCKED`** com o check obrigatório reprovado — fechada e a
+  branch apagada depois. O `gh pr merge` não foi tentado: o guarda da T18 o recusa, e o estado
+  `BLOCKED` é a resposta do servidor.
+O runbook *Publishing a release* do Outline passou a dizer a release por PR e a tag no commit mesclado,
+e o `CLAUDE.md` também. A primeira release pelo caminho novo ainda não aconteceu.
 
 ---
 
@@ -255,7 +267,19 @@ gh api -X POST repos/:owner/:repo/environments/npm/deployment-branch-policies \
   estiver lá, o comando apaga o repositório.
 
 **Gate**: os quatro acima
-**Status**: ⬜ não iniciada
+**Status**: 🟡 **parcial** em 2026-09-28. Feito: o environment `npm` exige o reviewer `vinihcrosa` e só
+aceita deploy de **tag `v*`** (política `custom_branch_policies`). Aceites:
+- `gh workflow run release.yml -f dry_run=false` a partir da branch `docs-repo-vs-outline` passou pelo
+  empacote e pelos dois `smoke` e teve o job `npm` **recusado**: *"Branch "docs-repo-vs-outline" is not
+  allowed to deploy to npm due to environment protection rules"*;
+- a tag de ensaio (`v0.0.0-probe.1`) **não chegou** ao `publish`: parou antes, na conferência *"a tag não
+  bate com a versão do pacote (0.6.0)"* — e chegar lá exige uma tag igual a uma versão nova, ou seja,
+  uma release de verdade. O `Review pending` fica para ser observado na próxima release. Tag apagada.
+
+**Falta, e é do dono da conta:** revogar o scope `delete_repo` do token do `gh` (GitHub → Settings →
+Applications → Authorized OAuth Apps → GitHub CLI → Revoke, e `gh auth login -h github.com -s
+repo,workflow,read:org,gist`). O aceite `gh api -X DELETE repos/:owner/:repo` → `403` só se roda
+**depois**, e o guarda da T18 o recusa numa sessão de agente de qualquer jeito.
 
 ---
 
