@@ -560,7 +560,24 @@ da [Q10](open-questions.md):
 - `pnpm gate:quick` verde.
 
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ não iniciada
+**Status**: ✅ entregue em 2026-09-28. `husky@9.1.7` na raiz com `"prepare": "husky"`; `.husky/pre-commit`,
+`commit-msg` e `pre-push` de uma linha cada; `scripts/harness/git-hook.ts` com **32** testes; `HUSKY: 0`
+nos três workflows; o `run.sh` avisa quando a worktree está sem os hooks. Aceites observados:
+- `git commit -m "wip"` **recusado** pelo `commit-msg`, com a mensagem e um exemplo;
+- num clone descartável em `main`, um commit **recusado** pelo `pre-commit`;
+- um `pre-commit` de commit só de código em **0 s**;
+- o `git push` desta branch rodou o `gate:quick` **desde a ponta do remoto** — 4 642 testes verdes em
+  83 s — e gravou o carimbo; o mesmo push da mesma árvore saiu em **0 s** com *"esta árvore já passou"*.
+
+**O defeito caro:** o primeiro push de verdade herdou o `GIT_DIR` do hook para a suíte, 718 testes
+escreveram no repositório, e a config compartilhada ganhou `core.bare = true` — todas as 17 worktrees
+pararam — e uma seção `[user]` de teste. Consertado à mão, conferido por `diff`, e o hook passou a
+limpar o ambiente; a armadilha está no [`testing.md`](../../project/testing.md).
+
+**Não observado:** o checkpoint do Conductor depois de um turno com os hooks ligados — este trabalho
+roda num turno só. A inferência é forte: os checkpoints vivem em `refs/conductor-checkpoints`, fora do
+`HEAD`, e `git commit` só grava no `HEAD`, então eles saem por plumbing (`commit-tree` + `update-ref`),
+que não dispara hook.
 
 ---
 

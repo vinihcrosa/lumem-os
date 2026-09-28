@@ -11,6 +11,7 @@ ciclo de vida — preparar, subir, descartar — vivem **num lugar só**, em
 |---|---|
 | `scripts/workspace/env.sh` | Identidade do workspace: slug, modo, state dir, par de portas; carrega o nvm no node do `.nvmrc`. Sourced pelos outros três |
 | `scripts/workspace/setup.sh` | o node do `.nvmrc` (major diferente recusa, com a saída), `pnpm install --frozen-lockfile`, chromium do playwright, state dir |
+| `.husky/`, `scripts/harness/git-hook.ts` | os hooks de git, ligados pelo `prepare` do `pnpm install` — que o `setup.sh` roda. O `run.sh` avisa quando a worktree está sem eles |
 | `.nvmrc`, `mise.toml` | a versão exata do node, `22.17.1` — lida pelo nvm, pelo mise e pelos três workflows (`node-version-file`). `scripts/node-version.test.ts` exige que os dois concordem |
 | `scripts/workspace/run.sh` | Resolve as portas, confere que estão livres e faz `exec pnpm dev:turbo` |
 | `scripts/workspace/teardown.sh` | Apaga o state dir do workspace — **só no modo isolado**, e com três guardas antes do `rm -rf` |

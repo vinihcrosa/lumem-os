@@ -76,6 +76,21 @@ Fonte de verdade da estratégia de teste. O campo `Tests`/`Gate` de toda task sa
 | `docs` | `pnpm docs:check` | Link, âncora e `**Status:**` da documentação. Já roda dentro do `gate:full` pelo `check-docs.test.ts`; o comando existe para rodar em 200 ms sem a suíte |
 | `smoke` | `pnpm smoke:install` | O pacote publicado instala num prefixo limpo e sobe. Não faz parte dos três gates de todo dia: roda no release, e à mão antes de publicar |
 
+### Os hooks de git: feedback, não portão
+
+Desde a T17 da [`024-dev-harness`](../features/024-dev-harness/tasks.md), o husky liga três hooks no
+`prepare` do `pnpm install`, e cada `.husky/<hook>` é uma linha que chama
+`scripts/harness/git-hook.ts`:
+
+| Hook | Roda | Custo medido |
+|---|---|---|
+| `pre-commit` | recusa commit em `main`; `docs:check` se há `.md` em stage; `design:derive --check` se o `tokens.css` está em stage | < 1 s |
+| `commit-msg` | Conventional Commits, assunto até 72 caracteres | ~0 |
+| `pre-push` | `gate:quick` **desde a ponta do remoto** (e não desde `HEAD^`), pulando uma árvore já carimbada verde em `.git/…/lumem-gate-green` | 0–84 s |
+
+Um hook **não é portão**: `--no-verify` e `HUSKY=0` o atravessam. Para agente, quem os recusa é o
+guarda (`scripts/harness/guard.ts`); para todo mundo, quem garante é o ruleset da `main` e o CI.
+
 ### Na PR, os mesmos gates
 
 `.github/workflows/ci.yml` roda em **toda PR, contra qualquer branch**, em dois jobs paralelos: `checks` (`gate:build` e a suíte unit/integration) e `e2e` (Playwright com chromium). São os mesmos comandos da máquina, na mesma ordem — se passou aqui e falhou lá, a diferença está no ambiente, não no critério.
@@ -267,6 +282,24 @@ O `tsc` puro na raiz não enxergava `e2e/`, `playwright.config.ts` nem os `vites
 ---
 
 ## Armadilhas já corrigidas
+
+### O `GIT_DIR` que o git exporta para o hook faz a suíte escrever no repositório
+
+**2026-09-28, no primeiro push de verdade com o `pre-push`.** O git roda o hook com `GIT_DIR` (e, no
+`pre-commit`, `GIT_INDEX_FILE`) apontando para **este** repositório; o hook rodou o `gate:quick`, a
+suíte herdou o ambiente, e todo teste que faz `git init` ou `git config` num diretório temporário
+agiu sobre o repositório em vez do temporário. **718 testes** falharam — e o pior não foi a falha: um
+`git init --bare` gravou `core.bare = true` na config **compartilhada pelas 17 worktrees**, que
+passaram todas a responder *"this operation must be run in a work tree"*, e um `git config user.*`
+gravou uma seção `[user]` com `test`/`test@example.com`, que assinaria todo commit seguinte. A config
+foi consertada à mão (as duas coisas, e só elas — conferido com `diff` contra a cópia danificada), e
+nenhum commit nem ref estranho ficou.
+
+**O conserto:** `git-hook.ts` apaga as variáveis que nomeiam o repositório (`REPOSITORY_VARIABLES`)
+antes de rodar qualquer coisa, e devolve só o `GIT_INDEX_FILE` ao próprio `pre-commit`, que precisa
+ler o índice temporário de um `commit -a`. **A regra que sobra, para qualquer hook novo:** processo
+filho de um hook de git nasce com o ambiente limpo. Um teste de fora do hook nunca veria isto, porque
+a variável só existe dentro dele.
 
 ### Documentação não tinha gate nenhum, e a convenção falhava 1 em 5
 
