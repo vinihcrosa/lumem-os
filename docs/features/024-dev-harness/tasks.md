@@ -4,7 +4,7 @@
 [harness-audit.md](../../project/harness-audit.md)
 
 **Status:** em execução
-**Histórico:** **16 tasks em 3 fases, nenhuma iniciada** (2026-09-07). **Emenda de 2026-09-28:** mais a Fase 0 (T0) e cinco tasks na Fase 1 (T17–T21) — hooks de git, o guarda, o `Stop`, as skills e o contrato do `checks.md`; ver o [§8 da PRD](prd.md#8-emenda--2026-09-28-hooks-skills-e-o-que-três-semanas-não-mudaram). Três perguntas já respondidas (A1–A3); oito abertas, e as que travam task estão marcadas na coluna `Trava`.
+**Histórico:** **16 tasks em 3 fases, nenhuma iniciada** (2026-09-07). **Emenda de 2026-09-28:** mais a Fase 0 (T0) e cinco tasks na Fase 1 (T17–T21) — hooks de git, o guarda, o `Stop`, as skills e o contrato do `checks.md`; **executada no mesmo dia:** T0–T11, T14 e T17–T22 entregues (T3, T8, T13, T16 e T22 com a parte que é do dono pendente, cada uma dizendo qual), T12 bloqueada pela [Q16](open-questions.md), T15 fora de escopo pela Q5; ver o [§8 da PRD](prd.md#8-emenda--2026-09-28-hooks-skills-e-o-que-três-semanas-não-mudaram). Três perguntas já respondidas (A1–A3); oito abertas, e as que travam task estão marcadas na coluna `Trava`.
 **Issues:** [#72](https://github.com/vinihcrosa/lumem-os/issues/72) rastreia a feature; cada task tem a
 sua, na coluna `Issue`. Marco por fase no GitHub.
 

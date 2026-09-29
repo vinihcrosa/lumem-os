@@ -76,6 +76,7 @@ Monorepo pnpm + Turborepo: `packages/shared` (contratos), `packages/server` (dae
 | `pnpm gate:quick` · `gate:full` · `gate:build` | afetados · suíte inteira + e2e · typecheck, lint e build |
 | `pnpm lint` · `docs:check` | `oxlint --type-aware`, só correção · link, âncora, `Status:` e caminho de código |
 | `pnpm feature:check <plan\|checks\|verification> <dir>` | os validadores do fluxo de feature |
+| `pnpm gate:mutation` | Stryker no núcleo do `server`; piso por arquivo em `scripts/mutation-floors.ts`. Semanal no CI — minutos, não segundos |
 | `pnpm adapters:check` · `smoke:install` | o pino dos adaptadores envelheceu? · o pacote publicado instala e sobe |
 | `pnpm version:set <x.y.z>` | a versão nos três lugares; a release passa **por PR** e publica pela tag (runbook no Outline) |
 
