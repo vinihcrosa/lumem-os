@@ -90,6 +90,10 @@ caminho; por padrão `~/.lumem-dev/shared/daemon.log`), uma linha JSON por requi
 passar de 10 MB. Para achar o que quebrou: `grep 'trpc procedure failed' ~/.lumem-dev/shared/daemon.log`.
 O daemon instalado não escreve arquivo — só com `LUMEM_LOG_FILE`.
 
+**PR do dependabot** (semanal, até 3 abertas, grupos `dev` e `prod`, sem major de `better-sqlite3` e
+`node-pty`) é da classe N3 de dependência: com o CI e o `smoke:install` verdes, não pede revisão de
+linha. Quem mescla é o dono.
+
 **Teste de fronteira:** regra **dentro** de um pacote mora no pacote (o `web` tem a dele em
 `packages/web/src/architecture.test.ts`); regra **entre** pacotes mora em
 `scripts/package-boundaries.test.ts`. Arquivo acima do teto (400 em `web/src/features/`, 700 no resto)

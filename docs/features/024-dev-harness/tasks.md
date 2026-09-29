@@ -1011,7 +1011,11 @@ verificável deste repositório.
 - o número de PRs abertas pelo bot não passa de 3.
 
 **Gate**: `pnpm gate:full` na PR do bot
-**Status**: ⬜ não iniciada
+**Status**: 🟡 **parcial** em 2026-09-28. `.github/dependabot.yml` com `npm` e `github-actions`, semanal,
+até 3 PRs, grupos `dev`/`prod`, sem major das duas nativas; alertas de vulnerabilidade e correções
+automáticas ligados — `dependabot_security_updates` devolve **`enabled`**. A linha da classe N3 foi para o
+`CLAUDE.md`. **Falta, e é do dono:** mesclar a primeira PR do bot com o CI verde — é o aceite que prova a
+esteira ponta a ponta com o ruleset da T2, e mesclar é decisão do dono (o guarda recusa `gh pr merge`).
 
 ---
 
