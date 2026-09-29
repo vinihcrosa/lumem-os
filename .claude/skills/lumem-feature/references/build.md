@@ -1,3 +1,6 @@
+<!-- Derivado de tlc-spec-lean 1.1.0 (Tech Leads Club, github.com/tech-leads-club), CC-BY-4.0.
+     Adaptado ao Lumem-OS pelo ADR 2026-09-28-1952: caminhos, validadores e memória. -->
+
 # Build
 
 **Goal:** satisfy the checks. How is yours.
@@ -72,7 +75,7 @@ clear error message at an edge the checks did not name: that is the work, not sc
 
 A door found mid-build did not exist when the design was confirmed, so it lands the same way that
 file's rows did. Decide it yourself - stopping to ask on every one defeats the point of getting out
-of your way. Then record it in `plan.md`: append the row with its literal shape and the
+of your way. Then record it in `prd.md`: append the row with its literal shape and the
 alternative you rejected **before the code that closes it is written**, and in that code's commit.
 
 The timing is the mechanism. An alternative is only knowable while you are still choosing between
@@ -89,19 +92,9 @@ One coherent piece per commit, [Conventional Commits 1.0.0](https://www.conventi
 `build` `ci` `chore`. Imperative mood, lowercase, no trailing period. A `!` marker requires a
 `BREAKING CHANGE:` footer.
 
-Validate before committing:
-
-```bash
-python3 <skill-dir>/scripts/check_commit.py --message "feat(billing): suspend on failed charge"
-```
-
-Optional git-level guard, independent of any agent:
-
-```bash
-ln -sf <skill-dir>/scripts/check_commit.py .git/hooks/commit-msg && chmod +x .git/hooks/commit-msg
-```
-
-Skip the hook if the project manages hooks its own way. Mark the check complete in `checks.md`
+The `commit-msg` hook of this repository (husky, T17 of the `024-dev-harness`) validates it: Conventional
+Commits and a subject of at most 72 characters. The trailer line of a commit in the new flow names the
+checks it proves: `C3–C5 of docs/features/NNN-nome/checks.md`. Mark the check complete in `checks.md`
 before the commit that satisfies it, and include that update in the same commit - a crash between
 those two steps is how a resume redoes finished work.
 

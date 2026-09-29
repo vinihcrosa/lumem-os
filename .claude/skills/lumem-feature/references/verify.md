@@ -1,3 +1,6 @@
+<!-- Derivado de tlc-spec-lean 1.1.0 (Tech Leads Club, github.com/tech-leads-club), CC-BY-4.0.
+     Adaptado ao Lumem-OS pelo ADR 2026-09-28-1952: caminhos, validadores e memória. -->
+
 # Verify
 
 **Goal:** an independent answer to "is every check actually proven?", written as evidence rather
@@ -26,15 +29,15 @@ a pass over four checks reads exactly like a pass over forty. The range is
 The verdict goes back to the orchestrator and the user, never to a builder. A FAIL returned to
 the author is the author deciding what to do about the author's own work.
 
-**It receives:** `plan.md`, `checks.md`, every source the plan marks binding, the diff range, and
+**It receives:** `prd.md`, `checks.md`, every source the plan marks binding, the diff range, and
 this file. It runs read-only over the real tree and fixes nothing. The plan is an input because
 half the enumerations it sweeps for - a route's statuses, an entity's constraints - are named
 there and only *owe* a row in the checks.
 
 **How to dispatch.** Launch a fresh sub-agent with no inherited conversation. Hand it this file,
-`plan.md`, `checks.md`, every source the plan marks binding, and the diff range
+`prd.md`, `checks.md`, every source the plan marks binding, and the diff range
 `<feature base>..HEAD`. It writes `verification.md` and fixes nothing. You run
-`validate_verification.py`. You do not write the report yourself.
+`pnpm feature:check verification`. You do not write the report yourself.
 
 **No sub-agent mechanism available?** Then run this file as a fresh-eyes pass in a new session -
 re-read the plan, the checks and the diff from scratch - and write `Verifier: self-verified
@@ -222,7 +225,7 @@ minor; colour / font / spacing → cosmetic; unclear → major.
 
 ## 6. Report
 
-Write `.specs/features/<feature>/verification.md`. Lead with the verdict.
+Write `docs/features/NNN-nome/verification.md`. Lead with the verdict.
 
 ```markdown
 # <Feature> verification
@@ -276,7 +279,7 @@ so do not soften a row to fit a verdict - change the verdict.
 Then run the completion gate and return a compact verdict in chat:
 
 ```bash
-python3 <skill-dir>/scripts/validate_verification.py <feature>
+pnpm -s feature:check verification docs/features/NNN-nome
 
 `0` is a report that was read and held up. `1` is a report its own rows contradict. `2` is
 **gated nothing** - the feature or the report could not be resolved - and it is not a pass:
@@ -290,7 +293,7 @@ name the feature explicitly rather than letting it search.
 **Coverage**: 5 sets recomputed, 0 members unproven
 **Faults**: 4 injected, 4 killed
 **Gate**: 138 passed, 0 failed
-**Report**: `.specs/features/<feature>/verification.md`
+**Report**: `docs/features/NNN-nome/verification.md`
 
 **Ranked gaps** (if FAIL):
 1. <gap> - <check id> - <file:line or "no evidence">
@@ -338,6 +341,6 @@ has a wider blast radius than its description:
 ## 7. Distill lessons
 
 The closing action, immediately after the report is written. Turn each grounded failure - a
-surviving mutant, a precision gap, a failed check, an unproven member - into one reusable
-project-local lesson via `scripts/lessons.py`. A clean PASS records nothing, and that is correct
-rather than a miss. Commands and phrasing rules: [memory.md](memory.md).
+surviving mutant, a precision gap, a failed check, an unproven member - into one entry of
+**Armadilhas já corrigidas** in `docs/project/testing.md`: what the green test let through, and the
+rule that stops the next one. A clean PASS records nothing, and that is correct rather than a miss.

@@ -1,3 +1,6 @@
+<!-- Derivado de tlc-spec-lean 1.1.0 (Tech Leads Club, github.com/tech-leads-club), CC-BY-4.0.
+     Adaptado ao Lumem-OS pelo ADR 2026-09-28-1952: caminhos, validadores e memória. -->
+
 # Plan
 
 **Goal:** the one artifact a human reads to understand the work and object to it, **before** any
@@ -26,16 +29,15 @@ The closure gate still requires every criterion to land in `Flow`, `Relations` o
 
 ## Before asking anything
 
-**Load confirmed lessons.** `--root` is a parent flag and has to come before the
-subcommand: `python3 <skill-dir>/scripts/lessons.py --root <project> list --status confirmed`
-(add `--scope` or `--query` for the area this feature touches). Confirmed only - never
-`candidate` or `quarantined`. No store yet, or no code tool: skip silently.
+**Load the lessons.** In this repository they are the **Armadilhas já corrigidas** of
+`docs/project/testing.md` — each one a defect that already cost a round. Read the ones in the area
+this feature touches.
 
-**Read `.specs/STATE.md` `## Decisions`.** Every `active` `AD-NNN` is a project-level constraint
-the shape must conform to. Where one conflicts with what is best for this feature, there are two
-options and both are explicit: conform, or append a new entry that supersedes the old one
-(setting the old row's status to `superseded by AD-NNN`) and say why. Silently ignoring an active
-decision creates an inconsistency nobody can find later.
+**List `docs/adr/` and read the front matter.** Every ADR not named in another's `supersedes` is a
+project-level constraint the shape must conform to. Where one conflicts with what is best for this
+feature, there are two options and both are explicit: conform, or write a new ADR that supersedes
+it (skill `lumem-adr`) and say why. Silently ignoring a decision in force creates an inconsistency
+nobody can find later.
 
 **Scan the code this feature touches.** Neighbouring features, the existing conventions, the
 terms already in use. This grounds the questions in reality, it is where you find that the source
@@ -105,7 +107,7 @@ badly shaped question spends a turn and buys less than a stated default would ha
   `user delegated`, so discretion is on the record rather than inferred from silence later.
 - **The boundary is fixed.** Asking clarifies *how*, never whether to add a capability. A new
   capability that surfaces goes in `Out of scope` with its reason and stays there. That table
-  is product capabilities only - process and harness rules live in AGENTS.md or as
+  is product capabilities only - process and harness rules live in CLAUDE.md or as
   Observable `n/a`.
 
 Anything asked and not answered, or that you chose not to raise, lands in `## Assumptions` with
@@ -307,8 +309,8 @@ in front of you can forbid something a later slice needs, and when a door reache
 boundary, say what it closes. When a decision needs a paragraph to justify itself, it is an ADR
 or an RFC and it comes **before** this file: write it, link it, keep the row literal.
 
-**A door that reaches past this feature also belongs in `.specs/STATE.md` `## Decisions`** - the
-shape here, the constraint there. See [memory.md](memory.md).
+**A door that reaches past this feature also belongs in an ADR** (skill `lumem-adr`) - the shape
+here, the decision there.
 
 ## Impact - what gets disturbed
 
@@ -355,7 +357,7 @@ sweep's `n/a` escape are the counterweights.
 **Run it, do not eyeball it:**
 
 ```bash
-python3 <skill-dir>/scripts/validate_plan.py <feature>
+pnpm -s feature:check plan docs/features/NNN-nome
 ```
 
 It fails a missing or empty section, a criterion that is not EARS-shaped, an assumption row with
@@ -365,7 +367,7 @@ that names columns or types, a `Surface` row missing its statuses, and check num
 into `Surface` before checks exist. It warns on a `Flow` hop naming a module marked neither as
 existing nor as a door. Judgment calls stay yours.
 
-## Template: `.specs/features/<feature>/plan.md`
+## Template: `docs/features/NNN-nome/prd.md`
 
 `````markdown
 # <Feature>
@@ -469,7 +471,7 @@ error, unauthorised.
 
 ## Out of scope
 
-Product capabilities only. Process and harness rules live in AGENTS.md or as Observable `n/a`.
+Product capabilities only. Process and harness rules live in CLAUDE.md or as Observable `n/a`.
 
 | Excluded | Why |
 | --- | --- |
