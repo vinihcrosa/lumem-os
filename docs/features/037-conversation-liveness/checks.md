@@ -53,9 +53,11 @@ Proof: `pnpm --filter @lumem/server exec vitest run src/acp/AcpManager.test.ts -
 Proof: `pnpm --filter @lumem/server exec vitest run src/acp/AcpManager.test.ts -t "names the exit even when the pipe closes first"`
 Proof: `pnpm --filter @lumem/server exec vitest run src/acp/AcpManager.test.ts -t "names an unknown exit when the process outlives its closed pipe"`
 
-**C31** - Com um `prompt` segurado na leitura do teto e um segundo `prompt` à mesma sessão, os dois resolvem com o seu `stopReason`, a transcrição tem as duas mensagens do usuário e nenhum `turn_failed`; e, com o processo saindo com os dois em voo, os dois rejeitam com `AcpTurnFailedError` em menos de 1 s (AC 29, Q5) ✓
+**C31** - Com um `prompt` segurado na leitura do teto e um segundo `prompt` à mesma sessão, os dois resolvem com o seu `stopReason`, a transcrição tem as duas mensagens do usuário e nenhum `turn_failed`; e, com o processo saindo com os dois em voo, os dois rejeitam com `AcpTurnFailedError` em menos de 1 s — e, com os dois segurados na leitura do teto quando o processo sai, a transcrição é exatamente `[message: primeira, message: segunda, turn_failed]`, com um retrato `turn-failed` só; e, com o primeiro segurado, o segundo terminado e então a saída, o primeiro rejeita com `AcpTurnFailedError` e a transcrição termina em `turn_failed` (AC 29, Q5, door 4; ampliado na rodada 4)
 Proof: `pnpm --filter @lumem/server exec vitest run src/acp/AcpManager.test.ts -t "lets a second prompt run without stranding the first"`
 Proof: `pnpm --filter @lumem/server exec vitest run src/acp/AcpManager.test.ts -t "releases both prompts when the adapter exits with two in flight"`
+Proof: `pnpm --filter @lumem/server exec vitest run src/acp/AcpManager.test.ts -t "records both questions and one closing when the adapter exits with two held"`
+Proof: `pnpm --filter @lumem/server exec vitest run src/acp/AcpManager.test.ts -t "closes the remaining prompt when the adapter exits after the first one ends"`
 
 ### S2 - a queda da conexão aparece e se conserta · 8 arquivos · ~60 KB · ~30k
 
@@ -135,7 +137,7 @@ Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/TurnS
 | ordem entre a saída e o fim do stdout (3) | saída e stdout nunca fecha C3 · saída antes do fechamento C4 · fechamento antes da saída C4 | - |
 | a frase no fechamento antes da saída (2) | saída no prazo C30 · prazo vencido C30 | - |
 | turno em voo na saída (5) | depois do `session/prompt` C1 · durante o teto C28 · durante a memória C28 · junto com a resposta C29 · não C5 | - |
-| dois `prompt` na mesma sessão (2) | os dois terminam sem saída C31 · a saída com os dois em voo C31 | - |
+| dois `prompt` na mesma sessão (4) | os dois terminam sem saída C31 · a saída com os dois em voo C31 · a saída com os dois ainda sem pergunta gravada C31 · a saída depois de o primeiro terminar C31 | - |
 | door 1 — `turn_failed` na saída (1) | C1 | - |
 | door 2 — um fecho por turno (1) | C4 | - |
 | door 4 — um gatilho por `prompt` em voo (1) | C31 | - |
