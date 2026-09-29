@@ -225,3 +225,19 @@ Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/TurnS
   com motivo; o `sendRefusal` agora também se limpa no `attached` da reabertura
 - **Abandoned:** o teste a mais `ferramenta aberta mede do início dela, com evento no meio`, absorvido
   pelo segundo caso do C25 reescrito
+- **Boundary:** C28, C31 closed at f3bdeb0 (rodada 2 da verificação)
+- **Settled mid-build:** o dono respondeu **Q5 = B** (dois `prompt` na mesma sessão continuam
+  permitidos, como em `origin/main`) e **Q6 = A** (o prompt pendente do `setup` não é reenviado quando a
+  saída já gravou a mensagem; nenhum código). O resto foi decidido aqui: em vez de ler
+  `info.state === "exited"`, cada `prompt` registra um `TurnInFlight` (pergunta, gatilho e `failure`) em
+  `session.turnsInFlight`, e as guardas leem o `failure` do **próprio** turno e o relançam — não há
+  promessa a esperar, então não há o que pendurar; `releaseTurn` e `pendingQuestion` saíram da sessão,
+  e o `turnId` deixou de ser sinal (o `closeTurnOnExit` não o troca mais). A saída fecha **uma vez** — um
+  `turn_failed` — e liberta todos os turnos em voo com o mesmo erro, gravando antes a pergunta de cada
+  um; o `markExited` também fecha quando `promptInFlight` já foi desligado pelo primeiro de dois
+  `prompt` e o segundo ainda voa. A guarda do `catch` (o pedido rejeitou) tinha o mesmo formato e foi
+  para o `failure` também. A door 4 entrou no `Landing` do plano, com a alternativa rejeitada (recusar o
+  segundo `prompt`), e o passo 1 do `Flow` diz *todos* os `prompt` em voo. O `AcpManager.ts` subiu no
+  `OVER_THE_CEILING` para 2976, com motivo
+- **Abandoned:** nada. O estado de turno único com dois turnos (`promptInFlight`, `turnStartedAt`,
+  `openToolCalls`, a linha de estado) fica como em `origin/main`, fora do escopo por decisão da Q5
