@@ -2,193 +2,166 @@
 
 **Verdict**: FAIL
 **Profile**: ui
-**Diff range**: e3894e4..36fee0e (`origin/main..HEAD`; primeiro commit da feature `9bd0352`)
-**Round**: 1 - full
+**Diff range**: e3894e4..de6e6e3 (`origin/main..HEAD`); a correção é `36fee0e..de6e6e3` (`b38117c`..`de6e6e3`)
+**Round**: 2 - scoped
 **Verifier**: independent sub-agent (author != verifier)
 
-Os 27 checks estão provados no `HEAD`, com asserção localizada, e os 5 mutantes injetados morreram. O
-veredito é FAIL por um motivo só: recalculada a partir do código, a Coverage de *turno em voo na
-saída* tem dois membros que o `AcpManager` trata num ramo próprio — e nenhum teste prova esses ramos.
-Um deles é a guarda que impede o defeito que a S1 existe para consertar: um `prompt` pendurado para
-sempre. Além disso, há duas lacunas de precisão nos checks (C1/C4 e C25), que não reprovam sozinhas.
+A rodada 1 (FAIL em `36fee0e`, relatório em `b38117c`) está no histórico do git. Esta rodada se
+limita ao diff da correção e a todo veredito da rodada 1 que não foi PASS: F1 (dois ramos do S1 sem
+prova), F2 (precisão, C1/C4), F3 (precisão, C25) e F4 (`sendRefusal`). As provas dos 30 checks
+rodaram **inteiras** no `HEAD` novo. Cada seção diz se foi `verified at de6e6e3` ou
+`carried from 36fee0e`.
 
-Todas as provas rodaram com o Node do `.nvmrc` (`v22.17.1`). As provas de cada pacote rodaram numa
-invocação só:
+Os quatro achados da rodada 1 estão fechados, com prova nomeada e mutante morto em cada superfície
+nova. O veredito continua FAIL por um motivo só, e ele está na superfície que a correção mexeu: as
+guardas `session.turnId !== turnId` (`AcpManager.ts:1333` e `:1367`) tratam **qualquer** troca de
+`turnId` como a saída do processo, e a saída não é a única coisa que troca o `turnId`. Um segundo
+`prompt` na mesma sessão troca também (`:1303`). Com a correção, o primeiro `prompt` passou a esperar
+um `exited` que ninguém vai rejeitar, porque o `releaseTurn` dele foi sobrescrito (`:1313`). Esse
+`prompt` fica pendurado para sempre, que é o defeito que a S1 existe para consertar, e a pergunta dele
+some. Reproduzido numa cópia descartável (ver *Gaps*, 1).
 
-- `S` = `pnpm --filter @lumem/server exec vitest run src/acp/AcpManager.test.ts src/acp/websocket.test.ts -t "<os 7 nomes das provas do server, mais os 2 testes do caminho em que o cano fecha primeiro>"` — exit 0, 12 passed, cada nome aparece individualmente na saída;
-- `W` = `pnpm --filter @lumem/web exec vitest run <os 8 arquivos> -t "<os 24 nomes das provas do web>"` — exit 0, 25 passed. `diz o que o agente está fazendo` casa com dois testes, o do C20 e o `… ao lado do tempo`.
+Todas as provas rodaram com o Node do `.nvmrc` (`v22.17.1`), numa invocação por pacote:
+
+- `S` = `pnpm --filter @lumem/server exec vitest run src/acp/AcpManager.test.ts src/acp/websocket.test.ts -t "<os 12 nomes das provas do server, mais o teste da memória>"` — exit 0. Cada um dos 16 casos aparece individualmente com `✓` na saída (C2 e C4 expandem a tabela);
+- `W` = `pnpm --filter @lumem/web exec vitest run <os 8 arquivos> -t "<os 24 nomes das provas do web>"` — exit 0, 25 `✓` (o `diz o que o agente está fazendo` casa também o teste `… ao lado do tempo`). O teste do F4, `o attached da reabertura tira o motivo de um envio recusado na queda`, rodou à parte: 1 passed.
 
 ## Binding sources
 
+Verified at de6e6e3 para o que a correção tocou; o resto é carried from 36fee0e.
+
 | Source | Opened | Contradiction | Uncovered |
 | --- | --- | --- | --- |
-| LUM-67, Parte 1 — o turno fecha quando o adaptador morre | yes - `.context/attachments/linear-36a73b0b-64ca-4333-b406-9893249f789a/[LINEAR]-LUM-67.md` | none | - |
-| LUM-67, Parte 2 — a queda da conexão aparece | yes - mesmo arquivo | none | - |
-| LUM-67, Parte 3 — a linha de estado do turno | yes - mesmo arquivo | none | - |
-| LUM-67, Parte 4 — o aviso de silêncio | yes - mesmo arquivo | none | - |
+| LUM-67, Parte 1 — o turno fecha quando o adaptador morre | yes - `.context/attachments/linear-36a73b0b-64ca-4333-b406-9893249f789a/[LINEAR]-LUM-67.md`, relido em de6e6e3 (linhas 26-41) | none | - |
+| LUM-67, Parte 2 — a queda da conexão aparece | yes - mesmo arquivo, relido em de6e6e3 (linhas 45-54) | none | - |
+| LUM-67, Parte 3 — a linha de estado do turno | yes - carried from 36fee0e | none | - |
+| LUM-67, Parte 4 — o aviso de silêncio | yes - carried from 36fee0e | none | - |
 
-O que a issue decide, elemento por elemento, e onde está a prova. A medição do §Problem do plano foi
-levada em conta: com processo real, o fecho **já** acontecia, com o vocabulário do SDK. Julgado contra a
-issue, o que sobra de pé na Parte 1 é a frase no vocabulário do Lumem e o fecho quando o stdout não fecha.
+O passo 1 só roda onde a correção tocou a interface. A correção não mudou nenhum arranjo nem texto de
+tela. Ela tocou três contratos, e cada um foi comparado com a issue:
 
-| A issue decide | Check | Nota |
-| --- | --- | --- |
-| o daemon emite um fecho, no vocabulário do Lumem, **antes** de limpar os listeners, gravado para o replay concordar | C1, C6 | `turn_failed` em vez de `turn_end`: a issue diz *"ex.:"*, e o door 1 registra a alternativa rejeitada. Não é contradição. |
-| o caret só com `streaming && !readOnly` | C7 | a issue pede teste "no redutor (replay sem fecho)"; o plano prova na tela somente leitura. É escolha de nível, não um elemento. |
-| aviso `conexão com o daemon caiu — reconectando`, reconecta e relê pelo `attached` | C8, C10 | texto idêntico ao da issue |
-| `onSendRejected` avisa o composer, que não limpa o rascunho | C13 | - |
-| **arranjo:** uma linha **acima do composer** | C18 | o texto do C18 diz *acima do composer*, mas a prova dele desenha o `TurnStatus` sozinho. O arranjo está provado por um teste que nenhum check nomeia: `conversation.test.tsx:667` — `expect(line.closest(".turn-status")?.nextElementSibling).toHaveClass("composer")`. Rodado, verde. |
-| `trabalhando · 1 min 12 s`, com indicador animado que respeita `prefers-reduced-motion` | C18, C23 | - |
-| o que o agente está fazendo, **na mesma linha** | C20 | o C20 prova a função pura. Na linha, a prova é `TurnStatus.test.tsx:63-72` (`pensando` ao lado de `trabalhando · 5 s`), que nenhum check nomeia. |
-| o caret pisca | C22 | - |
-| âmbar sem ferramenta em voo, `sem sinal do agente há …`, com o atalho de interromper | C24 | a issue escreve *"há 2 min"*; o formatador daria `2 min 0 s`. Não é contradição: o único exemplo da issue com precisão explícita (`1 min 12 s`) é o que o formatador reproduz. |
-| com ferramenta rodando, `rodando <comando> há 4 min`, e nunca âmbar | C25 | o código escreve o **título** da ferramenta, não o comando. É uma premissa do plano (*Assumptions*, `Confirmed? n`); a issue não decide ferramenta que não é comando. |
-
-Na outra direção, o que o código desenha e a issue não pede: o aviso de frame ilegível (C15) e a recusa
-por tamanho (C14). Os dois são do plano, nenhum contradiz a issue, e o arranjo não mudou: a linha nova
-fica entre `Transcript` e o composer (`Conversation.tsx:201`). Não existe mock de desenho; a issue é a
-única fonte vinculante.
+- **C28** (a pergunta gravada, depois o `turn_failed`, sem frame `error`) bate com a Parte 1, linha 39: *"emite um fecho … antes de limpar os listeners — gravado no transcript"*. A Q4 = A acrescenta a pergunta **antes** do fecho, e a issue não decide sobre ela. O `memory_core` descartado não contradiz a issue, nem o critério 27, nem a Q4: o critério pede *"a mensagem do usuário seguida de um único `turn_failed`"* e não fala do núcleo. A regra que decide é a do próprio `prompt` (`AcpManager.ts:1360-1362`): *"a conversa gravada tem que estar na ordem em que o agente leu"*, e o agente nunca leu esse núcleo. O `coreInjected` também fica falso, então nada diz que o núcleo foi injetado.
+- **C29**, um fecho só: é o *door 2* do plano, e a issue não o decide.
+- **F4**, o `sendRefusal` limpo no `attached`: a Parte 2 (linha 54) decide só que *"`onSendRejected` diz ao composer que a mensagem não saiu, em vez de limpar o rascunho"*. Limpar o motivo quando a conexão volta não contradiz isso.
 
 ## Checks
 
+Proofs verified at de6e6e3. As citações dos arquivos que a correção tocou foram refeitas
+(`AcpManager.test.ts` a partir da `:2745`, `websocket.test.ts`, `useConversationSession.test.tsx`,
+`turn-status.test.ts` a partir da `:121`). As outras são carried from 36fee0e, porque esses arquivos
+não mudaram no diff da correção.
+
 | Check | Claim | Proof run | Evidence | Result |
 | --- | --- | --- | --- | --- |
-| C1 | a saída com turno em voo emite um `turn_failed` com `(saída 137)`, gravado e recebido pelo listener | `S` exit 0 | `packages/server/src/acp/AcpManager.test.ts:2705` - `expect(turnFailedIn(manager.transcript(id))).toEqual([closing])`; `:2707` - o mesmo sobre `events` do listener; frase literal em `:2703` | PASS |
-| C2 | `(saída 137)` · `(sinal SIGKILL)` · `(saída desconhecida)` | `S` exit 0, os 3 casos listados | `packages/server/src/acp/AcpManager.test.ts:2711-2713` (a tabela) e `:2721` - `` toEqual([{ type: "turn_failed", message: `o agente encerrou no meio do turno ${says}` }]) `` | PASS |
-| C3 | stdout aberto: o `prompt` rejeita com `AcpTurnFailedError` em < 1 s, e `liveTurns()` fica vazio | `S` exit 0 (9 ms) | `packages/server/src/acp/AcpManager.test.ts:2738` - `toBeInstanceOf(AcpTurnFailedError)`; `:2739` - `expect(manager.liveTurns()).toEqual([])`; prazo de 1 s em `:2732` | PASS |
-| C4 | nas duas ordens, exatamente um `turn_failed` | `S` exit 0, as duas ordens listadas | `packages/server/src/acp/AcpManager.test.ts:2763` - `expect(turnFailedIn(manager.transcript(id))).toHaveLength(1)` | PASS (ver lacuna 2: na ordem em que o cano fecha primeiro, o teste espera o prazo de 2 s, 2065 ms) |
-| C5 | a saída entre turnos não acrescenta `turn_failed` | `S` exit 0 | `packages/server/src/acp/AcpManager.test.ts:2814` - `expect(types).not.toContain("turn_failed")` | PASS |
-| C6 | retrato `turn-failed` com `code: "exited"` e o `sessionId` | `S` exit 0 | `packages/server/src/acp/AcpManager.test.ts:2825-2826` - `toHaveBeenCalledWith(expect.objectContaining({ tag: "turn-failed", code: "exited", sessionId: id }))` | PASS |
-| C7 | somente leitura sem fecho: sem `.mcaret`, sem linha de estado, sem `■ interromper` | `W` exit 0 | `packages/web/src/features/conversation/conversation.test.tsx:1312` - `querySelector(".mcaret")).toBeNull()`; `:1314` - `queryByText(/trabalhando/)).not.toBeInTheDocument()`; `:1315` - `interromper` ausente | PASS |
-| C8 | `1006` mostra `conexão com o daemon caiu — reconectando` e reabre para a mesma sessão | `W` exit 0 | `packages/web/src/features/conversation/useConversationSession.test.tsx:322-324` - `toMatchObject({ message: "conexão com o daemon caiu — reconectando", fatal: false })`; `:331-332` - 2 sockets, o segundo com `sessionId` `s-1` | PASS |
-| C9 | 500 · 1 000 · 2 000 · 4 000 · 8 000 · 10 000 · 10 000 ms, e a oitava acontece | `W` exit 0 | `packages/web/src/features/conversation/useConversationSession.test.tsx:341` (a lista), `:348` - `toHaveLength(before)` em `delay - 1`, `:353` - `toHaveLength(before + 1)` em `delay`; `:362` - `toHaveLength(9)` | PASS |
-| C10 | o `attached` da reabertura deixa 3 turnos e tira o aviso | `W` exit 0 | `packages/web/src/features/conversation/useConversationSession.test.tsx:391` - `turns).toHaveLength(3)`; `:392` - `failure).toBeNull()` | PASS |
-| C11 | `4404` mostra `esta sessão não existe mais no daemon` e não reabre em 30 s | `W` exit 0 | `packages/web/src/features/conversation/useConversationSession.test.tsx:403` - `failure?.message).toBe("esta sessão não existe mais no daemon")`; `:409` - `sockets).toHaveLength(1)` depois de 30 s | PASS |
-| C12 | desmontar, ou trocar de sessão, com reabertura agendada: nada para a antiga em 30 s | `W` exit 0 | `packages/web/src/features/conversation/useConversationSession.test.tsx:424` - `unmounted.sockets).toHaveLength(1)`; `:438` - sockets de `s-1` com tamanho 1 | PASS |
-| C13 | `AcpSocket.send` devolve `false` fechado e por schema; o composer mantém o rascunho e mostra o motivo | `W` exit 0, as duas provas | `packages/web/src/features/conversation/acp-socket.test.ts:310` - `toBe(false)` com o socket fechado, `:316` - `toBe(false)` pelo schema; `packages/web/src/features/conversation/conversation.test.tsx:233` - `toHaveValue("não perca isto")`, `:234` - `getByText("o socket não está aberto")` | PASS |
-| C14 | no limite sai; um byte acima é recusado com `mensagem grande demais — o limite é 1 MiB`; o servidor fecha acima do limite compartilhado | `W` e `S` exit 0 | `packages/web/src/features/conversation/acp-socket.test.ts:332` - `toBe(true)` no limite, `:334` - `byteLength).toBe(ACP_MAX_FRAME_BYTES)`, `:340` - `toBe(false)` um byte acima, `:343` - a frase; `packages/server/src/acp/websocket.test.ts:466` - `closeCode).toBeUndefined()` no limite, `:471` - `toBe(1009)` um acima | PASS |
-| C15 | frame ilegível: aviso não fatal, socket aberto | `W` exit 0 | `packages/web/src/features/conversation/useConversationSession.test.tsx:450-454` - `failure).toEqual({ message: "o daemon mandou algo que esta tela não entende — recarregue a página", remedy: null, fatal: false })`; `:455` - `closed).toBe(false)` | PASS |
-| C16 | usuário em 1000 põe os dois em 1000; chunk em 4000 move só `lastEventAt` | `W` exit 0 | `packages/web/src/features/conversation/conversation-model.test.ts:904-905` - `toBe(1000)` nos dois; `:912` - `lastEventAt).toBe(4000)`, `:913` - `turnStartedAt).toBe(1000)` | PASS |
-| C17 | replay e dobra concordam | `W` exit 0 | `packages/web/src/features/conversation/conversation-model.test.ts:942-943` - `folded.* toBe(replayed.*)`; `:950` - igualdade em cada prefixo | PASS |
-| C18 | 72 s: `trabalhando · 1 min 12 s` com indicador animado; sem `streaming`, a linha não existe | `W` exit 0 | `packages/web/src/features/conversation/TurnStatus.test.tsx:32` - `getByText("trabalhando · 1 min 12 s")`; `:36` + `:40` - o `.turn-status__pulse` existe e a regra dele nomeia um `@keyframes` da folha; `:50` - `querySelector(".turn-status")).toBeNull()` sem `streaming` | PASS (o arranjo *acima do composer* vem de `conversation.test.tsx:667`, fora do nome da prova) |
-| C19 | os oito casos do decorrido | `W` exit 0 | `packages/web/src/features/conversation/turn-status.test.ts:36-43` (a tabela) e `:47` - `expect(formatElapsed(seconds * 1000)).toBe(text)` | PASS |
-| C20 | os sete casos do fazer | `W` exit 0 | `packages/web/src/features/conversation/turn-status.test.ts:55-86` (a tabela) e `:92` - `expect(activityText(turnActivity(state))).toBe(text)`, sobre estado dobrado (`:90`) | PASS |
-| C21 | `useNow(true)` avança a cada 1 000 ms; `useNow(false)` sem intervalo | `W` exit 0 | `packages/web/src/features/conversation/useNow.test.ts:26` e `:30` - fica em 1 000 000 aos 999 ms e vai a `1_001_000` aos 1 000; `:41` - `seen).toEqual([1_000_000, 1_001_000, 1_002_000, 1_003_000])`; `:49` - `getTimerCount()).toBe(0)` | PASS |
-| C22 | `.mcaret` anima por `@keyframes`; depois do envio, nenhum caret na mensagem do usuário | `W` exit 0, as duas provas | `packages/web/src/features/conversation/conversation-css.test.ts:259-260` - nome de `animation` definido e `@keyframes <nome>` na folha; `packages/web/src/features/conversation/conversation.test.tsx:642` - `querySelector(".mcaret")).toBeNull()`, `:653-654` - um caret só, dentro de `.turn--agent` | PASS |
-| C23 | `animation: none` para caret e indicador sob movimento reduzido | `W` exit 0 | `packages/web/src/features/conversation/conversation-css.test.ts:266-268` - para `.mcaret` e `.turn-status__pulse`, `toMatch(/animation:\s*none/)` dentro dos blocos `@media (prefers-reduced-motion: reduce)` | PASS |
-| C24 | 89 s sem `warning`; 90 s com, `sem sinal do agente há 1 min 30 s`, e o atalho `esc` | `W` exit 0, as duas provas | `packages/web/src/features/conversation/turn-status.test.ts:130` - `tone).toBe("normal")` aos 89 s, `:134-135` - `warning` e a frase aos 90 s; `packages/web/src/features/conversation/TurnStatus.test.tsx:87` - sem `--warning` aos 89 s, `:94` - a frase, `:96` - `key?.textContent).toBe("esc")` | PASS |
-| C25 | ferramenta `running`/`pending` iniciada há 240 s, com 300 s sem evento: `rodando <título> há 4 min 0 s`, tom normal | `W` exit 0 | `packages/web/src/features/conversation/turn-status.test.ts:155` - `tone).toBe("normal")`, `:156` - `doing).toBe("rodando Bash pnpm gate:quick há 4 min 0 s")`, nos dois status | PASS (ver lacuna 3: o estado do check não é alcançável pela dobra; `:152` escreve `lastEventAt` à mão) |
-| C26 | permissão pendente com 300 s sem evento: `esperando sua resposta`, tom normal | `W` exit 0 | `packages/web/src/features/conversation/turn-status.test.ts:194` - `tone).toBe("normal")`, `:195` - `doing).toBe("esperando sua resposta")` | PASS |
-| C27 | no âmbar, um evento move `lastEventAt` e o render seguinte sai do âmbar | `W` exit 0 | `packages/web/src/features/conversation/TurnStatus.test.tsx:107` - `woke.lastEventAt).toBe(now - 1000)`; `:111` - `querySelector(".turn-status--warning")).toBeNull()` | PASS |
+| C1 | a saída com turno em voo emite um `turn_failed` com `(saída 137)`, gravado e recebido pelo listener | `S` exit 0 | `packages/server/src/acp/AcpManager.test.ts:2705` - `expect(turnFailedIn(manager.transcript(id))).toEqual([closing])`; `:2707` - o mesmo sobre `events` (carried from 36fee0e, arquivo inalterado até a `:2744`) | PASS |
+| C2 | `(saída 137)` · `(sinal SIGKILL)` · `(saída desconhecida)` | `S` exit 0, 3 casos | `packages/server/src/acp/AcpManager.test.ts:2711-2713` (tabela) e `:2721` - `toEqual([{ type: "turn_failed", message: ... ${says} }])` (carried) | PASS |
+| C3 | stdout aberto: `prompt` rejeita com `AcpTurnFailedError` em < 1 s; `liveTurns()` vazio | `S` exit 0 (12 ms) | `packages/server/src/acp/AcpManager.test.ts:2738` - `toBeInstanceOf(AcpTurnFailedError)`; `:2739` - `expect(manager.liveTurns()).toEqual([])` (carried) | PASS |
+| C4 | nas duas ordens, exatamente um `turn_failed` | `S` exit 0, 2 casos (63 ms e 165 ms, o prazo agora é 100 ms) | `packages/server/src/acp/AcpManager.test.ts:2765` - `expect(turnFailedIn(manager.transcript(id))).toHaveLength(1)` | PASS |
+| C5 | a saída entre turnos não acrescenta `turn_failed` | `S` exit 0 | `packages/server/src/acp/AcpManager.test.ts:2983` - `expect(types.at(-1)).toBe("turn_end")`; `:2984` - `expect(types).not.toContain("turn_failed")` | PASS |
+| C6 | retrato `turn-failed` com `code: "exited"` e o `sessionId` | `S` exit 0 | `packages/server/src/acp/AcpManager.test.ts:2994-2996` - `toHaveBeenCalledTimes(1)` e `toHaveBeenCalledWith(expect.objectContaining({ tag: "turn-failed", code: "exited", sessionId: id }))` | PASS |
+| C7 | somente leitura sem fecho: sem `.mcaret`, linha de estado ou `■ interromper` | `W` exit 0 | `packages/web/src/features/conversation/conversation.test.tsx:1312` - `querySelector(".mcaret")).toBeNull()`; `:1314-1315` (carried) | PASS |
+| C28 | saída 137 durante a leitura do teto: a pergunta, depois um `turn_failed` só; `AcpTurnFailedError`; sem `session/prompt`; o `/acp` sem frame `error` | `S` exit 0, as duas provas | `packages/server/src/acp/AcpManager.test.ts:2860-2862` - `expect(turnOf(manager.transcript(info.id))).toEqual([{ type: "message", …, role: "user", text: "faz a coisa" }, { type: "turn_failed", message: "o agente encerrou no meio do turno (saída 137)" }])`; `:2864` - `toBeInstanceOf(AcpTurnFailedError)`; `:2866` - `expect(fake.promptBlocks).toEqual([])`; `packages/server/src/acp/websocket.test.ts:585` - `expect(errors).toEqual([expect.objectContaining({ code: "INVALID_MESSAGE" })])` (só o erro do frame-sonda); `:587-589` - a pergunta e o `turn_failed` chegam pelo socket | PASS |
+| C29 | resposta e saída no mesmo tique: um fecho só, o `turn_failed`, nenhum `turn_end`, `AcpTurnFailedError` | `S` exit 0 (397 ms, 25 voltas) | `packages/server/src/acp/AcpManager.test.ts:2957-2960` - `expect({ hops, closes }).toEqual({ hops, closes: [{ type: "turn_failed", message: "o agente encerrou no meio do turno (saída 137)" }] })`; `:2961` - `toBeInstanceOf(AcpTurnFailedError)`; `:2964-2965` - a varredura teve as duas saídas | PASS (ver *Gaps*, 3: a varredura é determinística e a guarda é mesmo atravessada) |
+| C30 | cano fecha primeiro: `(saída 137)` com a saída no prazo, `(saída desconhecida)` sem ela, nunca `ACP connection closed` | `S` exit 0, as duas provas | `packages/server/src/acp/AcpManager.test.ts:2783` - `toEqual([closing])` com `(saída 137)`; `:2787` - `(error as Error).message).toBe(closing.message)`; `:2789-2790` - `not.toContain("ACP connection closed")` gravado e ao vivo; `:2802` - `toEqual([closing])` com `(saída desconhecida)`; `:2807-2808` - o mesmo `not.toContain`; `:2814` - a saída tardia não fecha de novo | PASS |
+| C8 | `1006` mostra `conexão com o daemon caiu — reconectando` e reabre para a mesma sessão | `W` exit 0 | `packages/web/src/features/conversation/useConversationSession.test.tsx:330` - `failure).toMatchObject({ message: "conexão com o daemon caiu — reconectando", fatal: false })`; `:339-340` - 2 sockets, o segundo com `sessionId` `s-1` | PASS |
+| C9 | 500 · 1 000 · 2 000 · 4 000 · 8 000 · 10 000 · 10 000 ms, e a oitava acontece | `W` exit 0 | `packages/web/src/features/conversation/useConversationSession.test.tsx:356` - `toHaveLength(before)` em `delay - 1`; `:361` - `toHaveLength(before + 1)`; `:370` - `toHaveLength(9)` | PASS |
+| C10 | o `attached` da reabertura deixa 3 turnos e tira o aviso | `W` exit 0 | `packages/web/src/features/conversation/useConversationSession.test.tsx:399` - `turns).toHaveLength(3)`; `:400` - `failure).toBeNull()` | PASS |
+| C11 | `4404` mostra `esta sessão não existe mais no daemon` e não reabre em 30 s | `W` exit 0 | `packages/web/src/features/conversation/useConversationSession.test.tsx:411` - `failure?.message).toBe("esta sessão não existe mais no daemon")`; `:417` - `sockets).toHaveLength(1)` | PASS |
+| C12 | desmontar, ou trocar de sessão, com reabertura agendada: nada para a antiga | `W` exit 0 | `packages/web/src/features/conversation/useConversationSession.test.tsx:432` - `unmounted.sockets).toHaveLength(1)`; `:446` - sockets de `s-1` com tamanho 1 | PASS |
+| C13 | `send` devolve `false` fechado e por schema; o composer mantém o rascunho e mostra o motivo | `W` exit 0, as duas provas | `packages/web/src/features/conversation/acp-socket.test.ts:310` e `:316` - `toBe(false)`; `packages/web/src/features/conversation/conversation.test.tsx:233` - `toHaveValue("não perca isto")`, `:234` - `getByText("o socket não está aberto")` (carried) | PASS |
+| C14 | no limite sai; um byte acima é recusado com a frase; o servidor fecha acima do limite compartilhado | `W` e `S` exit 0 | `packages/web/src/features/conversation/acp-socket.test.ts:332`, `:334`, `:340`, `:343` (carried); `packages/server/src/acp/websocket.test.ts:475` - `closeCode).toBeUndefined()` no limite, `:480` - `toBe(1009)` um acima | PASS |
+| C15 | frame ilegível: aviso não fatal, socket aberto | `W` exit 0 | `packages/web/src/features/conversation/useConversationSession.test.tsx:458` - `failure).toEqual({ message: "o daemon mandou algo que esta tela não entende — recarregue a página", remedy: null, fatal: false })`; `:463` - `closed).toBe(false)` | PASS |
+| C16 | usuário em 1000 põe os dois em 1000; chunk em 4000 move só `lastEventAt` | `W` exit 0 | `packages/web/src/features/conversation/conversation-model.test.ts:904-905`, `:912-913` (carried) | PASS |
+| C17 | replay e dobra concordam | `W` exit 0 | `packages/web/src/features/conversation/conversation-model.test.ts:942-943`, `:950` (carried) | PASS |
+| C18 | 72 s: `trabalhando · 1 min 12 s` com indicador animado; sem `streaming`, nada | `W` exit 0 | `packages/web/src/features/conversation/TurnStatus.test.tsx:32` - `getByText("trabalhando · 1 min 12 s")`; `:36`, `:40`, `:50` (carried) | PASS |
+| C19 | os oito casos do decorrido | `W` exit 0 | `packages/web/src/features/conversation/turn-status.test.ts:36-43` e `:47` - `expect(formatElapsed(seconds * 1000)).toBe(text)` (inalterado pela correção) | PASS |
+| C20 | os sete casos do fazer | `W` exit 0 | `packages/web/src/features/conversation/turn-status.test.ts:55-86` e `:92` - `expect(activityText(turnActivity(state))).toBe(text)` (inalterado) | PASS |
+| C21 | `useNow(true)` a cada 1 000 ms; `useNow(false)` sem intervalo | `W` exit 0 | `packages/web/src/features/conversation/useNow.test.ts:41` - `seen).toEqual([1_000_000, 1_001_000, 1_002_000, 1_003_000])`; `:49` - `getTimerCount()).toBe(0)` (carried) | PASS |
+| C22 | `.mcaret` anima por `@keyframes`; nenhum caret na mensagem do usuário | `W` exit 0, as duas provas | `packages/web/src/features/conversation/conversation-css.test.ts:259-260`; `packages/web/src/features/conversation/conversation.test.tsx:642`, `:653-654` (carried) | PASS |
+| C23 | `animation: none` sob movimento reduzido | `W` exit 0 | `packages/web/src/features/conversation/conversation-css.test.ts:266-268` (carried) | PASS |
+| C24 | 89 s sem `warning`; 90 s com a frase e o `esc` | `W` exit 0, as duas provas | `packages/web/src/features/conversation/turn-status.test.ts:130` - `tone).toBe("normal")`; `:134-135` - `warning` e `"sem sinal do agente há 1 min 30 s"`; `packages/web/src/features/conversation/TurnStatus.test.tsx:87`, `:94`, `:96` (carried) | PASS |
+| C25 | `pending` há 240 s sem evento, e a mesma passando a `running` há 100 s: `rodando <título> há 4 min 0 s`, sem `warning`, só estados do redutor | `W` exit 0 | `packages/web/src/features/conversation/turn-status.test.ts:165` - `replayConversation(entries)`, nada escrito à mão; `:167` - `expect(state.lastEventAt, how).toBe(quietSince)`; `:168` - `toBeGreaterThanOrEqual(90_000)`; `:171` - `expect(turnLine(state, now), how).toEqual({ tone: "normal", doing: "rodando Bash pnpm gate:quick há 4 min 0 s" })` | PASS |
+| C26 | permissão pendente com 300 s sem evento: `esperando sua resposta`, normal | `W` exit 0 | `packages/web/src/features/conversation/turn-status.test.ts:198` - `tone).toBe("normal")`; `:199` - `doing).toBe("esperando sua resposta")` | PASS |
+| C27 | no âmbar, um evento move `lastEventAt` e o render sai do âmbar | `W` exit 0 | `packages/web/src/features/conversation/TurnStatus.test.tsx:107`, `:111` (carried) | PASS |
 
 ## Coverage
 
-Recalculada a partir de quem tem autoridade sobre cada conjunto: o código, para os ramos e a ordem do
-cano; o plano (AC 8, AC 18, AC 19), para as esperas, o decorrido e o fazer.
+Refeita a partir do código, verified at de6e6e3, nas linhas cuja autoridade a correção tocou. As
+outras são carried from 36fee0e e não aparecem de novo aqui: a forma de saída, o `/acp`, as esperas,
+a recusa, o limite, o decorrido, o fazer, o limiar e o movimento.
 
 | Set (size) | Recomputed from | Member -> proof | Unproven |
 | --- | --- | --- | --- |
-| como o processo saiu (3) | `exitText`, `packages/server/src/acp/AcpManager.ts:2866` — três ramos | código C2 · sinal C2 · nenhum C2 | - |
-| em que ponto do turno a saída chega (4) | `prompt`, `packages/server/src/acp/AcpManager.ts:1279-1426` — `promptInFlight` fica ligado desde a `:1291`, e a saída fecha o turno em qualquer ponto disso (`:2510`) | antes do `session/prompt`, enquanto teto e memória são lidos (guarda em `:1351`) — **nenhuma prova** · durante o pedido: C1, C3, C6 · a resposta e a saída no mesmo tique (guarda em `:1409`, que impede um `turn_end` depois do `turn_failed`) — **nenhuma prova** · entre turnos: C5 | guarda de `AcpManager.ts:1351` (saída durante `checkBudget`/`coreFor`) · guarda de `AcpManager.ts:1409` (a resposta e a saída juntas) |
-| ordem entre a saída e o fim do stdout (4) | o `catch` do `prompt`, `AcpManager.ts:1384-1405`, e `awaitExitAfterClose`, `:2576` | a saída e o stdout nunca fecha: C3 · a saída antes do fechamento: C4 · o fechamento antes da saída, com a saída dentro do prazo: `AcpManager.test.ts:2779` (sem check; ver lacuna 2) · o fechamento, o prazo vence, a saída chega depois: C4 e `AcpManager.test.ts:2793` | - |
-| door 2 — um fecho só por turno | `AcpManager.ts:1388`, `:1409`, `:2562` | saída primeiro: C4 · cano primeiro: C4 e `:2779` · resposta junto com a saída: sem prova (contado na linha acima) | - |
-| código de fechamento do `/acp` (3) | `acp-socket.ts` `onclose` (`refused` = 4404) e `close()`, que zera `onclose` | `1006` C8 · `4404` C11 · o cliente que fecha: C12 (pelo `clearTimeout`; a guarda `disposed` em `useConversationSession.ts:241` é defesa redundante, porque `close()` já zera o `onclose`) | - |
-| espera entre tentativas (7) | `RECONNECT_DELAYS_MS` + teto, `useConversationSession.ts:113` | 500 · 1000 · 2000 · 4000 · 8000 · 10000 · 10000: C9, um por um | - |
-| a espera recomeça depois do `attached` (1) | `useConversationSession.ts:237` | `useConversationSession.test.tsx:462-485` (sem check) | - |
-| recusa do envio (3) | `acp-socket.ts` `send`: schema → tamanho → aberto | schema C13 · acima do limite C14 · fechado C13 | - |
-| limite do frame, bordas (2) | `acp-socket.ts:150` (`>`, em bytes UTF-8) | no limite C14 · um byte acima, com `é` de 2 bytes, C14 | - |
-| startup config: limite do frame (2 lugares) | cada montagem lida direto: `packages/server/src/acp/websocket.ts:72` `maxPayload: ACP_MAX_FRAME_BYTES`, com uma única montagem (`packages/server/src/server.ts:242`); `packages/web/src/features/conversation/acp-socket.ts:150` | servidor C14 · web C14 | - |
-| decorrido, bordas (8) | AC 18; `formatElapsed` tem 4 ramos | os 8 casos: C19 | - |
-| o fazer do agente (7 do plano) | AC 19; `activityOf`/`turnActivity` | raciocínio · mensagem · `running` · `pending` · permissão · nada ainda · terminada: C20. O turno anterior não conta: `turn-status.test.ts:96-107` (sem check) | - |
-| quando a linha e o caret aparecem (3) | `TurnStatus.tsx` `live`, `Transcript.tsx:99-101` | `streaming` ao vivo C18 · sem `streaming` C18 · somente leitura C7 · caret só no bloco do agente C22 | - |
-| limiar do silêncio, bordas (2) | `turn-status.ts:107` (`>=`) | 89 s C24 · 90 s C24 (também antes do primeiro bloco do agente, `turn-status.test.ts:138-140`) | - |
-| o que não é silêncio (3) | `turnLine`, `turn-status.ts:102-108` | ferramenta `running` C25 · ferramenta `pending` C25 · permissão pendente C26 | - |
-| movimento (4) | `conversation.css:206`, `:209`, `:517` | caret anima C22 · caret parado C23 · indicador anima C18 · indicador parado C23 | - |
-
-Sem `Relations` e sem `Surface` no plano (`None`), então não há rota nem entidade com membros a
-recalcular.
+| em que ponto do turno a saída chega (5) | `prompt`, `packages/server/src/acp/AcpManager.ts:1303-1450`: guardas em `:1333` (teto), `:1367` (memória), `:1411` (durante o pedido), `:1433` (resposta junto) | teto: C28 (`AcpManager.test.ts:2833`) · memória: `AcpManager.test.ts:2869`, **sem check** (ver *Gaps*, 2) · durante o pedido: C1, C3, C6 · junto com a resposta: C29 · entre turnos: C5 | - |
+| o que troca o `turnId` de um turno em voo (2) | as duas escritas de `session.turnId`: `AcpManager.ts:1303` (um `prompt` novo) e `:2591` (`closeTurnOnExit`); as guardas `:1333`, `:1367`, `:1411`, `:1433` leem as duas como *"a saída fechou"* | a saída: C28, C29, C1 · um segundo `prompt` com o primeiro ainda lendo teto ou memória: **nenhuma prova**, e o comportamento é um `prompt` que nunca se resolve (*Gaps*, 1) | segundo `prompt` na mesma sessão, com o primeiro em `:1331`/`:1364` |
+| a frase quando o cano fecha antes da saída (2) | `AcpManager.ts:1414` e `awaitExitAfterClose`, `:2605-2618` | saída no prazo: C30 (`:2768`) · prazo vencido: C30 (`:2793`) | - |
+| o prazo depois do cano fechado (2 montagens) | lido direto: `AcpManager.ts:84` `EXIT_AFTER_CLOSE_GRACE_MS = 2_000`, default em `:699`; `packages/server/src/bootstrap.ts:171` e `packages/server/src/server.ts:145` não passam `exitAfterCloseGraceMs` | produção: 2 s, sem prova de teste (nenhum check afirma o valor; é uma constante legível) · teste: 50, 100 e 1 000 ms, injetados | - |
+| door 2 — um fecho por turno | `:1411`, `:1433`, `:2591` | saída primeiro: C4 · cano primeiro: C4, C30 · resposta junto: C29 · saída tardia depois do prazo: C30 (`:2814`) | - |
+| o que não é silêncio (3) | `turnLine`, `packages/web/src/features/conversation/turn-status.ts:102-110` | ferramenta `pending`: C25, 1º caso · ferramenta `running` (por `tool_call_update`): C25, 2º caso · permissão pendente: C26 | - |
+| onde o motivo da recusa se limpa (3) | `setSendRefusal(null)` em `packages/web/src/features/conversation/useConversationSession.ts:187` (troca de sessão), `:240` (o `attached`, novo), `:314` (o próximo envio) | `attached`: `useConversationSession.test.tsx:495`, sem check (o F4 é follow-up da rodada 1, sem check a pedido) · próximo envio e troca de sessão: carried from 36fee0e, fora dos checks | - |
 
 ## Test policy rows
 
-O `checks.md` não tem `## Test policy`; a matriz do `docs/project/testing.md` decide o nível. Os níveis
-batem com ela: transporte ACP em integração com o agente falso (C1–C6, C14 servidor, este sobre o
-`/acp` de verdade); hook, socket, redutor e componente do `web` em unidade; CSS pelo teste que lê a
-folha. O `TurnStatus.test.tsx` lê o `conversation.css` com `readFileSync`, mas isso não reintroduz a
-armadilha da guarda invisível ao `--changed`: o `gate:quick` trata `.css` como não rastreável e roda a
-suíte inteira (*"a dependency, config or asset changed"*, na saída abaixo).
+Carried from 36fee0e: o `checks.md` não tem `## Test policy`, e quem decide o nível é a matriz do
+`docs/project/testing.md`. Os testes novos batem com ela (verified at de6e6e3). C28, C29 e C30 são
+integração do transporte ACP com o agente falso. O C28 também passa pelo `/acp` de verdade
+(`websocket.test.ts`). O C25 e o F4 são unit do `web`. Nenhum teste mexe em `process.env`, o git
+não é mockado, e nenhum `.skip`, `.todo` ou `.only` entrou no diff da correção.
 
 ## Faults injected
 
-Numa cópia descartável de `HEAD` (`git archive HEAD` em `/private/tmp/lum035-verify`, com os
-`node_modules` ligados por symlink). A árvore real não foi tocada: o `git status --porcelain` estava
-vazio antes e continuou vazio depois de a cópia ser apagada.
+Verified at de6e6e3. As mutações rodaram numa cópia descartável de `HEAD`: `git archive HEAD` em
+`/private/tmp/lum035-v2`, com os `node_modules` ligados por symlink. A árvore real não foi tocada: o
+`git status --porcelain` estava vazio antes e continuou vazio depois de a cópia ser apagada. Foram
+seis mutações, uma acima do teto de cinco. A sexta foi feita porque a guarda da memória (M4) é o
+ponto 1 do pedido desta rodada e tem uma superfície de asserção própria.
 
 | Mutation | Location | Killed |
 | --- | --- | --- |
-| M1 — tirar `if (session.connection.signal.aborted) throw await this.awaitExitAfterClose(...)`: com o cano fechando primeiro, a frase volta a ser a do SDK | `packages/server/src/acp/AcpManager.ts:1391` | yes — mas **só** pelos dois testes sem check (`AcpManager.test.ts:2766` e `:2784`). As provas C1–C7 continuaram verdes, inclusive as duas ordens do C4 (ver lacuna 2) |
-| M2 — não zerar o `turnId` em `closeTurnOnExit` (door 2) | `packages/server/src/acp/AcpManager.ts:2562` | yes — C1, os 3 casos do C2, C4 (ordem em que a saída vem primeiro) e C6 |
-| M3 — `RECONNECT_DELAYS_MS` sem o 8 000 | `packages/web/src/features/conversation/useConversationSession.ts:113` | yes — C9 |
-| M4 — `quiet >= SILENCE_THRESHOLD_MS` virou `>` | `packages/web/src/features/conversation/turn-status.ts:107` | yes — C24, as duas provas |
-| M5 — medir o frame por `frame.length`, não em bytes UTF-8 | `packages/web/src/features/conversation/acp-socket.ts:150` | yes — C14 (web) |
-
-Limite de cinco atingido. As superfícies que não sofreram mutação têm o valor esperado legível na
-própria asserção: C16, C19, C21, C22, C23, C27.
+| M1 — a guarda depois do teto volta a ser `throw new DomainError("SESSION_EXITED", …)` (o código da rodada 1) | `packages/server/src/acp/AcpManager.ts:1333` | yes — as duas provas do C28: `AcpManager.test.ts:2864` (não é `AcpTurnFailedError`) e `websocket.test.ts:585` (chega um `error` com `SESSION_EXITED` e `session … has exited`) |
+| M2 — tirar a guarda depois da resposta | `packages/server/src/acp/AcpManager.ts:1433` | yes — C29, `AcpManager.test.ts:2957` (as voltas 1 e 2 gravam `turn_failed` e depois `turn_end`) |
+| M3 — tirar `if (session.connection.signal.aborted) throw await this.awaitExitAfterClose(…)` (o M1 da rodada 1, que sobrevivera aos checks) | `packages/server/src/acp/AcpManager.ts:1414` | yes — as duas provas do C30. C1, C2 e as duas ordens do C4 continuam verdes, como na rodada 1: é o C30 que fecha a lacuna 2 da rodada 1 |
+| M4 — tirar a guarda depois da memória | `packages/server/src/acp/AcpManager.ts:1367` | yes — mas **só** pelo teste sem check `AcpManager.test.ts:2869`. As duas provas do C28 continuaram verdes (ver *Gaps*, 2) |
+| M5 — a ferramenta só deixa de ser silêncio quando está `pending` (`activity.kind === "tool" && activity.call.status === "pending"`) | `packages/web/src/features/conversation/turn-status.ts:102` | yes — C25, `turn-status.test.ts:171` (o 2º caso fica `warning`) |
+| M6 — tirar `setSendRefusal(null)` do `attached` | `packages/web/src/features/conversation/useConversationSession.ts:240` | yes — F4, `useConversationSession.test.tsx:513` |
 
 ## Gaps, ranqueados
 
-1. **Coverage: dois ramos do S1 sem prova (reprova).** `packages/server/src/acp/AcpManager.ts:1351` e
-   `:1409`. Os dois testes do `o adaptador que sai no meio do turno` chamam `exit` só depois de a
-   mensagem do agente chegar (`AcpManager.test.ts:2689`). Nenhum sai durante o teto ou a memória, e
-   nenhum sai no tique da resposta; `SESSION_EXITED` aparece no arquivo só nas guardas de entrada, que
-   já existiam (`:752`, `:1092`).
-   - Sem a `:1351`, a mensagem do usuário iria para a transcrição depois do `turn_failed`, e o
-     `session/prompt` seguiria para um processo morto. Com o stdout aberto, isso pendura o `prompt` para
-     sempre — o defeito exato que a S1 conserta.
-   - Sem a `:1409`, um `turn_end` seria gravado depois do `turn_failed`, e o door 2 cairia.
-   - O que falta: um teste por guarda, com o `budget` injetável segurando uma promessa enquanto o fake
-     sai (o `prompt` rejeita e a transcrição tem um `turn_failed` só), e um com a resposta e a saída no
-     mesmo tique. Os dois nomeados num check.
-   - E um comportamento que ninguém decidiu, a registrar: nesse primeiro caso, o `turn_failed` fica
-     gravado **sem** a pergunta. O `websocket.ts` (`reportFailure`) ainda manda um `error` com
-     `session <id> has exited`, em inglês, por cima da linha.
-2. **Precisão, C1 e C4 (não reprova).** O caminho do processo real — o cano fecha antes da saída, que é
-   o que o §Problem mediu — só tem a frase do door 1 provada por testes que nenhum check nomeia. O M1
-   mostra o custo: a frase volta a ser `ACP connection closed`, o vocabulário do SDK que o plano cita
-   como defeito, e todos os checks continuam verdes. O `Handoff` registra o conserto (*"fechado a
-   pedido"*), mas o `checks.md` não ganhou o check.
-   - Julgamento do ponto 1 levantado pelos construtores: a espera de até 2 s é limitada e limpa
-     (`clearTimeout` no `finally`, `AcpManager.ts:2585-2587`). Durante ela o `promptInFlight` segue
-     ligado, e o `liveTurns()` e o `setConfig` ainda veem turno, o que é aceitável.
-   - Mas a ordem 2 do C4 cai no prazo (2065 ms): ela prova *o prazo vence e depois a saída chega*, não
-     *a saída chega dentro do prazo*. Essa segunda está em `AcpManager.test.ts:2779`.
-   - `EXIT_AFTER_CLOSE_GRACE_MS` não é injetável, então cada um desses dois testes gasta 2 s de relógio
-     real.
-3. **Precisão, C25 (não reprova).** O check descreve um estado que a dobra não produz: 240 s desde o
-   início da ferramenta e 300 s sem evento. O `tool_call` é ele mesmo um evento, então o `lastEventAt`
-   nunca fica antes do `startedAt`. A prova escreve `lastEventAt` à mão (`turn-status.test.ts:152`).
-   - A regra está provada assim mesmo, e num estado alcançável também: `turn-status.test.ts:160-169`
-     tem a ferramenta aberta há 240 s e um `tool_call_update` 100 s atrás. São 100 s de silêncio, acima
-     do limiar; o tom fica `normal` e a frase `há 4 min 0 s`, medida do início da chamada.
-   - O check devia descrever esse caso.
-4. **O `sendRefusal` vale para todo envio (ponto 4; follow-up).** O `cancel`, o `answer`, o `setMode`
-   e o `setConfig` recusados também escrevem o motivo abaixo do composer, porque
-   `onSendRejected: setSendRefusal` fica na `useConversationSession.ts:255`. Isso bate com a premissa do
-   plano (*"abaixo do composer, até o próximo envio"*).
-   - O efeito que sobra: o motivo só se limpa no próximo **prompt** (`:310`) ou na troca de sessão
-     (`:187`), nunca no `attached` da reconexão.
-   - Então, depois de a conexão voltar, fica na tela um `o socket não está aberto` vermelho que já não
-     é verdade. E um `esc` recusado durante o turno fica até o turno acabar e alguém mandar outro prompt.
-5. **O `useNow.test.ts` (ponto 2; sem achado).** O teste avança um `act` por segundo e afirma
-   `result.current` em cada passo, mais a sequência `seen`. É mais forte do que um `act` de 3 s com a
-   mesma asserção final seria: não há asserção enfraquecida, e o M3/M4 não se aplicam aqui. Um
-   intervalo de 500 ms ou de 2 000 ms quebraria a `:26` ou a `:30`.
-6. **Nível e amostragem da frase e do silêncio (ponto 5; sem achado).** A frase do servidor é amostrada
-   nos três ramos de `exitText` (C2), no nível de integração com o agente falso que a matriz pede. O
-   silêncio é amostrado nas duas bordas (89 e 90 s), nos três casos que não são silêncio e no caso
-   *antes do primeiro bloco*, sobre estado dobrado pelo redutor — exceto o C25 (lacuna 3).
+1. **Um segundo `prompt` pendura o primeiro para sempre (reprova, CONFIRMADO).**
+   - **O mecanismo.** A guarda em `packages/server/src/acp/AcpManager.ts:1333` e `:1367` é `if (session.turnId !== turnId) await exited;`. O `turnId` muda em dois lugares: na saída (`:2591`) e no começo de todo `prompt` (`:1303`).
+   - **O que acontece.** Se um segundo `prompt` chega enquanto o primeiro lê o teto ou a memória, o segundo sobrescreve o `session.releaseTurn` (`:1313`). O primeiro, ao voltar, entra na guarda e espera um `exited` que ninguém vai rejeitar.
+   - **Reprodução.** Na cópia descartável: dois `prompt` numa sessão com o `budget` segurado. O primeiro liberado depois de o segundo começar.
+     - `HEAD` `de6e6e3`: o segundo termina (`ok end_turn`), o primeiro `STILL PENDING after 500 ms`, e a transcrição fica `["message","turn_end"]`. A pergunta do primeiro sumiu.
+     - `36fee0e`, rodada 1: o primeiro rejeitava com `DomainError: session … has exited`, falso com a sessão viva, e a pergunta também sumia.
+     - `origin/main`: os dois terminavam, com as duas mensagens gravadas.
+   - **A atribuição.** O defeito nasceu na S1 (`2d45c99`). A correção trocou o `throw` pelo `await exited` e transformou uma rejeição errada num `prompt` que nunca se resolve.
+   - **Quem sofre.**
+     - O `bootstrap.ts:385-387`, a esteira, espera o `prompt`.
+     - O `sendPendingNow`, em `packages/server/src/sessions/pending-prompt.ts:169-174`, só solta a reivindicação no `finally`.
+   - **Por onde entra.** A tela não barra isso por completo. O composer se desliga com `streaming` (`Composer.tsx:278`), mas o `streaming` só liga quando a mensagem do usuário chega, e a mensagem só é gravada **depois** do teto e da memória. Então uma segunda aba, ou a pessoa escrevendo na sessão da esteira nessa janela, entra.
+   - **A menor correção** é uma decisão, e ela é do dono.
+     - Ou o `prompt` recusa com `DomainError` quando `session.promptInFlight` já é verdadeiro, o que casa com a tela e muda o comportamento de `origin/main`.
+     - Ou a guarda passa a olhar a saída de fato (`session.info.state === "exited"`, ou o `turnId` que o `closeTurnOnExit` fechou), com um `releaseTurn` por turno.
+     - Nos dois casos, com um check que prove que o primeiro `prompt` termina.
+   - Vale uma entrada no `open-questions.md` (Q5), porque *"dois prompts na mesma sessão"* nunca foi decidido.
+2. **Precisão, C28 e a linha de Coverage (não reprova).** O `checks.md` põe *"durante o teto ou a memória C28"* no conjunto *turno em voo na saída*, mas o C28 afirma e prova só o teto. O M4 mostra o custo: sem a guarda da memória, as duas provas do C28 continuam verdes, e só o teste sem check `AcpManager.test.ts:2869` morre. Esse teste existe, rodou e afirma o que deve (`:2897` - `memory_core` ausente; `:2898-2901` - a pergunta e `(sinal SIGKILL)`). A correção é só no `checks.md`: nomear esse teste como segunda prova do C28 e dizer *"o teto ou a memória"* no claim. É a própria regra que a correção registrou no `testing.md` (*"um ramo que o construtor acrescenta além do check … ganha linha no Coverage e prova"*).
+3. **C29: a prova afirma o check e é determinística (sem achado).**
+   - **Onde a saída cai.** Instrumentei a cópia para ver por onde cada volta passa. Nas cinco execuções, a volta 0 caiu no `catch` (`:1411`, a saída perdeu a corrida para a resposta), as voltas 1 e 2 caíram **na guarda** `:1433`, e da volta 3 à 24 veio `turn_end` (o caso do C5). A largura da janela bate com o que o construtor disse: duas microtarefas.
+   - **É determinística.** Entre a resposta e a saída só há microtarefas, sem relógio, e as cinco execuções deram o mesmo mapa.
+   - **Afirma o check.** Por volta, o C29 é afirmado inteiro sempre que a saída pega o turno aberto (`:2957-2961`).
+   - **A ressalva.** As duas asserções finais (`:2964-2965`) não afirmam que alguma volta *caiu na guarda*: a volta 0 sozinha já satisfaz *"algum `turn_failed"`*. O argumento que fecha isso é de contiguidade: cada volta avança uma microtarefa, então passar de *"a saída antes da resposta"* para *"depois do `turn_end`"* atravessa qualquer janela de largura ≥ 1. Se a janela sumir, a guarda vira código morto, e o mutante equivalente não é defeito da prova. O M2 confirma que hoje ela é atravessada.
+4. **Os achados da rodada 1, um a um.**
+   - **F1:** fechado. O teto tem o C28, a resposta junto tem o C29, e a memória tem prova, mas sem check (lacuna 2).
+   - **F2:** fechado pelo C30, e o M3 agora morre.
+   - **F3:** fechado, porque o C25 só usa estado dobrado (`turn-status.test.ts:165-167`).
+   - **F4:** fechado em `useConversationSession.ts:240`, e o M6 morre.
+   - **O prazo:** é injetável (`AcpManager.ts:537`, `:699`, `:2608`), e a produção fica em 2 s, porque nenhuma montagem passa a opção.
+5. **Efeito da Q4 no prompt pendente (follow-up, SUSPEITA, não executado).** O `sendPendingNow` zera a pendência quando vê a mensagem do usuário (`pending-prompt.ts:153-157`). Agora o `closeTurnOnExit` emite essa mensagem antes de limpar os listeners (`AcpManager.ts:2583-2586`). Então um prompt pendente cujo adaptador sai durante a leitura do teto sai da linha da sessão, e antes ficava na linha, como o `pending-prompt.ts:58-59` quer para a sessão que morre antes do envio (*"para a retomada levar adiante"*). O texto não se perde, porque está na transcrição, mas a retomada não o reenvia mais. Ninguém decidiu isso; vale uma linha na Q4.
 
 ## Gate
 
-- `LUMEM_GATE_BASE=origin/main pnpm gate:quick` - `docs ok`; *"a dependency, config or asset changed since origin/main, running the full suite"*; **293 files, 4874 passed, 6 skipped, 0 failed**. O diff não acrescenta nenhum `.skip`, `.todo` ou `.only`, e não remove nenhum teste.
-- `pnpm gate:build` - verde, mas com 7/7 tarefas em cache. Por isso rodou também `pnpm exec turbo typecheck --force`: 4 tasks successful, 0 cached. `pnpm -s lint` saiu com 0, e `pnpm -s docs:check`, com `docs ok`.
-- `gate:full` (Playwright) não executado: nenhum check declara prova e2e, e o veredito não depende dele.
+Verified at de6e6e3:
+
+- `LUMEM_GATE_BASE=origin/main pnpm gate:quick` - `docs ok`; *"a dependency, config or asset changed since origin/main, running the full suite"*; **293 files, 4878 passed, 6 skipped, 0 failed**. Na rodada 1 eram 4874. São cinco testes a mais (C28 × 2, C29, o da memória e o do F4) e um a menos, o teste extra do C25 absorvido.
+- `pnpm exec turbo typecheck --force` - 4 successful, 0 cached. `pnpm -s lint` saiu com 0. `pnpm gate:build` deu 7/7 em cache, e é o `--force` acima que sustenta o typecheck.
+- O `gate:full` (Playwright) não foi executado: nenhum check declara prova e2e, e o veredito não depende dele.
