@@ -243,3 +243,17 @@ Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/TurnS
   `OVER_THE_CEILING` para 2976, com motivo
 - **Abandoned:** nada. O estado de turno único com dois turnos (`promptInFlight`, `turnStartedAt`,
   `openToolCalls`, a linha de estado) fica como em `origin/main`, fora do escopo por decisão da Q5
+- **Boundary:** C31 closed at 55100a7 (rodada 3 da verificação, ampliação do C31); o F5, sem check, em 8de0699
+- **Settled mid-build:** o dono autorizou a quarta rodada e a feature foi renumerada de `035` para `037`
+  no merge com a `origin/main` (colisão com a `035-plan-mode`); o `bef781b` ampliou o C31 e tirou o ✓
+  dele até as duas provas novas passarem. O resto foi decidido aqui, sem pergunta: as duas provas saem
+  do claim, com os nomes fixos, e a do fecho único compara a transcrição por inteiro
+  (`[message primeira, message segunda, turn_failed]`), com um retrato só; a da saída depois de o
+  primeiro terminar afirma a rejeição com `AcpTurnFailedError` e o `turn_failed` como último evento, e
+  corre contra um prazo de 1 s para que uma regressão apareça como `pendurado`, e não como timeout. As
+  três mutações da rodada (MA, MB, MC) foram injetadas de novo e caem; o F5 trocou o `messageId` da
+  pergunta de `session.turnId` para `turn.id`, com um teste a mais (*gives each question its own
+  message id with two prompts in flight*) que cai sem a troca. O `expect.any(String)` da 1ª prova do
+  C31 ficou: o teste novo é quem afirma os dois ids distintos
+- **Abandoned:** nada. O `fallbackMessageId: session.turnId` do texto do agente (`AcpManager.ts:2098`)
+  tem o mesmo formato e fica fora do escopo, junto com o estado de turno único da Q5
