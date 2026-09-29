@@ -1,6 +1,6 @@
 # O pensamento volta a chegar — checks
 
-> **Status:** em execução
+> **Status:** completa
 
 Profile: standard
 Plan: `docs/features/035-reasoning/prd.md`

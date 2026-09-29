@@ -1,6 +1,6 @@
 # O pensamento volta a chegar, e diz quanto durou
 
-> **Status:** em execução
+> **Status:** completa
 > **Histórico:** v0.1 — proposta em **2026-09-29**, a partir da
 > [LUM-66](https://linear.app/lumem-os/issue/LUM-66/reasoning-o-pensamento-parou-de-chegar-desde-2026-09-08-trazer-de),
 > do projeto *Conversa — imagem, plano, reasoning e sinal de vida*. A issue pedia a pasta
