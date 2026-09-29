@@ -1,6 +1,6 @@
 # O plano do plan mode — checks
 
-**Status:** em execução
+**Status:** completa
 Profile: standard
 Plan: `docs/features/035-plan-mode/prd.md`
 

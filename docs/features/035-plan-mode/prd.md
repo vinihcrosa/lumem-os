@@ -1,6 +1,6 @@
 # PRD — O plano do plan mode, visível e decidido com ele inteiro na tela
 
-> **Status:** em execução
+> **Status:** completa
 > **Histórico:** v0.1 — proposta em **2026-09-29**, a partir da
 > [LUM-65](https://linear.app/lumem-os/issue/LUM-65/plano-estado-visivel-em-plan-mode-e-aprovar-ou-recusar-o-plano-com-ele).
 > A issue pedia `033-conversation-essentials`; o `033` já é da
