@@ -1,0 +1,51 @@
+name: PR
+
+# Sinais sobre a PR, e nenhum deles é portão: o que bloqueia o merge são os dois
+# checks do `ci.yml`, que o ruleset da `main` exige. Separado dele por dois motivos:
+# este é o único workflow com permissão de escrever na PR, e um sinal que falha
+# não pode parecer suíte quebrada.
+#
+# - o rótulo de classe de N3 (T22 da `024-dev-harness`): `N3: docs`, `N3: css-token`,
+#   `N3: dependência` ou `sem classe`, pelos caminhos tocados. Informação — nada se
+#   mescla por causa dele (Q7).
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: pr-signals-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  HUSKY: 0
+
+jobs:
+  signals:
+    name: sinais da PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR: ${{ github.event.pull_request.number }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: classe de N3
+        run: |
+          git diff --name-only "origin/${{ github.base_ref }}...HEAD" > /tmp/files.txt
+          label="$(node --no-warnings --experimental-strip-types scripts/pr-class.ts < /tmp/files.txt)"
+          echo "classe: $label"
+          for name in "N3: docs" "N3: css-token" "N3: dependência" "sem classe"; do
+            gh label create "$name" --color "ededed" --description "classe de N3 (T22 da 024-dev-harness)" --force >/dev/null
+            if [ "$name" != "$label" ]; then gh pr edit "$PR" --remove-label "$name" >/dev/null 2>&1 || true; fi
+          done
+          gh pr edit "$PR" --add-label "$label"

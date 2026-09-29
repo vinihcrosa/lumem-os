@@ -1045,7 +1045,12 @@ só existem se uma PR que as **mistura** com outra coisa for reconhecida como *s
 - `pnpm gate:quick` verde.
 
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ não iniciada
+**Status**: 🟡 entregue em 2026-09-28, **menos a observação numa PR de verdade**. `scripts/pr-class.ts` com
+**11** testes (cada classe, cada mistura, a PR vazia, e que só o workflow novo escreve na PR). Um workflow
+**próprio**, `.github/workflows/pr-signals.yml`, e não um passo do `ci.yml`: os checks obrigatórios do
+ruleset continuam sendo só os dois, e a permissão `pull-requests: write` fica restrita a ele. Os quatro
+rótulos são criados pelo próprio workflow (`gh label create --force`). O primeiro rótulo aparece na
+primeira PR aberta depois do merge desta — o workflow só roda a partir da `main`.
 
 ---
 
