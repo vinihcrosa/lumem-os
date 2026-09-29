@@ -56,7 +56,7 @@ Proof: `pnpm exec vitest run packages/web/src/features/conversation/conversation
 **C11** - ✓ `decidePermission` devolve `approve: false` para `kind: "switch_mode"` com opção `allow_once`, em `ask`, `auto` e `free` — tabela de 3 linhas —, com `reason` *"aprovar um plano é decisão sua"* (AC 9)
 Proof: `pnpm exec vitest run packages/server/src/acp/permission-policy.test.ts -t "nenhum modo do Lumem aprova um plano"`
 
-**C12** - Num agente sem modos em `free`, um `session/request_permission` de tool call `switch_mode` emite `permission_request` com aquele `policyReason` e **nenhum** `permission_resolved` (AC 9)
+**C12** - ✓ Num agente sem modos em `free`, um `session/request_permission` de tool call `switch_mode` emite `permission_request` com aquele `policyReason` e **nenhum** `permission_resolved` (AC 9)
 Proof: `pnpm exec vitest run packages/server/src/acp/AcpManager.fake-adapter.test.ts -t "liberado não aprova o plano"`
 
 ### S3 - aprovar ou recusar com o plano inteiro na tela · 7 files · 120 KB · ~30k
@@ -99,10 +99,10 @@ Proof: `pnpm exec playwright test e2e/plan-mode.spec.ts -g "recusar mantém o pl
 
 ### S4 - o roteiro de plan mode no agente falso · 2 files · 45 KB · ~11k
 
-**C25** - Um prompt com *"planeje antes"* faz o agente falso emitir, nesta ordem: `current_mode_update` `plan`, `tool_call` `kind: "switch_mode"` título *"Approve Plan"* com `content` markdown de mais de 12 linhas no próprio `tool_call`, e `session/request_permission` com as quatro opções `exit-plan-clear-auto`/`allow_always`, `exit-plan-auto`/`allow_always`, `exit-plan-default`/`allow_once`, `reject`/`reject_once`, com os `name` do adaptador `0.75.1` (AC 20)
+**C25** - ✓ Um prompt com *"planeje antes"* faz o agente falso emitir, nesta ordem: `current_mode_update` `plan`, `tool_call` `kind: "switch_mode"` título *"Approve Plan"* com `content` markdown de mais de 12 linhas no próprio `tool_call`, e `session/request_permission` com as quatro opções `exit-plan-clear-auto`/`allow_always`, `exit-plan-auto`/`allow_always`, `exit-plan-default`/`allow_once`, `reject`/`reject_once`, com os `name` do adaptador `0.75.1` (AC 20)
 Proof: `pnpm exec vitest run packages/server/src/acp/AcpManager.fake-adapter.test.ts -t "o roteiro de plan mode emite o pedido do adaptador"`
 
-**C26** - Responder `exit-plan-auto` e `exit-plan-clear-auto` leva a `current_mode_update` `auto`, `exit-plan-default` a `default`, e os três terminam com `end_turn`; responder `reject` mantém `plan` e termina com `cancelled` — tabela de 4 linhas (AC 21, AC 22)
+**C26** - ✓ Responder `exit-plan-auto` e `exit-plan-clear-auto` leva a `current_mode_update` `auto`, `exit-plan-default` a `default`, e os três terminam com `end_turn`; responder `reject` mantém `plan` e termina com `cancelled` — tabela de 4 linhas (AC 21, AC 22)
 Proof: `pnpm exec vitest run packages/server/src/acp/AcpManager.fake-adapter.test.ts -t "cada resposta do roteiro leva ao modo do adaptador"`
 
 **C27** - As specs que já usam o agente falso continuam verdes sem mudança — o turno padrão não mudou (AC 23)

@@ -3,9 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { afterEach, describe, expect, it } from "vitest";
+import type { AcpEvent } from "@lumem/shared";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { AcpManager } from "./AcpManager.js";
+import { AcpManager, type AcpSpawnOptions } from "./AcpManager.js";
 
 /**
  * O probe contra o fake do e2e, por processo de verdade (`034` T6).
@@ -72,5 +73,111 @@ describe("o fake do e2e reproduz o 0.75.1", () => {
 
     expect(report.loggedIn).toBe(true);
     expect(report.identity?.email).toEqual(expect.any(String));
+  });
+});
+
+/**
+ * O roteiro de plan mode (`035` S4), pelo daemon de verdade.
+ *
+ * Pelo `AcpManager` e não pelo JSON-RPC cru: o que o e2e vai ler é o que sai
+ * do daemon, e o `content` do `tool_call` só chega do outro lado se o tradutor
+ * o levar — a porta 1 da feature.
+ */
+const PLAN_PROMPT = "planeje antes de mexer no loader";
+
+/** As quatro opções do `0.75.1`, verbatim (`buildExitPlanModePermissionOptions`). */
+const PLAN_OPTIONS = [
+  { optionId: "exit-plan-clear-auto", kind: "allow_always", name: "Yes, clear context (32% used) and use auto mode" },
+  { optionId: "exit-plan-auto", kind: "allow_always", name: "Yes, and use auto mode" },
+  { optionId: "exit-plan-default", kind: "allow_once", name: "Yes, manually approve edits" },
+  { optionId: "reject", kind: "reject_once", name: "No, keep planning" },
+];
+
+async function planSession(options: Partial<AcpSpawnOptions> = {}) {
+  const manager = new AcpManager({ isAvailable: () => true });
+  managers.push(manager);
+  const info = await manager.spawn({ command: shim(), cwd: scratch("lumem-plano-"), ...options });
+  const events: AcpEvent[] = [];
+  manager.onEvent(info.id, (entry) => events.push(entry.event));
+  return { manager, id: info.id, events };
+}
+
+type PermissionRequest = Extract<AcpEvent, { type: "permission_request" }>;
+
+async function asked(events: readonly AcpEvent[]): Promise<PermissionRequest> {
+  return vi.waitFor(
+    () => {
+      const request = events.find((event): event is PermissionRequest => event.type === "permission_request");
+      if (request === undefined) throw new Error("o pedido ainda não chegou");
+      return request;
+    },
+    { timeout: 5_000, interval: 10 },
+  );
+}
+
+function modes(events: readonly AcpEvent[]): string[] {
+  return events.flatMap((event) => (event.type === "config" ? [event.mode] : []));
+}
+
+describe("o roteiro de plan mode do fake", () => {
+  it("o roteiro de plan mode emite o pedido do adaptador", async () => {
+    const { manager, id, events } = await planSession();
+
+    const turn = manager.prompt(id, PLAN_PROMPT);
+    const request = await asked(events);
+
+    const planMode = events.findIndex((event) => event.type === "config" && event.mode === "plan");
+    const call = events.findIndex((event) => event.type === "tool_call" && event.kind === "switch_mode");
+    const ask = events.indexOf(request);
+    expect(planMode).toBeGreaterThanOrEqual(0);
+    expect(call).toBeGreaterThan(planMode);
+    expect(ask).toBeGreaterThan(call);
+
+    const toolCall = events[call] as Extract<AcpEvent, { type: "tool_call" }>;
+    expect(toolCall.title).toBe("Approve Plan");
+    const text = toolCall.content?.find((item) => item.type === "content");
+    expect(text?.type === "content" ? text.text.split("\n").length : 0).toBeGreaterThan(12);
+
+    expect(request.toolCallId).toBe(toolCall.toolCallId);
+    expect(request.options).toEqual(PLAN_OPTIONS);
+
+    manager.respondToPermission(id, request.requestId, "reject");
+    await turn;
+  });
+
+  it.each([
+    ["exit-plan-clear-auto", "auto", "end_turn"],
+    ["exit-plan-auto", "auto", "end_turn"],
+    ["exit-plan-default", "default", "end_turn"],
+    ["reject", "plan", "cancelled"],
+  ])("cada resposta do roteiro leva ao modo do adaptador (%s)", async (optionId, mode, stopReason) => {
+    const { manager, id, events } = await planSession();
+
+    const turn = manager.prompt(id, PLAN_PROMPT);
+    const request = await asked(events);
+    manager.respondToPermission(id, request.requestId, optionId);
+
+    expect(await turn).toBe(stopReason);
+    expect(modes(events).at(-1)).toBe(mode);
+    expect(events.at(-1)).toEqual({ type: "turn_end", stopReason });
+  });
+
+  it("liberado não aprova o plano", async () => {
+    // O adaptador sem modos é o único em que a política do Lumem vale (A1).
+    const { manager, id, events } = await planSession({ env: { LUMEM_FAKE_NO_MODES: "1" }, lumemMode: "free" });
+    expect(manager.get(id)).toMatchObject({ mode: "", lumemMode: "free" });
+
+    const turn = manager.prompt(id, PLAN_PROMPT);
+    const request = await asked(events);
+
+    expect(request.policyReason).toBe("aprovar um plano é decisão sua");
+    expect(events.some((event) => event.type === "permission_resolved")).toBe(false);
+
+    // Continua pendente: a resposta de uma pessoa ainda é aceita.
+    manager.respondToPermission(id, request.requestId, "reject");
+    await turn;
+    expect(events.filter((event) => event.type === "permission_resolved")).toEqual([
+      { type: "permission_resolved", requestId: request.requestId, outcome: { optionId: "reject" }, by: "user", reason: null },
+    ]);
   });
 });
