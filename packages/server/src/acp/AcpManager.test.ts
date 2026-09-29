@@ -3035,6 +3035,37 @@ describe("o adaptador que sai no meio do turno", () => {
     expect(secondOutcome?.error).toBeInstanceOf(AcpTurnFailedError);
   });
 
+  it("gives each question its own message id with two prompts in flight", async () => {
+    // O `session.turnId` é sobrescrito pelo segundo `prompt`: a pergunta do
+    // primeiro, gravada depois, saía com o id do segundo.
+    const fake = fakeAgentProcess({ prompt: () => Promise.resolve("end_turn") });
+    const firstBudget = held<{ kind: "pass" }>();
+    let budgetReads = 0;
+    const manager = new AcpManager({
+      spawner: () => fake.process,
+      isAvailable: () => true,
+      handshakeTimeoutMs: 2_000,
+      budget: () => {
+        budgetReads += 1;
+        return budgetReads === 1 ? firstBudget.promise : Promise.resolve({ kind: "pass" });
+      },
+    });
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: "/repos/lorebase" });
+
+    const first = manager.prompt(info.id, "primeira");
+    await waitFor(() => (budgetReads === 1 ? true : undefined));
+    await manager.prompt(info.id, "segunda");
+    firstBudget.release({ kind: "pass" });
+    await first;
+
+    const ids = manager
+      .transcript(info.id)
+      .map((entry) => entry.event)
+      .flatMap((event) => (event.type === "message" && event.role === "user" ? [event.messageId] : []));
+    expect(ids).toHaveLength(2);
+    expect(new Set(ids).size).toBe(2);
+  });
+
   it("says nothing when the adapter exits between turns", async () => {
     const fake = fakeAgentProcess({
       async prompt(_text, turn) {

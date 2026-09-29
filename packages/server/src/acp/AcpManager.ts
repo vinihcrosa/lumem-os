@@ -1405,7 +1405,7 @@ export class AcpManager {
     turn.question = undefined;
     this.emit(session, {
       type: "message",
-      messageId: session.turnId,
+      messageId: turn.id,
       role: "user",
       text,
     });
