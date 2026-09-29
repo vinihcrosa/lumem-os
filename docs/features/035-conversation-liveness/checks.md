@@ -203,3 +203,18 @@ Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/TurnS
   sobrescreve `lastEventAt` no estado dobrado, e um teste a mais faz o caso realista, com um
   `tool_call_update` no meio
 - **Abandoned:** nada
+- **Boundary:** C25, C28–C30 closed at 4602fce (rodada 1 da verificação); o F4, sem check, em 1e050c5
+- **Settled mid-build:** o dono aprovou a emenda dos checks (C28–C30 novos, C25 reescrito, critérios 27
+  e 28 do plano) e respondeu **Q4 = A** em 2026-09-29. O resto foi decidido aqui: o turno guarda a
+  pergunta em `pendingQuestion` até gravá-la, e o `closeTurnOnExit` a grava antes do `turn_failed`; a
+  corrida contra a saída (`exited`) é armada no começo do `prompt`, e as três guardas — depois do teto,
+  depois da memória, depois da resposta — relançam o `AcpTurnFailedError` da saída com `await exited`,
+  que o `websocket.ts` já engolia. O núcleo da memória que chega depois da saída **não** é gravado: o
+  agente nunca o leu. O prazo virou `exitAfterCloseGraceMs`, injetável, com `EXIT_AFTER_CLOSE_GRACE_MS`
+  (2 s) de padrão. A janela da resposta junto com a saída tem uma ou duas microtarefas, e quantas o SDK
+  gasta é dele: a prova do C29 varre a saída de 0 a 24 microtarefas depois de a resposta passar pelo
+  cano, afirma o C29 em toda volta em que a saída pegou o turno aberto (e o C5 nas outras), e cobra que
+  a varredura tenha atravessado a resposta. O `AcpManager.ts` subiu no `OVER_THE_CEILING` para 2952,
+  com motivo; o `sendRefusal` agora também se limpa no `attached` da reabertura
+- **Abandoned:** o teste a mais `ferramenta aberta mede do início dela, com evento no meio`, absorvido
+  pelo segundo caso do C25 reescrito
