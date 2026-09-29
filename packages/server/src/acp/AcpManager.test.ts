@@ -2653,3 +2653,73 @@ describe("uma recusa por cota", () => {
     );
   });
 });
+
+describe("o pedido de raciocínio da spec", () => {
+  /*
+   * `035` S1. O `claude-agent-acp@0.75.1` manda o pensamento com o texto vazio
+   * (`thinking.display: "omitted"`) a menos que alguém peça o resumo, e quem
+   * pede é o `_meta` que a spec declara — igual no `session/new` e no
+   * `session/load`, porque o adaptador monta a sessão pelo mesmo caminho nos dois.
+   */
+  const SUMMARIZED = { claudeCode: { options: { thinking: { type: "adaptive", display: "summarized" } } } };
+
+  async function opened(adapterId: string | undefined) {
+    const created: unknown[] = [];
+    const fake = fakeAgentProcess({
+      newSession: (params) => {
+        created.push(params);
+      },
+    });
+    const manager = new AcpManager({ spawner: () => fake.process, isAvailable: () => true, handshakeTimeoutMs: 2_000 });
+    await manager.spawn({ command: "claude-agent-acp", cwd: "/r", ...(adapterId ? { adapterId } : {}) });
+    return created;
+  }
+
+  async function resumed(adapterId: string | undefined) {
+    const loaded: unknown[] = [];
+    const fake = fakeAgentProcess({
+      loadSession: (params) => {
+        loaded.push(params);
+      },
+    });
+    const manager = new AcpManager({ spawner: () => fake.process, isAvailable: () => true, handshakeTimeoutMs: 2_000 });
+    await manager.resume({
+      command: "claude-agent-acp",
+      cwd: "/r",
+      acpSessionId: "conversa-de-ontem",
+      ...(adapterId ? { adapterId } : {}),
+    });
+    return loaded;
+  }
+
+  it("sends the spec's reasoningMeta on session/new", async () => {
+    const created = await opened("claude");
+
+    expect(created).toHaveLength(1);
+    expect(created[0]).toMatchObject({ _meta: SUMMARIZED });
+    expect((created[0] as { _meta: unknown })._meta).toEqual(SUMMARIZED);
+  });
+
+  it("sends the spec's reasoningMeta on session/load", async () => {
+    const loaded = await resumed("claude");
+
+    expect(loaded).toHaveLength(1);
+    expect((loaded[0] as { _meta?: unknown })._meta).toEqual(SUMMARIZED);
+  });
+
+  it("sends no _meta when the spec declares no reasoningMeta", async () => {
+    const [created] = await opened("codex");
+    const [loaded] = await resumed("codex");
+
+    expect(created).not.toHaveProperty("_meta");
+    expect(loaded).not.toHaveProperty("_meta");
+  });
+
+  it("sends no _meta without an adapterId", async () => {
+    const [created] = await opened(undefined);
+    const [loaded] = await resumed(undefined);
+
+    expect(created).not.toHaveProperty("_meta");
+    expect(loaded).not.toHaveProperty("_meta");
+  });
+});

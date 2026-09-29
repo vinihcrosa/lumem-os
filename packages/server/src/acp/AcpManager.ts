@@ -499,6 +499,13 @@ interface Session {
    * declarada, e não descoberta no turno (ADR de 2026-09-13).
    */
   quotaRefusalKind: string | null;
+  /**
+   * O `_meta` do `session/new` e do `session/load`, ou `null` (`035`).
+   *
+   * Da `spec`, pelo mesmo caminho da `quotaRefusalKind`: é ela que sabe o que
+   * este adaptador precisa ouvir para mandar o raciocínio.
+   */
+  reasoningMeta: Readonly<Record<string, unknown>> | null;
   /** O rótulo do agente, para a frase da recusa. */
   agentLabel: string;
   /** A conta da sessão, quando quem a abriu disse. */
@@ -1224,6 +1231,7 @@ export class AcpManager {
       replaying: false,
       coreInjected: false,
       quotaRefusalKind: spec?.quotaRefusalKind ?? null,
+      reasoningMeta: spec?.reasoningMeta ?? null,
       // "agente" quando o catálogo não conhece: a frase continua sendo uma frase,
       // e o nome do binário não é o que alguém chama de agente.
       agentLabel: spec?.label ?? "agente",
@@ -2183,7 +2191,7 @@ export class AcpManager {
     let created;
     try {
       created = await this.withTimeout(
-        session.connection.agent.request("session/new", { cwd, mcpServers: [] }),
+        session.connection.agent.request("session/new", { cwd, mcpServers: [], ...metaOf(session) }),
         "session/new",
       );
     } catch (error) {
@@ -2232,6 +2240,7 @@ export class AcpManager {
         sessionId: acpSessionId,
         cwd,
         mcpServers: [],
+        ...metaOf(session),
       }),
       "session/load",
     );
@@ -2815,4 +2824,14 @@ function toAuthMethod(method: {
     args: meta?.args ?? [...(method.args ?? [])],
     label: meta?.label ?? null,
   };
+}
+
+/**
+ * O `_meta` que a spec declara para esta sessão, pronto para espalhar — ou nada.
+ *
+ * Nada, e não `_meta: null`: a chave ausente é o que o protocolo lê como *"sem
+ * extensão"*, e é o que o `session/new` mandava antes da `035`.
+ */
+function metaOf(session: Session): { _meta?: Record<string, unknown> } {
+  return session.reasoningMeta === null ? {} : { _meta: { ...session.reasoningMeta } };
 }

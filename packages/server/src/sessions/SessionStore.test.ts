@@ -1566,6 +1566,26 @@ describe("o catálogo de adaptador", () => {
   });
 });
 
+/** Uma configuração **do catálogo** — é o `adapterId` dela que diz como ler a recusa e o que pedir. */
+async function claudeIn(db: Db, label: string) {
+  const config = await createAgentConfigRepository(db).create({
+    name: CLAUDE_ADAPTER.id,
+    command: "claude-agent-acp",
+    adapterVersion: CLAUDE_ADAPTER.pinnedVersion,
+  });
+  await createAgentAccountRepository(db).rename(config.defaultAccountId!, label);
+  return {
+    kind: "agent" as const,
+    agentConfigId: config.id,
+    agentAccountId: config.defaultAccountId,
+    scopeType: "worktree" as const,
+    scopeId: "w1",
+    cwd: tmpdir(),
+    command: config.command,
+    adapterVersion: config.adapterVersion,
+  };
+}
+
 /**
  * A recusa por cota nomeia a conta da sessão (`028` T17).
  *
@@ -1583,26 +1603,6 @@ describe("a recusa por cota diz de qual conta", () => {
           }),
         ),
     }).process;
-  }
-
-  /** Uma configuração **do catálogo** — é o `adapterId` dela que diz como ler a recusa. */
-  async function claudeIn(db: Db, label: string) {
-    const config = await createAgentConfigRepository(db).create({
-      name: CLAUDE_ADAPTER.id,
-      command: "claude-agent-acp",
-      adapterVersion: CLAUDE_ADAPTER.pinnedVersion,
-    });
-    await createAgentAccountRepository(db).rename(config.defaultAccountId!, label);
-    return {
-      kind: "agent" as const,
-      agentConfigId: config.id,
-      agentAccountId: config.defaultAccountId,
-      scopeType: "worktree" as const,
-      scopeId: "w1",
-      cwd: tmpdir(),
-      command: config.command,
-      adapterVersion: config.adapterVersion,
-    };
   }
 
   it("na conversa que nasceu agora", async () => {
@@ -1630,5 +1630,33 @@ describe("a recusa por cota diz de qual conta", () => {
       code: "QUOTA_REFUSED",
       message: "a conta technomar-ted bateu no limite do Claude Code",
     });
+  });
+});
+
+/**
+ * O pedido de raciocínio chega ao adaptador pelos dois caminhos da conversa (`035` C6).
+ *
+ * Quem dá o `adapterId` ao `AcpManager` é este arquivo, na criação e na retomada;
+ * sem ele, a spec não é lida e o Claude manda o pensamento sem texto.
+ */
+describe("o pedido de raciocínio", () => {
+  it("asks the catalogued adapter for its reasoning on open and on resume", async () => {
+    const { store, db, acpManager } = setup();
+    const created: unknown[] = [];
+    const loaded: unknown[] = [];
+    queued.push(fakeAgentProcess({ newSession: (params) => void created.push(params) }).process);
+    const row = await store.start(await claudeIn(db, "pessoal"));
+    await acpManager.prompt(row.id, "algo dito ontem");
+    acpManager.kill(row.id);
+    await vi.waitFor(async () => expect((await store.findById(row.id))?.state).toBe("exited"));
+
+    queued.push(fakeAgentProcess({ loadSession: (params) => void loaded.push(params) }).process);
+    await store.resume(row.id);
+
+    const summarized = { claudeCode: { options: { thinking: { type: "adaptive", display: "summarized" } } } };
+    expect(created).toHaveLength(1);
+    expect((created[0] as { _meta?: unknown })._meta).toEqual(summarized);
+    expect(loaded).toHaveLength(1);
+    expect((loaded[0] as { _meta?: unknown })._meta).toEqual(summarized);
   });
 });

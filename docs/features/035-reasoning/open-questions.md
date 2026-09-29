@@ -43,3 +43,16 @@ turno real.
   ler a preferência antes de montar o `_meta`, e o AC 1 ganha a condição.
 
   **R:** sempre ligado (2026-09-29). Uma diferença de tokens na medição do AC 5 reabre.
+
+  **Medido no mesmo dia, e não reabre.** Seis turnos no modelo padrão (`opus[1m]`, effort `xhigh`),
+  alternando sem e com o pedido, contando o `usage` da resposta do `session/prompt`:
+
+  | Pedido | Tokens de saída | Escrita de cache | Custo (US$) |
+  |---|---|---|---|
+  | sem | 157 · 134 · 186 | 24 975 · 24 302 · 0 | 0,259 · 0,253 · 0,023 |
+  | com | 155 · 136 · 128 | 23 796 · 24 302 · 24 302 | 0,249 · 0,253 · 0,253 |
+
+  A saída é a mesma, como a documentação diz. O custo varia com a **escrita de cache**, que oscila de
+  sessão para sessão nos dois lados — o turno de 0,023 é o único que achou o cache inteiro. A primeira
+  corrida do `pnpm measure:thinking` tinha dado 0,380 contra 0,023, e era isso: o turno com pedido veio
+  primeiro e pagou a escrita.

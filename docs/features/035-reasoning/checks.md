@@ -128,3 +128,7 @@ por acaso passa neles.
 ## Handoff
 
 - S1 ≈ 40k (o `AcpManager.ts` tem 2 818 linhas, lido por trechos); S2 entra no web a ≈ 70k no total, abaixo do orçamento de 150k — um construtor
+
+- **Boundary:** C1–C7 fechados no commit da Parte 1. `pnpm measure:thinking` saiu 0 em 2026-09-29: pensamento no padrão (165 caracteres) e `end_turn` em `default`, `opus[1m]`, `claude-fable-5-1[1m]`, `sonnet` e `haiku` — o Haiku 4.5 aceita o `--thinking adaptive` que o pedido liga
+- **Settled mid-build:** a Q2 não reabre — a tabela está na [resposta dela](open-questions.md)
+- **Abandoned:** nada

@@ -28,7 +28,8 @@
     "docs:check": "tsx scripts/run-check-docs.ts",
     "feature:check": "tsx scripts/feature-flow/run.ts",
     "adapters:check": "tsx scripts/run-check-adapters.ts",
-    "smoke:install": "tsx scripts/smoke-install.ts"
+    "smoke:install": "tsx scripts/smoke-install.ts",
+    "measure:thinking": "tsx scripts/measure-thinking.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
