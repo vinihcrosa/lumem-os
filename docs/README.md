@@ -748,6 +748,20 @@ que estava lá desde a pty-vs-acp: a credencial deixa de ser do **agente** e pas
 | [open-questions.md](features/034-agent-accounts/open-questions.md) | 15 perguntas, **15 respondidas**, 3 contra a proposta e 2 emendadas — a **Q12**, de 2026-09-28, nasceu de uma conta de verdade batendo no limite semanal: a conversa **oferece** continuar em outra conta, e nunca troca sozinha: a sessão escolhe, pré-selecionada com um **trio padrão** — a conta padrão do agente, e o modelo e effort padrão da conta —, não troca — *continua* numa sessão nova com o contexto levado —, e o Lumem **não controla limite de conta** nenhum. Cada encaixe da esteira tem o seu trio, no `named_agent` que a `028` já tinha. A lista de modelos é gravada no handshake que confere o login. A **Q7** foi respondida pela fase 0 (**vira ADR**), e ela abriu a **Q10**: a conta nova recebe **link** para o que é comportamento (plugins, skills, `CLAUDE.md`), e os MCPs de usuário do Claude ficam fora, ditos na tela |
 | [tasks.md](features/034-agent-accounts/tasks.md) | **as 20 tasks entregues** — a última, a T19, conectou uma segunda assinatura de verdade em 2026-09-28 e achou a entrada dela no Keychain, com o sufixo que a fase 0 leu no binário. A regra de ordem foi **o que isola vem antes do que mostra**: nenhum dos três caminhos de login passava env, o `apiKeyEnv` nunca foi injetado, e a memória spawnava por fora do resolver. O e2e achou o daemon pedindo o comando de login no lugar errado, e o teste de design no app de verdade achou dois defeitos que nenhum teste via — o onboarding dizendo *"pede autenticação"* numa máquina logada, e `/settings` esperando ~10 s por um adaptador que ela não tinha consultado |
 
+---
+
+### [conversation-liveness/](features/035-conversation-liveness/) — sinal de vida da conversa · **em execução**
+
+Saber se o agente ainda está trabalhando: a linha acima do composer com o tempo do turno e o que o
+agente faz agora, o âmbar do silêncio longo — que **não** dispara com ferramenta rodando —, o turno
+que fecha quando o adaptador morre e a queda do `/acp` que aparece e se conserta. Da
+[LUM-67](https://linear.app/lumem-os/issue/LUM-67/conversa-sinal-de-vida-saber-se-o-agente-ainda-esta-trabalhando).
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](features/035-conversation-liveness/prd.md) | o plano no formato de checks, em quatro fatias e 26 critérios. A Parte 1 foi **medida antes**: com processo real o turno já fecha pelo `turn_failed`; o que sobra é o adaptador que sai com o stdout aberto, e o replay de transcrição sem fecho |
+| [open-questions.md](features/035-conversation-liveness/open-questions.md) | 3 perguntas, **3 respondidas** em 2026-09-29, todas a favor da proposta — o limiar do silêncio é 90 s, a reconexão não desiste enquanto a aba está aberta, e o turno interativo não ganha teto |
+
 ## Convenções
 
 > **`adr/` decide · `project/` sustenta · `features/` executa · o código está em vigor.**
