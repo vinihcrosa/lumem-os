@@ -38,7 +38,7 @@ Proof: `pnpm --filter @lumem/server exec vitest run src/acp/AcpManager.test.ts -
 **C6** - A saída que fecha um turno grava um retrato `turn-failed` no `turnFailures` com `code: "exited"` e o `sessionId` da sessão (AC 5) ✓
 Proof: `pnpm --filter @lumem/server exec vitest run src/acp/AcpManager.test.ts -t "records the exit as a turn-failed portrait"`
 
-**C7** - Uma conversa somente leitura cuja transcrição termina em mensagem do usuário sem fecho não desenha `.mcaret`, nem a linha de estado do turno, nem o botão `■ interromper` — e uma que termina numa `message` do agente sem fecho também não desenha `.mcaret` (AC 6; ampliado na rodada 5)
+**C7** - Uma conversa somente leitura cuja transcrição termina em mensagem do usuário sem fecho não desenha `.mcaret`, nem a linha de estado do turno, nem o botão `■ interromper` — e uma que termina numa `message` do agente sem fecho também não desenha `.mcaret` (AC 6; ampliado na rodada 5) ✓
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/conversation.test.tsx -t "conversa encerrada sem fecho não desenha turno vivo"`
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/conversation.test.tsx -t "conversa encerrada com resposta do agente sem fecho não desenha caret"`
 

@@ -1315,6 +1315,19 @@ describe("a conversation that has ended", () => {
     expect(screen.queryByRole("button", { name: /interromper/ })).not.toBeInTheDocument();
   });
 
+  it("conversa encerrada com resposta do agente sem fecho não desenha caret", async () => {
+    // Rodada 5: a prova acima termina na pergunta, onde `turn.role === "agent"`
+    // já apaga o caret sozinho. Aqui a última entrada é do agente — o único caso
+    // em que só o `!readOnly` decide.
+    readOnly([
+      entry({ type: "message", messageId: "m-1", role: "user", text: "a pergunta" }),
+      entry({ type: "message", messageId: "m-1", role: "agent", text: "a resposta pela metade" }),
+    ]);
+
+    expect(await screen.findByText("a resposta pela metade")).toBeInTheDocument();
+    expect(document.querySelector(".mcaret")).toBeNull();
+  });
+
   it("reports a read that failed instead of showing an empty conversation", async () => {
     render(
       <TestProviders>
