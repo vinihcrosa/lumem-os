@@ -161,13 +161,31 @@ export function stampPath(): string {
   return git(["rev-parse", "--git-path", "lumem-gate-green"]);
 }
 
-export function isStamped(tree: string): boolean {
+function readStamp(): { tree: string; head: string | null } | null {
   const path = stampPath();
-  return existsSync(path) && readFileSync(path, "utf8").trim() === tree;
+  if (!existsSync(path)) return null;
+  const [tree = "", head] = readFileSync(path, "utf8").trim().split(/\s+/);
+  return { tree, head: head ?? null };
+}
+
+export function isStamped(tree: string): boolean {
+  return readStamp()?.tree === tree;
+}
+
+/**
+ * The commit that was `HEAD` when the stamp was written, if it is still an
+ * ancestor of `HEAD` — the base from which the `Stop` hook's gate has to look,
+ * so that committed-but-unverified work is not skipped.
+ */
+export function stampHead(): string | null {
+  const head = readStamp()?.head ?? null;
+  if (head === null) return null;
+  const ancestor = spawnSync("git", ["merge-base", "--is-ancestor", head, "HEAD"]);
+  return ancestor.status === 0 ? head : null;
 }
 
 export function writeStamp(tree: string): void {
-  writeFileSync(stampPath(), `${tree}\n`);
+  writeFileSync(stampPath(), `${tree} ${git(["rev-parse", "HEAD"])}\n`);
 }
 
 // ---------------------------------------------------------------------------

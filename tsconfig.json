@@ -2,6 +2,9 @@
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
+    // `scripts/harness/*.ts` run under `node --experimental-strip-types`, which
+    // resolves only explicit `.ts` names — `stop.ts` imports `./git-hook.ts`.
+    "allowImportingTsExtensions": true,
     "declaration": false,
     "declarationMap": false,
     "lib": ["ES2023", "DOM"],
