@@ -169,7 +169,7 @@ O pedido de sair do plan mode vira um cartão com o plano renderizado e as opç�
 18. IF o tool call `switch_mode` não tem nenhum `content` de texto THEN the cartão SHALL mostrar *"o agente não mandou o texto do plano"* no lugar do plano, e as opções continuam
 19. WHEN uma conversa com um plano decidido é reaberta do disco THEN the transcript SHALL mostrar o mesmo registro, com o mesmo texto do critério 14, 15 ou 16, e *"ver o plano"* SHALL abrir o plano inteiro relido do disco
 24. WHEN a pessoa cancela o turno com um pedido de permissão pendente THEN the daemon SHALL emitir `permission_resolved` com `outcome: "cancelled"` para cada pedido pendente da sessão, e SHALL recusar com `NOT_FOUND` um `permission_response` posterior para qualquer um deles
-25. WHEN o processo do agente sai com um pedido de permissão pendente THEN the daemon SHALL emitir `permission_resolved` com `outcome: "cancelled"` para cada pedido pendente antes de marcar a sessão como encerrada
+25. WHEN o processo do agente sai com um pedido de permissão pendente THEN the daemon SHALL emitir `permission_resolved` com `outcome: "cancelled"` para cada pedido pendente antes do evento de saída da sessão
 
 **Independent test:** e2e contra o roteiro de plan mode do agente falso — ver o plano inteiro, aprovar, ver o registro e a faixa sumir; recarregar e ver o registro.
 

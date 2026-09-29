@@ -114,8 +114,8 @@ Proof: `pnpm exec vitest run packages/server/src/acp/AcpManager.fake-adapter.tes
 **C26** - ✓ Responder `exit-plan-auto` e `exit-plan-clear-auto` leva a `current_mode_update` `auto`, `exit-plan-default` a `default`, e os três terminam com `end_turn`; responder `reject` mantém `plan` e termina com `cancelled` — tabela de 4 linhas (AC 21, AC 22)
 Proof: `pnpm exec vitest run packages/server/src/acp/AcpManager.fake-adapter.test.ts -t "cada resposta do roteiro leva ao modo do adaptador"`
 
-**C27** - ✓ As specs que já usam o agente falso continuam verdes sem mudança — o turno padrão não mudou (AC 23)
-Proof: `pnpm exec playwright test e2e/acp-conversation.spec.ts e2e/session-mode.spec.ts e2e/happy-path.spec.ts`
+**C27** - A suíte e2e inteira continua verde com a spec nova no mesmo daemon — o turno padrão não mudou, e nada que a spec nova cria (worktree, sessão) colide com o localizador de outra spec (AC 23)
+Proof: `pnpm exec playwright test`
 
 ## Coverage
 
@@ -142,7 +142,7 @@ Proof: `pnpm exec playwright test e2e/acp-conversation.spec.ts e2e/session-mode.
 - failure modes: C28, C29, C30 — o pedido cancelado no meio (turno cancelado, agente saiu) é o único desfecho sem escolha, e o daemon é quem o produz; C19 é o cartão reagindo a ele
 - idempotency: existing - um segundo `permission_response` para o mesmo `requestId` é recusado com `NOT_FOUND` em `AcpManager.respondToPermission`, e o cartão perde os botões no primeiro `permission_resolved` (C17–C19)
 - authorization: C11, C12 — a única autoridade nova é a de **não** aprovar; o daemon ainda não tem autenticação (`019`, proposta)
-- concurrency: existing - um pedido de permissão pendente por sessão; o reducer já descarta o bloco anterior em `permission_request` (`conversation-model.ts:294-321`)
+- concurrency: existing - um pedido de permissão pendente por sessão; o reducer já descarta o bloco anterior em `permission_request` (`conversation-model.ts:298-323`)
 - data lifecycle: C23 — o registro depende do transcript append-only; transcripts antigos sem `content` no `tool_call` continuam legíveis (C9 é o formato deles)
 - dependency failure: C21 — o adaptador que não manda o plano; o adaptador que não manda o pedido não chega ao cartão
 - state transitions: C2, C6, C26 — `plan` -> `auto`/`default` ao aprovar, `plan` fica ao recusar

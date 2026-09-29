@@ -1683,6 +1683,36 @@ quando o agente sai (C28, C29), e um e2e cancela com o plano na tela (C30). A re
 como o web reage a um evento nomeia também quem produz o evento** — e, se o produtor não existe, o check
 é dele antes de ser do componente. Achado pelo verificador independente, rodada 1 da `035`.
 
+### O nome de uma fixture casa por substring com o botão de outra spec
+
+**Sintoma:** a [`035`](../features/035-plan-mode/prd.md) acrescentou `e2e/plan-mode.spec.ts`, e cinco
+testes de `pull-request.spec.ts` e `right-panel.spec.ts` ficaram vermelhos — **só na suíte inteira**.
+Cada spec passava sozinha, e a nova também.
+
+**Causa:** a spec nova criava a worktree `plano-recarregar`, que a sidebar desenha como o botão
+*"plano-recarregar 1 sessão"*. As outras duas procuravam `getByRole("button", { name: "recarregar" })`,
+e o `name` do Playwright casa **por substring** sem `exact: true`: o localizador passou a achar dois
+botões. As specs dividem o daemon, então o que uma cria entra na tela da outra. É a mesma família de
+[*o mesmo nome em duas peças clicáveis*](#o-mesmo-nome-em-duas-peças-clicáveis-quebra-22-e2e-de-uma-vez),
+vinda de uma fixture em vez de um componente.
+
+**Conserto:** a worktree mudou de nome e os dois localizadores ganharam `exact: true`. A regra: **uma
+spec nova só está verde quando a suíte inteira está** — rodar a spec sozinha e as três vizinhas não
+prova nada sobre o daemon que todas dividem. Achado pelo verificador independente, rodada 2 da `035`.
+
+### Um piso de contagem subido de um em um não protege o item novo
+
+**Sintoma:** a `035` criou o par de contraste `mode/plan` sobre `bg/info-subtle` e subiu o piso de
+`tokens.test.ts` de 122 para 123, dizendo que o par não podia mais sumir em silêncio. Apagar o par
+deixava os 13 testes verdes.
+
+**Causa:** o array já tinha **126** pares; o piso estava três abaixo do tamanho real, e subir um só
+continuava três abaixo. Um piso só protege o item novo quando é igual ao tamanho do conjunto.
+
+**Conserto:** o piso é o tamanho real. A regra: **um teste de contagem que existe para impedir remoção
+compara com o tamanho de hoje**, e quem acrescenta sobe o número até ele. Achado pela injeção de defeito
+do verificador, rodada 2 da `035`.
+
 ## Convenções
 
 - Teste de git usa **repositório temporário real**, nunca mock. `git worktree` tem caso de borda em nome com barra e branch existente que mock nenhum reproduz.

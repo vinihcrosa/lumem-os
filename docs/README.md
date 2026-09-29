@@ -757,9 +757,10 @@ o cartão vira registro. Primeira feature no fluxo de checks do
 
 | Arquivo | O quê |
 |---|---|
-| [prd.md](features/035-plan-mode/prd.md) | o plano: o adaptador `0.75.1` manda o plano no `content` do tool call `switch_mode`, o tradutor do daemon **descarta** `content` do `tool_call`, o `ToolCard` mostra só as últimas 12 linhas, e o `liberado` aprovaria o pedido sozinho. 23 critérios em quatro fatias, uma porta de mão única — o `tool_call` passa a levar `content` |
+| [prd.md](features/035-plan-mode/prd.md) | o plano: o adaptador `0.75.1` manda o plano no `content` do tool call `switch_mode`, o tradutor do daemon **descarta** `content` do `tool_call`, o `ToolCard` mostra só as últimas 12 linhas, e o `liberado` aprovaria o pedido sozinho. 25 critérios em quatro fatias e duas portas de mão única — o `tool_call` passa a levar `content`, e o transcript o grava. Os critérios 24 e 25 nasceram da verificação: **nenhum caminho do daemon emitia o pedido cancelado**, e o cartão ficava com botões vivos depois de cancelar |
 | [open-questions.md](features/035-plan-mode/open-questions.md) | **4 perguntas, todas respondidas pela proposta** em 2026-09-29 — opções verbatim, a política nunca aprova plano, a lista de passos vira *"Passos"*, e o registro recolhido |
-| [checks.md](features/035-plan-mode/checks.md) | **27 checks em 4 fatias**, perfil `standard`; cada um com a prova nomeada por arquivo e nome de teste |
+| [checks.md](features/035-plan-mode/checks.md) | **30 checks em 4 fatias**, perfil `standard`; cada um com a prova nomeada por arquivo e nome de teste |
+| [verification.md](features/035-plan-mode/verification.md) | o relatório do verificador independente, rodada a rodada. A rodada 1 achou o pedido cancelado sem produtor; a rodada 2, uma worktree da spec nova cujo nome casava por substring com o botão *"recarregar"* de outras duas specs — 5 e2e vermelhos só na suíte inteira |
 
 ## Convenções
 
