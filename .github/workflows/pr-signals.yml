@@ -7,7 +7,9 @@ name: PR
 #
 # - o rótulo de classe de N3 (T22 da `024-dev-harness`): `N3: docs`, `N3: css-token`,
 #   `N3: dependência` ou `sem classe`, pelos caminhos tocados. Informação — nada se
-#   mescla por causa dele (Q7).
+#   mescla por causa dele (Q7);
+# - o comentário de tamanho (T16): acima de 1500 linhas somadas, pede a justificativa.
+#   Comenta, não reprova.
 on:
   pull_request:
     types: [opened, synchronize, reopened]
@@ -49,3 +51,13 @@ jobs:
             if [ "$name" != "$label" ]; then gh pr edit "$PR" --remove-label "$name" >/dev/null 2>&1 || true; fi
           done
           gh pr edit "$PR" --add-label "$label"
+
+      - name: tamanho
+        run: |
+          size="$(gh pr view "$PR" --json additions,deletions --jq '.additions + .deletions')"
+          echo "linhas somadas: $size"
+          marker="<!-- lumem:pr-size -->"
+          if [ "$size" -gt 1500 ] && ! gh pr view "$PR" --json comments --jq '.comments[].body' | grep -qF "$marker"; then
+            gh pr comment "$PR" --body "$marker
+          Esta PR soma **$size** linhas, acima de 1500. Revisão de intenção sobre um diff deste tamanho vira aceitação: se ele não pode ser menor, diga no corpo **por quê** (T16 da \`024-dev-harness\`). Isto é um aviso, não um bloqueio."
+          fi

@@ -1151,7 +1151,10 @@ o N2 exige dele.
   o tamanho das features, não sobre o template.
 
 **Gate**: as 10 PRs medidas
-**Status**: ⬜ não iniciada
+**Status**: 🟡 **parcial** em 2026-09-28. O `.github/pull_request_template.md` com os quatro campos, e o
+passo de tamanho no `pr-signals.yml` da T22 (e não no `ci.yml`, pelo mesmo motivo): acima de 1500 linhas,
+comenta **uma vez** pedindo a justificativa, com um marcador para não repetir. **Falta:** a mediana de 10
+PRs — ela só existe depois delas.
 
 ---
 
