@@ -240,7 +240,10 @@ export function checkStatus(root: string): Finding[] {
 
   for (const feature of features) {
     const found: { name: string; value: string; line: number }[] = [];
-    for (const name of ["prd.md", "tasks.md"]) {
+    // `checks.md` is where a feature's obligations live since the ADR of
+    // 2026-09-28-1952 — a new feature has it **instead of** `tasks.md`, and the
+    // Status is derived from whichever of the two exists (T21 of the `024`).
+    for (const name of ["prd.md", "tasks.md", "checks.md"]) {
       const full = join(featuresDir, feature, name);
       if (!existsSync(full)) continue;
       const rel = `docs/features/${feature}/${name}`;
@@ -269,27 +272,27 @@ export function checkStatus(root: string): Finding[] {
     }
 
     const prd = found.find((f) => f.name === "prd.md");
-    const tasks = found.find((f) => f.name === "tasks.md");
-
-    if (prd !== undefined && tasks !== undefined && prd.value !== tasks.value) {
-      findings.push({
-        kind: "status-disagrees",
-        file: `docs/features/${feature}/prd.md`,
-        line: prd.line,
-        message:
-          `\`${prd.value}\` discorda do \`tasks.md\`, que diz \`${tasks.value}\``,
-      });
+    for (const plan of found.filter((f) => f.name !== "prd.md")) {
+      if (prd !== undefined && prd.value !== plan.value) {
+        findings.push({
+          kind: "status-disagrees",
+          file: `docs/features/${feature}/prd.md`,
+          line: prd.line,
+          message: `\`${prd.value}\` discorda do \`${plan.name}\`, que diz \`${plan.value}\``,
+        });
+      }
     }
 
-    const hasTasksFile = existsSync(join(featuresDir, feature, "tasks.md"));
-    if (!hasTasksFile) {
+    const hasPlanFile =
+      existsSync(join(featuresDir, feature, "tasks.md")) || existsSync(join(featuresDir, feature, "checks.md"));
+    if (!hasPlanFile) {
       for (const f of found) {
         if (f.value !== "proposta") {
           findings.push({
             kind: "status-not-proposta",
             file: `docs/features/${feature}/${f.name}`,
             line: f.line,
-            message: `sem \`tasks.md\`, então \`${f.value}\` só pode ser \`proposta\``,
+            message: `sem \`tasks.md\` nem \`checks.md\`, então \`${f.value}\` só pode ser \`proposta\``,
           });
         }
       }

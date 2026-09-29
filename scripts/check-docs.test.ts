@@ -212,6 +212,29 @@ describe("checkStatus", () => {
   });
 });
 
+describe("checkStatus, com o checks.md do fluxo novo", () => {
+  it("uma feature com prd.md e checks.md pode estar em execução", () => {
+    const root = tree({
+      "docs/features/040-new/prd.md": "**Status:** em execução\n",
+      "docs/features/040-new/checks.md": "**Status:** em execução\n",
+    });
+    expect(checkStatus(root)).toEqual([]);
+  });
+
+  it("sem tasks.md nem checks.md, só pode ser proposta", () => {
+    const root = tree({ "docs/features/040-new/prd.md": "**Status:** em execução\n" });
+    expect(checkStatus(root).map((f) => f.kind)).toEqual(["status-not-proposta"]);
+  });
+
+  it("o prd.md discordando do checks.md é reportado", () => {
+    const root = tree({
+      "docs/features/040-new/prd.md": "**Status:** completa\n",
+      "docs/features/040-new/checks.md": "**Status:** em execução\n",
+    });
+    expect(checkStatus(root).map((f) => f.kind)).toEqual(["status-disagrees"]);
+  });
+});
+
 describe("checkCodePaths", () => {
   const done = "# PRD\n\n**Status:** completa\n";
   it("reports a backtick path to code that does not exist, in a finished feature", () => {
