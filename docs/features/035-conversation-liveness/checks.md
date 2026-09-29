@@ -70,10 +70,10 @@ Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/useCo
 
 ### S3 - a linha de estado do turno · 9 arquivos · ~100 KB · ~40k
 
-**C16** - A mensagem do usuário em `at: 1000` põe `turnStartedAt` e `lastEventAt` em 1000; um `agent_message_chunk` em `at: 4000` move `lastEventAt` para 4000 e deixa `turnStartedAt` em 1000 (AC 15)
+**C16** - A mensagem do usuário em `at: 1000` põe `turnStartedAt` e `lastEventAt` em 1000; um `agent_message_chunk` em `at: 4000` move `lastEventAt` para 4000 e deixa `turnStartedAt` em 1000 (AC 15) ✓
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/conversation-model.test.ts -t "guarda o início do turno e o último evento"`
 
-**C17** - `replayConversation` e a dobra evento a evento da mesma transcrição dão o mesmo `turnStartedAt` e `lastEventAt` (AC 16)
+**C17** - `replayConversation` e a dobra evento a evento da mesma transcrição dão o mesmo `turnStartedAt` e `lastEventAt` (AC 16) ✓
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/conversation-model.test.ts -t "replay e dobra concordam no relógio do turno"`
 
 **C18** - Com `streaming` e não somente leitura, e o relógio injetado 72 s depois de `turnStartedAt`, a linha acima do composer diz `trabalhando · 1 min 12 s` e tem o indicador animado; sem `streaming`, a linha não existe (AC 17)
