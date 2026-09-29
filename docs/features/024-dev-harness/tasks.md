@@ -526,7 +526,19 @@ agente, e apodrecendo a cada feature nova.
 - o teste da T6 verde (os links novos resolvem).
 
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ não iniciada
+**Status**: 🟡 entregue em 2026-09-28, **menos o teto de 100 linhas**. O `CLAUDE.md` foi de 251 para
+**150 linhas**: o texto longo das três regras — design, documentação, convenções — foi para
+`docs/project/conventions.md` **sem reescrita**, com os motivos e os casos; no `CLAUDE.md` ficou cada
+regra em uma linha, o harness novo (Node, hooks, guarda, fronteira, log) e o roteamento para as skills.
+
+> **SPEC_DEVIATION — duas.**
+> - **Sem `AGENTS.md`.** O passo 1 perdeu o motivo ([Q11](open-questions.md)): o repositório é só Claude.
+>   Quem clonar o repositório público com outra ferramenta lê o `README.md`.
+> - **150 linhas, e não menos de 100.** O que sobra acima do teto é a tabela do §Estado atual — 36
+>   linhas, uma por feature —, que o [ADR de 2026-09-07](../../adr/2026-09-07-2208-prd-number-is-reading-order-not-precedence.md)
+>   nomeia como **a projeção** e põe no `CLAUDE.md`. Tirá-la de lá é mudar uma consequência de um ADR,
+>   e nota de task não derruba ADR (regra 4): se o teto de 100 for o que importa, o caminho é um ADR que
+>   leve a projeção para o `docs/README.md`. Fica para o dono decidir.
 
 ---
 

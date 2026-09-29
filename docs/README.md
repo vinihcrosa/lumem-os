@@ -68,6 +68,7 @@ propósito, e agora com uma cadeia de verdade para exercitá-los.
 |---|---|
 | [vision.md](project/vision.md) | Visão, hierarquia pretendida, o que o Vinicius quer do sistema |
 | [questions.md](project/questions.md) | 96 perguntas de design em duas rodadas. Fonte de verdade das decisões de longo prazo, respondida aos poucos |
+| [conventions.md](project/conventions.md) | As três regras do `CLAUDE.md` — design, documentação e convenções — **por extenso, com os motivos**. Movidas de lá em 2026-09-28 (T8 da [024](features/024-dev-harness/prd.md)); quem manda continua sendo o `CLAUDE.md` |
 | [testing.md](project/testing.md) | Matriz de cobertura, o que cada gate garante, e as armadilhas de teste já corrigidas |
 | [workspaces.md](project/workspaces.md) | Os scripts de setup, run e teardown em `scripts/workspace/`, e como Superset e Conductor só apontam para eles |
 | [task-cycle-evidence.md](project/task-cycle-evidence.md) | Linha de base medida do repositório e registro de custo do ciclo dev → review → rework, ao longo de onze lotes. A skill que orquestrava o ciclo foi removida; as medições ficaram, porque são deste repositório |
