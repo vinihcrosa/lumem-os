@@ -179,3 +179,14 @@ Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/TurnS
   `ToolCallView` inteiro — o `startedAt` é de onde a S4 mede `rodando <título> há …`
 - **Abandoned:** nada. O teste do `useNow` avança um segundo por `act`: dois tiques no mesmo `act` o React
   junta num render, e a contagem de valores enxergava três em vez de quatro
+- **Boundary:** C24–C27 closed at 1853e08
+- **Settled mid-build:** nada perguntado ao usuário. A regra é `turnLine(conversation, now)` em
+  `turn-status.ts`, que devolve `{ tone: "normal" | "warning", doing }`, com `SILENCE_THRESHOLD_MS`
+  (90 000) como a única constante; o `activityText` da S3 ficou como estava, e a ferramenta aberta
+  ganha o `há <decorrido>` medido do `call.startedAt` sempre, não só em silêncio. Em silêncio a linha
+  mantém o `trabalhando · <total>`, o ponto para de pulsar, e o atalho aparece num
+  `.turn-status__hint` (`esc` + `interromper`) só no âmbar. O C25 pede *iniciada 240 s atrás e 300 s
+  sem evento*, que nenhuma dobra produz — o `tool_call` é ele mesmo um evento —, então a prova
+  sobrescreve `lastEventAt` no estado dobrado, e um teste a mais faz o caso realista, com um
+  `tool_call_update` no meio
+- **Abandoned:** nada
