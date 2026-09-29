@@ -208,7 +208,7 @@ export const OVER_THE_CEILING: Readonly<Record<string, { lines: number; reason: 
   "packages/server/src/sessions/SessionStore.ts": { lines: 951, reason: "linha de base 2026-09-28" },
   "packages/server/src/routers/worktree.ts": { lines: 897, reason: "linha de base 2026-09-28, mais uma exceção de lint na linha da T9" },
   "packages/server/src/tasks/conveyor.ts": { lines: 784, reason: "linha de base 2026-09-28" },
-  "packages/server/src/bootstrap.ts": { lines: 780, reason: "linha de base 2026-09-28" },
+  "packages/server/src/bootstrap.ts": { lines: 781, reason: "linha de base 2026-09-28 (780), mais o import do log em arquivo da T11" },
   "packages/server/src/repositories/task.ts": { lines: 756, reason: "linha de base 2026-09-28" },
   "packages/shared/src/acp-protocol.ts": { lines: 749, reason: "linha de base 2026-09-28; um tipo por mensagem do protocolo" },
   "packages/server/src/tasks/conveyor-ports.ts": { lines: 727, reason: "linha de base 2026-09-28" },
