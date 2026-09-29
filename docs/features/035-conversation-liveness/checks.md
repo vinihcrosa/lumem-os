@@ -169,3 +169,13 @@ Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/TurnS
   schema, depois tamanho, depois socket aberto
 - **Abandoned:** nada. A reconexão ficou no próprio `useConversationSession` (335 linhas), sem hook
   extraído; o `MAX_PAYLOAD_BYTES` do `pty/websocket.ts` continua próprio — o `/pty` está fora do escopo
+- **Boundary:** C16–C23 closed at 0aa1c00
+- **Settled mid-build:** nada perguntado ao usuário. `turnStartedAt`/`lastEventAt` são `number | null`,
+  carimbados **depois** da dobra por uma regra só sobre o `streaming` resultante (fora de turno, `null`),
+  e o `conversation-model.ts` subiu no `LARGE_FILE_CEILING` para 767, com motivo. O `TurnStatus` decide
+  sozinho se aparece (`streaming && !readOnly`, o mesmo que liga o `useNow`) e mora na `Conversation`,
+  entre `Transcript` e o composer. `turnActivity` só lê os blocos do agente depois da última mensagem do
+  usuário, pula `meta`/`note`, põe a permissão pendente na frente, e o caso de ferramenta carrega o
+  `ToolCallView` inteiro — o `startedAt` é de onde a S4 mede `rodando <título> há …`
+- **Abandoned:** nada. O teste do `useNow` avança um segundo por `act`: dois tiques no mesmo `act` o React
+  junta num render, e a contagem de valores enxergava três em vez de quatro
