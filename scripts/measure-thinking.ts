@@ -115,7 +115,11 @@ async function turn(manager: AcpManager, cwd: string, model: string | null, aske
   } catch (error) {
     run.error = error instanceof Error ? error.message : String(error);
   } finally {
-    // Escrito pelo leitor do fio durante o `await`; o TypeScript não vê isso e o estreitaria para `null`.
+    // O leitor do fio corre ao lado do `AcpManager`, e pode chegar à resposta um instante depois dele.
+    for (let waited = 0; lastPromptUsage === null && waited < 1_000; waited += 50) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    // Escrito pelo leitor do fio; o TypeScript não vê isso e o estreitaria para `null`.
     const usage = lastPromptUsage as PromptUsage | null;
     run.outputTokens = usage?.outputTokens ?? null;
     run.cachedWriteTokens = usage?.cachedWriteTokens ?? null;
@@ -152,7 +156,8 @@ async function main(): Promise<number> {
   console.log(
     `C7 · end_turn em todos os ${models.length} modelos: ${refused.length === 0 ? "sim" : `NÃO — ${refused.map((run) => run.model).join(", ")}`}`,
   );
-  return thinks && refused.length === 0 ? 0 : 1;
+  // Sem modelo nenhum, "todos fecharam" é verdade vazia: um adaptador que renomeasse a opção passaria verde.
+  return thinks && models.length > 0 && refused.length === 0 ? 0 : 1;
 }
 
 process.exit(await main());
