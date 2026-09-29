@@ -19,22 +19,22 @@ componente e redutor do `web` em unit, CSS pelo teste que lê os arquivos nas du
 
 ### S1 - o turno fecha quando o adaptador morre · 6 arquivos · ~110 KB lidos em parte · ~40k
 
-**C1** - Com um turno em voo, a saída do processo emite exatamente um `turn_failed` com `o agente encerrou no meio do turno (saída 137)`, gravado na transcrição e recebido por um listener anexado antes da saída (AC 1, door 1)
+**C1** - Com um turno em voo, a saída do processo emite exatamente um `turn_failed` com `o agente encerrou no meio do turno (saída 137)`, gravado na transcrição e recebido por um listener anexado antes da saída (AC 1, door 1) ✓
 Proof: `pnpm --filter @lumem/server exec vitest run src/acp/AcpManager.test.ts -t "closes the turn in flight when the adapter exits"`
 
-**C2** - A frase nomeia como o processo saiu: `(saída 137)` com código, `(sinal SIGKILL)` com sinal e sem código, `(saída desconhecida)` sem nenhum dos dois — tabela com os três casos (AC 1)
+**C2** - A frase nomeia como o processo saiu: `(saída 137)` com código, `(sinal SIGKILL)` com sinal e sem código, `(saída desconhecida)` sem nenhum dos dois — tabela com os três casos (AC 1) ✓
 Proof: `pnpm --filter @lumem/server exec vitest run src/acp/AcpManager.test.ts -t "names how the adapter exited"`
 
-**C3** - Um adaptador que sai com o stdout ainda aberto faz o `prompt` daquele turno rejeitar com `AcpTurnFailedError` em menos de 1 s, e `liveTurns()` passa a não ter a sessão (AC 2)
+**C3** - Um adaptador que sai com o stdout ainda aberto faz o `prompt` daquele turno rejeitar com `AcpTurnFailedError` em menos de 1 s, e `liveTurns()` passa a não ter a sessão (AC 2) ✓
 Proof: `pnpm --filter @lumem/server exec vitest run src/acp/AcpManager.test.ts -t "releases the prompt when the adapter exits with its stdout open"`
 
-**C4** - Nas duas ordens — a saída antes de o stdout fechar, e o stdout fechando antes da saída — a transcrição do turno tem exatamente um `turn_failed` (AC 3, door 2)
+**C4** - Nas duas ordens — a saída antes de o stdout fechar, e o stdout fechando antes da saída — a transcrição do turno tem exatamente um `turn_failed` (AC 3, door 2) ✓
 Proof: `pnpm --filter @lumem/server exec vitest run src/acp/AcpManager.test.ts -t "closes the turn once whichever side of the pipe goes first"`
 
-**C5** - A saída entre dois turnos — depois de um `turn_end` — não acrescenta `turn_failed` à transcrição (AC 4)
+**C5** - A saída entre dois turnos — depois de um `turn_end` — não acrescenta `turn_failed` à transcrição (AC 4) ✓
 Proof: `pnpm --filter @lumem/server exec vitest run src/acp/AcpManager.test.ts -t "says nothing when the adapter exits between turns"`
 
-**C6** - A saída que fecha um turno grava um retrato `turn-failed` no `turnFailures` com `code: "exited"` e o `sessionId` da sessão (AC 5)
+**C6** - A saída que fecha um turno grava um retrato `turn-failed` no `turnFailures` com `code: "exited"` e o `sessionId` da sessão (AC 5) ✓
 Proof: `pnpm --filter @lumem/server exec vitest run src/acp/AcpManager.test.ts -t "records the exit as a turn-failed portrait"`
 
 **C7** - Uma conversa somente leitura cuja transcrição termina em mensagem do usuário sem fecho não desenha `.mcaret`, nem a linha de estado do turno, nem o botão `■ interromper` (AC 6)

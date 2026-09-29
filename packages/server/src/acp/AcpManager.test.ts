@@ -2653,3 +2653,145 @@ describe("uma recusa por cota", () => {
     );
   });
 });
+
+/**
+ * O turno que o adaptador leva junto quando sai (`035` S1).
+ *
+ * Com um processo de verdade o stdout fecha na saída, o SDK rejeita o
+ * `session/prompt` e o turno já fechava. O que não fechava era o outro caso — a
+ * saída com o stdout ainda aberto, herdado por um neto —, e o conserto não pode
+ * depender da forma como o estrangeiro fecha o cano. O agente falso aqui sai
+ * **sem** fechar nada, e fecha o stdout só quando o teste manda.
+ */
+describe("o adaptador que sai no meio do turno", () => {
+  /** Um agente que começa a responder e nunca termina: o turno fica em voo. */
+  async function inFlight(options: Pick<AcpManagerOptions, "turnFailures"> = {}) {
+    const fake = fakeAgentProcess({
+      async prompt(_text, turn) {
+        await say(turn, "começando");
+        return new Promise<never>(() => {});
+      },
+    });
+    const manager = new AcpManager({
+      spawner: () => fake.process,
+      isAvailable: () => true,
+      handshakeTimeoutMs: 2_000,
+      ...options,
+    });
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: "/repos/lorebase" });
+    const events: AcpEvent[] = [];
+    manager.onEvent(info.id, ({ event }) => events.push(event));
+
+    const turn = manager.prompt(info.id, "faz a coisa").then(
+      (stopReason) => ({ stopReason }),
+      (error: unknown) => ({ error }),
+    );
+    await waitFor(() => (events.some((event) => event.type === "message" && event.role === "agent") ? true : undefined));
+
+    return { fake, manager, id: info.id, events, turn };
+  }
+
+  const turnFailedIn = (entries: readonly AcpTranscriptEntry[]): AcpEvent[] =>
+    entries.map((entry) => entry.event).filter((event) => event.type === "turn_failed");
+
+  it("closes the turn in flight when the adapter exits", async () => {
+    const { fake, manager, id, events } = await inFlight();
+
+    fake.exit({ exitCode: 137, signal: null });
+    await waitFor(() => (manager.get(id)?.state === "exited" ? true : undefined));
+
+    const closing = { type: "turn_failed", message: "o agente encerrou no meio do turno (saída 137)" };
+    // Gravado: é o que o replay da aba reaberta vai mostrar.
+    expect(turnFailedIn(manager.transcript(id))).toEqual([closing]);
+    // E entregue ao listener que já estava anexado — antes de a saída limpá-los.
+    expect(events.filter((event) => event.type === "turn_failed")).toEqual([closing]);
+  });
+
+  it.each([
+    { how: "com código", status: { exitCode: 137, signal: null }, says: "(saída 137)" },
+    { how: "com sinal e sem código", status: { exitCode: null, signal: "SIGKILL" }, says: "(sinal SIGKILL)" },
+    { how: "sem nenhum dos dois", status: { exitCode: null, signal: null }, says: "(saída desconhecida)" },
+  ])("names how the adapter exited: $how", async ({ status, says }) => {
+    const { fake, manager, id } = await inFlight();
+
+    fake.exit(status);
+    await waitFor(() => (manager.get(id)?.state === "exited" ? true : undefined));
+
+    expect(turnFailedIn(manager.transcript(id))).toEqual([
+      { type: "turn_failed", message: `o agente encerrou no meio do turno ${says}` },
+    ]);
+  });
+
+  it("releases the prompt when the adapter exits with its stdout open", async () => {
+    const { fake, manager, turn } = await inFlight();
+    expect(manager.liveTurns()).toHaveLength(1);
+
+    fake.exit({ exitCode: 137, signal: null });
+    const settled = await Promise.race([
+      turn,
+      new Promise<"pendurado">((resolve) => setTimeout(() => resolve("pendurado"), 1_000)),
+    ]);
+
+    // O stdout nunca fechou: nada do SDK vai rejeitar este pedido. Quem liberta
+    // o `prompt` é a saída, e ela o marca como já contado na conversa.
+    expect(settled).not.toBe("pendurado");
+    expect((settled as { error?: unknown }).error).toBeInstanceOf(AcpTurnFailedError);
+    expect(manager.liveTurns()).toEqual([]);
+  });
+
+  it.each([
+    { order: "a saída antes de o stdout fechar", exitFirst: true },
+    { order: "o stdout fechando antes da saída", exitFirst: false },
+  ])("closes the turn once whichever side of the pipe goes first: $order", async ({ exitFirst }) => {
+    const { fake, manager, id, turn } = await inFlight();
+
+    if (exitFirst) {
+      fake.exit({ exitCode: 0, signal: null });
+      await waitFor(() => (manager.get(id)?.state === "exited" ? true : undefined));
+      await fake.closeStdout();
+    } else {
+      await fake.closeStdout();
+      await turn;
+      fake.exit({ exitCode: 0, signal: null });
+      await waitFor(() => (manager.get(id)?.state === "exited" ? true : undefined));
+    }
+    await turn;
+    // O lado que chegou por último tem uma volta de relógio para, errado, fechar
+    // o turno outra vez.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(turnFailedIn(manager.transcript(id))).toHaveLength(1);
+  });
+
+  it("says nothing when the adapter exits between turns", async () => {
+    const fake = fakeAgentProcess({
+      async prompt(_text, turn) {
+        await say(turn, "pronto");
+        return "end_turn";
+      },
+    });
+    const manager = new AcpManager({ spawner: () => fake.process, isAvailable: () => true });
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: "/repos/lorebase" });
+    await manager.prompt(info.id, "oi");
+
+    fake.exit({ exitCode: 137, signal: null });
+    await waitFor(() => (manager.get(info.id)?.state === "exited" ? true : undefined));
+
+    const types = manager.transcript(info.id).map((entry) => entry.event.type);
+    expect(types.at(-1)).toBe("turn_end");
+    expect(types).not.toContain("turn_failed");
+  });
+
+  it("records the exit as a turn-failed portrait", async () => {
+    const turnFailures = vi.fn();
+    const { fake, manager, id } = await inFlight({ turnFailures });
+
+    fake.exit({ exitCode: 137, signal: null });
+    await waitFor(() => (manager.get(id)?.state === "exited" ? true : undefined));
+
+    expect(turnFailures).toHaveBeenCalledTimes(1);
+    expect(turnFailures).toHaveBeenCalledWith(
+      expect.objectContaining({ tag: "turn-failed", code: "exited", sessionId: id }),
+    );
+  });
+});

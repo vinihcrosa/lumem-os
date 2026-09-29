@@ -415,6 +415,17 @@ export interface FakeAgentHandle {
    * e concatenado os dois casos são indistinguíveis.
    */
   readonly promptBlocks: readonly (readonly string[])[];
+  /**
+   * O processo sai **com o stdout ainda aberto** (`035` S1).
+   *
+   * O `kill()` resolve a saída sem fechar os streams, e isto também — mas com o
+   * código ou o sinal que o teste escolhe. É o adaptador cujo stdout ficou com um
+   * neto: a saída chega, o fim do cano não, e o `session/prompt` em voo nunca
+   * rejeita sozinho.
+   */
+  exit(status: { exitCode: number | null; signal: string | null }): void;
+  /** Fecha o stdout do agente, que é o que o fim de um processo de verdade faz. */
+  closeStdout(): Promise<void>;
 }
 
 /**
@@ -603,5 +614,7 @@ export function fakeAgentProcess(script: FakeAgentScript = {}): FakeAgentHandle 
     killed,
     sendRaw: (message) => out.write(new TextEncoder().encode(`${JSON.stringify(message)}\n`)),
     promptBlocks,
+    exit: (status) => resolveExit(status),
+    closeStdout: () => out.close(),
   };
 }

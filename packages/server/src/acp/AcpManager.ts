@@ -467,6 +467,14 @@ interface Session {
   /** One id per turn, for chunks the agent sends without a message id. */
   turnId: string;
   /**
+   * Liberta o `prompt` em voo quando o processo sai (`035` S1), ou `undefined`.
+   *
+   * O `session/prompt` só rejeita sozinho quando o stdout fecha, e um adaptador
+   * pode sair com ele aberto — herdado por um neto. Sem isto o `prompt` ficaria
+   * pendente para sempre, e quem o espera — a esteira — junto.
+   */
+  releaseTurn: ((failed: AcpTurnFailedError) => void) | undefined;
+  /**
    * The agent is still replaying a loaded conversation (D14).
    *
    * The adapter re-streams the whole history around `session/load`. Those updates are
@@ -1221,6 +1229,7 @@ export class AcpManager {
         ? createTerminalBridge({ ptyManager: this.ptyManager, cwd })
         : undefined,
       turnId: newId(),
+      releaseTurn: undefined,
       replaying: false,
       coreInjected: false,
       quotaRefusalKind: spec?.quotaRefusalKind ?? null,
@@ -1248,7 +1257,7 @@ export class AcpManager {
 
     // Registered before the handshake so that an adapter dying mid-handshake is
     // recorded as an exit rather than leaving a row that claims to be running.
-    void child.exited.then(({ exitCode }) => this.markExited(session, exitCode));
+    void child.exited.then((status) => this.markExited(session, status));
 
     return { session, child };
   }
@@ -1269,6 +1278,7 @@ export class AcpManager {
     }
 
     session.turnId = newId();
+    const turnId = session.turnId;
     session.promptInFlight = true;
     session.turnStartedAt = new Date();
 
@@ -1327,6 +1337,10 @@ export class AcpManager {
       });
     }
 
+    // O processo saiu enquanto o teto e a memória eram lidos, e a saída já fechou
+    // este turno: a pergunta não vai para um agente que não existe mais.
+    if (session.turnId !== turnId) throw new DomainError("SESSION_EXITED", `session ${id} has exited`);
+
     // The user's own message goes into the transcript before the agent hears it.
     // The adapter does not echo it, so without this line reopening the tab would
     // show every answer and none of the questions — and the replay would not
@@ -1339,18 +1353,30 @@ export class AcpManager {
       text,
     });
 
+    // Corrida contra a saída, e não confiança no cano: o pedido só rejeita
+    // sozinho quando o stdout fecha, e é a saída que o markExited vê.
+    const exited = new Promise<never>((_, reject) => {
+      session.releaseTurn = reject;
+    });
     let stopReason: StopReason;
     try {
-      ({ stopReason } = await session.connection.agent.request("session/prompt", {
-        sessionId: session.info.acpSessionId,
-        // Bloco **separado**, nunca concatenado: o texto da pessoa vai verbatim,
-        // como sempre foi, e o que o daemon acrescentou é distinguível de fora.
-        prompt:
-          preamble === null
-            ? [{ type: "text", text }]
-            : [{ type: "text", text: preamble.text }, { type: "text", text }],
-      }));
+      ({ stopReason } = await Promise.race([
+        session.connection.agent.request("session/prompt", {
+          sessionId: session.info.acpSessionId,
+          // Bloco **separado**, nunca concatenado: o texto da pessoa vai verbatim,
+          // como sempre foi, e o que o daemon acrescentou é distinguível de fora.
+          prompt:
+            preamble === null
+              ? [{ type: "text", text }]
+              : [{ type: "text", text: preamble.text }, { type: "text", text }],
+        }),
+        exited,
+      ]));
     } catch (error) {
+      // Um fecho só por turno (`035` door 2). A saída já fechou este e zerou o
+      // `turnId`, e o erro é o `AcpTurnFailedError` com que ela libertou o pedido;
+      // o `ACP connection closed` que o SDK manda depois não conta de novo.
+      if (session.turnId !== turnId) throw error;
       /*
        * Um turno que falha tem de **soltar a marca**, e isso é defeito consertado
        * e não zelo: sem o `finally`, um `session/prompt` recusado deixava
@@ -1364,7 +1390,11 @@ export class AcpManager {
       this.observeTurnFailure(session, error);
       if (isQuotaRefusal(error, session.quotaRefusalKind)) throw this.quotaRefused(session, error);
       throw this.turnFailed(session, error);
+    } finally {
+      session.releaseTurn = undefined;
     }
+    // A resposta e a saída chegaram juntas, e a saída fechou primeiro.
+    if (session.turnId !== turnId) throw new DomainError("SESSION_EXITED", `session ${id} has exited`);
 
     // The fifth card state, and the only place it can be derived (A14). ACP has
     // no `cancelled` status: a call that was still open when the user pressed
@@ -2448,7 +2478,10 @@ export class AcpManager {
     }
   }
 
-  private markExited(session: Session, exitCode: number | null): void {
+  private markExited(
+    session: Session,
+    { exitCode, signal }: { exitCode: number | null; signal: string | null },
+  ): void {
     if (session.info.state === "exited") return;
 
     session.info.state = "exited";
@@ -2460,6 +2493,9 @@ export class AcpManager {
       pending.resolve({ outcome: "cancelled" });
     }
     session.pendingPermissions.clear();
+    // Antes de limpar os listeners: quem está com a aba aberta é quem precisa
+    // ler que o turno acabou.
+    if (session.promptInFlight) this.closeTurnOnExit(session, exitCode, signal);
     session.listeners.clear();
 
     /*
@@ -2488,6 +2524,29 @@ export class AcpManager {
         /* a broken watcher must not take the daemon with it */
       }
     }
+  }
+
+  /**
+   * O turno que o processo levou junto (`035` S1, doors 1 e 2).
+   *
+   * Aqui, e não à espera de o `session/prompt` rejeitar: ele só rejeita quando o
+   * stdout fecha, e o conserto não pode depender da forma como o estrangeiro
+   * fecha o cano. O fecho é um `turn_failed`, e não um `turn_end` — é neste que
+   * o teto conta turno, e um que morreu não aconteceu.
+   *
+   * Zera o `turnId` para o `prompt` saber que o seu turno já foi fechado.
+   */
+  private closeTurnOnExit(session: Session, exitCode: number | null, signal: string | null): void {
+    const cause = Object.assign(new Error(`o agente encerrou no meio do turno (${exitText(exitCode, signal)})`), {
+      code: "exited",
+    });
+    session.promptInFlight = false;
+    session.turnStartedAt = null;
+    session.openToolCalls.clear();
+    session.turnId = newId();
+    this.observeTurnFailure(session, cause);
+    const failed = this.turnFailed(session, cause);
+    session.releaseTurn?.(failed);
   }
 
   private require(id: string): Session {
@@ -2762,6 +2821,13 @@ function failureText(error: AcpTurnFailedError): string {
     return error.message;
   }
   return `${error.message}: ${details}`;
+}
+
+/** Como o processo saiu, na frase do turno que ele levou junto. */
+function exitText(exitCode: number | null, signal: string | null): string {
+  if (exitCode !== null) return `saída ${exitCode}`;
+  if (signal !== null) return `sinal ${signal}`;
+  return "saída desconhecida";
 }
 
 /**
