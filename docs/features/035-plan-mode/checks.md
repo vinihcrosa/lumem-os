@@ -114,7 +114,7 @@ Proof: `pnpm exec vitest run packages/server/src/acp/AcpManager.fake-adapter.tes
 **C26** - ✓ Responder `exit-plan-auto` e `exit-plan-clear-auto` leva a `current_mode_update` `auto`, `exit-plan-default` a `default`, e os três terminam com `end_turn`; responder `reject` mantém `plan` e termina com `cancelled` — tabela de 4 linhas (AC 21, AC 22)
 Proof: `pnpm exec vitest run packages/server/src/acp/AcpManager.fake-adapter.test.ts -t "cada resposta do roteiro leva ao modo do adaptador"`
 
-**C27** - A suíte e2e inteira continua verde com a spec nova no mesmo daemon — o turno padrão não mudou, e nada que a spec nova cria (worktree, sessão) colide com o localizador de outra spec (AC 23)
+**C27** - ✓ A suíte e2e inteira continua verde com a spec nova no mesmo daemon — o turno padrão não mudou, e nada que a spec nova cria (worktree, sessão) colide com o localizador de outra spec (AC 23)
 Proof: `pnpm exec playwright test`
 
 ## Coverage

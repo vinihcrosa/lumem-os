@@ -34,7 +34,7 @@ const LAST_LINE = "Última linha do plano: nada é escrito antes da aprovação.
 const WORKTREES = {
   banner: "plano-faixa",
   approve: "plano-aprovar",
-  reload: "plano-recarregar",
+  reload: "plano-reler",
   reject: "plano-recusar",
   cancel: "plano-cancelar",
 } as const;
