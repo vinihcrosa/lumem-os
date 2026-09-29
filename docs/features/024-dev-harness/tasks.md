@@ -1033,7 +1033,11 @@ e **conhecida**, e hoje ela é nem uma nem outra.
 - o job de rollback é recusado sem aprovação.
 
 **Gate**: os quatro acima
-**Status**: ⬜ não iniciada
+**Status**: ⛔ **bloqueada em 2026-09-28** pela [Q16](open-questions.md). O passo 1 não é possível como
+está escrito: o `release.yml` publica por **OIDC (trusted publisher)**, e o trusted publisher do npm só
+concede `publish` e `stage publish` (`npm trust github --allow-publish --allow-stage-publish`, na
+documentação do npm CLI) — **mover `dist-tag` por OIDC não existe**. O rollback por `dist-tag` exigiria
+de volta uma credencial do npm, que é exatamente o que a T1 tirou. Nada foi alterado no registro.
 
 ---
 

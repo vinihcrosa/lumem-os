@@ -365,3 +365,21 @@ que decide o tamanho da T18, da T19 e da T20.
   > **Nota — 2026-09-28.** A nota da [Q7](#abertas) reservava *"T21"* para o selo de N3. A T21 foi para o
   > contrato do `checks.md`; se a Q7 criar task, ela é a **T22**.
 
+- [ ] **Q16 — Como se reverte uma publicação ruim, se o OIDC não move `dist-tag`? ([T12](tasks.md))**
+  Achado executando a T12 em 2026-09-28: o trusted publisher do npm só concede `publish` e
+  `stage publish`. A T12 pedia `npm dist-tag add … latest` num job do `release.yml`, e isso precisa de
+  um token — o que a T1 acabou de tirar do ambiente.
+  - **A. Token granular num environment próprio.** Um token do npm com escopo só neste pacote, como
+    secret de um environment `npm-rollback` com reviewer obrigatório e política de branch `main`. É o
+    rollback em um clique, e custa uma credencial permanente de volta — no GitHub, não na máquina.
+  - **B. Só para frente (roll-forward).** Não existe rollback: uma publicação ruim se corrige publicando
+    `x.y.z+1` com o `revert`, pelo caminho normal (PR → tag → OIDC). Zero credencial; o custo é o tempo
+    de uma release inteira (o CI mais a aprovação).
+  - **C. Manual, com login temporário.** Um runbook no Outline: `npm login` na hora, `npm dist-tag add`,
+    `npm logout`. Rápido, sem credencial parada — e depende de uma pessoa, na máquina dela.
+  **Recomendação:** **B como regra e C como saída de emergência.** B mantém a propriedade que a T1
+  comprou — nenhuma credencial de publicação parada em lugar nenhum — e C cobre o caso em que a versão
+  ruim quebra a instalação e não dá para esperar uma release, com a credencial vivendo só os minutos do
+  comando. A fica no backlog, com gatilho: o dia em que a C for usada e tiver doído.
+  **O que a resposta muda:** se a T12 vira um job no `release.yml`, um runbook, ou nada além da release.
+
