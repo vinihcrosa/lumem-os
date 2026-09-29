@@ -36,7 +36,7 @@ Proof: `pnpm exec vitest run packages/web/src/features/conversation/PlanModeBann
 **C5** - ✓ O `PlanCard` mostra *"Passos"* e não mostra *"Plano"* no cabeçalho (AC 5)
 Proof: `pnpm exec vitest run packages/web/src/features/conversation/PlanCard.test.tsx -t "o rótulo da lista é Passos"`
 
-**C6** - No navegador, o prompt do roteiro faz a faixa aparecer, e aprovar com *"Yes, and use auto mode"* a faz sumir (AC 1, AC 2)
+**C6** - ✓ No navegador, o prompt do roteiro faz a faixa aparecer, e aprovar com *"Yes, and use auto mode"* a faz sumir (AC 1, AC 2)
 Proof: `pnpm exec playwright test e2e/plan-mode.spec.ts -g "a faixa aparece em plan mode e some ao aprovar"`
 
 ### S2 - o plano chega inteiro ao web · 6 files · 110 KB · ~28k
@@ -88,13 +88,13 @@ Proof: `pnpm exec vitest run packages/web/src/features/conversation/PlanApproval
 **C21** - ✓ Um tool call `switch_mode` sem `content` de texto mostra *"o agente não mandou o texto do plano"*, e as quatro opções continuam lá (AC 18)
 Proof: `pnpm exec vitest run packages/web/src/features/conversation/PlanApproval.test.tsx -t "sem texto do plano o cartão diz e mantém as opções"`
 
-**C22** - No navegador, o plano do roteiro aparece inteiro — a primeira e a última linha visíveis — e aprovar com *"Yes, and use auto mode"* deixa *"plano aprovado — Yes, and use auto mode"* (AC 10, AC 14)
+**C22** - ✓ No navegador, o plano do roteiro aparece inteiro — a primeira e a última linha visíveis — e aprovar com *"Yes, and use auto mode"* deixa *"plano aprovado — Yes, and use auto mode"* (AC 10, AC 14)
 Proof: `pnpm exec playwright test e2e/plan-mode.spec.ts -g "o plano inteiro aparece e aprovar deixa o registro"`
 
-**C23** - No navegador, recarregar a página depois de aprovar mostra o mesmo registro, lido do transcript em disco (AC 19)
+**C23** - ✓ No navegador, recarregar a página depois de aprovar mostra o mesmo registro, lido do transcript em disco (AC 19)
 Proof: `pnpm exec playwright test e2e/plan-mode.spec.ts -g "o registro sobrevive a recarregar"`
 
-**C24** - No navegador, *"No, keep planning"* deixa *"você pediu para continuar planejando"*, e a faixa de plan mode continua (AC 15, AC 22)
+**C24** - ✓ No navegador, *"No, keep planning"* deixa *"você pediu para continuar planejando"*, e a faixa de plan mode continua (AC 15, AC 22)
 Proof: `pnpm exec playwright test e2e/plan-mode.spec.ts -g "recusar mantém o plan mode"`
 
 ### S4 - o roteiro de plan mode no agente falso · 2 files · 45 KB · ~11k
@@ -105,7 +105,7 @@ Proof: `pnpm exec vitest run packages/server/src/acp/AcpManager.fake-adapter.tes
 **C26** - ✓ Responder `exit-plan-auto` e `exit-plan-clear-auto` leva a `current_mode_update` `auto`, `exit-plan-default` a `default`, e os três terminam com `end_turn`; responder `reject` mantém `plan` e termina com `cancelled` — tabela de 4 linhas (AC 21, AC 22)
 Proof: `pnpm exec vitest run packages/server/src/acp/AcpManager.fake-adapter.test.ts -t "cada resposta do roteiro leva ao modo do adaptador"`
 
-**C27** - As specs que já usam o agente falso continuam verdes sem mudança — o turno padrão não mudou (AC 23)
+**C27** - ✓ As specs que já usam o agente falso continuam verdes sem mudança — o turno padrão não mudou (AC 23)
 Proof: `pnpm exec playwright test e2e/acp-conversation.spec.ts e2e/session-mode.spec.ts e2e/happy-path.spec.ts`
 
 ## Coverage
