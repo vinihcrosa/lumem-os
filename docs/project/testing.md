@@ -1665,6 +1665,24 @@ prova da forma.
 amostra real, nunca de um fake que a produziu por acidente** — e, sem amostra, o teste diz que é
 suposição.
 
+### Um check sobre como a tela reage a um evento que ninguém produz
+
+**Sintoma:** na [`035`](../features/035-plan-mode/prd.md), cancelar o turno com o plano pendente
+deixava o cartão com os quatro botões vivos, e um clique gravava *"plano aprovado"* sobre um pedido que
+o agente já tinha abandonado. O check do registro *"pedido cancelado"* (C19) estava verde.
+
+**Causa:** o C19 injetava no reducer um `permission_resolved` com `outcome: "cancelled"` — e **nenhum
+caminho do daemon emitia esse evento**. `cancel()` só mandava `session/cancel` ao agente e deixava o
+pedido em `pendingPermissions`; `markExited` o resolvia para o agente, sem evento para o cliente. A prova
+decidia a afirmação *"o cartão reage assim"*, que era verdadeira, e o plano tinha lido isso como
+*"isso acontece"*. O defeito de base é anterior à feature e valia para o bloco genérico também; o que a
+feature trouxe foi a frase no `Swept` dizendo que o cancelamento estava coberto.
+
+**Conserto:** o daemon emite `permission_resolved` `cancelled` para cada pedido pendente ao cancelar e
+quando o agente sai (C28, C29), e um e2e cancela com o plano na tela (C30). A regra: **um check sobre
+como o web reage a um evento nomeia também quem produz o evento** — e, se o produtor não existe, o check
+é dele antes de ser do componente. Achado pelo verificador independente, rodada 1 da `035`.
+
 ## Convenções
 
 - Teste de git usa **repositório temporário real**, nunca mock. `git worktree` tem caso de borda em nome com barra e branch existente que mock nenhum reproduz.
