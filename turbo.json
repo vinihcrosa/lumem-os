@@ -12,6 +12,7 @@
     "LUMEM_HOST",
     "LUMEM_STATE_DIR",
     "LUMEM_DB_PATH",
+    "LUMEM_LOG_FILE",
     "LUMEM_DEFAULT_CWD",
     "LUMEM_WEB_ROOT",
     "SHELL"

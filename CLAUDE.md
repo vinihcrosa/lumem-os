@@ -85,6 +85,11 @@ Monorepo pnpm + Turborepo. `packages/shared` (contratos), `packages/server` (dae
 
 Antes de dizer que uma task está pronta, rode o gate que ela declara. Detalhes em [docs/project/testing.md](docs/project/testing.md).
 
+**O log do daemon de desenvolvimento** está em `$LUMEM_STATE_DIR/daemon.log` (o `run.sh` imprime o
+caminho; por padrão `~/.lumem-dev/shared/daemon.log`), uma linha JSON por requisição, com um `.1` ao
+passar de 10 MB. Para achar o que quebrou: `grep 'trpc procedure failed' ~/.lumem-dev/shared/daemon.log`.
+O daemon instalado não escreve arquivo — só com `LUMEM_LOG_FILE`.
+
 **Teste de fronteira:** regra **dentro** de um pacote mora no pacote (o `web` tem a dele em
 `packages/web/src/architecture.test.ts`); regra **entre** pacotes mora em
 `scripts/package-boundaries.test.ts`. Arquivo acima do teto (400 em `web/src/features/`, 700 no resto)

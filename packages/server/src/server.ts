@@ -131,8 +131,11 @@ export interface CreateServerOptions {
   issues?: IssueCache;
   /** As tentativas de login vivas — em memória, e mortas com o daemon. */
   agentAuth?: AgentAuthService;
-  /** Fastify's own request logging. Off in tests, on for the daemon. */
-  logger?: boolean;
+  /**
+   * Fastify's own request logging. Off in tests, on for the daemon — and, with
+   * a `stream`, written to `LUMEM_LOG_FILE` as well (T11 of the `024`).
+   */
+  logger?: boolean | { stream: { write(line: string): void } };
 }
 
 export async function createServer({

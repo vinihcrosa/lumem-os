@@ -938,7 +938,14 @@ perguntar o que ele fez, e um bug de runtime exige uma pessoa lendo o terminal d
 - `pnpm gate:quick` verde.
 
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ não iniciada
+**Status**: ✅ entregue em 2026-09-28. `LUMEM_LOG_FILE` no `config.ts` (ausente → `null`, sem arquivo),
+`server/src/log-file.ts` escrevendo no arquivo **e** no stdout com rotação para `.1` aos 10 MB, sem
+dependência nova; `turbo.json` com a variável no `globalPassThroughEnv`; o `run.sh` a define e imprime.
+Observado com um daemon de verdade, isolado em `/tmp/lumem-t11` na porta 47811: o arquivo e o stdout
+com as **mesmas 12 linhas** JSON, uma por requisição, e um `workspace.create` com nome vazio deixando
+`"msg":"trpc procedure failed"` com `"path":"workspace.create"` — achado pelo `grep`. A rotação está
+coberta por teste (teto de 20 bytes), não por um arquivo de 10 MB de verdade. A receita de duas linhas
+foi para o `CLAUDE.md`, e não para um `AGENTS.md` ([Q11](open-questions.md)).
 
 ---
 

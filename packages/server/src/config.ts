@@ -16,6 +16,13 @@ export interface ServerConfig {
   /** SQLite database file. */
   databasePath: string;
   /**
+   * `LUMEM_LOG_FILE`: where the request log is also written (T11 of the
+   * `024-dev-harness`). `null` keeps today's behaviour — stdout only — because
+   * the installed daemon must not write a file nobody asked for. `run.sh` sets
+   * it for the development daemon.
+   */
+  logFile?: string | null;
+  /**
    * Root of the tree that mirrors the product's hierarchy on disk, Q20.
    *
    * `<workspacesDir>/<workspace>/<projeto>/{repo,worktrees}` — the clone under
@@ -124,6 +131,7 @@ export type ConfigEnv = Partial<
     | "LUMEM_HOST"
     | "LUMEM_STATE_DIR"
     | "LUMEM_DB_PATH"
+    | "LUMEM_LOG_FILE"
     | "LUMEM_DEFAULT_CWD"
     | "LUMEM_WEB_ROOT"
     | "LUMEM_MEMORY_DISTILL"
@@ -194,6 +202,7 @@ export function loadConfig(env: ConfigEnv = process.env): ServerConfig {
     host: env.LUMEM_HOST ?? "127.0.0.1",
     stateDir,
     databasePath: env.LUMEM_DB_PATH ?? join(stateDir, "lumem.db"),
+    logFile: env.LUMEM_LOG_FILE === undefined || env.LUMEM_LOG_FILE === "" ? null : resolve(env.LUMEM_LOG_FILE),
     workspacesDir: join(stateDir, "workspaces"),
     transcriptsDir: join(stateDir, "transcripts"),
     // /bin/sh exists on every POSIX system this daemon can run on; SHELL is

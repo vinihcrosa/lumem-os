@@ -24,6 +24,11 @@ fi
 # LUMEM_STATE_DIR vem do env.sh.
 export LUMEM_STATE_DIR
 
+# O log do daemon também em arquivo (T11 da `024-dev-harness`): um agente que não
+# subiu o daemon consegue perguntar o que ele fez. O daemon instalado não
+# escreve arquivo nenhum — só este `run.sh` liga.
+export LUMEM_LOG_FILE="${LUMEM_LOG_FILE:-$LUMEM_STATE_DIR/daemon.log}"
+
 mkdir -p "$LUMEM_STATE_DIR"
 
 # O ambiente de dev é um só e as portas dele são fixas, então dois workspaces
@@ -61,6 +66,7 @@ echo "→ modo       $LUMEM_DEV_MODE"
 echo "→ daemon     127.0.0.1:$LUMEM_PORT"
 echo "→ web        http://127.0.0.1:$LUMEM_WEB_PORT"
 echo "→ state dir  $LUMEM_STATE_DIR"
+echo "→ log        $LUMEM_LOG_FILE"
 echo
 
 # exec, e não uma chamada comum: o sinal de parada precisa chegar ao turbo e
