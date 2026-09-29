@@ -99,6 +99,38 @@ export function describeDocs(docs: readonly string[] | null, base: string): stri
  */
 export const FIXTURE_GLOBS = ["**/fixtures/**"];
 
+/**
+ * How a gate's test processes are started: at low priority, unless asked
+ * otherwise (2026-09-29).
+ *
+ * The suite spawns real processes — git, node, PTYs, fake agents — on top of
+ * the vitest workers, and a gate run from a hook (`pre-push`, the `Stop` of an
+ * agent session) took the machine while the person was using it. The gate has
+ * to run; it must not take the computer. Measured on the 11-core machine this
+ * repository is built on, with a fixed CPU probe that takes ~400 ms idle:
+ *
+ * | priority | full suite | the probe during it | result |
+ * |---|---|---|---|
+ * | `nice -n 15` (default, `low`) | 95 s — the same as at normal priority | ~360–550 ms | green |
+ * | `taskpolicy -b` (`background`, macOS) | 408 s | ~350–540 ms | 2 false reds by timeout |
+ *
+ * `nice` keeps the machine usable and costs nothing when it is idle, because
+ * the tests still reach the performance cores nobody else wants.
+ * `taskpolicy -b` confines them to the efficiency cores, which frees the machine
+ * completely and makes timing-sensitive tests time out — opt-in only.
+ * `LUMEM_TEST_PRIORITY=normal` gives the whole machine back.
+ */
+export function backgroundCommand(
+  argv: readonly string[],
+  options: { platform: string; priority: string | undefined; hasTaskpolicy: boolean },
+): string[] {
+  if (options.priority === "normal" || options.platform === "win32") return [...argv];
+  if (options.priority === "background" && options.platform === "darwin" && options.hasTaskpolicy) {
+    return ["taskpolicy", "-b", ...argv];
+  }
+  return ["nice", "-n", "15", ...argv];
+}
+
 export const DEFAULT_BASE = "HEAD^";
 
 /**

@@ -1,9 +1,9 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
-  "_comment": "T14 da 024-dev-harness: o número que limita o auto-engano da suíte. Três diretórios de núcleo — os que escrevem no disco do usuário e os que decidem. Não entra no gate:quick nem no gate:build: custa minutos. O piso mora em thresholds.break e só sobe. Medido em 2026-09-28: 72,72% global (memory 72,35, files 64,08, git 77,96), 5886 mutantes, 44 min; break = 70. O piso por arquivo mora em scripts/mutation-floors.ts.",
+  "_comment": "T14 da 024-dev-harness: o número que limita o auto-engano da suíte. Três diretórios de núcleo — os que escrevem no disco do usuário e os que decidem. Não entra no gate:quick nem no gate:build: custa minutos. O piso mora em thresholds.break e só sobe. Medido em 2026-09-28: 72,72% global (memory 72,35, files 64,08, git 77,96), 5886 mutantes, 44 min; break = 70. O piso por arquivo mora em scripts/mutation-floors.ts. 2026-09-29: concurrency 2, um worker por processo e QoS de segundo plano (scripts/run-mutation.ts) — com 6 processos e o default do vitest de um worker por núcleo, a rodada deixava o computador inutilizável.",
   "testRunner": "vitest",
   "vitest": {
-    "configFile": "packages/server/vitest.config.ts",
+    "configFile": "packages/server/vitest.stryker.config.ts",
     "dir": "packages/server"
   },
   "mutate": [
@@ -13,7 +13,7 @@
     "!packages/server/src/**/*.test.ts"
   ],
   "coverageAnalysis": "perTest",
-  "concurrency": 6,
+  "concurrency": 2,
   "timeoutMS": 30000,
   "reporters": [
     "clear-text",

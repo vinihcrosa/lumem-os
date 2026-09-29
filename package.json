@@ -24,7 +24,7 @@
     "gate:quick": "tsx scripts/run-gate-quick.ts",
     "gate:full": "vitest run && playwright test",
     "gate:build": "pnpm typecheck && pnpm lint && turbo build --concurrency=${TURBO_CONCURRENCY:-3}",
-    "gate:mutation": "GIT_CEILING_DIRECTORIES=\"$PWD/.stryker-tmp\" stryker run stryker.config.json",
+    "gate:mutation": "tsx scripts/run-mutation.ts",
     "docs:check": "tsx scripts/run-check-docs.ts",
     "feature:check": "tsx scripts/feature-flow/run.ts",
     "adapters:check": "tsx scripts/run-check-adapters.ts",

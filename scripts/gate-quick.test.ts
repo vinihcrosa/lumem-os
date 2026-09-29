@@ -6,6 +6,7 @@ import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  backgroundCommand,
   changedFiles,
   decide,
   describeDecision,
@@ -437,5 +438,27 @@ describe("fixture de teste escrita em markdown", () => {
     expect(FIXTURE_GLOBS).toEqual(["**/fixtures/**"]);
     // a decisão trata o que o runner soma a `untraceable` como mudança que roda tudo
     expect(decide([], ["scripts/feature-flow/fixtures/prd.md"], []).run).toBe("all");
+  });
+});
+
+describe("o gate roda em prioridade baixa, e não toma a máquina", () => {
+  const argv = ["pnpm", "exec", "vitest", "run"];
+  it("por padrão, com nice — mesmo tempo da suíte, e a máquina continua respondendo", () => {
+    expect(backgroundCommand(argv, { platform: "darwin", priority: undefined, hasTaskpolicy: true })).toEqual([
+      "nice",
+      "-n",
+      "15",
+      ...argv,
+    ]);
+    expect(backgroundCommand(argv, { platform: "linux", priority: undefined, hasTaskpolicy: false })[0]).toBe("nice");
+  });
+  it("LUMEM_TEST_PRIORITY=background, no macOS, prende nos núcleos de eficiência", () => {
+    expect(backgroundCommand(argv, { platform: "darwin", priority: "background", hasTaskpolicy: true }).slice(0, 2)).toEqual([
+      "taskpolicy",
+      "-b",
+    ]);
+  });
+  it("LUMEM_TEST_PRIORITY=normal devolve a máquina inteira", () => {
+    expect(backgroundCommand(argv, { platform: "darwin", priority: "normal", hasTaskpolicy: true })).toEqual(argv);
   });
 });

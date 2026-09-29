@@ -1,6 +1,8 @@
 import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
 
 import {
+  backgroundCommand,
   changedFiles,
   decide,
   DEFAULT_BASE,
@@ -40,7 +42,13 @@ console.log(describeDecision(decision, requested, graph?.length ?? 0));
 
 if (decision.run === "none") process.exit(0);
 
-const result = spawnSync("pnpm", vitestArgs(decision, base), { stdio: "inherit" });
+const [command, ...args] = backgroundCommand(["pnpm", ...vitestArgs(decision, base)], {
+  platform: process.platform,
+  priority: process.env["LUMEM_TEST_PRIORITY"],
+  hasTaskpolicy: existsSync("/usr/sbin/taskpolicy"),
+}) as [string, ...string[]];
+if (command !== "pnpm") console.log(`gate:quick — em prioridade baixa (${command}); LUMEM_TEST_PRIORITY=normal devolve a máquina inteira.`);
+const result = spawnSync(command, args, { stdio: "inherit" });
 if (result.error) {
   console.error(result.error.message);
   process.exit(1);

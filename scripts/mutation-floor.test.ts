@@ -36,7 +36,19 @@ describe("o piso de mutação, por arquivo", () => {
     // Sem o teto, um mutante de `server/src/git/` que troca o `cwd` fez o git subir do sandbox até este
     // repositório e reescrever o `origin` (testing.md, armadilhas).
     const pkg = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8")) as { scripts: Record<string, string> };
-    expect(pkg.scripts["gate:mutation"]).toMatch(/GIT_CEILING_DIRECTORIES="\$PWD\/\.stryker-tmp"/);
+    expect(pkg.scripts["gate:mutation"]).toBe("tsx scripts/run-mutation.ts");
+    const runner = readFileSync(join(repoRoot, "scripts/run-mutation.ts"), "utf8");
+    expect(runner).toMatch(/GIT_CEILING_DIRECTORIES: join\(root, "\.stryker-tmp"\)/);
+  });
+
+  it("a mutação não toma a máquina: 2 processos, 1 worker cada, em segundo plano", () => {
+    const config = JSON.parse(readFileSync(join(repoRoot, "stryker.config.json"), "utf8")) as {
+      concurrency: number;
+      vitest: { configFile: string };
+    };
+    expect(config.concurrency).toBeLessThanOrEqual(2);
+    expect(readFileSync(join(repoRoot, config.vitest.configFile), "utf8")).toMatch(/maxWorkers: 1/);
+    expect(readFileSync(join(repoRoot, "scripts/run-mutation.ts"), "utf8")).toContain("backgroundCommand");
   });
 
   it("o workflow semanal roda o piso depois do Stryker, e nunca numa PR", () => {

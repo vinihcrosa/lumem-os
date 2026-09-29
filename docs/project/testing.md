@@ -77,6 +77,25 @@ Fonte de verdade da estratégia de teste. O campo `Tests`/`Gate` de toda task sa
 | `docs` | `pnpm docs:check` | Link, âncora, `**Status:**`, **caminho de código em crase que não existe** (fora de ADR, de `references/` e de feature não `completa`) e **linha duplicada numa tabela do índice**. Já roda dentro do `gate:full` pelo `check-docs.test.ts`, e o `gate:quick` o roda sozinho sempre que uma doc mudou — o `--changed` do vitest nunca selecionaria um teste que lê arquivo por caminho |
 | `smoke` | `pnpm smoke:install` | O pacote publicado instala num prefixo limpo e sobe. Não faz parte dos três gates de todo dia: roda no release, e à mão antes de publicar |
 
+### Os gates não tomam a máquina
+
+Desde 2026-09-29 todo `gate:quick` — à mão, pelo `pre-push` ou pelo `Stop` do agente — roda os testes em
+**prioridade baixa** (`nice -n 15`), e o `gate:mutation` também, com 2 processos do Stryker de **1 worker
+cada**. Antes, um gate disparado por hook tomava o computador de quem estava usando, e a mutação
+(6 processos × o default do vitest de um worker **por núcleo** = 60 processos em 11 núcleos) o deixava
+inutilizável pelos 44 minutos da rodada. Medido com uma sonda de CPU de trabalho fixo, ~400 ms parada:
+
+| Prioridade | Suíte inteira | A sonda durante | Resultado |
+|---|---|---|---|
+| `nice -n 15` — o padrão | **95 s**, o mesmo da prioridade normal | ~360–550 ms | verde |
+| `taskpolicy -b` — `LUMEM_TEST_PRIORITY=background`, macOS | 408 s | ~350–540 ms | **2 falsos vermelhos por timeout** |
+| mutação, 2 × 1 worker, `nice` | 334 s num arquivo (198 s com 6 processos) | ~320–460 ms | — |
+
+O `nice` custa zero com a máquina parada — os testes continuam alcançando os núcleos de desempenho que
+ninguém quer — e cede quando alguém quer. O `taskpolicy -b` prende tudo nos núcleos de eficiência: a
+máquina fica inteiramente livre, e um teste sensível a tempo estoura. Por isso ele é opcional.
+`LUMEM_TEST_PRIORITY=normal` devolve a máquina inteira.
+
 ### Mutação: o número que limita o auto-engano da suíte
 
 `pnpm gate:mutation` (Stryker, runner do vitest) sobre os três diretórios de núcleo — os que escrevem
