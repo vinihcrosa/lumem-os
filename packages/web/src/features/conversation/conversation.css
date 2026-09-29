@@ -214,7 +214,7 @@
   font: var(--text-body-sm);
   color: var(--color-turn-thought);
   /*
-   * Do tamanho do texto, e não da coluna (`035`). Item de grid do `.turn__b`
+   * Do tamanho do texto, e não da coluna (`036`). Item de grid do `.turn__b`
    * estica por padrão: o brilho de `.thought--live`, dimensionado pelo botão,
    * passava a maior parte do tempo longe das letras. O `nowrap` segura o rótulo
    * numa linha — quem encolhe é a espiada, que já tem reticências.
@@ -224,7 +224,7 @@
   white-space: nowrap;
 }
 /*
- * O brilho enquanto ele pensa (`035`): uma faixa mais clara passando pelo texto,
+ * O brilho enquanto ele pensa (`036`): uma faixa mais clara passando pelo texto,
  * sem mudar a cor de nada parado. É o sinal de vida de um silêncio longo; sem
  * ele, *"pensando…"* e um turno pendurado se leem igual.
  */

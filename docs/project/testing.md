@@ -1667,7 +1667,7 @@ suposição.
 
 ### "Todos passaram" sobre um conjunto vazio é verde sem prova
 
-**Sintoma:** nenhum na corrida — o verificador da [`035`](../features/035-reasoning/checks.md) achou
+**Sintoma:** nenhum na corrida — o verificador da [`036`](../features/036-reasoning/checks.md) achou
 injetando a falha. O `pnpm measure:thinking` (C7) percorre os modelos que o `session/new` do Claude
 oferece e sai 0 se **todos** fecharem em `end_turn`. Com a opção `model` ausente, a lista vinha vazia,
 o script dizia *"end_turn em todos os 0 modelos: sim"* e saía 0 sem ter rodado turno nenhum.

@@ -3,7 +3,7 @@
 > **Status:** completa
 
 Profile: standard
-Plan: `docs/features/035-reasoning/prd.md`
+Plan: `docs/features/036-reasoning/prd.md`
 
 18 checks in 2 slices · 1 one-way door · 0 open
 

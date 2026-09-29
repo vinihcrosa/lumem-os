@@ -7,7 +7,7 @@ import { emptyConversation, reduceConversation, replayConversation, type Convers
 import { Transcript } from "./Transcript.js";
 
 /**
- * O bloco de pensamento dentro da conversa (`035` S2): aberto enquanto é
+ * O bloco de pensamento dentro da conversa (`036` S2): aberto enquanto é
  * escrito, fechado quando acaba, e a escolha de quem clicou acima das duas.
  *
  * No `Transcript`, e não no `Thought`, porque é ele que sabe qual bloco ainda

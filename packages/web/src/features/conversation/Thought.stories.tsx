@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { Thought, TurnFrame } from "./Message.js";
 
 /**
- * O pensamento do agente nos três momentos que a `035-reasoning` desenha: sendo
+ * O pensamento do agente nos três momentos que a `036-reasoning` desenha: sendo
  * escrito (aberto, com o brilho), terminado com a duração, e terminado de um
  * chunk só, sem número.
  *

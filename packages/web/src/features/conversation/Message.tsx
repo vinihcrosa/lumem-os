@@ -65,7 +65,7 @@ export interface ThoughtProps {
   /** True while the agent is still thinking — the live line A3 asked for. */
   streaming?: boolean;
   /**
-   * Do primeiro ao último chunk (`035`). Zero ou ausente — um chunk só — e o
+   * Do primeiro ao último chunk (`036`). Zero ou ausente — um chunk só — e o
    * rótulo não diz duração: *"pensou por 0 ms"* seria um número sem notícia.
    */
   elapsedMs?: number;
@@ -86,7 +86,7 @@ export function Thought({ text, open, onToggle, streaming = false, elapsedMs = 0
     <>
       <button
         type="button"
-        // `thought--live` é o brilho enquanto ele pensa (`035`).
+        // `thought--live` é o brilho enquanto ele pensa (`036`).
         className={streaming ? "thought thought--live focus-ring" : "thought focus-ring"}
         aria-expanded={open}
         onClick={onToggle}

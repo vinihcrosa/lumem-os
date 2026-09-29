@@ -9,7 +9,7 @@ import { AcpManager } from "../packages/server/src/acp/AcpManager.js";
 import { spawnAcpProcess, type AcpProcess, type AcpSpawnRequest } from "../packages/server/src/acp/process.js";
 
 /**
- * A medição do C7 da `035-reasoning` — **gasta token**, poucos, na conta padrão do Claude.
+ * A medição do C7 da `036-reasoning` — **gasta token**, poucos, na conta padrão do Claude.
  *
  * Pergunta duas coisas à cópia do adaptador que o daemon de dev instalou, pelo
  * `AcpManager` de verdade (o mesmo `_meta` que a conversa manda):
@@ -19,7 +19,7 @@ import { spawnAcpProcess, type AcpProcess, type AcpSpawnRequest } from "../packa
  *
  * Sai 0 só se as duas valem. Imprime também o turno do modelo padrão **sem** o
  * pedido (sessão sem `adapterId`), com os tokens de saída de cada turno — a
- * [Q2](../docs/features/035-reasoning/open-questions.md) reabre se o pedido
+ * [Q2](../docs/features/036-reasoning/open-questions.md) reabre se o pedido
  * mudar o gasto.
  *
  * Os tokens vêm do `usage` da **resposta** do `session/prompt`, lido no fio: o

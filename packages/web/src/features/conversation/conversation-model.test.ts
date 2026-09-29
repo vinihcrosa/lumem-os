@@ -87,7 +87,7 @@ describe("turns", () => {
   });
 
   it("keeps the at of the first and the last chunk of a thought", () => {
-    // `035` C8: a duração do pensamento sai destes dois números, e o redutor
+    // `036` C8: a duração do pensamento sai destes dois números, e o redutor
     // continua puro — o `at` já chega em cada entrada.
     const state = from(
       { at: 1_000, event: { type: "thought", messageId: "t-1", text: "primeiro " } },

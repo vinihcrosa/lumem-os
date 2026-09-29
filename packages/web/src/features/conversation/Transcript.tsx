@@ -47,7 +47,7 @@ export function Transcript({
    * do turno, então a posição de um bloco não muda depois que ele existe.
    *
    * Ausente quer dizer *ninguém mexeu*, e aí o bloco segue o stream — aberto
-   * enquanto é escrito, fechado quando acaba (`035`).
+   * enquanto é escrito, fechado quando acaba (`036`).
    */
   const [thoughtChoices, setThoughtChoices] = useState<ReadonlyMap<string, boolean>>(new Map());
   /**

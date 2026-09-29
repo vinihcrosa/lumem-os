@@ -2656,7 +2656,7 @@ describe("uma recusa por cota", () => {
 
 describe("o pedido de raciocínio da spec", () => {
   /*
-   * `035` S1. O `claude-agent-acp@0.75.1` manda o pensamento com o texto vazio
+   * `036` S1. O `claude-agent-acp@0.75.1` manda o pensamento com o texto vazio
    * (`thinking.display: "omitted"`) a menos que alguém peça o resumo, e quem
    * pede é o `_meta` que a spec declara — igual no `session/new` e no
    * `session/load`, porque o adaptador monta a sessão pelo mesmo caminho nos dois.

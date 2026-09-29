@@ -1634,7 +1634,7 @@ describe("a recusa por cota diz de qual conta", () => {
 });
 
 /**
- * O pedido de raciocínio chega ao adaptador pelos dois caminhos da conversa (`035` C6).
+ * O pedido de raciocínio chega ao adaptador pelos dois caminhos da conversa (`036` C6).
  *
  * Quem dá o `adapterId` ao `AcpManager` é este arquivo, na criação e na retomada;
  * sem ele, a spec não é lida e o Claude manda o pensamento sem texto.

@@ -168,7 +168,7 @@ export interface AdapterSpec {
   quotaRefusalKind: string | null;
   /**
    * O `_meta` que faz este adaptador mandar o raciocínio — vai inteiro no
-   * `session/new` e no `session/load` (`035`).
+   * `session/new` e no `session/load` (`036`).
    *
    * Opaco de propósito: é vocabulário do adaptador (`adaptive`, `summarized`), e
    * o [ADR de 2026-09-13](../../../docs/adr/2026-09-13-0038-our-model-is-king-outsiders-adapt.md)
@@ -258,7 +258,7 @@ export const CLAUDE_ADAPTER: AdapterSpec = {
    */
   quotaRefusalKind: "rate_limit",
   /*
-   * Medido em 2026-09-29 contra o `0.75.1` (`035`): o SDK de dentro
+   * Medido em 2026-09-29 contra o `0.75.1` (`036`): o SDK de dentro
    * (`0.3.257`) nasce com `thinking.display: "omitted"`, e o adaptador só emite
    * `agent_thought_chunk` quando o bloco tem texto (`acp-agent.js:7742`) — então,
    * desde 2026-09-08, nenhum pensamento chegava. `_meta.claudeCode.options` é

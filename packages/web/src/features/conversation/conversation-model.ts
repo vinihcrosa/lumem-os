@@ -253,7 +253,7 @@ export function reduceConversation(
       );
 
     case "thought": {
-      // `startedAt` e `endedAt`: o `at` do primeiro e do último chunk (`035`).
+      // `startedAt` e `endedAt`: o `at` do primeiro e do último chunk (`036`).
       const { messageId, text } = event;
       return appendText(state, "agent", { kind: "thought", messageId, text, startedAt: at, endedAt: at });
     }

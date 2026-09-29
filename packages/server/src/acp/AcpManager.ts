@@ -499,7 +499,7 @@ interface Session {
    * declarada, e não descoberta no turno (ADR de 2026-09-13).
    */
   quotaRefusalKind: string | null;
-  /** O `_meta` do `session/new` e do `session/load` (`035`), da `spec` como a `quotaRefusalKind`. */
+  /** O `_meta` do `session/new` e do `session/load` (`036`), da `spec` como a `quotaRefusalKind`. */
   reasoningMeta: Readonly<Record<string, unknown>> | null;
   /** O rótulo do agente, para a frase da recusa. */
   agentLabel: string;

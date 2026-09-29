@@ -242,7 +242,7 @@ describe("adapterInstallCommand", () => {
 
 describe("reasoningMeta", () => {
   it("declares the reasoningMeta each adapter needs", () => {
-    // `035` S1: o Claude `0.75.1` só manda o texto do pensamento se o resumo for
+    // `036` S1: o Claude `0.75.1` só manda o texto do pensamento se o resumo for
     // pedido; o `codex-acp@1.10.0` já pede `summary: "auto"` sozinho em todo turno.
     expect(CLAUDE_ADAPTER.reasoningMeta).toEqual({
       claudeCode: { options: { thinking: { type: "adaptive", display: "summarized" } } },

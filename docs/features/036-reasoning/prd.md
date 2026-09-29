@@ -6,6 +6,9 @@
 > do projeto *Conversa — imagem, plano, reasoning e sinal de vida*. A issue pedia a pasta
 > `033-conversation-essentials/`; o `033` já era da [acp-only-agents](../033-acp-only-agents/prd.md), e a
 > forma da pasta é a [Q1](open-questions.md): **uma por issue**, respondida em 2026-09-29.
+> v0.2 — **renumerada de `035` para `036` em 2026-09-29**, já completa: colidiu com a
+> `035-plan-mode` (LUM-65, [PR #98](https://github.com/vinihcrosa/lumem-os/pull/98)), aberta antes, feita em
+> paralelo noutra worktree. Os commits da construção citam `035` no trailer; o número em vigor é este.
 
 ## Problem
 

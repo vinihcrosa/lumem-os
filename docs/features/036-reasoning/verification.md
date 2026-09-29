@@ -145,7 +145,7 @@ Verified at `917cfb5`. As falhas rodaram numa cópia descartável da árvore:
 - foi uma falha por vez, e cada uma foi restaurada do original antes da próxima;
 - no fim, `diff -rq` contra a árvore real só mostrou o agente falso a mais, e a cópia foi apagada.
 
-A linha de base da árvore real era `?? docs/features/035-reasoning/verification.md`. Depois das falhas e
+A linha de base da árvore real era `?? docs/features/036-reasoning/verification.md`. Depois das falhas e
 do e2e, ela continuou idêntica (`git status --porcelain | diff - baseline` vazio).
 
 As falhas do script rodaram **sem rede**, contra um agente ACP falso escrito na cópia
@@ -201,7 +201,7 @@ Nenhum bloqueia. Os três são acompanhamento.
      reabre"*, mas toda corrida dá números diferentes. Vale anexar estas duas linhas à tabela e dizer qual
      diferença conta.
 
-3. **Acompanhamento: o fechamento da feature.** A `035` ainda não tem linha no *Estado atual* do
+3. **Acompanhamento: o fechamento da feature.** A `036` ainda não tem linha no *Estado atual* do
    `CLAUDE.md`, e o cabeçalho em `docs/README.md:753` diz `em execução`. As duas coisas mudam quando a
    feature fecha, junto com o parágrafo no Outline. Não é defeito agora: com `checks.md` presente e sem
    verificação aprovada, `em execução` é o `Status:` coerente.
@@ -210,11 +210,11 @@ Regra de documentação:
 
 - **A nota no requisito contradito está certa.** `docs/features/006-acp-sessions/prd.md:155` fica sob a
   F2.2 e delimita as duas partes:
-  - o que a `035` muda: aberto enquanto é escrito (AC 10–12);
+  - o que a `036` muda: aberto enquanto é escrito (AC 10–12);
   - o que continua de pé: colapsado quando acaba, e no replay.
 
   O comentário do e2e (`e2e/acp-conversation.spec.ts:97`) acompanha.
-- **O índice bate.** O `docs/README.md` tem a seção da `035` com `prd.md`, `open-questions.md` e
+- **O índice bate.** O `docs/README.md` tem a seção da `036` com `prd.md`, `open-questions.md` e
   `checks.md`, e o cabeçalho diz `em execução`. O `prd.md` e o `checks.md` também dizem `em execução`,
   coerente com a regra 5 do `CLAUDE.md`. `pnpm -s docs:check` → `docs ok`.
 - **A lição da segunda rodada está registrada.** `docs/project/testing.md:1668`, *"Todos passaram" sobre
@@ -240,5 +240,5 @@ anterior já está lá.
   - `pnpm -s lint` — exit 0.
 - `pnpm exec playwright test e2e/acp-conversation.spec.ts` — `8 passed (20.3s)`, exit 0. Rodei porque o diff muda o aberto/fechado que esse e2e afirma (`:97-99`).
 - `pnpm -s docs:check` — `docs ok`.
-- `pnpm -s feature:check checks docs/features/035-reasoning` — exit 0, com 1 aviso: o C7 não nomeia seletor de teste. É esperado, porque a prova dele é um script.
+- `pnpm -s feature:check checks docs/features/036-reasoning` — exit 0, com 1 aviso: o C7 não nomeia seletor de teste. É esperado, porque a prova dele é um script.
 - `pnpm measure:thinking` — exit 0, uma corrida, como autorizado.

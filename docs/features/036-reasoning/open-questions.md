@@ -17,7 +17,7 @@ turno real.
   As quatro issues do projeto (LUM-64 imagem, LUM-65 plano, LUM-66 reasoning, LUM-67 sinal de vida)
   apontam para a mesma pasta, `033-conversation-essentials/` — e o `033` já é da `acp-only-agents`.
 
-  **Recomendação: uma por issue — esta é `035-reasoning/`.** Os checks de uma feature são
+  **Recomendação: uma por issue — esta é `036-reasoning/`.** Os checks de uma feature são
   **congelados** quando aprovados ([ADR de 2026-09-28](../../adr/2026-09-28-1952-a-feature-is-proven-by-checks-not-planned-in-tasks.md)):
   uma pasta para as quatro obrigaria a planejar as quatro agora, ou a reabrir checks aprovados a cada
   issue. E quatro worktrees editando o mesmo `prd.md` em paralelo é conflito de merge garantido. O
@@ -26,7 +26,9 @@ turno real.
   **O que a resposta muda:** o nome da pasta, o `Status:` (uma pasta do projeto só fecha com as quatro)
   e o `Out of scope` do plano.
 
-  **R:** uma por issue (2026-09-29). Esta é `035-reasoning/`; LUM-64, LUM-65 e LUM-67 abrem as suas.
+  **R:** uma por issue (2026-09-29). Esta é `036-reasoning/`; LUM-64, LUM-65 e LUM-67 abrem as suas.
+  Nasceu `035-reasoning/` e foi renumerada no mesmo dia: a LUM-65 abriu a sua como `035-plan-mode` em
+  paralelo, e a PR dela chegou antes.
 
 - [x] **Q2 — O pensamento resumido fica sempre ligado, ou vira interruptor em `/settings`?**
 
