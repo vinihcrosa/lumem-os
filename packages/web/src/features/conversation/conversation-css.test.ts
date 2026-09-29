@@ -31,6 +31,8 @@ const components = read(
   "ComposerBox.tsx",
   "Transcript.tsx",
   "Message.tsx",
+  // A linha de estado do turno (`035` S3).
+  "TurnStatus.tsx",
   // O primeiro prompt pendente (`033` T21) — faltavam aqui desde a T14, que
   // é quando `PendingPrompt.tsx` nasceu: a mesma lacuna que este arquivo
   // existe para fechar, achada ao tocar o vizinho em vez de por ele mesmo.

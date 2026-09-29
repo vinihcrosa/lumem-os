@@ -8,6 +8,7 @@ import { PendingConversation } from "./PendingConversation.js";
 import { PendingPrompt } from "./PendingPrompt.js";
 import { useSessionDetail } from "./queries.js";
 import { Transcript } from "./Transcript.js";
+import { TurnStatus } from "./TurnStatus.js";
 import { useConversationSession } from "./useConversationSession.js";
 
 /**
@@ -197,6 +198,7 @@ export function Conversation({
             {...(sessionLink === undefined ? {} : { sessionLink })}
             {...(continueIn === undefined ? {} : { continueIn })}
           />
+          <TurnStatus conversation={conversation} readOnly={readOnly} />
           {composer}
         </>
       )}

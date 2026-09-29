@@ -477,6 +477,38 @@
   color: var(--color-usage-over);
 }
 
+/* ------------------------------------------- a linha de estado do turno */
+/*
+ * Acima do composer, enquanto há turno (`035` S3): há quanto tempo, e fazendo o
+ * quê. O ponto é da família do agente, como o `.draft__pulse` — é o agente que
+ * está trabalhando, e a marca nunca diz estado. Parado para quem pediu menos
+ * movimento: o tempo andando ao lado já diz que está vivo.
+ */
+.turn-status {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  min-width: 0;
+  padding: var(--space-8) var(--space-20) 0;
+  font: var(--text-body-sm);
+  color: var(--color-text-secondary);
+}
+.turn-status__pulse {
+  flex: none;
+  width: var(--space-6);
+  height: var(--space-6);
+  border-radius: var(--radius-full);
+  background: var(--color-turn-agent);
+  animation: turn-status-pulse 1.6s ease-in-out infinite;
+}
+@keyframes turn-status-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+/* Os números mudam a cada segundo; largura fixa por dígito para o resto da linha não tremer. */
+.turn-status__elapsed { flex: none; font-variant-numeric: tabular-nums; }
+.turn-status__doing { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text-tertiary); }
+.turn-status__doing::before { content: "· "; }
+@media (prefers-reduced-motion: reduce) { .turn-status__pulse { animation: none; } }
+
 /* ------------------------------------------------------------ o composer */
 /*
  * O composer estabelece contexto de empilhamento, e fica ACIMA da conversa.

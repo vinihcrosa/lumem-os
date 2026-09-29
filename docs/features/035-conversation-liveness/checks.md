@@ -76,16 +76,16 @@ Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/conve
 **C17** - `replayConversation` e a dobra evento a evento da mesma transcrição dão o mesmo `turnStartedAt` e `lastEventAt` (AC 16) ✓
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/conversation-model.test.ts -t "replay e dobra concordam no relógio do turno"`
 
-**C18** - Com `streaming` e não somente leitura, e o relógio injetado 72 s depois de `turnStartedAt`, a linha acima do composer diz `trabalhando · 1 min 12 s` e tem o indicador animado; sem `streaming`, a linha não existe (AC 17)
+**C18** - Com `streaming` e não somente leitura, e o relógio injetado 72 s depois de `turnStartedAt`, a linha acima do composer diz `trabalhando · 1 min 12 s` e tem o indicador animado; sem `streaming`, a linha não existe (AC 17) ✓
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/TurnStatus.test.tsx -t "desenha trabalhando com o decorrido"`
 
-**C19** - O decorrido se escreve, tabela com os oito casos: 12 s → `12 s`, 59 s → `59 s`, 60 s → `1 min 0 s`, 72 s → `1 min 12 s`, 3 599 s → `59 min 59 s`, 3 600 s → `1 h 00 min`, 11 100 s → `3 h 05 min`, −5 s → `0 s` (AC 18)
+**C19** - O decorrido se escreve, tabela com os oito casos: 12 s → `12 s`, 59 s → `59 s`, 60 s → `1 min 0 s`, 72 s → `1 min 12 s`, 3 599 s → `59 min 59 s`, 3 600 s → `1 h 00 min`, 11 100 s → `3 h 05 min`, −5 s → `0 s` (AC 18) ✓
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/turn-status.test.ts -t "formata o decorrido"`
 
-**C20** - O fazer vem do último bloco do turno do agente, tabela com os sete casos: raciocínio → `pensando`, mensagem → `escrevendo`, ferramenta `running` → `rodando <título>`, ferramenta `pending` → `rodando <título>`, permissão pendente → `esperando sua resposta`, nenhum bloco do agente → `começando`, ferramenta terminada → `pensando` (AC 19)
+**C20** - O fazer vem do último bloco do turno do agente, tabela com os sete casos: raciocínio → `pensando`, mensagem → `escrevendo`, ferramenta `running` → `rodando <título>`, ferramenta `pending` → `rodando <título>`, permissão pendente → `esperando sua resposta`, nenhum bloco do agente → `começando`, ferramenta terminada → `pensando` (AC 19) ✓
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/turn-status.test.ts -t "diz o que o agente está fazendo"`
 
-**C21** - `useNow(true)` avança uma vez a cada 1 000 ms de relógio falso; `useNow(false)` não deixa intervalo ligado — `vi.getTimerCount()` é 0 (AC 20)
+**C21** - `useNow(true)` avança uma vez a cada 1 000 ms de relógio falso; `useNow(false)` não deixa intervalo ligado — `vi.getTimerCount()` é 0 (AC 20) ✓
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/useNow.test.ts -t "tique de 1 s só enquanto ativo"`
 
 **C22** - A regra `.mcaret` tem `animation` apontando para um `@keyframes` do `conversation.css`, e depois do envio, com o último bloco sendo a mensagem do usuário, nenhum `.mcaret` é desenhado (AC 21)
