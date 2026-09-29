@@ -9,17 +9,21 @@ import { useNow } from "./useNow.js";
  * Decide sozinha se aparece, com a mesma condição do caret e do `■ interromper`
  * — `streaming && !readOnly` —, porque é essa condição que liga o relógio: uma
  * transcrição relida sem fecho tem `streaming` ligado, e nada nela está vivo.
+ * E só na aba **ativa**: as abas escondidas ficam montadas, e uma linha que
+ * ninguém vê não acorda o navegador uma vez por segundo.
  */
 
 export interface TurnStatusProps {
   conversation: ConversationState;
   readOnly: boolean;
+  /** A aba está na frente. O `active` da `Conversation`; ausente, vale `true`. */
+  active?: boolean;
   /** Injetável para um teste afirmar o decorrido em vez de esperar por ele. */
   clock?: () => number;
 }
 
-export function TurnStatus({ conversation, readOnly, clock = Date.now }: TurnStatusProps) {
-  const live = conversation.streaming && !readOnly;
+export function TurnStatus({ conversation, readOnly, active = true, clock = Date.now }: TurnStatusProps) {
+  const live = conversation.streaming && !readOnly && active;
   const now = useNow(live, clock);
   if (!live || conversation.turnStartedAt === null) return null;
 

@@ -3,7 +3,7 @@ import { join } from "node:path";
 
 import type { AcpEvent, AcpTranscriptEntry } from "@lumem/shared";
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { reduceConversation, replayConversation } from "./conversation-model.js";
 import { TurnStatus } from "./TurnStatus.js";
@@ -48,6 +48,32 @@ describe("a linha de estado do turno", () => {
 
     expect(screen.queryByText(/trabalhando/)).not.toBeInTheDocument();
     expect(view.container.querySelector(".turn-status")).toBeNull();
+  });
+
+  it("não liga o relógio numa aba escondida, e volta com o decorrido certo", () => {
+    // As abas ficam montadas quando escondidas (o `active` da `Conversation`): uma
+    // linha que ninguém vê não pode acordar o navegador uma vez por segundo.
+    vi.useFakeTimers();
+    try {
+      const live = replayConversation([
+        entry(STARTED, { type: "message", messageId: "u-1", role: "user", text: "roda o gate" }),
+      ]);
+      let now = STARTED + 5_000;
+      const clock = () => now;
+
+      const view = render(<TurnStatus conversation={live} readOnly={false} active={false} clock={clock} />);
+
+      expect(vi.getTimerCount()).toBe(0);
+      expect(view.container.querySelector(".turn-status")).toBeNull();
+
+      now = STARTED + 72_000;
+      view.rerender(<TurnStatus conversation={live} readOnly={false} active clock={clock} />);
+
+      expect(vi.getTimerCount()).toBe(1);
+      expect(screen.getByText("trabalhando · 1 min 12 s")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("não aparece numa conversa somente leitura", () => {

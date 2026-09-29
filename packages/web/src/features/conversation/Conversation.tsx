@@ -198,7 +198,7 @@ export function Conversation({
             {...(sessionLink === undefined ? {} : { sessionLink })}
             {...(continueIn === undefined ? {} : { continueIn })}
           />
-          <TurnStatus conversation={conversation} readOnly={readOnly} />
+          <TurnStatus conversation={conversation} readOnly={readOnly} active={active} />
           {composer}
         </>
       )}

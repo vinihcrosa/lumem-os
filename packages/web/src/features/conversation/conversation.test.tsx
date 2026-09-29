@@ -786,6 +786,17 @@ describe("esc interrupts the turn", () => {
     expect(screen.queryByRole("listbox", { name: "comandos do agente" })).not.toBeInTheDocument();
   });
 
+  it("não desenha a linha de estado numa aba que não está na tela", async () => {
+    // A aba escondida continua montada e com turno em voo: sem o `active` chegando
+    // ao `TurnStatus`, o relógio dela tiquetaquearia para uma linha que ninguém vê.
+    const { socket } = mount({ active: false });
+    socket.deliver(attached([entry({ type: "message", messageId: "u-1", role: "user", text: "vai" })]));
+    await screen.findByRole("button", { name: /interromper/ });
+
+    expect(screen.queryByText(/trabalhando/)).not.toBeInTheDocument();
+    expect(document.querySelector(".turn-status")).toBeNull();
+  });
+
   it("stays quiet in a tab that is not the one on screen", async () => {
     // As abas escondidas seguem montadas. Um ouvinte de janela sem esta guarda
     // cancelaria o turno de todas as conversas abertas de uma vez.
