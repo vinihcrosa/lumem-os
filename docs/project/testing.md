@@ -1699,6 +1699,22 @@ frase estava provada numa ordem, e a contagem na outra, e nenhum check cruzava a
 ordens tem uma afirmação por membro, cada afirmação precisa de prova em cada membro** — a contagem numa
 ordem e a frase noutra somam duas meias provas, não uma inteira.
 
+### Uma guarda que lê um campo com dois escritores confunde os dois
+
+**Sintoma:** a correção da rodada 1 da [`035`](../features/035-conversation-liveness/checks.md) passou os
+30 checks, e a [rodada 2](../features/035-conversation-liveness/verification.md) achou o `prompt`
+pendurado para sempre de novo — por outro caminho: um **segundo** `prompt` na mesma sessão.
+
+**Causa:** as guardas liam *"o `turnId` mudou"* como *"o processo saiu"*. Dois escritores mudam o
+`turnId`: a saída, que o zera, e todo `prompt` novo, que o troca — e o novo ainda sobrescrevia o gatilho
+que libertaria o primeiro. Os testes só tinham um escritor em cena.
+
+**Conserto:** o C31, com a decisão de manter dois `prompt` permitidos
+([Q5](../features/035-conversation-liveness/open-questions.md#x-q5--dois-prompt-na-mesma-sessão-ao-mesmo-tempo-são-permitidos)):
+um gatilho por turno, disparado só pela saída. A regra: **uma guarda pergunta pelo fato, não por um
+efeito colateral dele** — antes de ler um campo como sinal, liste quem mais o escreve, e ponha um teste
+com esse outro escritor em cena.
+
 ## Convenções
 
 - Teste de git usa **repositório temporário real**, nunca mock. `git worktree` tem caso de borda em nome com barra e branch existente que mock nenhum reproduz.

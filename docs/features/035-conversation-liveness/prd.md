@@ -14,6 +14,11 @@
 > acrescentou não tinham prova. Os critérios 27 e 28 nasceram dela, com a
 > [Q4](open-questions.md#x-q4--a-pergunta-fica-gravada-quando-o-adaptador-morre-antes-de-recebê-la)
 > respondida em **A**: a pergunta fica gravada.
+> v0.4 — **a verificação da rodada 2 reprovou** (2026-09-29): a guarda da rodada 1 lia a troca de
+> `turnId` de um segundo `prompt` como a saída. O critério 29 nasceu dela, com a
+> [Q5](open-questions.md#x-q5--dois-prompt-na-mesma-sessão-ao-mesmo-tempo-são-permitidos) respondida
+> em **B** — dois `prompt` na mesma sessão continuam permitidos — e a
+> [Q6](open-questions.md#x-q6--o-prompt-pendente-do-setup-perde-o-reenvio-automático) em **A**.
 
 ## Problem
 
@@ -138,6 +143,7 @@ Um adaptador que sai no meio do turno deixa na conversa, ao vivo e no replay, um
 6. WHILE a conversa é somente leitura the web SHALL não desenhar o caret, a linha de estado do turno nem o `■ interromper`, inclusive numa transcrição que termina em mensagem do usuário sem fecho
 27. IF o processo sai enquanto o daemon lê o teto ou a memória, antes do `session/prompt`, THEN o daemon SHALL gravar a mensagem do usuário seguida de um único `turn_failed` com a frase da saída, não SHALL mandar `session/prompt`, e o `/acp` SHALL não mandar frame `error` por cima
 28. IF a resposta do `session/prompt` e a saída do processo chegam no mesmo tique THEN o daemon SHALL gravar um único fecho, o `turn_failed` da saída, e nenhum `turn_end`
+29. WHEN um segundo `prompt` chega à mesma sessão com um turno em voo THEN o daemon SHALL deixar os dois terminarem — nenhum fica pendente, nenhum rejeita como saída sem o processo ter saído —, e IF o processo sai com os dois em voo THEN os dois SHALL rejeitar com `AcpTurnFailedError`
 
 **Independent test:** no teste do `AcpManager`, um agente falso cujo `kill()` não fecha o stdout, morto no meio de um `prompt` — a transcrição termina em `turn_failed` e o `prompt` rejeita.
 
