@@ -140,6 +140,15 @@ O `**Status:**` de uma PRD tem gramática fechada, e o `gate:full` compara com o
   **não virou ADR de propósito** — ele extende a linha acima em vez de contradizê-la, e hoje falha o
   teste de *"difícil de reverter"*. Quando o produto ganhar URL de verdade, aí passa.
 - Nome de arquivo em kebab-case.
+- **Feature que vem de uma issue do Linear (`LUM-NN`) se liga a ela pela branch e pela PR.** A branch
+  leva o nome que o Linear sugere para a issue (`<usuário>/lum-NN-<título>`), e o corpo da PR traz
+  `Closes LUM-NN` numa linha própria. O GitHub App do Linear lê os dois: anexa a PR à issue quando ela
+  abre, e a move para o estado de *PR merged* no merge. Os dois, e não só um, porque a branch pode ser
+  renomeada e a palavra-chave continua valendo. O caso que produziu a regra, em 2026-09-29: a
+  [`036`](../features/036-reasoning/prd.md) mergeou com a branch certa e a LUM-66 ficou em *Todo*,
+  sem a PR anexada — o app do Linear não tinha acesso ao repositório. Se a PR não aparecer anexada na
+  issue logo depois de aberta, **o acesso do app ao repositório** é a primeira coisa a conferir
+  (*GitHub → Settings → Applications → Linear → Configure*), antes de concluir que a regra falhou.
 - **Escreva por extenso, e não abreviado.** Uma abreviação que economiza cinco letras custa uma
   releitura inteira no dia em que duas coisas diferentes ficam com a mesma cara. A
   [`028`](../features/028-autonomous-orchestration/prd.md) produziu o caso: o §6 numerava as partes

@@ -150,5 +150,7 @@ Nada solta na raiz além de `README.md` e `CLAUDE.md`; atualize o [índice](docs
 - Documentação e comunicação em **português**; código, commit, nome de arquivo e **caminho da aplicação**
   (`/tasks`) em **inglês**. Nome de arquivo em kebab-case.
 - **Escreva por extenso.** Numeração diferente pede substantivo diferente — *Parte 3* e *Fase 3*, não `F3`.
+- **Feature que vem de uma issue do Linear (`LUM-NN`):** a branch tem o nome que o Linear sugere para a
+  issue (`…/lum-NN-…`), e o corpo da PR traz `Closes LUM-NN` — o Linear liga a PR à issue e a fecha no merge.
 - Pergunta de design não vira suposição: vai para o `open-questions.md` da feature, ou para o
   `questions.md`. Discussão grande vira estudo em `docs/project/`; se decidir, o estudo sustenta um ADR.
