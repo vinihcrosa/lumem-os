@@ -1,7 +1,7 @@
 # Projeto por URL git — Tasks
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md) — 22, todas respondidas
-**Protótipo:** `packages/web/prototype/lumem-clone.html` — entregue pela C1, nove telas
+**Protótipo:** packages/web/prototype/lumem-clone.html — entregue pela C1, nove telas
 **Sucede:** [file-editor](../005-file-editor/tasks.md)
 **Status:** completa
 **Histórico:** **fechada** — 17 de 17, portão verde (`gate:full`: 1142 unit/integration + 22 e2e)
@@ -115,7 +115,7 @@ Fixture é bare local por `file://`; conexão recusada é `ssh://127.0.0.1:1/x`,
 #### C1: Protótipo das nove telas
 
 **What**: Desenhar em HTML+CSS, sobre o mesmo `tokens.css` do app, os nove estados do §3 do PRD — e verificar por renderização.
-**Where**: `packages/web/prototype/lumem-clone.html`
+**Where**: packages/web/prototype/lumem-clone.html
 **Depends on**: nada
 
 **Done when**:
@@ -371,7 +371,7 @@ Fixture é bare local por `file://`; conexão recusada é `ssh://127.0.0.1:1/x`,
 #### C12: O campo que aceita as duas coisas
 
 **What**: `AddProjectDialog` passa a aceitar URL, com a linha `↳`, o nome editável e o destino exibido.
-**Where**: `packages/web/src/components/AddProjectDialog.tsx` + teste
+**Where**: `packages/web/src/features/workspace/AddProjectDialog.tsx` + teste
 **Depends on**: C9, C1
 
 **Done when**:
@@ -393,7 +393,7 @@ Fixture é bare local por `file://`; conexão recusada é `ssh://127.0.0.1:1/x`,
 #### C13: O progresso na sidebar
 
 **What**: A entrada em clone na lista de projetos, com barra, fase em português e cancelar.
-**Where**: `packages/web/src/components/SidebarTree.tsx`, `packages/web/src/hooks/useCloneJob.ts` + testes
+**Where**: `packages/web/src/features/workspace/SidebarTree.tsx`, `packages/web/src/features/workspace/useCloneJob.ts` + testes
 **Depends on**: C12
 
 **Done when**:
@@ -414,7 +414,7 @@ Fixture é bare local por `file://`; conexão recusada é `ssh://127.0.0.1:1/x`,
 #### C14: As falhas — e o fluxo próprio da autenticação
 
 **What**: Os desfechos ruins com texto que diz o que fazer, e o F6.10 inteiro.
-**Where**: `packages/web/src/components/SidebarTree.tsx`, `packages/web/src/components/AddProjectDialog.tsx` + testes
+**Where**: `packages/web/src/features/workspace/SidebarTree.tsx`, `packages/web/src/features/workspace/AddProjectDialog.tsx` + testes
 **Depends on**: C13
 
 **Done when**:
@@ -435,7 +435,7 @@ Fixture é bare local por `file://`; conexão recusada é `ssh://127.0.0.1:1/x`,
 #### C15: A confirmação de apagar
 
 **What**: A tela mais perigosa das nove: remover um projeto gerenciado diz o caminho que vai sumir.
-**Where**: `packages/web/src/components/SidebarTree.tsx` (ou onde vive o menu do projeto) + teste
+**Where**: `packages/web/src/features/workspace/SidebarTree.tsx` (ou onde vive o menu do projeto) + teste
 **Depends on**: C11, C1
 
 **Done when**:
@@ -454,7 +454,7 @@ Fixture é bare local por `file://`; conexão recusada é `ssh://127.0.0.1:1/x`,
 #### C16: Projeto sem commit explica
 
 **What**: O F6.13 — `hasCommits` na visão do projeto, e o diálogo de worktree dizendo por que ainda não dá.
-**Where**: `packages/server/src/routers/project.ts`, `packages/server/src/routers/worktree.ts`, `packages/web/src/components/CreateWorktreeDialog.tsx` + testes
+**Where**: `packages/server/src/routers/project.ts`, `packages/server/src/routers/worktree.ts`, packages/web/src/components/CreateWorktreeDialog.tsx + testes
 **Depends on**: C8
 
 **Done when**:

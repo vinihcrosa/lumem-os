@@ -332,7 +332,7 @@ describe("a URL e o código", () => {
      */
     const answers: string[] = [];
     const fake = fakeAgentProcess({
-      prompt: async (_text, turn) => {
+      prompt: async (_text, _turn) => {
         answers.push("perguntou");
         return "end_turn";
       },

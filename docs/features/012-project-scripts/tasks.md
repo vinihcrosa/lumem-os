@@ -72,7 +72,7 @@ projeto é confiado.
 #### T3: O `scripts.writeFile`, preservando o resto
 
 **What**: Criar ou completar o `[scripts]` do `project.toml` sem tocar no que já está lá.
-**Where**: `scripts/project-scripts.ts`, `routers/scripts.ts` + testes
+**Where**: scripts/project-scripts.ts, `routers/scripts.ts` + testes
 
 **Done when**:
 - [x] Arquivo inexistente → criado com `[scripts]` e nada mais
@@ -107,7 +107,7 @@ projeto é confiado.
 #### T5: A porta reservada por checkout
 
 **What**: Um bloco de portas estável por checkout, gravado, exposto como variável de ambiente.
-**Where**: `db/schema.ts` + migração, `scripts/ports.ts` + testes
+**Where**: `db/schema.ts` + migração, scripts/ports.ts + testes
 
 **Done when**:
 - [x] Primeira chamada aloca e **grava**; as seguintes devolvem a mesma porta (S5)
@@ -124,7 +124,7 @@ projeto é confiado.
 #### T6: `scripts.start` e `scripts.stop`
 
 **What**: Rodar `setup` ou `run` como sessão, e parar.
-**Where**: `scripts/ScriptRunner.ts`, `routers/scripts.ts` + testes
+**Where**: scripts/ScriptRunner.ts, `routers/scripts.ts` + testes
 
 **Done when**:
 - [x] `start` lê o comando na hora (A2), monta o env do §4 do PRD e spawna via `SessionStore`
@@ -144,7 +144,7 @@ projeto é confiado.
 #### T7: A porta descoberta, e de onde ela veio
 
 **What**: A porta que o `Abrir :PORTA` usa, com proveniência.
-**Where**: `scripts/port-sniff.ts`, `ScriptRunner`, `routers/scripts.ts` + testes
+**Where**: scripts/port-sniff.ts, `ScriptRunner`, `routers/scripts.ts` + testes
 
 **Done when**:
 - [x] Se o script usou `LUMEM_RUN_PORT`, a porta é essa e a origem é `env` — **sem regex**
@@ -211,13 +211,13 @@ projeto é confiado.
 
 ## Fase 4 — a tela
 
-> O desenho está aprovado em `packages/web/prototype/lumem-run-dock.html`. Componente em React só usa
+> O desenho está aprovado em packages/web/prototype/lumem-run-dock.html. Componente em React só usa
 > `var(--token)`.
 
 #### T11: O rodapé, com as três abas
 
 **What**: O componente `RunDock` — abas, ponto de estado, saída, barra de ações.
-**Where**: `packages/web/src/components/RunDock.tsx`, `run-dock.css` + testes
+**Where**: `packages/web/src/features/checkout/RunDock.tsx`, `run-dock.css` + testes
 
 **Done when**:
 - [x] Três abas com o ponto de estado **na aba** (verde rodando, vermelho falhou, cinza parado)

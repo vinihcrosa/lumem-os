@@ -5,6 +5,7 @@ import { ADAPTERS, ADAPTERS_DIR_NAME, type AdapterSpec } from "@lumem/shared";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import type { FastifyBaseLogger, FastifyInstance } from "fastify";
 
+import { createLogSink } from "./log-file.js";
 import { reconcileOnBoot } from "./boot/reconcile.js";
 import type { ServerConfig } from "./config.js";
 import { openDatabase, type Database_, type Db } from "./db/index.js";
@@ -40,7 +41,6 @@ import { runTrackerLoop } from "./tracker/loop.js";
 import { writeMark, type Mark } from "./tracker/marks.js";
 import { numberOfWorktree, verdictOfWorktree } from "./tasks/conveyor-wiring.js";
 import { defaultAccountIdOf } from "./repositories/agentAccount.js";
-import { configForAdapter } from "./repositories/agentConfig.js";
 import { reproduce } from "./tasks/reproduce.js";
 import { createCallerFactory } from "./trpc.js";
 import { appRouter } from "./routers/index.js";
@@ -453,7 +453,7 @@ export async function bootstrap({
     issues,
     events,
     agentAuth,
-    logger,
+    logger: logger && config.logFile ? { stream: createLogSink({ file: config.logFile }) } : logger,
   });
   bootedApp = app;
 

@@ -20,6 +20,7 @@ import { openTestDb, type TestDb } from "../db/testing.js";
 import { PtyManager } from "../pty/PtyManager.js";
 import { fakeAgentProcess, type FakeAgentScript } from "../testing/acp-fake-agent.js";
 import { AcpManager } from "./AcpManager.js";
+import { frameText } from "../ws-text.js";
 
 /**
  * The conversation over a real websocket, against a real HTTP server.
@@ -53,7 +54,7 @@ class TestClient {
     clients.push(client);
 
     ws.on("message", (raw) => {
-      const decoded = decodeAcpServerMessage(raw.toString());
+      const decoded = decodeAcpServerMessage(frameText(raw));
       if (decoded.ok) client.messages.push(decoded.message);
       else client.decodeErrors.push(decoded.error);
     });

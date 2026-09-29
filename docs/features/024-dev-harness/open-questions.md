@@ -1,6 +1,6 @@
 # Perguntas — o harness deste repositório
 
-> **PRD:** [prd.md](prd.md) · **Tasks:** [tasks.md](tasks.md)
+> **PRD:** [prd.md](prd.md) · **Tasks:** [tasks.md](tasks.md) · **Emenda:** as Q9–Q15 são de 2026-09-28
 > **Como usar:** responda embaixo de cada pergunta no campo `**R:**` e marque `[x]`. Nada é apagado —
 > pergunta respondida vira registro de decisão. Pergunta que trava uma task tem o número da task ao
 > lado, e a task não começa antes da resposta.
@@ -32,15 +32,28 @@ As três que a [auditoria](../../project/harness-audit.md) fez ao time humano, r
 
 ## Abertas
 
-- [ ] **Q1 — O ruleset da `main` tem `bypass_actor`, ou não tem ninguém? ([T2](tasks.md))**
+- [x] **Q1 — O ruleset da `main` tem `bypass_actor`, ou não tem ninguém? ([T2](tasks.md))**
   Com uma pessoa só, um bypass de admin é confortável — e é exatamente a inércia da A2 voltando por
   outra porta: um portão que o dono atravessa sem atrito não é portão nos dias em que ele está com
   pressa, que são os dias que importam.
   **Recomendação:** `bypass_actors: []`. A saída de emergência passa a ser desativar o ruleset, que é
   um evento no audit log — visível e datado — em vez de um push que não deixa rastro de exceção.
   **O que a resposta muda:** um campo no JSON da T2.
+  **R:** **ninguém — `bypass_actors: []`**, respondido em 2026-09-28. O argumento que decidiu não estava
+  na recomendação: **o `bypass` é da conta, não da pessoa.** Os agentes usam o `gh` e o token do dono;
+  um bypass para ele é um bypass para qualquer agente na máquina dele, e aí o `git push origin main`
+  que o guarda da [T18](tasks.md) recusa continuaria aceito pelo GitHub. Duas consequências, as duas
+  aceitas:
+  - **a release deixa de ir direto para a `main`.** Os `chore(release): vX.Y.Z` de 0.3.0 a 0.6.0 foram
+    push direto, sem PR; com o ruleset ativo, a release vira branch com `pnpm version:set` → PR → CI
+    verde → mescla → tag no commit mesclado. O `release.yml` dispara pela tag e não muda. Em troca,
+    toda versão publicada passou pelo CI, o que hoje não é garantido;
+  - **o check do SonarQube não entra** entre os obrigatórios: depende de serviço de terceiro, e o
+    próprio `sonarqube.yml` diz que ficou separado para que uma queda dele não pareça suíte quebrada.
+  Em 2026-09-28 já existe um ruleset `main-protect` com `bypass_actors: []`, **desligado** e sem
+  `required_status_checks`: a T2 o atualiza em vez de criar outro.
 
-- [ ] **Q2 — `oxlint` ou `typescript-eslint`? ([T9](tasks.md))**
+- [x] **Q2 — `oxlint` ou `typescript-eslint`? ([T9](tasks.md))**
   A regra de maior valor neste repositório é `no-floating-promises` (o daemon é cheio de `void` e de
   `async` disparado), e ela **precisa de informação de tipo** — o que hoje só o `typescript-eslint`
   entrega, e ele custa segundos de CI. O `oxlint` é quase instantâneo e não faz análise de tipo.
@@ -50,16 +63,43 @@ As três que a [auditoria](../../project/harness-audit.md) fez ao time humano, r
   ele ganha, porque as regras com tipo são as que pegam defeito de verdade; acima disso, `oxlint`
   agora e o type-aware fica no backlog.
   **O que a resposta muda:** o arquivo de configuração e o tempo do `gate:build`.
+  **R:** **`oxlint --type-aware`**, respondido em 2026-09-28 — **contra a letra do critério**, porque o
+  critério se apoiava numa premissa que envelheceu: o oxlint **passou a ter** análise com tipo
+  (`--type-aware`, pelo `oxlint-tsgolint`). Medido no mesmo dia sobre `packages`, `scripts` e `e2e`,
+  com as duas ferramentas instaladas fora do repositório:
 
-- [ ] **Q3 — Onde mora o teste de arquitetura? ([T10](tasks.md))**
+  | | Tempo | `no-floating-promises` | `no-misused-promises` |
+  |---|---|---|---|
+  | `oxlint@1.86.0 --type-aware` | **2,7 s** | 0 | 2 |
+  | `typescript-eslint@8.71.0`, `projectService` | **18,9 s** | 0 | 2 — os **mesmos** |
+  | `oxlint`, regras padrão, sem tipo | **0,8 s** | — | — (42 outros achados) |
+
+  Um canário — um arquivo com uma promise flutuante de propósito — foi acusado, então o zero é real.
+  Os dois `no-misused-promises` são os mesmos nas duas ferramentas (`App.tsx:128`, `MainColumn.tsx:61`:
+  função `async` num atributo JSX que espera `void`). As regras padrão acham mais 42 — 18 variáveis sem
+  uso, 10 *spread* inútil, 7 `no-control-regex` (provavelmente as regex de ANSI, de propósito), **4
+  `no-unsafe-optional-chaining`**, que são as que podem ser defeito, e 3 outras. Com achados idênticos,
+  o que decide é **7× mais rápido** e ~500 regras de correção embutidas sem configuração. O risco
+  aceito é a maturidade: o `tsgolint` usa o `typescript-go`, que pode divergir do `tsc 5.9` em casos de
+  borda — e trocar pelo `typescript-eslint` custa uma tarde e 20 s de CI, com gatilho no
+  [backlog](../../project/backlog.md).
+
+- [x] **Q3 — Onde mora o teste de arquitetura? ([T10](tasks.md))**
   Candidatos: `scripts/` (projeto vitest `scripts`, ferramenta do repositório) ou `packages/shared`
   (junto do código que ele regula).
   **Recomendação:** `scripts/`. O teste lê o disco de todos os pacotes; morando dentro de um deles ele
   inverteria a própria direção de dependência que existe para defender — e ele não é código
   publicado.
   **O que a resposta muda:** um caminho de arquivo, e se ele entra ou não no tarball (não deve).
+  **R:** **`scripts/`, com o nome `scripts/package-boundaries.test.ts`**, respondido em 2026-09-28. O
+  que mudou desde a pergunta: a [`032`](../032-web-architecture/prd.md) criou o
+  `packages/web/src/architecture.test.ts`, com oito regras **de dentro do `web`**. Daí a divisão, que
+  vira uma linha no `CLAUDE.md`: regra **dentro** de um pacote mora no pacote; regra **entre** pacotes
+  mora em `scripts/`. E o nome é outro de propósito — dois `architecture.test.ts` fariam *"o teste de
+  arquitetura quebrou"* ambíguo, que é a regra de *numeração diferente pede nome diferente* aplicada a
+  arquivo.
 
-- [ ] **Q4 — Teto de linhas por arquivo: número absoluto com exceções, ou só "não cresce"? ([T10](tasks.md))**
+- [x] **Q4 — Teto de linhas por arquivo: número absoluto com exceções, ou só "não cresce"? ([T10](tasks.md))**
   Hoje: 27 arquivos acima de 400 linhas, 8 acima de 700, `AcpManager.ts` com 2071. Um teto de 700
   reprova 8 arquivos no dia 1; um "não cresce" (cada arquivo tem o próprio limite, igual ao tamanho
   atual, e ele só pode diminuir) não reprova nada hoje e impede a piora.
@@ -68,23 +108,58 @@ As três que a [auditoria](../../project/harness-audit.md) fez ao time humano, r
   em número que aparece no diff.
   **O que a resposta muda:** a forma do mapa e se a T10 vem acompanhada de trabalho de refatoração
   (não deve — a T10 só instala o sensor).
+  **R:** **teto para arquivo novo e mapa de exceções que pode subir — mas só com o motivo escrito no
+  dado**, respondido em 2026-09-28. O que decidiu foi a remedição, três semanas depois da pergunta:
 
-- [ ] **Q5 — O revisor inferencial passa a bloquear? ([T15](tasks.md))**
+  | | 2026-09-07 | 2026-09-28 |
+  |---|---|---|
+  | produção acima de 700 linhas | 8 | **13** |
+  | produção acima de 400 linhas | 27 | **31** — 21 no `server`, 9 no `web`, 1 no `shared` |
+  | `AcpManager.ts` | 2071 | **2813** (+36%) |
+  | `db/schema.ts` | 787 | **1709** |
+
+  Sem teto, o maior arquivo cresce mais rápido que todos. A forma é a da regra 8 do
+  `packages/web/src/architecture.test.ts` da [`032`](../032-web-architecture/prd.md) — que já
+  permite subir o número do mapa, *pedindo* o motivo na mensagem —, com um endurecimento: o mapa guarda
+  **`{ linhas, motivo }`**, e subir sem motivo reprova. Com agente, *"atualize o número"* vira reflexo;
+  um campo exigido faz crescer ser uma decisão escrita que o verificador lê. Os tetos: **400** em
+  `web/src/features/` (o da `032`, que ganha o campo `motivo`) e **700** no resto. O *"só desce"* foi
+  recusado porque o `schema.ts` e o `acp-protocol.ts` crescem por natureza — cada tabela, cada tipo —, e
+  a primeira task que acrescentasse uma tabela quebraria o arquivo às pressas. Quebrar o `AcpManager`
+  direito é feature própria, no [backlog](../../project/backlog.md).
+
+- [x] **Q5 — O revisor inferencial passa a bloquear? ([T15](tasks.md))**
   Não dá para responder antes de ter dado. Um revisor que erra bloqueando é pior que revisor nenhum,
   porque ensina a ignorar.
   **Recomendação:** decidir com **5 PRs** de taxa medida — achados reais contra falsos positivos,
   anotados na própria PR. Abaixo de 50% de achado real ele fica informativo para sempre.
   **O que a resposta muda:** uma linha no `review.yml`.
+  **R:** **fora de escopo — não há revisor de IA no CI agora**, respondido em 2026-09-28: *"agora não é
+  hora de fazer review automático com agentes"*. A [T15](tasks.md) sai da feature e o desenho discutido
+  vai para o [backlog](../../project/backlog.md), para não ser refeito: o Claude no job devolve os
+  achados em JSON, em dois baldes (os da [Q67 da `028`](../028-autonomous-orchestration/open-questions.md));
+  um passo **sem IA** roda de novo o comando de cada `bloqueia`; e o resto vira comentário. O que o
+  desenho custava e ninguém tinha dito: o segundo passo **executa no CI um comando que a IA escreveu
+  depois de ler o diff** — injeção de prompt vira execução de código —, então ele pediria job sem
+  secret, lista fechada de comandos e nada de PR de fork.
+  O que **não** sai com esta resposta: o verificador **local** do
+  [ADR de 2026-09-28](../../adr/2026-09-28-1952-a-feature-is-proven-by-checks-not-planned-in-tasks.md),
+  que roda na sessão, e o validador do `verification.md`, que é código e não IA.
 
-- [ ] **Q6 — Quem paga o token do revisor de CI, e qual o teto por PR? ([T15](tasks.md))**
+- [x] **Q6 — Quem paga o token do revisor de CI, e qual o teto por PR? ([T15](tasks.md))**
   A PR mediana deste repositório tem 2.600 linhas e a maior tem 9.489. Revisar tudo em toda PR é um
   custo recorrente que ninguém orçou.
   **Recomendação:** teto por tamanho de diff — acima dele o job comenta "diff grande demais, revisão
   humana" em vez de tentar e alucinar. E o teto é a mesma fronteira da [T16](tasks.md), o que dá ao
   autor um motivo econômico para PR menor.
   **O que a resposta muda:** se a T15 existe.
+  **R:** **cai junto com a [Q5](#abertas)**, em 2026-09-28: sem revisor no CI, não há token a pagar. Quando
+  o item do backlog voltar, as duas opções de autenticação já estão conferidas na documentação do Claude
+  Code: `CLAUDE_CODE_OAUTH_TOKEN` (da assinatura, por `claude setup-token`) ou `ANTHROPIC_API_KEY` (por
+  uso), como secret do repositório. O teto por tamanho de diff continua valendo como ideia para a
+  [T16](tasks.md), que não depende da T15.
 
-- [ ] **Q7 — As classes de N3 precisam de um selo mecânico?**
+- [x] **Q7 — As classes de N3 precisam de um selo mecânico? ([T22](tasks.md))**
   A A3 nomeou três classes que se mesclariam sem ler o diff. Mas "esta PR é da classe CSS/token" é
   hoje um julgamento humano — e uma PR que mistura CSS com uma mudança de daemon não é da classe
   nenhuma.
@@ -94,11 +169,217 @@ As três que a [auditoria](../../project/harness-audit.md) fez ao time humano, r
   isso, N3 é uma promessa verbal.
   **O que a resposta muda:** existe ou não uma T17, e se N3 chega a ser real ou continua sendo N2 bem
   feito.
+  > **Nota — 2026-09-28.** O número T17 foi para os hooks de git da emenda, e o T21 para o contrato do
+  > `checks.md` ([Q15](#abertas-pela-emenda-de-2026-09-28)). Se esta pergunta criar task, ela é a **T22**.
+  **R:** **o selo, como rótulo — e nada de merge automático**, respondido em 2026-09-28. Nasce a
+  [T22](tasks.md): um script determinístico, sem IA, classifica a PR pelos caminhos tocados e põe o
+  rótulo (`N3: css-token`, `N3: dependência`, `N3: docs` ou `sem classe`); quem mescla continua sendo o
+  dono. O merge automático da classe — o N3 de verdade — foi recusado **agora** pela mesma razão da
+  [Q5](#abertas): deixar agente mesclar em `main` sozinho é mais autonomia do que revisão automática, que
+  acabou de ser adiada, e a Fase 1 ainda não rodou. Ele está no [backlog](../../project/backlog.md) com
+  gatilho.
 
-- [ ] **Q8 — Quando entrar a segunda pessoa, o que muda?**
+- [x] **Q8 — Quando entrar a segunda pessoa, o que muda?**
   A T2 nasce com zero aprovações e a PRD tira `CODEOWNERS` de escopo, os dois por causa do "uma pessoa
   só" da A2. Isso é uma decisão com data de validade.
   **Recomendação:** registrar o gatilho no [backlog](../../project/backlog.md) em vez de deixar a
   reversão para a memória: no primeiro colaborador, `required_approving_review_count` vai a 1 e o
   `CODEOWNERS` nasce.
   **O que a resposta muda:** nada hoje; evita a arqueologia depois.
+  **R:** **a recomendação, que já estava aplicada — e virou lista de conferência**, respondido em
+  2026-09-28. O item *`CODEOWNERS` e aprovação obrigatória em PR* do [backlog](../../project/backlog.md)
+  já existia com o gatilho; o que mudou é que o gatilho *segunda pessoa* passou a morar em três itens do
+  repositório (aprovação e `CODEOWNERS`, formatador, revisor de IA no CI — este último nascido na
+  [Q5](#abertas)). O item do `CODEOWNERS` passa a ser a **lista do primeiro colaborador**, com link para
+  os outros, e mais uma linha: reler a [Q1](#abertas), porque a saída de emergência *"desligar o ruleset"*
+  passa a afetar outra pessoa.
+
+---
+
+## Abertas pela emenda de 2026-09-28
+
+As seis que o [§8 da PRD](prd.md#8-emenda--2026-09-28-hooks-skills-e-o-que-três-semanas-não-mudaram)
+abriu — hooks de git, hooks de agente e skills. A Q13 é a única que só se responde medindo, e é ela
+que decide o tamanho da T18, da T19 e da T20.
+
+- [x] **Q9 — Qual ferramenta liga os hooks de git? ([T17](tasks.md))**
+  Três candidatos: `core.hooksPath` apontando para `.githooks/` versionado, `lefthook` e `husky`.
+  O que pesa aqui é que **toda worktree compartilha o mesmo `.git`** — Conductor e Superset criam
+  dezenas (17 nesta máquina em 2026-09-28) —, e que o repositório não tem hoje nenhuma dependência de
+  hook.
+  **Recomendação (da emenda):** `core.hooksPath=.githooks`, ligado pelo `scripts/workspace/setup.sh`,
+  sem dependência.
+  **R:** **husky v9**, respondido em 2026-09-28 — contra a recomendação, por familiaridade, e a
+  comparação que decidiu está aqui para não ser refeita. A lógica mora em
+  `scripts/harness/git-hook.ts` nos dois casos, então a ferramenta só decide **quem liga** e **quantas
+  portas de fuga existem**. O husky ganha em ligar sozinho no `pnpm install` (o `prepare`), sem
+  depender do `setup.sh`, e em ser convenção que pessoa e agente reconhecem; custa um pacote pequeno
+  sem dependências, no `package.json` da raiz (`private: true`, fora do tarball publicado), e uma
+  pasta gerada por worktree (`.husky/_`). O custo que importa é **duas portas de fuga além do
+  `--no-verify`**: `HUSKY=0` no ambiente, e o `~/.config/husky/init.sh`, que o husky executa a cada
+  hook e que pode desligá-los na máquina inteira sem rastro no repositório. As duas ficam fechadas
+  para agente pela [T18](tasks.md). E o CI ganha `HUSKY: 0`.
+  > **Correção — 2026-09-28.** A recomendação original dizia que o husky *"depende do `prepare` do
+  > `pnpm install`, que o `--ignore-scripts` do CI desliga"*. **Estava errado:** o `ci.yml` roda
+  > `pnpm install --frozen-lockfile`, sem `--ignore-scripts`. O argumento caiu antes da resposta, e a
+  > resposta não se apoia nele.
+  **O que a resposta muda:** a T17 adiciona `husky` como dependência de desenvolvimento da raiz, e os
+  hooks moram em `.husky/`.
+
+- [x] **Q10 — O que roda em cada hook de git? ([T17](tasks.md))**
+  O custo é o que decide: um `pre-commit` lento é um `pre-commit` que se atravessa.
+  **Recomendação:**
+  - `pre-commit` — **abaixo de 10 s**, só o que é barato e do arquivo em stage: `docs:check` se há
+    `.md` em stage, `design:derive --check` se há CSS de token, e a recusa de commit direto em `main`;
+  - `commit-msg` — Conventional Commits, assunto até 72 caracteres, e o trailer `Co-Authored-By`
+    **não** é exigido (commit humano também existe);
+  - `pre-push` — o `gate:quick` (84 s medidos em 2026-09-28 no pior caso, quando seleciona a suíte
+    inteira). É o último ponto antes de o CI gastar 4 min.
+  **O que a resposta muda:** o corpo de três arquivos, e o tempo que cada commit custa.
+  **R:** **a recomendação, com dois acréscimos**, respondido em 2026-09-28. Os custos que decidiram,
+  medidos nesta máquina no mesmo dia: `docs:check` **0,4 s**, `design:derive --check` **0,3 s**,
+  `typecheck` **2 s** com cache e ~23 s frio, `gate:quick` **84 s** no pior caso. O `typecheck` fica
+  **fora** do `pre-commit` por causa do frio — uma worktree nova ou uma troca de branch faria o
+  commit custar 23 s —, e entra pelo `gate:quick` do `pre-push`. Os acréscimos:
+  - **o carimbo compartilhado com a [Q12](#abertas-pela-emenda-de-2026-09-28).** O `pre-push` e o `Stop` gravam e leem o mesmo
+    carimbo — o hash da árvore do último `gate:quick` verde —, e o `pre-push` de uma árvore já
+    verde sai dizendo *"já verde em <hash>"*, sem rodar de novo;
+  - **o checkpoint do Conductor não pode quebrar.** São 997 refs em `refs/conductor-checkpoints`,
+    com mensagem `checkpoint:session-…`, fora do Conventional Commits; tudo indica que saem por
+    plumbing, que não dispara hook, e isso vira **aceite** da T17 em vez de suposição.
+  E o que ficou de fora de propósito: os títulos de squash em `main` (`034-agent-accounts: …`) não
+  seguem o Conventional Commits, mas quem os escreve é o GitHub no merge — o `commit-msg` nunca os
+  vê. Padronizar título de PR é outra regra, no CI, e conversa com a [T16](tasks.md).
+
+- [x] **Q11 — A política do agente mora em `permissions.deny`, num hook, ou nos dois? ([T4](tasks.md), [T18](tasks.md))**
+  O `deny` é nativo, barato e só o Claude o lê. O hook `PreToolUse` existe no Claude e no Codex, e
+  sabe ler o comando inteiro — `git push --force` escrito como `git push origin +main` não casa com
+  um padrão de prefixo, mas casa com um parser.
+  **Recomendação:** os dois, com papéis diferentes. O `deny` da T4 fica como primeira camada; o guarda
+  da T18 é **um script só** (`scripts/harness/guard.ts`) chamado pelo `PreToolUse` dos dois agentes,
+  e é ele que o teste exercita com o JSON de entrada de cada agente. O que um agente recusa e o
+  outro deixa passar é o defeito que o teste existe para pegar.
+  **O que a resposta muda:** se a T18 existe, ou se a T4 basta.
+  **R:** **os dois**, respondido em 2026-09-28 — e com uma restrição que encolhe a pergunta: **este
+  repositório é desenvolvido só com Claude.** O guarda não precisa de tomada no Codex, e o *"um script,
+  dois agentes"* da recomendação cai. O que decidiu, lido na documentação do Claude Code no mesmo dia:
+  - o `deny` de **qualquer** escopo ganha do `allow` de qualquer escopo — o do repositório vale contra
+    os 103 `allow` do `~/.claude/settings.json` — e vale **em `bypassPermissions`**, o modo da esteira;
+  - o `PreToolUse` dispara **em todo modo**, e um bloqueio dele ganha até de um `allow`;
+  - o `deny` casa por texto e o hook lê o comando: `git push origin +main`, `git push -f` e
+    `HUSKY=0 git commit` (a porta da [Q9](#abertas-pela-emenda-de-2026-09-28)) escapam do primeiro e não do segundo;
+  - um hook que quebra **deixa passar**, e é o `deny` que segura a forma óbvia nesse dia.
+  Então: o `deny` da [T4](tasks.md) é o **piso**, o guarda da [T18](tasks.md) é o **guarda**, e um teste
+  exige que o piso seja subconjunto do que o guarda recusa. O guarda que não consegue decidir —
+  entrada que não parseia — **recusa** em vez de liberar, e isso é caso de teste.
+
+- [x] **Q12 — O `Stop` cobra o gate antes de o agente dizer *"pronto"*? ([T19](tasks.md))**
+  É a regra *"antes de dizer que uma task está pronta, rode o gate que ela declara"* virando mecânica.
+  O custo é o tempo: 84 s no pior caso, a cada vez que o agente para.
+  **Recomendação:** sim, com três limites — só roda se a árvore mudou desde o último `gate:quick`
+  verde (um carimbo com o hash do `git diff`), bloqueia **uma vez** por turno (o `stop_hook_active`
+  do Claude), e na esteira ele **não** roda, porque lá o portão da
+  [`028`](../028-autonomous-orchestration/prd.md) já é quem julga.
+  **O que a resposta muda:** se a T19 existe, e quanto tempo cada turno custa.
+  **R:** **sim — bloqueante, uma vez por turno**, respondido em 2026-09-28, contra duas alternativas:
+  o `Stop` que só **informa** a pessoa (o agente não fica sabendo) e **nenhum** `Stop` (o `pre-push`
+  pega o erro antes do CI, mas depois do *"pronto"*, que é o instante em que se decide confiar). O que
+  torna o bloqueio suportável é saber que **o `Stop` não sabe por que o Claude parou** — terminou,
+  perguntou, está no RED do TDD, ou só respondeu — , o mesmo achado que a
+  [`028`](../028-autonomous-orchestration/prd.md) mediu no `end_turn`. Por isso ele é um aviso que
+  insiste **uma vez**: na segunda parada o `stop_hook_active` vem `true` e ele deixa, e o agente
+  conserta ou diz por que o vermelho é esperado. Só roda com a árvore mudada desde o carimbo da
+  [Q10](#abertas-pela-emenda-de-2026-09-28), não roda na esteira, e tem `timeout` explícito acima do pior caso do gate.
+
+- [x] **Q13 — Os agentes que o Lumem sobe carregam o que está no repositório? ([T0](tasks.md))**
+  Não dá para responder sem medir. Quatro superfícies, cada uma pode ler ou não
+  `.claude/settings.json` (permissões e hooks), `.codex/hooks.json`, `CLAUDE.md`/`AGENTS.md` e as
+  skills: o Claude Code interativo, o Codex interativo, o `claude-agent-acp@0.75.1` e o `codex-acp`
+  como a esteira os sobe.
+  **Recomendação:** a T0 mede as dezesseis células com um hook que só escreve um arquivo-marca, e
+  **a resposta decide o desenho**: se os adaptadores não carregam o projeto, o guarda da esteira tem
+  que ser o **daemon** (a política do Lumem da [`016`](../016-session-mode/prd.md) já é um guarda), e
+  isso é assunto de produto, com ADR próprio — não de repositório.
+  **O que a resposta muda:** o alcance da T18, T19 e T20, e se nasce uma feature de produto.
+  > **Nota — 2026-09-28.** A [Q11](#abertas-pela-emenda-de-2026-09-28) fixou que este repositório é desenvolvido **só com
+  > Claude**. As superfícies caem de quatro para **duas** — o Claude Code interativo e o
+  > `claude-agent-acp@0.75.1` como a esteira o sobe —, e as células de dezesseis para **oito**. A
+  > pergunta continua aberta: é a do adaptador que decide o desenho.
+  **R:** **sim, nas duas superfícies**, medido em 2026-09-28 — a tabela está no
+  [§11 da auditoria](../../project/harness-audit.md#11-o-que-o-claude-carrega-do-repositório--a-t0-da-dev-harness-2026-09-28).
+  O `claude-agent-acp@0.75.1` abre cada sessão com `settingSources: ["user", "project", "local"]`
+  (lido no `dist/acp-agent.js`), e a medição confirmou: `PreToolUse` e `Stop` do projeto disparam,
+  o `deny` do projeto recusa **em `bypassPermissions`**, e o `CLAUDE.md` chega. A T18 e a T19 servem à
+  esteira sem código a mais, e **não nasce feature de produto**. Uma célula ficou pela metade, e é da
+  [T20](tasks.md): no Claude Code desta máquina a skill do projeto aparece **sem a descrição**.
+
+- [x] **Q14 — Onde moram as skills, para que os dois agentes as leiam? ([T20](tasks.md))**
+  O Claude lê `.claude/skills/`. O Codex desta máquina tem `~/.codex/skills` e `~/.agents/skills`,
+  e a leitura de projeto dele é o que a T0 mede.
+  **Recomendação:** a fonte em `.claude/skills/lumem-*`, e o que a T0 disser que o Codex lê vira um
+  link simbólico versionado — uma cópia só, pela mesma razão do [ADR de 2026-09-28](../../adr/2026-09-28-1726-outline-discusses-the-repo-decides.md).
+  E as cinco skills de terceiro que já moram em `.claude/skills/` passam pela mesma auditoria: a
+  auditoria de 2026-09-07 achou uma delas **contradizendo o `CLAUDE.md`** (D3).
+  **O que a resposta muda:** um caminho, e se o repositório carrega skill que não escreveu.
+  > **Nota — 2026-09-28.** Com o repositório **só Claude** ([Q11](#abertas-pela-emenda-de-2026-09-28)), a metade do Codex desta
+  > pergunta cai: as skills moram em `.claude/skills/`, e ponto. O que sobra de pé é a outra metade —
+  > **as cinco skills de terceiro** que já estão lá.
+  **R (2026-09-28):** das cinco, nenhuma tinha o motivo de ter entrado escrito em `docs/`.
+  - `playwright-skill` **fica** — o `lumem-dev` a invoca para e2e, e ela escreve em `/tmp`;
+  - `evolutionary-modular-architecture` **sai** — é NestJS/Nx, não o stack, e propõe arquitetura por
+    conta própria, o que contradiria um ADR em silêncio (regra 7 do `CLAUDE.md`);
+  - `tlc-spec-lean` **sai como está e vira a base do fluxo de feature** deste repositório, com a
+    estrutura de `docs/features/` no lugar do `.specs/` dela. Como uma coisa vira a outra é a
+    [Q15](#abertas-pela-emenda-de-2026-09-28); a licença dela é CC-BY-4.0, então a derivada credita a origem;
+  - `react-best-practices` e `react-composition-patterns` **ficam**, pela recomendação — são do stack do
+    `web` —, com a ressalva no `CLAUDE.md` de que a parte de Next.js da primeira não se aplica.
+
+- [x] **Q15 — Como o fluxo da `tlc-spec-lean` entra na estrutura de `docs/features/`? ([T20](tasks.md))**
+  A [Q14](#abertas-pela-emenda-de-2026-09-28) decidiu basear o fluxo de feature na `tlc-spec-lean` com a estrutura de docs deste
+  repositório. As duas concordam em quase tudo e discordam num ponto só, que é o que esta pergunta
+  decide: **a lista de tasks.**
+  - A `tlc-spec-lean` tem quatro movimentos — **plan → checks → build → verify** — e três artefatos:
+    `plan.md` (problema, fluxo, impacto, entidades, superfície, portas de mão única e critérios EARS),
+    `checks.md` (afirmações observáveis, cada uma com a **prova** que a decide) e `verification.md`
+    (escrito por um verificador que **não** é o autor). E ela recusa, por princípio, a lista de
+    tasks: *"granularidade não é qualidade"* — quinze tasks de um arquivo compram ordem, não
+    correção, e competem com as obrigações pela atenção.
+  - Este repositório tem `prd.md`, `open-questions.md` e `tasks.md`, e o `tasks.md` é **contrato**: o
+    `check-docs` deriva o `Status:` dele (proposta ⇔ sem `tasks.md`), o `lumem-dev` executa por T, e a
+    regra 5 do `CLAUDE.md` diz que ele não nasce vazio.
+  O mapeamento que não tem discussão: `prd.md` ≈ `plan.md`; `open-questions.md` fica (é o *"decisões
+  você pergunta"* dela); as `AD-NNN` do `STATE.md` dela são os ADRs daqui; o verificador é o
+  `lumem-reviewer`, disparado novo; os validadores Python viram TypeScript em `scripts/`, ao lado do
+  `check-docs`.
+  **Recomendação:** para **feature nova**, o `checks.md` **substitui** o `tasks.md`, e o `prd.md` ganha
+  as seções do `plan.md` — com ADR, porque muda o contrato da [`025`](../025-docs-contract/prd.md). As
+  features existentes ficam como estão. O que decide é que o repositório já mediu os sintomas que a
+  skill descreve: a `walking-skeleton` entregue com **244 caixas abertas**, *"task escrita não é task
+  começada"*, e a `028` com **61 tasks**.
+  **O que a resposta muda:** se nasce um ADR, se o `check-docs` passa a conhecer o `checks.md`, e o que
+  o `lumem-dev` e o `lumem-reviewer` leem.
+  **R:** **a recomendação**, respondido em 2026-09-28, e virou o [ADR](../../adr/2026-09-28-1952-a-feature-is-proven-by-checks-not-planned-in-tasks.md): em feature nova o
+  `checks.md` substitui o `tasks.md`, o `prd.md` ganha a forma do plano e o `verification.md` é escrito
+  por um `lumem-reviewer` novo. As features existentes ficam como estão, e a própria `024` termina no
+  formato de tasks. O trabalho está na [T20](tasks.md) (a skill) e na [T21](tasks.md) (o contrato).
+  > **Nota — 2026-09-28.** A nota da [Q7](#abertas) reservava *"T21"* para o selo de N3. A T21 foi para o
+  > contrato do `checks.md`; se a Q7 criar task, ela é a **T22**.
+
+- [ ] **Q16 — Como se reverte uma publicação ruim, se o OIDC não move `dist-tag`? ([T12](tasks.md))**
+  Achado executando a T12 em 2026-09-28: o trusted publisher do npm só concede `publish` e
+  `stage publish`. A T12 pedia `npm dist-tag add … latest` num job do `release.yml`, e isso precisa de
+  um token — o que a T1 acabou de tirar do ambiente.
+  - **A. Token granular num environment próprio.** Um token do npm com escopo só neste pacote, como
+    secret de um environment `npm-rollback` com reviewer obrigatório e política de branch `main`. É o
+    rollback em um clique, e custa uma credencial permanente de volta — no GitHub, não na máquina.
+  - **B. Só para frente (roll-forward).** Não existe rollback: uma publicação ruim se corrige publicando
+    `x.y.z+1` com o `revert`, pelo caminho normal (PR → tag → OIDC). Zero credencial; o custo é o tempo
+    de uma release inteira (o CI mais a aprovação).
+  - **C. Manual, com login temporário.** Um runbook no Outline: `npm login` na hora, `npm dist-tag add`,
+    `npm logout`. Rápido, sem credencial parada — e depende de uma pessoa, na máquina dela.
+  **Recomendação:** **B como regra e C como saída de emergência.** B mantém a propriedade que a T1
+  comprou — nenhuma credencial de publicação parada em lugar nenhum — e C cobre o caso em que a versão
+  ruim quebra a instalação e não dá para esperar uma release, com a credencial vivendo só os minutos do
+  comando. A fica no backlog, com gatilho: o dia em que a C for usada e tiver doído.
+  **O que a resposta muda:** se a T12 vira um job no `release.yml`, um runbook, ou nada além da release.
+

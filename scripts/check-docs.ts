@@ -30,7 +30,7 @@
  * delivered features as in-progress forever.
  */
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { dirname, join, relative, resolve } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
 
 /** The closed grammar. A fifth value is a decision, not a typo. */
 export const STATUS_VALUES = ["proposta", "em execução", "completa"] as const;
@@ -43,7 +43,9 @@ export type FindingKind =
   | "status-missing"
   | "status-value"
   | "status-disagrees"
-  | "status-not-proposta";
+  | "status-not-proposta"
+  | "stale-code-path"
+  | "duplicate-index-row";
 
 export interface Finding {
   kind: FindingKind;
@@ -238,7 +240,10 @@ export function checkStatus(root: string): Finding[] {
 
   for (const feature of features) {
     const found: { name: string; value: string; line: number }[] = [];
-    for (const name of ["prd.md", "tasks.md"]) {
+    // `checks.md` is where a feature's obligations live since the ADR of
+    // 2026-09-28-1952 — a new feature has it **instead of** `tasks.md`, and the
+    // Status is derived from whichever of the two exists (T21 of the `024`).
+    for (const name of ["prd.md", "tasks.md", "checks.md"]) {
       const full = join(featuresDir, feature, name);
       if (!existsSync(full)) continue;
       const rel = `docs/features/${feature}/${name}`;
@@ -267,27 +272,27 @@ export function checkStatus(root: string): Finding[] {
     }
 
     const prd = found.find((f) => f.name === "prd.md");
-    const tasks = found.find((f) => f.name === "tasks.md");
-
-    if (prd !== undefined && tasks !== undefined && prd.value !== tasks.value) {
-      findings.push({
-        kind: "status-disagrees",
-        file: `docs/features/${feature}/prd.md`,
-        line: prd.line,
-        message:
-          `\`${prd.value}\` discorda do \`tasks.md\`, que diz \`${tasks.value}\``,
-      });
+    for (const plan of found.filter((f) => f.name !== "prd.md")) {
+      if (prd !== undefined && prd.value !== plan.value) {
+        findings.push({
+          kind: "status-disagrees",
+          file: `docs/features/${feature}/prd.md`,
+          line: prd.line,
+          message: `\`${prd.value}\` discorda do \`${plan.name}\`, que diz \`${plan.value}\``,
+        });
+      }
     }
 
-    const hasTasksFile = existsSync(join(featuresDir, feature, "tasks.md"));
-    if (!hasTasksFile) {
+    const hasPlanFile =
+      existsSync(join(featuresDir, feature, "tasks.md")) || existsSync(join(featuresDir, feature, "checks.md"));
+    if (!hasPlanFile) {
       for (const f of found) {
         if (f.value !== "proposta") {
           findings.push({
             kind: "status-not-proposta",
             file: `docs/features/${feature}/${f.name}`,
             line: f.line,
-            message: `sem \`tasks.md\`, então \`${f.value}\` só pode ser \`proposta\``,
+            message: `sem \`tasks.md\` nem \`checks.md\`, então \`${f.value}\` só pode ser \`proposta\``,
           });
         }
       }
@@ -296,8 +301,111 @@ export function checkStatus(root: string): Finding[] {
   return findings;
 }
 
+/**
+ * A backtick path to code promises the file **exists now**, and an agent that
+ * reads one goes to open it (T6 of docs/features/024-dev-harness/tasks.md).
+ *
+ * Measured on 2026-09-07: 20 of 242 such paths pointed at nothing; on
+ * 2026-09-28, after the `032` moved 113 files into `features/<domínio>/`, 121 of
+ * 807. The convention that makes the check fair, and that T7 applied: **a
+ * historical path loses its backticks**, or points at where the file lives now.
+ *
+ * Three surfaces are left out, each for a reason that is not "too many hits":
+ * - `docs/adr/` — an ADR is never edited after it is written (rule 5), so a path
+ *   in it is a fact about its day;
+ * - `docs/references/` — they describe the code of **other** products;
+ * - a feature whose `**Status:**` is not `completa` — a plan names the files it
+ *   is about to create.
+ */
+export const CODE_PATH = /`((?:packages|scripts|e2e|docs)\/[^`\s*<>{}…]+?\.[A-Za-z]{1,5})`/g;
+
+/**
+ * A path the build writes, not one anybody commits: it exists after `pnpm build`
+ * and nowhere in a fresh clone, so checking it would make the gate depend on
+ * whether someone built first. Found by the first clean-clone run.
+ */
+export function isBuildOutput(path: string): boolean {
+  return /(^|\/)(dist|storybook-static)\//.test(path) || path.startsWith("packages/cli/bin/");
+}
+
+function featureOf(root: string, file: string): string | null {
+  const rel = relative(root, file).split(sep);
+  return rel[0] === "docs" && rel[1] === "features" && rel[2] !== undefined ? rel[2] : null;
+}
+
+export function checkCodePaths(root: string): Finding[] {
+  const findings: Finding[] = [];
+  const statusCache = new Map<string, string | undefined>();
+  const featureStatus = (feature: string): string | undefined => {
+    if (!statusCache.has(feature)) {
+      const prd = join(root, "docs", "features", feature, "prd.md");
+      const tasks = join(root, "docs", "features", feature, "tasks.md");
+      const source = existsSync(prd) ? prd : existsSync(tasks) ? tasks : null;
+      statusCache.set(feature, source === null ? undefined : statusOf(readFileSync(source, "utf8"))?.value);
+    }
+    return statusCache.get(feature);
+  };
+
+  for (const file of markdownFiles(root)) {
+    const rel = relative(root, file);
+    if (rel.startsWith(join("docs", "adr")) || rel.startsWith(join("docs", "references"))) continue;
+    const feature = featureOf(root, file);
+    if (feature !== null && featureStatus(feature) !== "completa") continue;
+
+    const lines = stripFences(readFileSync(file, "utf8")).split("\n");
+    lines.forEach((line, index) => {
+      for (const match of line.matchAll(CODE_PATH)) {
+        const target = (match[1] as string).split("#")[0] as string;
+        if (isBuildOutput(target) || existsSync(join(root, target))) continue;
+        findings.push({
+          kind: "stale-code-path",
+          file: rel,
+          line: index + 1,
+          message:
+            `\`${target}\` não existe. Se o arquivo mudou de lugar, aponte para onde ele está; se é histórico, ` +
+            "escreva o caminho sem crase — a crase promete que ele existe agora",
+        });
+      }
+    });
+  }
+  return findings;
+}
+
+/**
+ * The same target twice in one table of the index — found on 2026-09-28 as the
+ * ADR *"agente é sempre ACP"* listed twice in the ADR table, one of them out of
+ * chronological order. Per table, and not per file: the same ADR is legitimately
+ * linked again from the table of the feature that produced it.
+ */
+export function checkIndexDuplicates(root: string): Finding[] {
+  const index = join(root, "docs", "README.md");
+  if (!existsSync(index)) return [];
+  const findings: Finding[] = [];
+  let seen = new Map<string, number>();
+  stripFences(readFileSync(index, "utf8"))
+    .split("\n")
+    .forEach((line, i) => {
+      if (!line.startsWith("|")) {
+        seen = new Map();
+        return;
+      }
+      const target = /^\|\s*~*\[[^\]]*\]\(([^)#\s]+)/.exec(line)?.[1];
+      if (target === undefined) return;
+      const first = seen.get(target);
+      if (first !== undefined) {
+        findings.push({
+          kind: "duplicate-index-row",
+          file: "docs/README.md",
+          line: i + 1,
+          message: `\`${target}\` já está nesta tabela, na linha ${first}`,
+        });
+      } else seen.set(target, i + 1);
+    });
+  return findings;
+}
+
 export function checkDocs(root: string): Finding[] {
-  return [...checkLinks(root), ...checkStatus(root)];
+  return [...checkLinks(root), ...checkStatus(root), ...checkCodePaths(root), ...checkIndexDuplicates(root)];
 }
 
 export function formatFindings(findings: Finding[]): string {

@@ -27,6 +27,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  # O `prepare` do `pnpm install` liga o husky (T17 da `024-dev-harness`), e num
+  # runner não há commit nenhum para ele vigiar.
+  HUSKY: 0
   # Playwright lê isto: retenta uma vez, usa o reporter que anota a própria PR,
   # e recusa um `test.only` esquecido.
   CI: "true"
@@ -45,7 +48,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: pnpm
 
       # `--frozen-lockfile` é o ponto: uma dependência que entrou sem o lock
@@ -67,7 +70,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile

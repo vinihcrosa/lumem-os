@@ -1,7 +1,7 @@
 # O visualizador vira editor — Tasks
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
-**Protótipo:** `packages/web/prototype/lumem-file-editor.html` — entregue pela E1, cinco telas, verificado por renderização
+**Protótipo:** packages/web/prototype/lumem-file-editor.html — entregue pela E1, cinco telas, verificado por renderização
 **Sucede:** [right-panel](../004-right-panel/tasks.md)
 **Status:** completa
 **Histórico:** **fechada** — 13 de 13, portão verde (`gate:full`: 961 unit/integration + 16 e2e)
@@ -109,7 +109,7 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 #### E1: Protótipo do editor e seus estados
 
 **What**: Desenhar em HTML+CSS, sobre o `tokens.css` que o app lê, os seis estados que o editor tem — e gerar os tokens que faltarem.
-**Where**: `packages/web/prototype/lumem-file-editor.html`, `packages/web/scripts/generate-tokens.py` (bloco `CONFIG`), `packages/web/src/styles/tokens.css` (regerado, nunca à mão)
+**Where**: packages/web/prototype/lumem-file-editor.html, packages/web/scripts/generate-tokens.py (bloco `CONFIG`), `packages/web/src/styles/tokens.css` (regerado, nunca à mão)
 **Depends on**: nada
 
 **Done when**:
@@ -288,7 +288,7 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 #### E8: CodeMirror no split
 
 **What**: Trocar o `<div>` de linhas por um editor de verdade, sem mudar a moldura nem o realce.
-**Where**: `packages/web/src/components/FileViewer.tsx`, `packages/web/src/lib/codemirror-setup.ts`, a ponte vendorizada em `packages/web/src/lib/`, `packages/web/src/lib/shiki.ts` (a ponte precisa do `HighlighterCore` que o módulo guardava privado), `packages/web/src/test/setup.ts` (o jsdom não tem `Range.prototype.getClientRects`, e sem o stub todo teste com editor cospe stack), `viewer.css`, `file-viewer.test.tsx`, `packages/web/package.json`, `packages/web/src/styles/tokens.css` (o cabeçalho errado está nos **dois** arquivos gerados, e a propriedade "regerar não produz diff" torna isso não-negociável) (a dependência nova é o que faz esta task ser **fronteira**), `packages/web/scripts/generate-tokens.py` (o cabeçalho que ele escreve em `tokens.ts` nomeia `generate_palette.py`, que não existe — e é a linha que se lê logo antes de ser proibido de escrever cor literal)
+**Where**: `packages/web/src/features/checkout/FileViewer.tsx`, `packages/web/src/lib/codemirror-setup.ts`, a ponte vendorizada em `packages/web/src/lib/`, `packages/web/src/lib/shiki.ts` (a ponte precisa do `HighlighterCore` que o módulo guardava privado), `packages/web/src/test/setup.ts` (o jsdom não tem `Range.prototype.getClientRects`, e sem o stub todo teste com editor cospe stack), `viewer.css`, `file-viewer.test.tsx`, `packages/web/package.json`, `packages/web/src/styles/tokens.css` (o cabeçalho errado está nos **dois** arquivos gerados, e a propriedade "regerar não produz diff" torna isso não-negociável) (a dependência nova é o que faz esta task ser **fronteira**), packages/web/scripts/generate-tokens.py (o cabeçalho que ele escreve em `tokens.ts` nomeia `generate_palette.py`, que não existe — e é a linha que se lê logo antes de ser proibido de escrever cor literal)
 **Depends on**: E1, E3
 
 **Done when**:
@@ -315,7 +315,7 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 #### E9: Autosave
 
 **What**: O buffer indo para o disco sozinho, sem nunca perder o que foi digitado.
-**Where**: `packages/web/src/hooks/useFileBuffer.ts` + teste, `FileViewer.tsx`, `ViewerFrame.tsx` (rodapé de estado), `packages/web/src/components/ScopePanel.tsx` (a prop `active`: **trocar de aba não desmonta nada** — o shell mantém toda aba montada e só esconde, então o gatilho não tinha sinal e precisou de um), `packages/web/src/test/trpc-mock.ts`, `packages/web/src/lib/codemirror-setup.ts` — o `EditorHandle` da E8 não expunha nem mudança de documento nem leitura do buffer, e as duas só existiam furando `handle.view`, que o próprio docstring proíbe
+**Where**: `packages/web/src/features/checkout/useFileBuffer.ts` + teste, `FileViewer.tsx`, `ViewerFrame.tsx` (rodapé de estado), `packages/web/src/features/checkout/ScopePanel.tsx` (a prop `active`: **trocar de aba não desmonta nada** — o shell mantém toda aba montada e só esconde, então o gatilho não tinha sinal e precisou de um), `packages/web/src/test/trpc-mock.ts`, `packages/web/src/lib/codemirror-setup.ts` — o `EditorHandle` da E8 não expunha nem mudança de documento nem leitura do buffer, e as duas só existiam furando `handle.view`, que o próprio docstring proíbe
 **Depends on**: E6, E8
 
 **Done when**:
@@ -364,7 +364,7 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 #### E11: Criar, renomear e apagar na coluna
 
 **What**: As três operações no lugar onde os arquivos já estão.
-**Where**: `packages/web/src/components/FileTree.tsx`, `CheckoutFiles.tsx`, `RightPanel.tsx` (o `＋` da raiz mora na barra da coluna, que é markup dele), `right-panel.css`, `hooks/useFileTree.ts`, `lib/queryKeys.ts`, `lib/pending-writes.ts`, `test/trpc-mock.ts` + testes, `packages/server/src/files/FileService.ts` + teste (só a recusa própria do rename-de-caixa, [Q17](open-questions.md))
+**Where**: `packages/web/src/features/checkout/FileTree.tsx`, `CheckoutFiles.tsx`, `RightPanel.tsx` (o `＋` da raiz mora na barra da coluna, que é markup dele), `right-panel.css`, `hooks/useFileTree.ts`, `lib/queryKeys.ts`, `lib/pending-writes.ts`, `test/trpc-mock.ts` + testes, `packages/server/src/files/FileService.ts` + teste (só a recusa própria do rename-de-caixa, [Q17](open-questions.md))
 **Depends on**: E6, E1
 
 **Done when**:

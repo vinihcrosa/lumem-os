@@ -454,7 +454,7 @@ export function fakeAgentProcess(script: FakeAgentScript = {}): FakeAgentHandle 
         // credential and asks for nothing (§2.1 of the PRD).
         authMethods: [],
       };
-      return { ...base, ...(script.initialize?.(params) ?? {}) };
+      return { ...base, ...script.initialize?.(params) };
     },
 
     newSession(params) {

@@ -5,7 +5,7 @@
 Registro de por que cada decisão foi tomada. Pergunta respondida não vira suposição silenciosa: fica
 aqui, com o motivo.
 
-**Protótipo:** `packages/web/prototype/lumem-worktree-tab.html`. Ele **desenha** a proposta de cada
+**Protótipo:** packages/web/prototype/lumem-worktree-tab.html. Ele **desenha** a proposta de cada
 pergunta em vez de descrevê-la — a Q1 nos §6 A–D, a Q2 no §7, a Q3 no §3, a Q5 no §5.
 
 **Estado:** 5 perguntas · **5 respondidas**.

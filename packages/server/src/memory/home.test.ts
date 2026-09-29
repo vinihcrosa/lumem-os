@@ -248,7 +248,7 @@ describe("ensureMemoryHome", () => {
     expect(existsSync(join(stateDir, ".git"))).toBe(true);
     // O `--show-toplevel` visto de dentro tem que ser o próprio state dir, e não
     // o repositório de fora.
-    expect(await realpathSync(await git(stateDir, "rev-parse", "--show-toplevel"))).toBe(
+    expect(realpathSync(await git(stateDir, "rev-parse", "--show-toplevel"))).toBe(
       realpathSync(stateDir),
     );
     expect(await commitCount(stateDir)).toBe(1);

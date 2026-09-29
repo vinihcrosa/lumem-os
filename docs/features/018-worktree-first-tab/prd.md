@@ -10,7 +10,7 @@
 > **Nasce de:** duas anotações do agentation: *"essa parte de cima não
 > deveria estar aqui… o que deveria ter é uma barra de abas"* e *"esse botão está no lugar errado,
 > arquivos pertence à worktree"*
-> **Desenho:** `packages/web/prototype/lumem-worktree-tab.html` — abra no navegador. Dez telas,
+> **Desenho:** packages/web/prototype/lumem-worktree-tab.html — abra no navegador. Dez telas,
 > vindas do Open Design. **Zero token novo**, e um componente novo só (`.tabs__files`): a barra de
 > abas, a aba, o `✕` e o `＋` já são do design system. Ele sucede o desenho da
 > `pull-request-status` (`lumem-pr-bar.html`), que cobria a coluna do meio mas não o

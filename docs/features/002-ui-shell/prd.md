@@ -4,7 +4,7 @@
 > **Histórico:** desenho aprovado, tasks prontas para execução
 > **Versão:** v0.1
 > **Perguntas:** [open-questions.md](open-questions.md)
-> **Protótipo:** `packages/web/prototype/lumem-shell.html` — abra no navegador
+> **Protótipo:** packages/web/prototype/lumem-shell.html — abra no navegador
 
 ---
 
@@ -47,7 +47,7 @@ Cada um destes foi encontrado olhando o PNG, não lendo o código — e é o arg
 
 ### Tokens
 
-Gerados por `packages/web/scripts/generate-tokens.py`, nunca escritos à mão. Saída em `packages/web/src/styles/`: `tokens.css` (o que o CSS lê), `tokens.ts` (o que o JavaScript lê — o tema do xterm precisa dos valores), `palette.json`.
+Gerados por packages/web/scripts/generate-tokens.py, nunca escritos à mão. Saída em `packages/web/src/styles/`: `tokens.css` (o que o CSS lê), `tokens.ts` (o que o JavaScript lê — o tema do xterm precisa dos valores), `palette.json`.
 
 > **Não é mais assim, desde 2026-08-19.** O gerador saiu e o design passou a ser feito inteiramente no
 > Open Design: `tokens.css` é sincronizado de lá, `tokens.ts` é derivado dele, e `palette.json` foi

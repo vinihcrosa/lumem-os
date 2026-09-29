@@ -1,7 +1,6 @@
 import type {
   AcpCommand,
   AcpConfigOption,
-  AcpEvent,
   AcpModeOwner,
   AcpPlanEntry,
   AcpRateLimit,

@@ -51,6 +51,7 @@ export type ParsedGitUrl =
 const HELPER = /^([A-Za-z][A-Za-z0-9+.-]*)::/;
 const SCHEME = /^([A-Za-z][A-Za-z0-9+.-]*):\/\//;
 /** NUL through US, plus DEL. Written as escapes so nobody has to trust bytes. */
+// oxlint-disable-next-line no-control-regex -- the control characters are the point: this strips ANSI/terminal escapes
 const CONTROL = /[\u0000-\u001f\u007f]/;
 
 function refuse(rule: GitUrlRule, message: string): ParsedGitUrl {

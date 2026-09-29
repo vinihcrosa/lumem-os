@@ -3,8 +3,8 @@
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md) · **Linha de base:**
 [harness-audit.md](../../project/harness-audit.md)
 
-**Status:** proposta
-**Histórico:** **16 tasks em 3 fases, nenhuma iniciada** (2026-09-07). Três perguntas já respondidas (A1–A3); oito abertas, e as que travam task estão marcadas na coluna `Trava`.
+**Status:** em execução
+**Histórico:** **16 tasks em 3 fases, nenhuma iniciada** (2026-09-07). **Emenda de 2026-09-28:** mais a Fase 0 (T0) e cinco tasks na Fase 1 (T17–T21) — hooks de git, o guarda, o `Stop`, as skills e o contrato do `checks.md`; **executada no mesmo dia:** T0–T11, T14 e T17–T22 entregues (T3, T8, T13, T16 e T22 com a parte que é do dono pendente, cada uma dizendo qual), T12 bloqueada pela [Q16](open-questions.md), T15 fora de escopo pela Q5; ver o [§8 da PRD](prd.md#8-emenda--2026-09-28-hooks-skills-e-o-que-três-semanas-não-mudaram). Três perguntas já respondidas (A1–A3); oito abertas, e as que travam task estão marcadas na coluna `Trava`.
 **Issues:** [#72](https://github.com/vinihcrosa/lumem-os/issues/72) rastreia a feature; cada task tem a
 sua, na coluna `Issue`. Marco por fase no GitHub.
 
@@ -22,12 +22,14 @@ aprovação.
 
 | Fase | Tasks | Habilita | Esforço somado |
 |---|---|---|---|
-| **F1 — contenção e loop** | T1 · T2 · T3 · T4 · T5 · T6 · T7 · T8 | [#56](https://github.com/vinihcrosa/lumem-os/issues/56) | N2 com segurança | ~1 dia |
-| **F2 — comportamento e arquitetura** | T9 · T10 · T11 · T12 · T13 | [#64](https://github.com/vinihcrosa/lumem-os/issues/64) | N3 em CSS/token, dependência e docs | ~3 dias |
-| **F3 — entropia e revisão inferencial** | T14 · T15 · T16 | [#69](https://github.com/vinihcrosa/lumem-os/issues/69) | ampliar N3 por número | ~3 dias |
+| **Fase 0 — o que os agentes carregam** | T0 | — | o alcance da T18, T19 e T20 | ~2 h |
+| **F1 — contenção e loop** | T1 · T2 · T3 · T4 · T5 · T6 · T7 · T8 · T17 · T18 · T19 · T20 · T21 | [#56](https://github.com/vinihcrosa/lumem-os/issues/56) | N2 com segurança | ~1 dia |
+| **F2 — comportamento e arquitetura** | T9 · T10 · T11 · T12 · T13 · T22 | [#64](https://github.com/vinihcrosa/lumem-os/issues/64) | N3 em CSS/token, dependência e docs | ~3 dias |
+| **F3 — entropia e revisão inferencial** | T14 · ~~T15~~ · T16 | [#69](https://github.com/vinihcrosa/lumem-os/issues/69) | ampliar N3 por número | ~3 dias |
 
 | Task | Issue | Classe | Trava | Esforço |
 |---|---|---|---|---|
+| T0 o que cada agente carrega do repositório, medido | — | medição | [Q13](open-questions.md) | P |
 | T1 credencial de publicação fora do ambiente | [#56](https://github.com/vinihcrosa/lumem-os/issues/56) | permissão | — | P |
 | T2 `main` protegida, dois checks obrigatórios | [#57](https://github.com/vinihcrosa/lumem-os/issues/57) | permissão | [Q1](open-questions.md) | P |
 | T3 environment com reviewer, `delete_repo` revogado | [#58](https://github.com/vinihcrosa/lumem-os/issues/58) | permissão | — | P |
@@ -36,14 +38,55 @@ aprovação.
 | T6 frescor de documentação como teste | [#61](https://github.com/vinihcrosa/lumem-os/issues/61) | sensor computacional | — | M |
 | T7 os 24 itens que o T6 acusa | [#62](https://github.com/vinihcrosa/lumem-os/issues/62) | — | — | P |
 | T8 `AGENTS.md`, e o `CLAUDE.md` encolhe | [#63](https://github.com/vinihcrosa/lumem-os/issues/63) | guide inferencial | — | M |
+| T17 hooks de git versionados, ligados pelo setup | — | sensor computacional | [Q9](open-questions.md), [Q10](open-questions.md) | P |
+| T18 o guarda, no `PreToolUse` do Claude | — | permissão | [Q11](open-questions.md), T0 | M |
+| T19 o `Stop` cobra o gate antes de *"pronto"* | — | sensor computacional | [Q12](open-questions.md), T0 | P |
+| T20 as três skills de documentação, e a auditoria das de terceiro | — | guide inferencial | [Q14](open-questions.md), [Q15](open-questions.md), T8 | G |
+| T21 o contrato conhece o `checks.md` | — | sensor computacional | [Q15](open-questions.md) | M |
 | T9 lint de correção, bloqueante | [#64](https://github.com/vinihcrosa/lumem-os/issues/64) | sensor computacional | [Q2](open-questions.md) | M |
 | T10 fitness arquitetural como teste | [#65](https://github.com/vinihcrosa/lumem-os/issues/65) | sensor computacional | [Q3](open-questions.md), [Q4](open-questions.md) | M |
 | T11 log do daemon consultável pelo agente | [#66](https://github.com/vinihcrosa/lumem-os/issues/66) | ambiente | — | M |
 | T12 rollback ensaiado e medido | [#67](https://github.com/vinihcrosa/lumem-os/issues/67) | ambiente | — | M |
+| T22 o selo de classe de N3, como rótulo na PR | — | sensor computacional | ~~[Q7](open-questions.md)~~ | P |
 | T13 frescor de dependência automatizado | [#68](https://github.com/vinihcrosa/lumem-os/issues/68) | sensor computacional | — | P |
 | T14 mutation testing com piso | [#69](https://github.com/vinihcrosa/lumem-os/issues/69) | sensor computacional | — | G |
-| T15 revisor inferencial no CI, com taxa medida | [#70](https://github.com/vinihcrosa/lumem-os/issues/70) | sensor inferencial | [Q5](open-questions.md), [Q6](open-questions.md) | M |
+| ~~T15 revisor inferencial no CI, com taxa medida~~ — **fora de escopo** (2026-09-28, [Q5](open-questions.md)) | [#70](https://github.com/vinihcrosa/lumem-os/issues/70) | sensor inferencial | — | M |
 | T16 PR menor por contrato | [#71](https://github.com/vinihcrosa/lumem-os/issues/71) | ambiente | — | P |
+
+---
+
+## Fase 0 — o que os agentes carregam
+
+### T0: O que cada agente carrega do repositório, medido
+
+**Classe:** medição · **Previne:** escrever um guarda que protege quem está olhando e deixa de fora
+quem trabalha sozinho. A esteira da [`028`](../028-autonomous-orchestration/prd.md) sobe o
+`claude-agent-acp`, e nada neste repositório diz se ele lê a configuração do projeto. **Só Claude**:
+o repositório não é desenvolvido com outro agente ([Q11](open-questions.md)).
+**Trava:** a [Q13](open-questions.md) é esta medição.
+
+**What**:
+1. Numa worktree descartável, criar `.claude/settings.json` com **um hook `PreToolUse` que só
+   escreve um arquivo-marca** (`/tmp/lumem-t0/<superfície>`) e um `deny` de teste, mais uma linha
+   distintiva no `CLAUDE.md` e numa skill de teste.
+2. Rodar as duas superfícies com um prompt que dispare uma ferramenta inofensiva (`ls`): o Claude Code
+   interativo, e o `claude-agent-acp` pelo daemon, como a esteira o sobe — em `bypassPermissions`.
+3. Para cada superfície, registrar as quatro células: **hook disparou?** (a marca existe), **`deny`
+   valeu?**, **o `CLAUDE.md` chegou?** (o agente cita a linha distintiva), **a skill apareceu?**. Oito
+   células, e o custo em token de cada rodada.
+4. Registrar no `docs/project/harness-audit.md`, como **§11**, com a data, as versões e a tabela.
+
+**Where**: `docs/project/harness-audit.md`. Nenhum código de produção.
+
+**Done when**:
+- as oito células têm resposta observada, e nenhuma é *"deve funcionar"*;
+- a [Q13](open-questions.md) está respondida com a tabela, e o alcance da T18, T19 e T20 está escrito
+  nelas antes de começarem.
+
+**Gate**: a tabela
+**Status**: ✅ entregue em 2026-09-28 — [§11 da auditoria](../../project/harness-audit.md#11-o-que-o-claude-carrega-do-repositório--a-t0-da-dev-harness-2026-09-28).
+Hook, `Stop`, `deny` e `CLAUDE.md` do projeto chegam às duas superfícies em `bypassPermissions`; a
+skill chega sem descrição no Claude Code desta máquina.
 
 ---
 
@@ -79,7 +122,10 @@ de 72h e o número da versão não volta nunca). Hoje custa um comando e não pa
   `release.yml` já registra o formato dessa falha.
 
 **Gate**: `pnpm smoke:install`
-**Status**: ⬜ não iniciada
+**Status**: ✅ entregue em 2026-09-28; o passo 3 em 2026-09-29. `~/.npmrc` sem `_authToken` (o arquivo
+deixou de existir), `npm whoami` sai 1, `npm publish --dry-run` avisa *"requires you to be logged in"* —
+em `--dry-run` o npm avisa em vez de recusar, e o aviso é o sinal —, `smoke:install` verde. O passo 3 —
+revogar o token no npmjs.com — **feito pelo dono em 2026-09-29**.
 
 ---
 
@@ -88,7 +134,15 @@ de 72h e o número da versão não volta nunca). Hoje custa um comando e não pa
 **Classe:** permissão · **Previne:** `git push --force origin main` (324 commits, um comando) e
 merge de PR vermelha — hoje `gh pr merge` funciona com CI falhando, porque não existe check
 obrigatório. É o que converte todo o estoque de sensores de conselho em portão.
-**Trava:** [Q1](open-questions.md) — `bypass_actor` ou ninguém.
+**Trava:** ~~[Q1](open-questions.md)~~ — respondida em 2026-09-28: **ninguém**.
+
+> **Nota — 2026-09-28.** Já existe um ruleset, `main-protect` (id `23258383`), com `deletion`,
+> `non_fast_forward`, `required_linear_history` e `pull_request`, `bypass_actors: []` — mas
+> **`enforcement: disabled`** e **sem `required_status_checks`**. O passo 1 **atualiza esse** (`PUT
+> …/rulesets/23258383`) em vez de criar um segundo; o JSON abaixo continua sendo o alvo, mais o
+> `required_linear_history` que ele já tem. Os nomes dos contextos foram conferidos de novo em
+> `gh pr checks 92`: `typecheck, build e testes` e `e2e`. O `SonarQube` **não** entra
+> ([Q1](open-questions.md)).
 
 **What**:
 1. Criar o ruleset. Os nomes dos contextos são os **nomes dos jobs**, conferidos em `gh pr checks 55`:
@@ -133,6 +187,10 @@ JSON
    fecha o buraco de "verde num commit que não é o que vai mesclar".
 4. Ligar `delete_branch_on_merge` (hoje `false`), porque com PR obrigatória a branch passa a ser
    descartável: `gh api -X PATCH repos/:owner/:repo -F delete_branch_on_merge=true`.
+5. **A release passa por PR** ([Q1](open-questions.md)): branch com `pnpm version:set x.y.z` → PR → CI
+   verde → mescla → `git tag vx.y.z` no commit mesclado → `git push origin vx.y.z`. Escrever isso no
+   runbook *Publishing a release* do Outline (`Lumem · Team` › Runbooks) e na linha do `version:set`
+   no `CLAUDE.md`.
 
 **Where**: configuração do repositório no GitHub. Nada no git.
 
@@ -141,11 +199,24 @@ JSON
 - uma branch descartável com um teste deliberadamente quebrado, aberta como PR, mostra o merge
   **bloqueado** na UI e `gh pr merge` **recusa** (fechar a PR e apagar a branch depois — o experimento
   é o aceite);
-- `gh api repos/:owner/:repo/rulesets --jq '.[].name'` devolve `main protegida` (confirmação
+- a primeira release depois disto sai pelo caminho do passo 5, e o `release.yml` dispara pela tag;
+- `gh api repos/:owner/:repo/rulesets/23258383 --jq .enforcement` devolve `active` (confirmação
   secundária, não o aceite).
 
 **Gate**: o experimento da PR vermelha acima
-**Status**: ⬜ não iniciada
+**Status**: ✅ entregue em 2026-09-28. O ruleset `main-protect` (`23258383`) está **`active`**, com
+`bypass_actors: []`, `deletion`, `non_fast_forward`, `required_linear_history`, `pull_request` (0
+aprovações, merge por `squash` ou `rebase` — o `merge` saiu, porque o histórico linear o recusaria de
+qualquer jeito) e `required_status_checks` estrito com `typecheck, build e testes` e `e2e`;
+`delete_branch_on_merge` ligado. Os dois aceites por tentativa:
+- um push direto de um commit descendente de `main` foi **recusado pelo servidor**: *"Changes must be
+  made through a pull request. 2 of 2 required status checks are expected."*;
+- a PR descartável [#93](https://github.com/vinihcrosa/lumem-os/pull/93), com um teste vermelho de
+  propósito, ficou em **`mergeStateStatus: BLOCKED`** com o check obrigatório reprovado — fechada e a
+  branch apagada depois. O `gh pr merge` não foi tentado: o guarda da T18 o recusa, e o estado
+  `BLOCKED` é a resposta do servidor.
+O runbook *Publishing a release* do Outline passou a dizer a release por PR e a tag no commit mesclado,
+e o `CLAUDE.md` também. A primeira release pelo caminho novo ainda não aconteceu.
 
 ---
 
@@ -196,7 +267,19 @@ gh api -X POST repos/:owner/:repo/environments/npm/deployment-branch-policies \
   estiver lá, o comando apaga o repositório.
 
 **Gate**: os quatro acima
-**Status**: ⬜ não iniciada
+**Status**: 🟡 **parcial** em 2026-09-28. Feito: o environment `npm` exige o reviewer `vinihcrosa` e só
+aceita deploy de **tag `v*`** (política `custom_branch_policies`). Aceites:
+- `gh workflow run release.yml -f dry_run=false` a partir da branch `docs-repo-vs-outline` passou pelo
+  empacote e pelos dois `smoke` e teve o job `npm` **recusado**: *"Branch "docs-repo-vs-outline" is not
+  allowed to deploy to npm due to environment protection rules"*;
+- a tag de ensaio (`v0.0.0-probe.1`) **não chegou** ao `publish`: parou antes, na conferência *"a tag não
+  bate com a versão do pacote (0.6.0)"* — e chegar lá exige uma tag igual a uma versão nova, ou seja,
+  uma release de verdade. O `Review pending` fica para ser observado na próxima release. Tag apagada.
+
+**Falta, e é do dono da conta:** revogar o scope `delete_repo` do token do `gh` (GitHub → Settings →
+Applications → Authorized OAuth Apps → GitHub CLI → Revoke, e `gh auth login -h github.com -s
+repo,workflow,read:org,gist`). O aceite `gh api -X DELETE repos/:owner/:repo` → `403` só se roda
+**depois**, e o guarda da T18 o recusa numa sessão de agente de qualquer jeito.
 
 ---
 
@@ -235,7 +318,22 @@ do usuário) gravável, num repositório cuja suíte já escreveu ali uma vez.
 - `pnpm gate:quick` verde.
 
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ não iniciada
+**Status**: ✅ entregue em 2026-09-28. `.claude/settings.json` com **37** regras de `deny`, os motivos em
+`scripts/harness/policy.ts`, e `scripts/agent-policy.test.ts` amarrando os dois (provado vermelho tirando
+uma linha). O aceite por comportamento: um Claude Haiku em `bypassPermissions`, numa bancada em
+`/tmp/lumem-t4`, tentou a forma inofensiva de **15** ações e teve as **15** recusadas; o controle
+(`git log`) passou; nenhum arquivo nem commit ficou para trás (US$ 0,10).
+
+> **SPEC_DEVIATION — três, todas medidas ou lidas na documentação do Claude Code de 2026-09-28:**
+> - **`Write(~/.lumem/**)` virou `Edit(~/.lumem/**)`.** O Claude Code **aceita uma regra `Write(...)` de
+>   caminho e nunca a consulta**; `Edit(...)` é a que cobre Write, Edit e NotebookEdit. Escrita como
+>   estava, a linha nasceria sem efeito, e o teste passa a recusar `Write(`/`MultiEdit(`/`NotebookEdit(`.
+> - **`Write(~/.claude/**)` virou três regras estreitas** (`settings.json`, `settings.local.json`,
+>   `hooks/**`): o `~/.claude/projects/*/memory/` é a memória do agente, e a regra larga a proibiria.
+> - **Entraram** `git commit --no-verify`/`-n`, `git push --no-verify` e `Edit(~/.config/husky/**)` —
+>   as portas de fuga da [Q9](open-questions.md) —, e cada comando de Bash tem as duas formas
+>   (`Bash(x)` e `Bash(x *)`), porque o prefixo com espaço não casa o comando sem argumento.
+> - O passo 4 escreve no `CLAUDE.md`, e não num `AGENTS.md` (repositório só Claude, [Q11](open-questions.md)).
 
 ---
 
@@ -268,7 +366,16 @@ falha. Um agente que rodar o gate pela aba `Testes` recebe vermelho por ambiente
 - `pnpm gate:quick` verde.
 
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ não iniciada
+**Status**: ✅ entregue em 2026-09-28. `.nvmrc` e `mise.toml` em `22.17.1`; `scripts/node-version.ts`
+recusa **major** diferente e deixa passar patch/minor com aviso; o `setup.sh` o chama e o `env.sh` põe o
+nvm no `.nvmrc` antes do `default`. Medido de verdade: sob o **Node 26.4.0** do Homebrew (sem nvm), o
+`setup.sh` sai **1** com *"pinado no node 22.17.1 (.nvmrc) e encontrei 26.4.0 … Saída: `nvm use` … ou
+`mise install`"*; sob o 22.17.1 sai 0 em **3 s**.
+
+> **SPEC_DEVIATION.** Além do que a task pedia, os três workflows trocaram `node-version: 22` por
+> `node-version-file: .nvmrc` — o CI rodava o 22 mais recente, que não é o pino —, e o teste recusa
+> um número de versão escrito à mão num workflow. Só o major recusa: `22.18` contra `22.17.1` avisa e
+> segue, porque recusar patch compraria atrito sem nenhum defeito medido.
 
 ---
 
@@ -321,7 +428,16 @@ o gate é criar um sensor que dorme.
 - `pnpm gate:quick` verde depois da T7.
 
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ não iniciada
+**Status**: ✅ entregue em 2026-09-28, **dentro do `check-docs`** e não num `docs-freshness.test.ts` à
+parte: é o mesmo sensor de documentação, e dois fariam o agente procurar em dois lugares. Duas checagens
+novas — `stale-code-path` e `duplicate-index-row` (por tabela, porque o mesmo ADR é linkado de novo na
+tabela da feature que o produziu) — e o `gate:quick` roda o `docs:check` sempre que uma doc mudou, e diz.
+
+> **SPEC_DEVIATION — três exclusões que a task não previa:** `docs/adr/` (ADR nunca se edita, então um
+> caminho nele é um fato do dia dele), `docs/references/` (como previsto) e **feature que não está
+> `completa`** — um plano cita os arquivos que vai criar, e esta própria `024` citava `stop.ts` e
+> `pr-class.ts` antes de existirem. E a medição do dia: não 24 itens, mas **198 ocorrências em 50
+> arquivos** — a `032` moveu 113 arquivos para `features/<domínio>/`.
 
 ---
 
@@ -353,7 +469,13 @@ incômodo, que é como gate morre.
 técnica de task entregue — só caminho e link. Registro histórico não se reescreve para agradar sensor.
 
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ não iniciada
+**Status**: ✅ entregue em 2026-09-28. As **198** ocorrências que a T6 acusou, em 50 arquivos: **106**
+apontam agora para onde o arquivo mora, pela **cadeia de renomeações do git** (`git log --diff-filter=R`)
+e não pelo nome — o atalho pelo nome do arquivo foi tentado primeiro e errou, mandando
+`packages/server/src/setup/probe.ts` para `scripts/q39/probe.ts`, que é outro arquivo com o mesmo nome;
+**92** são históricas (protótipos que saíram para o `lumem-os-design`, arquivos apagados) e perderam a
+crase, pela convenção da T6. E a linha duplicada do índice era outra, não a de 2026-09-07: o ADR *"agente
+é sempre ACP"* aparecia duas vezes na tabela de ADRs, uma fora da ordem.
 
 ---
 
@@ -380,6 +502,21 @@ agente, e apodrecendo a cada feature nova.
 
 **Where**: `AGENTS.md` (novo), `CLAUDE.md`, `docs/project/history.md` (novo), `docs/README.md`.
 
+> **Nota — 2026-09-28.** O passo 2 foi feito por outro caminho: a
+> [PR #92](https://github.com/vinihcrosa/lumem-os/pull/92) moveu a narrativa para o **Outline**, e não
+> para `docs/project/history.md` — o [ADR de 2026-09-28](../../adr/2026-09-28-1726-outline-discusses-the-repo-decides.md)
+> põe crônica fora do repositório. O `CLAUDE.md` caiu de 9 792 para 2 435 palavras (227 linhas). O que
+> sobra de pé nesta task: o `AGENTS.md` (passo 1), o `CLAUDE.md` só com o que é de Claude Code
+> (passo 3) e a exceção da raiz (passo 4). O teto de **100 linhas** do *Done when* continua valendo, e
+> a [T20](#t20-as-três-skills-de-documentação-e-a-auditoria-das-de-terceiro) é o que o alcança — o
+> formato de cada documento sai do `CLAUDE.md` para as skills.
+>
+> **E o passo 1 perdeu o motivo.** O `Previne` desta task é *"qualquer outro agente entra sem mapa"*, e
+> este repositório é desenvolvido **só com Claude** ([Q11](open-questions.md), 2026-09-28). O que fica
+> de pé é o `CLAUDE.md` abaixo de 100 linhas; se o `AGENTS.md` ainda nasce — por exemplo, para quem
+> clonar o repositório público com outra ferramenta — é decisão da hora em que esta task começar, e
+> não pressuposto.
+
 **Done when**:
 - `wc -l CLAUDE.md` abaixo de **100**;
 - `AGENTS.md` cobre as seis seções, e um agente sem contexto consegue rodar `setup` → `dev` → os três
@@ -389,7 +526,306 @@ agente, e apodrecendo a cada feature nova.
 - o teste da T6 verde (os links novos resolvem).
 
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ não iniciada
+**Status**: 🟡 entregue em 2026-09-28, **menos o teto de 100 linhas**. O `CLAUDE.md` foi de 251 para
+**150 linhas**: o texto longo das três regras — design, documentação, convenções — foi para
+`docs/project/conventions.md` **sem reescrita**, com os motivos e os casos; no `CLAUDE.md` ficou cada
+regra em uma linha, o harness novo (Node, hooks, guarda, fronteira, log) e o roteamento para as skills.
+
+> **SPEC_DEVIATION — duas.**
+> - **Sem `AGENTS.md`.** O passo 1 perdeu o motivo ([Q11](open-questions.md)): o repositório é só Claude.
+>   Quem clonar o repositório público com outra ferramenta lê o `README.md`.
+> - **150 linhas, e não menos de 100.** O que sobra acima do teto é a tabela do §Estado atual — 36
+>   linhas, uma por feature —, que o [ADR de 2026-09-07](../../adr/2026-09-07-2208-prd-number-is-reading-order-not-precedence.md)
+>   nomeia como **a projeção** e põe no `CLAUDE.md`. Tirá-la de lá é mudar uma consequência de um ADR,
+>   e nota de task não derruba ADR (regra 4): se o teto de 100 for o que importa, o caminho é um ADR que
+>   leve a projeção para o `docs/README.md`. Fica para o dono decidir.
+
+---
+
+### T17: Hooks de git versionados, ligados pelo setup
+
+**Classe:** sensor computacional · **Previne:** que o primeiro sinal de um commit ruim seja o CI, 4 min
+e um push depois — e que um agente commite em `main`. A auditoria mediu a ausência (`core.hooksPath`
+indefinido, só `.sample`) e nenhuma task da v0.1 a tratava.
+**Trava:** [Q9](open-questions.md) (a ferramenta) e [Q10](open-questions.md) (o que roda em cada um).
+
+**What** — a ferramenta é o **husky v9** ([Q9](open-questions.md)), e o conteúdo de cada hook é o
+da [Q10](open-questions.md):
+1. `husky` como dependência de desenvolvimento da raiz, com `"prepare": "husky"`. `.husky/pre-commit`,
+   `.husky/commit-msg`, `.husky/pre-push`, cada um **uma linha** que chama
+   `scripts/harness/git-hook.ts <nome>` — a lógica mora em TypeScript, com teste, e não em shell.
+2. `pre-commit`: recusa commit com `HEAD` em `main`; roda `docs:check` se há `.md` em stage e
+   `design:derive --check` se há `tokens.css` em stage. Medidos em 0,4 s e 0,3 s; a mensagem diz o
+   que rodou.
+3. `commit-msg`: Conventional Commits (`tipo(escopo)?: assunto`), assunto até 72 caracteres. A
+   recusa mostra a mensagem recebida e um exemplo.
+4. `pre-push`: `pnpm gate:quick`. Vermelho recusa o push com o resumo do gate. Verde grava o
+   **carimbo** — o hash da árvore (`git write-tree` do `HEAD`) em `.git/lumem-gate-green` —, e um
+   push de árvore já carimbada sai dizendo *"já verde em <hash>"* sem rodar. O `Stop` da
+   [T19](#t19-o-stop-cobra-o-gate-antes-de-pronto) usa o mesmo carimbo. O `typecheck` **não** entra
+   no `pre-commit`: são ~23 s frio, e ele já vem dentro do `gate:quick`.
+5. Quem liga é o `prepare` do `pnpm install`, que o `setup.sh` já roda. O `run.sh` avisa se
+   encontrar o `core.hooksPath` diferente de `.husky/_` — o caso da worktree que nunca rodou install —,
+   e o `ci.yml` ganha `HUSKY: 0`.
+6. `scripts/harness/git-hook.test.ts`: cada decisão como função pura (arquivos em stage e mensagem →
+   veredito), mais um teste que confere que os três arquivos de `.husky/` existem e chamam o nome
+   certo, e que o `prepare` está no `package.json`.
+7. `docs/project/testing.md` ganha a linha: **hook de git é feedback, não portão** — quem garante é o
+   ruleset da T2 e o CI; quem impede o agente de atravessar com `--no-verify` é a T18.
+
+**Where**: `.husky/` (novo), `package.json`, `pnpm-lock.yaml`, `scripts/harness/git-hook.ts` (+ teste, novos),
+`scripts/workspace/run.sh`, `.github/workflows/ci.yml`, `docs/project/testing.md`, `docs/project/workspaces.md`.
+
+**Done when**:
+- numa worktree nova, depois do `pnpm install`, `git commit -m "wip"` é **recusado** pelo `commit-msg`, e
+  um commit em `main` é recusado pelo `pre-commit` — os dois observados;
+- `git push` com um teste quebrado de propósito é recusado pelo `pre-push`, nomeando o teste;
+- o `pre-commit` de um commit só de código roda em menos de **1 s**, medido;
+- um segundo `git push` da mesma árvore sai pelo carimbo, sem rodar o gate;
+- os checkpoints do Conductor continuam sendo criados com os hooks ligados — conferido
+  observando um checkpoint novo em `refs/conductor-checkpoints` depois de um turno;
+- `pnpm gate:quick` verde.
+
+**Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue em 2026-09-28. `husky@9.1.7` na raiz com `"prepare": "husky"`; `.husky/pre-commit`,
+`commit-msg` e `pre-push` de uma linha cada; `scripts/harness/git-hook.ts` com **32** testes; `HUSKY: 0`
+nos três workflows; o `run.sh` avisa quando a worktree está sem os hooks. Aceites observados:
+- `git commit -m "wip"` **recusado** pelo `commit-msg`, com a mensagem e um exemplo;
+- num clone descartável em `main`, um commit **recusado** pelo `pre-commit`;
+- um `pre-commit` de commit só de código em **0 s**;
+- o `git push` desta branch rodou o `gate:quick` **desde a ponta do remoto** — 4 642 testes verdes em
+  83 s — e gravou o carimbo; o mesmo push da mesma árvore saiu em **0 s** com *"esta árvore já passou"*.
+
+**O defeito caro:** o primeiro push de verdade herdou o `GIT_DIR` do hook para a suíte, 718 testes
+escreveram no repositório, e a config compartilhada ganhou `core.bare = true` — todas as 17 worktrees
+pararam — e uma seção `[user]` de teste. Consertado à mão, conferido por `diff`, e o hook passou a
+limpar o ambiente; a armadilha está no [`testing.md`](../../project/testing.md).
+
+**Não observado:** o checkpoint do Conductor depois de um turno com os hooks ligados — este trabalho
+roda num turno só. A inferência é forte: os checkpoints vivem em `refs/conductor-checkpoints`, fora do
+`HEAD`, e `git commit` só grava no `HEAD`, então eles saem por plumbing (`commit-tree` + `update-ref`),
+que não dispara hook.
+
+---
+
+### T18: O guarda, no `PreToolUse` do Claude
+
+**Classe:** permissão · **Previne:** que um padrão de prefixo deixe passar a mesma ação escrita de
+outro jeito (`git push origin +main` é um push forçado que `Bash(git push --force:*)` não casa), e que
+a política dependa de um arquivo que casa texto. O `deny` da T4 fica como **piso**
+([Q11](open-questions.md)).
+**Trava:** [Q11](open-questions.md), e a [T0](#t0-o-que-cada-agente-carrega-do-repositório-medido) —
+o alcance é o que ela medir.
+
+**What**:
+1. `scripts/harness/guard.ts`: lê o JSON de `PreToolUse` do Claude da entrada padrão
+   (`tool_name`/`tool_input`), decide, e sai `2` com a frase no `stderr` quando recusa. Decisão como
+   **função pura** — comando → veredito com motivo —, separada da leitura. Entrada que não parseia é
+   **recusa**, não liberação ([Q11](open-questions.md)).
+2. O que ele recusa, com o motivo de cada um: a lista da [T4](#t4-a-política-de-permissão-do-agente-vira-arquivo-do-repositório-com-teste--59),
+   mais `git commit --no-verify` e `git push --no-verify` (é o que faz a T17 valer para agente),
+   `HUSKY=0` em qualquer comando e escrita em `~/.config/husky/` — as duas portas de fuga que o
+   husky acrescenta ([Q9](open-questions.md)) —,
+   push direto para `main`, push forçado em **qualquer** forma (`--force`, `-f`, `+refspec`,
+   `--force-with-lease` para `main`), `git reset --hard` com mudança não commitada, e escrita fora do
+   checkout.
+3. Ligar em `hooks.PreToolUse` do `.claude/settings.json`. A [T0](#t0-o-que-cada-agente-carrega-do-repositório-medido)
+   mediu que o `claude-agent-acp` da esteira lê o mesmo arquivo: uma tomada serve às duas superfícies.
+4. `scripts/harness/guard.test.ts`: uma tabela de casos com a **entrada crua do Claude**, cada forma
+   alternativa de cada ação (`--force`, `-f`, `+refspec`, variável na frente, `git -C`). E o teste da
+   T4 passa a exigir que o piso do `deny` seja **subconjunto** do que o guarda recusa.
+5. `CLAUDE.md`: o que o guarda recusa, e que recusa é o comportamento — não um erro para contornar.
+
+**Where**: `scripts/harness/guard.ts` (+ teste, novos), `.claude/settings.json`,
+`scripts/agent-policy.test.ts`, `CLAUDE.md`.
+
+**Done when**:
+- cada ação da lista, tentada pelo Claude na forma inofensiva — interativo, e pela esteira até onde a
+  T0 alcançar —, é recusada com a frase do guarda; observado, não lido;
+- apagar a tomada, ou tirar do guarda um padrão que o `deny` tem, deixa `pnpm test` vermelho;
+- `pnpm gate:quick` verde.
+
+**Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue em 2026-09-28. `scripts/harness/guard.ts`, ligado no `PreToolUse` do
+`.claude/settings.json` para `Bash|Write|Edit|MultiEdit|NotebookEdit`, rodado por
+`node --experimental-strip-types` — **84 ms** por chamada contra **576 ms** do `tsx`, medidos na mesma
+máquina, e é por isso que ele não importa nada além de `node:`. `guard.test.ts` tem **119** casos: cada
+grafia de cada ação, o piso do `deny` como subconjunto (uma linha por regra), o parser, e o processo do
+hook (sai 2 com a frase, sai 0, e **recusa** uma entrada que não é JSON). O aceite por comportamento:
+um Claude Haiku em `bypassPermissions`, numa bancada em `/tmp/lumem-t18`, tentou **7** grafias que o piso
+não pega — `+main`, `HUSKY=0`, `git -C . push -f`, `bash -c "npm publish"`, `HEAD:main`, escrita fora do
+checkout, `core.hooksPath` — e teve as **7** recusadas com a frase do guarda; os dois controles passaram
+(US$ 0,06).
+
+Dois defeitos, os dois achados antes de alguém depender dele:
+- o teste achou que `pnpm --filter <pacote> publish` passava — a regra olhava só a primeira palavra;
+- **o próprio guarda recusou o autor dele**, no primeiro comando depois de ligado: um `python3 - <<'PY'`
+  com crase no corpo foi lido como substituição de comando. Heredoc com delimitador entre aspas é texto
+  literal; o parser passou a entendê-lo (e a ler como script o heredoc que alimenta um shell), e
+  `2>&1`/`&>` deixaram de ser lidos como segundo plano.
+
+---
+
+### T19: O `Stop` cobra o gate antes de *"pronto"*
+
+**Classe:** sensor computacional · **Previne:** a regra *"antes de dizer que uma task está pronta,
+rode o gate que ela declara"* depender de o agente lembrar dela.
+**Trava:** [Q12](open-questions.md), e a [T0](#t0-o-que-cada-agente-carrega-do-repositório-medido).
+
+**What** — a resposta da [Q12](open-questions.md): bloqueante, uma vez por turno.
+0. **Medir antes:** a **mediana** do `gate:quick` em turnos reais que mexeram em código, não só o
+   pior caso (84 s). É o número que diz quanto o bloqueio custa na prática, e fica no `testing.md`.
+1. `scripts/harness/stop.ts`: se a árvore mudou desde o último `gate:quick` verde (o carimbo da
+   [T17](#t17-hooks-de-git-versionados-ligados-pelo-setup), em `.git/lumem-gate-green`, agora com o
+   hash da árvore de trabalho), roda o `gate:quick`; vermelho devolve
+   `{"decision":"block","reason":…}` com o resumo, verde grava o carimbo.
+2. **Uma vez por turno**: com `stop_hook_active`, sai sem rodar.
+3. **Fora da esteira**: com a variável que o daemon põe nas sessões da esteira, sai sem rodar — o
+   portão da [`028`](../028-autonomous-orchestration/prd.md) já julga lá.
+4. Ligar no `Stop` do `.claude/settings.json`, com `timeout` explícito acima do pior caso medido.
+5. A frase do bloqueio diz o que falhou **e** que parar de novo é permitido: *"se o vermelho é
+   esperado (RED do TDD, pergunta pendente), diga isso e pare"* — é o que impede o hook de brigar com
+   o ciclo do `lumem-dev`.
+
+**Where**: `scripts/harness/stop.ts` (+ teste, novos), `.claude/settings.json`.
+
+**Done when**:
+- uma sessão que quebra um teste e tenta encerrar recebe o bloqueio com o nome do teste, **uma vez** —
+  a segunda parada passa;
+- a mediana do passo 0 está registrada no `testing.md`;
+- uma sessão que não mexeu em nada encerra sem rodar gate nenhum;
+- `pnpm gate:quick` verde.
+
+**Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue em 2026-09-28. `scripts/harness/stop.ts` no `Stop` do `.claude/settings.json`, com
+`timeout: 300`; 7 testes. O carimbo passou a guardar **árvore e commit**, e a base do gate é o commit do
+último verde — assim, trabalho commitado e ainda não verificado não escapa. **Medido (passo 0):** mediana
+de **5 s** numa mudança de um arquivo (3, 5, 5, 17 e 72 s — o pior é o `shared`, que todos importam),
+no `testing.md`. **Provado** com a entrada que o Claude manda: com um teste quebrado de propósito, a
+primeira parada foi **bloqueada** em 94 s nomeando o teste, e a segunda (`stop_hook_active: true`) passou
+sem rodar nada.
+
+> **SPEC_DEVIATION.** A esteira é reconhecida pelo **caminho do checkout** — o daemon corta as worktrees
+> dela em `<state dir>/workspaces/<workspace>/<projeto>/worktrees/` — e não por uma variável que o
+> daemon poria na sessão: isso pediria mudar código de produto, e o caminho já distingue.
+
+---
+
+### T20: As três skills de documentação, e a auditoria das de terceiro
+
+**Classe:** guide inferencial · **Previne:** duas coisas. O formato de cada documento competindo com
+contexto ativo em todo turno, dentro do `CLAUDE.md`; e skill de terceiro no repositório mandando o
+contrário da regra — a auditoria achou uma (D3), e hoje são cinco em `.claude/skills/`.
+**Trava:** [Q14](open-questions.md), a [T0](#t0-o-que-cada-agente-carrega-do-repositório-medido) e a
+[T8](#t8-agentsmd-na-raiz-e-o-claudemd-encolhe--63) (o `CLAUDE.md` encolhe junto).
+
+**What**:
+1. `lumem-adr` — os três testes, o frontmatter, `supersedes`, reafirmar o que fica, o estudo em
+   `docs/project/` que o sustenta. Primeiro passo: listar `docs/adr/` e ler o frontmatter.
+2. `lumem-feature` — **o fluxo de feature**, derivado da `tlc-spec-lean` pelo [ADR de 2026-09-28](../../adr/2026-09-28-1952-a-feature-is-proven-by-checks-not-planned-in-tasks.md)
+   ([Q15](open-questions.md)): plano no `prd.md`, perguntas no `open-questions.md`, obrigações com
+   prova no `checks.md`, construção a partir dos checks, e o `verification.md` escrito por um
+   `lumem-reviewer` novo. Mais o que é daqui: numeração `NNN`, a gramática do `Status:`, a nota no
+   requisito contradito, e ao fechar a feature a linha no §Estado atual e o parágrafo no History do
+   Outline. Os validadores dela, em Python, viram TypeScript em `scripts/`. A licença da original é
+   CC-BY-4.0: o `SKILL.md` credita a origem.
+3. `lumem-outline` — discovery, postmortem, runbook, a entrada no Work log: a coleção certa, a regra
+   do segredo, *linka, não copia*, e o fechamento discovery → ADR.
+4. O `CLAUDE.md` fica com a tabela de **onde cada coisa mora** e as sete
+   regras; o formato sai para as skills.
+5. As skills de terceiro, pela resposta da [Q14](open-questions.md): `evolutionary-modular-architecture`
+   e `tlc-spec-lean` **saem** (a segunda depois de a `lumem-feature` existir); `playwright-skill`,
+   `react-best-practices` e `react-composition-patterns` **ficam**, e o `CLAUDE.md` diz que a parte de
+   Next.js da `react-best-practices` não se aplica.
+6. **A descrição que some.** A [T0](#t0-o-que-cada-agente-carrega-do-repositório-medido) viu a skill do
+   projeto aparecer **sem descrição** no Claude Code desta máquina — e skill sem descrição não
+   dispara sozinha. Medir a causa (a hipótese é o orçamento da lista, com dezenas de skills globais
+   de plugin) antes de escrever as três, e registrar no `testing.md` o que a skill precisa para
+   disparar.
+7. Um teste em `scripts/` exige que cada `lumem-*` tenha `name` e `description`, e que toda regra que
+   uma skill cita (`check-docs`, `Status:`) exista no código que ela cita.
+
+**Where**: `.claude/skills/lumem-adr/`, `.claude/skills/lumem-feature/`,
+`.claude/skills/lumem-outline/` (novos), `.claude/skills/tlc-spec-lean/` e
+`.claude/skills/evolutionary-modular-architecture/` (saem), `CLAUDE.md`, `scripts/`.
+
+**Done when**:
+- um agente sem histórico, pedido *"escreve um ADR sobre X"*, carrega a `lumem-adr` sozinho e produz
+  um arquivo que o `docs:check` aceita — observado;
+- `wc -l CLAUDE.md` abaixo de **100**, junto com a T8;
+- `pnpm gate:quick` verde.
+
+**Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue em 2026-09-28. `lumem-adr`, `lumem-feature` (derivada da `tlc-spec-lean`, CC-BY-4.0,
+com as quatro referências adaptadas aos caminhos, validadores e memória daqui) e `lumem-outline`; saem
+`evolutionary-modular-architecture` e a `tlc-spec-lean` copiada; ficam `playwright-skill` e as duas de
+React. `scripts/skills.test.ts` exige nome, descrição, links que resolvem e **só `pnpm <script>` que
+existe** — e ficou vermelho de verdade no primeiro dia, com a skill citando `pnpm feature:check` antes de
+o script existir.
+
+**O passo 6 achou a causa e o remédio.** A skill chegava ao Claude Code sem descrição porque a lista de
+skills tem teto de **1% da janela de contexto**, e quando estoura o Claude Code corta primeiro a descrição
+das skills **menos usadas** — uma skill nova do projeto é sempre a menos usada. Medido: com só
+`project,local` a descrição chega; com todas as camadas, some; com `skillListingBudgetFraction: 0.03` no
+`.claude/settings.json` do projeto, volta com todas as camadas.
+
+**O aceite:** um Claude Sonnet sem histórico, num clone limpo, pedido *"escreva um ADR registrando a
+decisão de usar oxlint…"*, **invocou a `lumem-adr` sozinho** e escreveu o ADR com frontmatter, as quatro
+seções e a linha no índice (US$ 0,51, 15 turnos). O `docs:check` do clone achou um único problema, e
+não era do ADR: a checagem de caminho da T6 acusava `packages/server/dist/…`, que só existe depois de um
+build — corrigida para ignorar saída de build. O ADR de teste ficou no clone, apagado com ele.
+
+---
+
+### T21: O contrato conhece o `checks.md`
+
+**Classe:** sensor computacional · **Previne:** que o fluxo novo do [ADR de 2026-09-28](../../adr/2026-09-28-1952-a-feature-is-proven-by-checks-not-planned-in-tasks.md) exista
+só na skill: sem isto, o `check-docs` acusaria toda feature nova de `Status:` errado (ela não tem
+`tasks.md`), o `lumem-dev` procuraria task que não existe, e o `lumem-reviewer` não saberia que o
+`verification.md` é dele.
+**Trava:** [Q15](open-questions.md).
+
+**What**:
+1. `scripts/check-docs.ts`: proposta ⇔ **nem `tasks.md` nem `checks.md`**; o `Status:` é comparado com
+   o arquivo que existir; os casos novos no `check-docs.test.ts`, cada um provado ficando vermelho.
+2. Os validadores do fluxo — plano, checks e verificação —, portados da `tlc-spec-lean` para
+   TypeScript em `scripts/`, com o teste que injeta defeito em cada regra e exige que ele morra (o
+   `selftest.py` dela).
+3. `.claude/agents/lumem-dev.md`: executa **fatias do `checks.md`**, escreve o teste a partir do check
+   e nunca da implementação, e continua executando `tasks.md` nas features antigas.
+4. `.claude/agents/lumem-reviewer.md`: é o **verificador** — disparado novo, depois do último commit
+   da feature, sobre `<base>..HEAD`, com todos os checks —, e escreve o `verification.md`.
+5. `CLAUDE.md`: a regra 5 ganha a nota no requisito contradito — *"PRD proposta ⇔ não tem
+   `tasks.md`"* passa a valer para `tasks.md` **ou** `checks.md`.
+
+**Where**: `scripts/check-docs.ts` (+ teste), `scripts/` (validadores novos), `.claude/agents/lumem-dev.md`,
+`.claude/agents/lumem-reviewer.md`, `CLAUDE.md`.
+
+**Done when**:
+- uma feature de exemplo com `prd.md` + `checks.md` e `Status: em execução` passa no `check-docs`, e a
+  mesma sem `checks.md` reprova;
+- cada validador portado fica vermelho contra o defeito que ele existe para pegar;
+- `pnpm gate:quick` verde.
+
+**Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue em 2026-09-28. Os cinco passos:
+1. o `check-docs` deriva o `Status:` de `tasks.md` **ou** `checks.md` (3 casos novos, cada um vermelho
+   de propósito);
+2. os três validadores portados para `scripts/feature-flow/` — **70 regras** (plano 29, checks 23,
+   verificação 18), nenhuma deixada de fora — e `pnpm feature:check <plan|checks|verification> <dir>`.
+   **124 testes**, com **um mutante por regra**: o `selftest.py` original deixava 30 das 70 regras sem
+   caso nenhum, e um teste agora falha se uma regra declarada não tiver mutante. Paridade conferida
+   rodando os `.py` originais sobre os 88 mutantes e controles: os totais de erro e aviso bateram em
+   todos. Um detalhe que só aparece portando: `\b` e `\w` do JavaScript são ASCII, e `## Problemática`
+   casaria com `^## Problem\b` — o porte usa a semântica Unicode do Python, com mutante que prova;
+3. o `lumem-dev` executa **fatias do `checks.md`**, escreve o teste a partir do check e não dispara o
+   verificador;
+4. o `lumem-reviewer` é o **verificador**: disparado novo, sobre `<base>..HEAD`, e a única escrita dele é
+   o `verification.md` — o `Write` entrou nas ferramentas só para isso;
+5. a nota da regra 5 já estava no `CLAUDE.md`, e ficou verdadeira.
+
+A portagem foi feita por um subagente em paralelo, e ele achou um ponto cego do `gate:quick`: mudar só
+uma fixture `.md` de teste não roda a suíte que a lê — a correção está no commit seguinte.
 
 ---
 
@@ -401,26 +837,29 @@ agente, e apodrecendo a cada feature nova.
 tem sensor nenhum** — promessa não-aguardada (o daemon é cheio de `void` e de `async` disparado),
 `catch` vazio, `await` em laço, import não usado, variável sombreada. E previne a deriva de estilo que
 o agente **copia do que encontra**: inconsistência existente é dívida composta.
-**Trava:** [Q2](open-questions.md).
+**Trava:** ~~[Q2](open-questions.md)~~ — respondida em 2026-09-28: **`oxlint --type-aware`**.
 
 **What**:
-1. **Medir antes de escolher**, no molde da fase 0 da [second-agent](../021-second-agent/prd.md). Rodar
-   `oxlint` e `typescript-eslint` (perfil só-correção) sobre `packages/*/src`, `e2e` e `scripts`, e
-   registrar: tempo de execução e número de achados por regra. Critério declarado **antes** da
-   medição: se o `typescript-eslint` couber em **60s**, ele ganha — as regras com informação de tipo
-   são as que pegam defeito de verdade; acima disso, `oxlint` agora e o type-aware vai para o backlog
-   com o número medido como gatilho.
+1. ~~**Medir antes de escolher**~~ — **feito em 2026-09-28**, e a tabela está na
+   [Q2](open-questions.md): os dois acham os mesmos 2 `no-misused-promises` e 0 `no-floating-promises`;
+   o `oxlint --type-aware` em 2,7 s, o `typescript-eslint` em 18,9 s. O passo começa daqui:
+   `oxlint` e `oxlint-tsgolint` como dependências de desenvolvimento da raiz, `.oxlintrc.json` com a
+   categoria `correctness` mais `typescript/no-floating-promises`, `typescript/no-misused-promises` e
+   `typescript/await-thenable`, e os **44 achados** de hoje triados um a um — consertados, ou
+   desligados **na linha** com o motivo. Os `eslint-disable` que já existem no código (`react/…`,
+   `no-bitwise`) são lidos pelo oxlint: os que não calam nada saem.
 2. Configurar **só correção**. Nada de estilo, nada de ordem de import, nada que um formatador
    resolveria — formatador está fora de escopo por decisão do §4 da PRD (reformatar 105k linhas apaga
    o `git blame` de um repositório de 24 dias).
 3. `pnpm lint` na raiz, com `--max-warnings 0`: warning que não falha é ruído que se aprende a ignorar.
 4. Entrar no `gate:build` (que é o gate que hoje responde "o repositório compila") e no job `checks`
-   do CI, **depois** do `typecheck` — erro de tipo primeiro, porque é o mais legível dos dois.
+   do CI, **depois** do `typecheck` — erro de tipo primeiro, porque é o mais legível dos dois. Com
+   2,7 s medidos, ele cabe também no `pre-push` da [T17](#t17-hooks-de-git-versionados-ligados-pelo-setup).
 5. Registrar em `docs/project/testing.md`: o que o lint garante, o que ele **não** garante, e o tempo
    medido.
 
-**Where**: `eslint.config.ts` ou `.oxlintrc.json` (conforme a Q2), `package.json` (raiz),
-`.github/workflows/ci.yml`, `docs/project/testing.md`.
+**Where**: `.oxlintrc.json` (novo), `package.json` e `pnpm-lock.yaml` (raiz),
+`.github/workflows/ci.yml`, os arquivos dos 44 achados, `docs/project/testing.md`.
 
 **Done when**:
 - `pnpm lint` sai **0** no HEAD;
@@ -430,7 +869,31 @@ o agente **copia do que encontra**: inconsistência existente é dívida compost
 - o CI continua abaixo de 6min.
 
 **Gate**: `pnpm gate:build`
-**Status**: ⬜ não iniciada
+**Status**: ✅ entregue em 2026-09-28. `oxlint@1.86` + `oxlint-tsgolint`, `.oxlintrc.json`, `pnpm lint`
+com `--max-warnings 0`, dentro do `gate:build` (e portanto do job `checks` do CI) e do `pre-push`. O
+`gate:build` inteiro ficou em **21 s**. Um canário com uma promise flutuante reprova nomeando arquivo e
+linha.
+
+A triagem não foi de 44 itens, como a medição da Q2 previa, e o motivo é instrutivo: com `--type-aware`
+a categoria `correctness` liga **mais** regras com tipo, e o total foi **231**. Destes, **162** eram
+`unbound-method` sobre `const { f } = useHook()` — desligado, com o motivo no `testing.md`. Os **69**
+restantes, um a um:
+- **consertados** — 2 `no-misused-promises` (o `void` ficou explícito, e a rejeição cai no registro de
+  erros pelo `unhandledrejection`); 12 `await-thenable` (o `.all()`/`.run()` do drizzle com
+  `better-sqlite3` é síncrono); 18 variáveis e imports sem uso; 11 `no-base-to-string` — o `RawData` do
+  `ws` é `Buffer | ArrayBuffer | Buffer[]`, e `.toString()` só acerta o primeiro: nasceu
+  `server/src/ws-text.ts`; 4 `no-unsafe-optional-chaining` nos testes; 2 `sort()` sem comparador;
+  um *spread* inútil e um *fallback* vazio;
+- **um defeito real e engraçado:** em `web/src/lib/shiki-codemirror.ts`, um `` `*/` `` dentro do JSDoc
+  **fechava o comentário no meio**, e o resto da frase virava uma template literal solta no módulo
+  (`no-unused-expressions`). O `queryKeys.test.ts` tinha o mesmo problema contornado com um espaço de
+  largura zero (`no-irregular-whitespace`); os dois passaram a escrever `*\/`;
+- **exceção na linha, com motivo** — 7 `no-control-regex` (as regex **são** de caractere de controle:
+  tiram escape ANSI) e 8 `no-useless-spread` que são **cópia de propósito**, porque o laço pode
+  remover da coleção que percorre.
+
+A regra 8 da `032` reprovou no caminho porque dois arquivos **encolheram**, e o mapa foi atualizado —
+o sensor funcionando.
 
 ---
 
@@ -442,28 +905,34 @@ ninguém ver — `shared` não importa ninguém, `server` importa `shared`, `web
 propriedade que existe por disciplina. E previne o crescimento silencioso do núcleo:
 `AcpManager.ts` tem **2071 linhas** e concentra transporte, sessão e tradução — é o arquivo mais
 difícil de testar do repositório, e o que mais cresce.
-**Trava:** [Q3](open-questions.md) (onde mora), [Q4](open-questions.md) (forma do teto).
+**Trava:** ~~[Q3](open-questions.md)~~ e ~~[Q4](open-questions.md)~~, respondidas em 2026-09-28: `scripts/package-boundaries.test.ts`, e mapa que sobe só com motivo.
 
 **What**:
-1. `scripts/architecture.test.ts` com três asserções:
+1. `scripts/package-boundaries.test.ts` com três asserções — **entre** pacotes; o que é de dentro do
+   `web` já está no `packages/web/src/architecture.test.ts` da [`032`](../032-web-architecture/prd.md):
    - **direção:** nenhum `import` de `packages/shared/src` alcança `server`, `web` ou `cli`; nenhum de
      `server` alcança `web` ou `cli`; `web → server` é permitido **só** como `import type` de
      `@lumem/server/router-types`, que é a exceção declarada e a única;
    - **dependência declarada:** todo `@lumem/*` importado por um pacote está nas `dependencies` ou
      `devDependencies` **daquele** pacote. Hoje passa (o `web` declara `@lumem/server` em devDeps), e
      é uma propriedade que quebra calada num monorepo com symlink;
-   - **teto:** arquivo novo de produção não passa de **700 linhas**, e os 8 que hoje passam vivem num
-     mapa de exceções com o tamanho atual, que **só pode diminuir** (conforme a Q4).
+   - **teto:** arquivo de produção fora de `web/src/features/` não passa de **700 linhas** fora do
+     mapa; o mapa guarda **`{ linhas, motivo }`**, e um arquivo que cresce além do registrado reprova
+     até o mapa subir **com motivo novo** — sem motivo, reprova ([Q4](open-questions.md)). A regra 8 da
+     `032` ganha o mesmo campo `motivo`, e as duas mensagens passam a dizer a mesma coisa.
 2. A mensagem de falha injeta remediação, não código de regra: *"este import atravessa a fronteira do
    pacote — mova a lógica para `shared/`, ou exponha por `router-types`"*. O critério de qualidade da
    mensagem é o do §D4 da auditoria: um agente tem que saber o que fazer sem abrir o teste.
-3. O mapa de exceções nasce da medição já feita (`AcpManager.ts` 2071, `MemoryPanel.tsx` 987,
-   `FileService.ts` 971, `MemoryService.ts` 961, `AgentLogin.tsx` 933, `Conversation.tsx` 824,
-   `schema.ts` 787, `GitService.ts` 768).
+3. O mapa de exceções nasce da medição de 2026-09-28, com motivo *"linha de base 2026-09-28"*:
+   `AcpManager.ts` 2813, `schema.ts` 1709, `GitService.ts` 1099, `FileService.ts` 971,
+   `MemoryService.ts` 961, `SessionStore.ts` 951, `routers/worktree.ts` 896, `tasks/conveyor.ts` 784,
+   `bootstrap.ts` 781, `repositories/task.ts` 756, `shared/src/acp-protocol.ts` 749,
+   `tasks/conveyor-ports.ts` 727. O `conversation-model.ts` (751) já está no mapa da `032`. Os
+   números mudam até a task começar — o mapa nasce do `wc -l` do dia, não desta lista.
 4. **A task instala o sensor e não refatora nada.** Reduzir o `AcpManager` é trabalho com PRD próprio;
    misturar as duas coisas produz um diff que ninguém revisa.
 
-**Where**: `scripts/architecture.test.ts` (novo, conforme a Q3), `docs/project/testing.md`.
+**Where**: `scripts/package-boundaries.test.ts` (novo), `docs/project/testing.md`, `CLAUDE.md` (a linha *dentro do pacote → no pacote; entre pacotes → `scripts/`*).
 
 **Done when**:
 - um `import` de `server` dentro de `packages/shared/src` **reprova**, nomeando os dois arquivos e
@@ -471,10 +940,22 @@ difícil de testar do repositório, e o que mais cresce.
 - remover `@lumem/server` das devDependencies do `web` **reprova**;
 - acrescentar 20 linhas a um arquivo que está no seu teto **reprova**; remover 20 linhas **passa** e o
   mapa pode ser atualizado para baixo;
-- o mapa tem exatamente os 8 arquivos medidos, e o teste passa no HEAD.
+- subir um número do mapa **sem** `motivo` reprova;
+- o mapa tem exatamente os arquivos acima do teto no dia, e o teste passa no HEAD.
 
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ não iniciada
+**Status**: ✅ entregue em 2026-09-28. `scripts/package-boundaries.test.ts` com as três asserções mais
+uma — nenhum import relativo de produção sai do próprio pacote —, e as três provadas vermelhas de
+propósito: um `import` de `@lumem/server` dentro do `shared`, o `@lumem/server` tirado das devDependencies
+do `web`, e 20 linhas a mais no `bootstrap.ts` (*"cresceu de 780 para 800"*). O mapa nasceu com os
+**12** arquivos acima de 700 no dia, cada um com `reason`, e a regra 8 da `032` ganhou o mesmo campo.
+
+Duas coisas que o sensor achou no primeiro dia:
+- **o crescimento, e era meu:** as exceções de lint na linha da T9 somaram 5 linhas ao `AcpManager` e 1
+  ao `worktree.ts` — o mapa subiu com esse motivo escrito, que é exatamente o mecanismo da Q4;
+- **um import que atravessa o pacote em produção:** `cli/src/postinstall.ts` importa
+  `scripts/ensure-pty-helper.js` da raiz. Fica, como exceção nomeada: o esbuild o embute no
+  `bin/postinstall.mjs`, e nada de fora do pacote é lido na instalação.
 
 ---
 
@@ -513,7 +994,14 @@ perguntar o que ele fez, e um bug de runtime exige uma pessoa lendo o terminal d
 - `pnpm gate:quick` verde.
 
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ não iniciada
+**Status**: ✅ entregue em 2026-09-28. `LUMEM_LOG_FILE` no `config.ts` (ausente → `null`, sem arquivo),
+`server/src/log-file.ts` escrevendo no arquivo **e** no stdout com rotação para `.1` aos 10 MB, sem
+dependência nova; `turbo.json` com a variável no `globalPassThroughEnv`; o `run.sh` a define e imprime.
+Observado com um daemon de verdade, isolado em `/tmp/lumem-t11` na porta 47811: o arquivo e o stdout
+com as **mesmas 12 linhas** JSON, uma por requisição, e um `workspace.create` com nome vazio deixando
+`"msg":"trpc procedure failed"` com `"path":"workspace.create"` — achado pelo `grep`. A rotação está
+coberta por teste (teto de 20 bytes), não por um arquivo de 10 MB de verdade. A receita de duas linhas
+foi para o `CLAUDE.md`, e não para um `AGENTS.md` ([Q11](open-questions.md)).
 
 ---
 
@@ -545,7 +1033,11 @@ e **conhecida**, e hoje ela é nem uma nem outra.
 - o job de rollback é recusado sem aprovação.
 
 **Gate**: os quatro acima
-**Status**: ⬜ não iniciada
+**Status**: ⛔ **bloqueada em 2026-09-28** pela [Q16](open-questions.md). O passo 1 não é possível como
+está escrito: o `release.yml` publica por **OIDC (trusted publisher)**, e o trusted publisher do npm só
+concede `publish` e `stage publish` (`npm trust github --allow-publish --allow-stage-publish`, na
+documentação do npm CLI) — **mover `dist-tag` por OIDC não existe**. O rollback por `dist-tag` exigiria
+de volta uma credencial do npm, que é exatamente o que a T1 tirou. Nada foi alterado no registro.
 
 ---
 
@@ -579,7 +1071,49 @@ verificável deste repositório.
 - o número de PRs abertas pelo bot não passa de 3.
 
 **Gate**: `pnpm gate:full` na PR do bot
-**Status**: ⬜ não iniciada
+**Status**: ✅ entregue em 2026-09-29. `.github/dependabot.yml` com `npm` e `github-actions`, semanal,
+até 3 PRs, grupos `dev`/`prod`, sem major das duas nativas; alertas de vulnerabilidade e correções
+automáticas ligados — `dependabot_security_updates` devolve **`enabled`**. A linha da classe N3 foi para o
+`CLAUDE.md`. A primeira PR do bot — [#94](https://github.com/vinihcrosa/lumem-os/pull/94), vitest 3.2.7 →
+4.1.11, um **major** — foi **mesclada pelo dono em 2026-09-29**, pelo ruleset da T2: o aceite ponta a ponta.
+Ela chegou a esta branch pelo merge da `main`, e o lint da T9 pegou o efeito que o CI dela não tinha como
+ver: no vitest 4, `ReturnType<typeof vi.fn>` retorna `void`, e nove `mockImplementation(async …)` viraram
+`no-misused-promises` em dois testes — consertado tipando os spies.
+
+---
+
+### T22: O selo de classe de N3, como rótulo na PR
+
+**Classe:** sensor computacional · **Previne:** que *"esta PR é só de documentação"* seja julgamento de
+quem lê o título. As três classes da [A3](open-questions.md) — CSS/token, dependência, documentação —
+só existem se uma PR que as **mistura** com outra coisa for reconhecida como *sem classe*.
+**Trava:** ~~[Q7](open-questions.md)~~ — respondida em 2026-09-28: rótulo, **sem** merge automático.
+
+**What**:
+1. `scripts/pr-class.ts`: recebe a lista de caminhos tocados e devolve a classe, como função pura.
+   `packages/web/src/**/*.css` e `packages/web/src/styles/tokens.*` sozinhos → `css-token`;
+   `package.json` e `pnpm-lock.yaml` (de qualquer pacote) sozinhos → `dependência`; `docs/**` e
+   `*.md` sozinhos → `docs`; qualquer união → `sem classe`.
+2. `scripts/pr-class.test.ts`: cada classe, cada mistura, e a PR vazia.
+3. Um passo no `ci.yml`, só em `pull_request`, com `permissions: pull-requests: write` **só nele**:
+   `git diff --name-only <base>...<head>` → `pr-class` → `gh pr edit --add-label` (e tira o rótulo
+   antigo quando a classe muda num push novo).
+4. O rótulo é **informação**: nenhuma regra do ruleset o lê, e nada se mescla sozinho por causa dele.
+
+**Where**: `scripts/pr-class.ts` (+ teste, novos), `.github/workflows/ci.yml`, `docs/project/testing.md`.
+
+**Done when**:
+- uma PR só de `.md` recebe `N3: docs`; a mesma PR com um `.ts` a mais passa a `sem classe` no push
+  seguinte — observado numa PR descartável;
+- `pnpm gate:quick` verde.
+
+**Gate**: `pnpm gate:quick`
+**Status**: 🟡 entregue em 2026-09-28, **menos a observação numa PR de verdade**. `scripts/pr-class.ts` com
+**11** testes (cada classe, cada mistura, a PR vazia, e que só o workflow novo escreve na PR). Um workflow
+**próprio**, `.github/workflows/pr-signals.yml`, e não um passo do `ci.yml`: os checks obrigatórios do
+ruleset continuam sendo só os dois, e a permissão `pull-requests: write` fica restrita a ele. Os quatro
+rótulos são criados pelo próprio workflow (`gh label create --force`). O primeiro rótulo aparece na
+primeira PR aberta depois do merge desta — o workflow só roda a partir da `main`.
 
 ---
 
@@ -614,11 +1148,32 @@ nem mutação, e 3151 testes verdes não dizem quantos têm dentes.
 - o job semanal roda e não interfere no CI de PR.
 
 **Gate**: `pnpm gate:mutation`
-**Status**: ⬜ não iniciada
+**Status**: ✅ entregue em 2026-09-28. Stryker 10 com o runner do vitest, `pnpm gate:mutation`, o
+workflow semanal `mutation.yml` (sem gatilho de PR) e o score no `testing.md`: **72,72%** em 5 886
+mutantes, 44 min.
+
+> **SPEC_DEVIATION — o piso é por arquivo, e não global.** O *Done when* pedia que enfraquecer uma
+> asserção derrubasse o score abaixo de `baseline − 2`. **Com um piso global isso não acontece**, e foi
+> medido: enfraquecer todas as asserções do `git-url.test.ts` moveu o total de 72,72 para 71,30 — acima
+> do `break` de 70, Stryker saindo com 0. O `git-url.ts` sozinho caiu de 79,68 para **46,22**. Por isso
+> o piso mora em `scripts/mutation-floors.ts`, um por arquivo, e `scripts/mutation-floor.ts` o confere
+> depois do Stryker: com o teste enfraquecido ele saiu com **1**, nomeando o arquivo; restaurado, voltou a
+> 0 e aos 72,72. O `break` global de 70 fica como rede de baixo. O pedido *"num commit descartável"* foi
+> feito na árvore de trabalho, restaurada logo depois.
+
+Dois custos que a primeira rodada cobrou, e o que ficou: o sandbox dentro do checkout deixou um mutante do
+`git/` reescrever o `origin` do repositório (consertado com `GIT_CEILING_DIRECTORIES`), e os 6 processos do
+Stryker com o default do vitest travavam a máquina (agora 2 × 1 worker, em `nice`). A rodada completa com
+os dois consertos, em 2026-09-29: **1h19**, 72,71%, os 39 pisos passando, e a config, as refs e as
+worktrees **intactas** no `diff` de antes e depois.
 
 ---
 
 ### T15: O revisor inferencial no CI, não bloqueante, com taxa medida · [#70](https://github.com/vinihcrosa/lumem-os/issues/70)
+
+> **Fora de escopo — 2026-09-28.** A [Q5](open-questions.md) tirou esta task da feature. O texto abaixo
+> fica como estava, como registro do que foi pensado; o que volta, e quando, está no
+> [backlog](../../project/backlog.md).
 
 **Classe:** sensor inferencial · **Previne:** que o `lumem-reviewer` — 518 linhas de critério real,
 incluindo **auditoria de força de teste por bateria de mutação** — só exista quando alguém lembra de
@@ -646,7 +1201,7 @@ feedback está vazio.
   revisão inventada.
 
 **Gate**: as três PRs acima
-**Status**: ⬜ não iniciada
+**Status**: ⏸ **fora de escopo** desde 2026-09-28 — [Q5](open-questions.md): nada de revisão automática por agente no CI agora. O desenho discutido está no [backlog](../../project/backlog.md).
 
 ---
 
@@ -676,7 +1231,10 @@ o N2 exige dele.
   o tamanho das features, não sobre o template.
 
 **Gate**: as 10 PRs medidas
-**Status**: ⬜ não iniciada
+**Status**: 🟡 **parcial** em 2026-09-28. O `.github/pull_request_template.md` com os quatro campos, e o
+passo de tamanho no `pr-signals.yml` da T22 (e não no `ci.yml`, pelo mesmo motivo): acima de 1500 linhas,
+comenta **uma vez** pedindo a justificativa, com um marcador para não repetir. **Falta:** a mediana de 10
+PRs — ela só existe depois delas.
 
 ---
 

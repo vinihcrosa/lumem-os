@@ -14,7 +14,7 @@
 > pipeline que funcionou e o que ele achou; **por que mudou** (§2); e **como é** (§3).
 >
 > O desenho de tela passou a ser feito inteiramente no Open Design. O
-> `packages/web/scripts/generate-tokens.py` saiu, e o `tokens.css` não é mais gerado: ele é
+> packages/web/scripts/generate-tokens.py saiu, e o `tokens.css` não é mais gerado: ele é
 > **sincronizado** de lá para cá.
 
 ---

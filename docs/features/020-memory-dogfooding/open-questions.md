@@ -1,6 +1,6 @@
 # Três semanas com a memória ligada — perguntas
 
-**PRD:** [prd.md](prd.md) · **Diário:** [journal.md](journal.md)
+**PRD:** [prd.md](prd.md) · **Diário:** [no Outline](https://wiki.cazimi.tech/doc/memory-dogfooding-journal-yvJ6AQLsTa)
 
 Registro de por que cada decisão foi tomada. Pergunta respondida não vira suposição silenciosa: fica
 aqui, com o motivo.

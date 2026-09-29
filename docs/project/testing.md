@@ -72,9 +72,81 @@ Fonte de verdade da estratégia de teste. O campo `Tests`/`Gate` de toda task sa
 |---|---|---|
 | `quick` | `pnpm gate:quick` | Testes afetados pelo trabalho atual |
 | `full` | `pnpm gate:full` | Suíte inteira + e2e |
-| `build` | `pnpm gate:build` | Typecheck de todo TS do repositório + build do web **e do bundle do daemon** |
-| `docs` | `pnpm docs:check` | Link, âncora e `**Status:**` da documentação. Já roda dentro do `gate:full` pelo `check-docs.test.ts`; o comando existe para rodar em 200 ms sem a suíte |
+| `build` | `pnpm gate:build` | Typecheck de todo TS do repositório, **lint de correção** (`pnpm lint`) e build do web **e do bundle do daemon** |
+| `lint` | `pnpm lint` | `oxlint --type-aware`: a categoria `correctness` mais `no-floating-promises`, `no-misused-promises` e `await-thenable`, com `--max-warnings 0`. 2,7 s. Não vê estilo, e é de propósito. `unbound-method` desligado: 162 achados, todos `const { f } = useHook()` sobre interface com sintaxe de método, sem `this` em jogo. Exceção na linha, sempre com `-- motivo` |
+| `docs` | `pnpm docs:check` | Link, âncora, `**Status:**`, **caminho de código em crase que não existe** (fora de ADR, de `references/` e de feature não `completa`) e **linha duplicada numa tabela do índice**. Já roda dentro do `gate:full` pelo `check-docs.test.ts`, e o `gate:quick` o roda sozinho sempre que uma doc mudou — o `--changed` do vitest nunca selecionaria um teste que lê arquivo por caminho |
 | `smoke` | `pnpm smoke:install` | O pacote publicado instala num prefixo limpo e sobe. Não faz parte dos três gates de todo dia: roda no release, e à mão antes de publicar |
+
+### Os gates não tomam a máquina
+
+Desde 2026-09-29 todo `gate:quick` — à mão, pelo `pre-push` ou pelo `Stop` do agente — roda os testes em
+**prioridade baixa** (`nice -n 15`), e o `gate:mutation` também, com 2 processos do Stryker de **1 worker
+cada**. Antes, um gate disparado por hook tomava o computador de quem estava usando, e a mutação
+(6 processos × o default do vitest de um worker **por núcleo** = 60 processos em 11 núcleos) o deixava
+inutilizável pelos 44 minutos da rodada. Medido com uma sonda de CPU de trabalho fixo, ~400 ms parada:
+
+| Prioridade | Suíte inteira | A sonda durante | Resultado |
+|---|---|---|---|
+| `nice -n 15` — o padrão | **95 s**, o mesmo da prioridade normal | ~360–550 ms | verde |
+| `taskpolicy -b` — `LUMEM_TEST_PRIORITY=background`, macOS | 408 s | ~350–540 ms | **2 falsos vermelhos por timeout** |
+| mutação, 2 × 1 worker, `nice` | 334 s num arquivo (198 s com 6 processos); a rodada completa, **1h19** (44 min com 6 processos) | ~320–460 ms | 72,71%, os 39 pisos passam |
+
+O `nice` custa zero com a máquina parada — os testes continuam alcançando os núcleos de desempenho que
+ninguém quer — e cede quando alguém quer. O `taskpolicy -b` prende tudo nos núcleos de eficiência: a
+máquina fica inteiramente livre, e um teste sensível a tempo estoura. Por isso ele é opcional.
+`LUMEM_TEST_PRIORITY=normal` devolve a máquina inteira.
+
+### Mutação: o número que limita o auto-engano da suíte
+
+`pnpm gate:mutation` (Stryker, runner do vitest) sobre os três diretórios de núcleo — os que escrevem
+no disco do usuário e os que decidem —, **fora** do `gate:quick` e do `gate:build`: custa minutos. Roda
+semanal pelo `.github/workflows/mutation.yml`, nunca na PR. Medido em **2026-09-28**:
+
+| Diretório | Score | Mutantes |
+|---|---|---|
+| `server/src/memory/` | 72,35% | 3552 |
+| `server/src/git/` | 77,96% | 1547 |
+| `server/src/files/` | 64,08% | 785 |
+| **total** | **72,72%** | 5886 — 4256 mortos, 23 por timeout, 1143 sobreviventes, 462 sem cobertura; **44 min** com 6 processos |
+
+**O piso é por arquivo**, em `scripts/mutation-floors.ts` (o score de cada um menos 2, e **só sobe**),
+checado por `scripts/mutation-floor.ts` depois do Stryker. O `thresholds.break` global (70) existe, mas
+**não pega uma asserção perdida**, e isso foi medido: enfraquecer todas as asserções do
+`git-url.test.ts` levou o total de 72,72 a 71,30 — acima do `break`, Stryker saindo com 0 — enquanto o
+`git-url.ts` caiu de 79,68 para **46,22**, abaixo do piso 77, e o comparador saiu com 1. Com o modo
+incremental, a rodada que só reexecuta os mutantes de um teste mudado custou ~4 min. Os piores arquivos
+do dia — `memory/main-cli.ts` (0%, 6 mutantes), `memory/skill.ts` (28%), `memory/http.ts` (46,6%) — são
+por onde começa quem quiser subir o número.
+
+### Os hooks de git: feedback, não portão
+
+Desde a T17 da [`024-dev-harness`](../features/024-dev-harness/tasks.md), o husky liga três hooks no
+`prepare` do `pnpm install`, e cada `.husky/<hook>` é uma linha que chama
+`scripts/harness/git-hook.ts`:
+
+| Hook | Roda | Custo medido |
+|---|---|---|
+| `pre-commit` | recusa commit em `main`; `docs:check` se há `.md` em stage; `design:derive --check` se o `tokens.css` está em stage | < 1 s |
+| `commit-msg` | Conventional Commits, assunto até 72 caracteres | ~0 |
+| `pre-push` | `gate:quick` **desde a ponta do remoto** (e não desde `HEAD^`), pulando uma árvore já carimbada verde em `.git/…/lumem-gate-green` | 0–84 s |
+
+**O `Stop` do Claude** (T19) cobra o mesmo `gate:quick` antes de o agente dizer *pronto*: só quando a
+árvore mudou desde o último carimbo verde, bloqueando **uma vez** por turno, e nunca numa worktree da
+esteira. O custo medido em 2026-09-28, uma mudança de um arquivo por pacote, com a árvore limpa:
+
+| Arquivo mudado | `gate:quick` | Arquivos de teste selecionados |
+|---|---|---|
+| `scripts/pr-class.ts` | 3 s | 1 |
+| `server/src/log-file.ts` | 5 s | 2 |
+| `server/src/tasks/conveyor.ts` | 5 s | 2 |
+| `web/src/lib/pending-writes.ts` | 17 s | 35 |
+| `shared/src/constants.ts` | 72 s | 133 — o `shared` é importado por todos |
+
+**Mediana: 5 s.** Os 84–95 s dos pushes deste trabalho eram o caso *"config mudou, roda tudo"* —
+qualquer `package.json`, `tsconfig.json` ou fixture —, e não o turno típico.
+
+Um hook **não é portão**: `--no-verify` e `HUSKY=0` o atravessam. Para agente, quem os recusa é o
+guarda (`scripts/harness/guard.ts`); para todo mundo, quem garante é o ruleset da `main` e o CI.
 
 ### Na PR, os mesmos gates
 
@@ -268,9 +340,45 @@ O `tsc` puro na raiz não enxergava `e2e/`, `playwright.config.ts` nem os `vites
 
 ## Armadilhas já corrigidas
 
+### O mutante que roda o git no diretório errado encontra este repositório
+
+**2026-09-28, na primeira rodada completa do Stryker (T14 da `024-dev-harness`).** O Stryker monta o
+sandbox em `.stryker-tmp/`, **dentro** do checkout. Um mutante de `server/src/git/` que troca o
+diretório de um comando — um `cwd` que vira `""`, um caminho que vira `"Stryker was here!"` — faz o `git`
+rodar no diretório atual, e a busca por repositório **sobe** do sandbox até achar o `.git` deste. O que
+ela fez aqui: trocou o `remote.origin.url` da config **compartilhada pelas 17 worktrees** para um
+`file:///var/folders/…` de teste, e criou uma worktree e uma branch `teste` no repositório. Achado
+porque o `git push` seguinte tentou empurrar para um diretório temporário. Consertado à mão, conferido
+por `diff` contra a cópia da config, e a worktree e a branch — sem commit novo — removidas.
+
+**O conserto:** o `gate:mutation` roda com `GIT_CEILING_DIRECTORIES` na raiz do sandbox, e o git não
+sobe de dentro dele. **Provado em 2026-09-29** com uma rodada completa — os 5 886 mutantes, 1h19 com 2
+processos de 1 worker em prioridade baixa, score 72,71% — e o `diff` da config compartilhada, das refs e
+das worktrees antes e depois: **nada mudou**. **A regra que sobra:** mutação de código que chama `git` só roda com a
+busca de repositório cercada — e é a mesma família da armadilha abaixo: o processo de teste achando o
+repositório de verdade.
+
+### O `GIT_DIR` que o git exporta para o hook faz a suíte escrever no repositório
+
+**2026-09-28, no primeiro push de verdade com o `pre-push`.** O git roda o hook com `GIT_DIR` (e, no
+`pre-commit`, `GIT_INDEX_FILE`) apontando para **este** repositório; o hook rodou o `gate:quick`, a
+suíte herdou o ambiente, e todo teste que faz `git init` ou `git config` num diretório temporário
+agiu sobre o repositório em vez do temporário. **718 testes** falharam — e o pior não foi a falha: um
+`git init --bare` gravou `core.bare = true` na config **compartilhada pelas 17 worktrees**, que
+passaram todas a responder *"this operation must be run in a work tree"*, e um `git config user.*`
+gravou uma seção `[user]` com `test`/`test@example.com`, que assinaria todo commit seguinte. A config
+foi consertada à mão (as duas coisas, e só elas — conferido com `diff` contra a cópia danificada), e
+nenhum commit nem ref estranho ficou.
+
+**O conserto:** `git-hook.ts` apaga as variáveis que nomeiam o repositório (`REPOSITORY_VARIABLES`)
+antes de rodar qualquer coisa, e devolve só o `GIT_INDEX_FILE` ao próprio `pre-commit`, que precisa
+ler o índice temporário de um `commit -a`. **A regra que sobra, para qualquer hook novo:** processo
+filho de um hook de git nasce com o ambiente limpo. Um teste de fora do hook nunca veria isto, porque
+a variável só existe dentro dele.
+
 ### Documentação não tinha gate nenhum, e a convenção falhava 1 em 5
 
-**Sintoma:** quatro links apontavam para `docs/features/003-worktree-tabs/prd.md`, arquivo que nunca
+**Sintoma:** quatro links apontavam para docs/features/003-worktree-tabs/prd.md, arquivo que nunca
 existiu sob nome nenhum — a pasta só tem `tasks.md`. **Dois deles foram criados por tasks marcadas
 `[x]`** cujo trabalho era propagar uma nota de reversão, e ficaram lá por dias. Em paralelo, cinco
 `prd.md` declaravam um `**Status:**` que discordava do próprio `tasks.md` da mesma pasta, e os dois

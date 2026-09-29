@@ -40,7 +40,7 @@ async function workspaceWithProject(context: TestCaller, name = "acme") {
 
 describe("boardOf", () => {
   it("devolve as sete colunas, em ordem, mesmo vazias", async () => {
-    const { api } = caller();
+    caller();
     const { workspaceId } = await workspaceWithProject(context);
 
     const board = boardOf(context.db, { workspaceId });

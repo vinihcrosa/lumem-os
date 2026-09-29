@@ -58,6 +58,7 @@ const refSchema = z
   .max(255)
   .refine((value) => !value.startsWith("-"), "a ref não pode começar com '-'")
   .refine((value) => !value.includes(".."), "a ref não pode conter '..'")
+  // oxlint-disable-next-line no-control-regex -- the control characters are the point: this strips ANSI/terminal escapes
   .refine((value) => !/[\s~^:?*[\\\u0000-\u001f\u007f]/.test(value), "a ref tem caracteres que o git não aceita");
 
 /**

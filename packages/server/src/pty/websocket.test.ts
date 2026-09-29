@@ -17,6 +17,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadConfig } from "../config.js";
 import { openTestDb, type TestDb } from "../db/testing.js";
 import { PtyManager } from "./PtyManager.js";
+import { frameText } from "../ws-text.js";
 
 const WAIT = { timeout: 10_000, interval: 20 } as const;
 
@@ -45,7 +46,7 @@ class TestClient {
     clients.push(client);
 
     ws.on("message", (raw) => {
-      const decoded = decodePtyServerMessage(raw.toString());
+      const decoded = decodePtyServerMessage(frameText(raw));
       if (decoded.ok) client.messages.push(decoded.message);
       else client.decodeErrors.push(decoded.error);
     });

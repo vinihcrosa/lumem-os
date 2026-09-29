@@ -821,6 +821,60 @@ cada linha existe.
 pessoa no repositório — a partir daí a discussão de estilo passa a custar tempo de duas pessoas, que é
 exatamente o que um formatador compra.
 
+### Merge automático das classes de N3 — `P`
+
+A [T22 da dev-harness](../features/024-dev-harness/tasks.md) rotula a PR com a classe (`N3: docs`,
+`N3: css-token`, `N3: dependência` ou `sem classe`), e a [Q7](../features/024-dev-harness/open-questions.md)
+parou aí em 2026-09-28: quem mescla continua sendo o dono. O passo seguinte é a PR de classe com os
+checks verdes se mesclar sozinha (`gh pr merge --auto`), o que pede liberar o `gh pr merge` que a T4
+proíbe ao agente — e só para PR rotulada.
+
+**De onde veio:** [dev-harness Q7](../features/024-dev-harness/open-questions.md) · **Volta quando:** a
+Fase 1 da dev-harness tiver rodado algumas semanas, e o rótulo tiver acertado em toda PR que passou por
+ele — o dado que diz se a classe é confiável para decidir sozinha.
+
+### Revisor de IA no CI — `M`
+
+A [T15 da dev-harness](../features/024-dev-harness/tasks.md) punha o `lumem-reviewer` em toda PR, e a
+[Q5](../features/024-dev-harness/open-questions.md) a tirou de escopo em 2026-09-28: *"agora não é hora
+de fazer review automático com agentes"*. O desenho que ficou, para não ser refeito:
+1. o Claude no job (`anthropics/claude-code-action` ou `claude -p`, com `--json-schema`) devolve os
+   achados em JSON, nos **dois baldes** da [Q67 da `028`](../features/028-autonomous-orchestration/open-questions.md)
+   — `bloqueia`, com o comando que o demonstra, e `anota`;
+2. um passo **sem IA** roda de novo cada comando de `bloqueia`: reproduziu, a PR trava; não reproduziu, o
+   achado cai;
+3. os `anota` viram comentário na PR, pelo `gh`.
+O custo que decide quando fazer é o passo 2: ele **executa no CI um comando que a IA escreveu depois de
+ler o diff**, então precisa de job sem secret, `permissions: read-all`, lista fechada de comandos e
+nenhuma PR de fork. A autenticação é `CLAUDE_CODE_OAUTH_TOKEN` (assinatura) ou `ANTHROPIC_API_KEY`.
+
+**De onde veio:** [dev-harness Q5 e Q6](../features/024-dev-harness/open-questions.md) · **Volta
+quando:** o verificador local do fluxo novo tiver rodado em três features e ficar claro o que ele não
+pega — ou quando entrar uma segunda pessoa, e a revisão humana deixar de ser de uma pessoa só.
+
+### Quebrar o `AcpManager` — `G`
+
+O arquivo mais difícil de testar do repositório concentra transporte, sessão e tradução, e é o que mais
+cresce: **2071 linhas em 2026-09-07, 2813 em 2026-09-28** (+36% em três semanas). A
+[Q4 da dev-harness](../features/024-dev-harness/open-questions.md) pôs um teto com mapa — ele pode
+crescer, mas só com motivo escrito —, e recusou quebrá-lo às pressas: dividir direito é desenho, com
+PRD própria.
+
+**De onde veio:** [dev-harness Q4](../features/024-dev-harness/open-questions.md) · **Volta quando:** o
+mapa da T10 subir o `AcpManager` pela terceira vez, ou antes, se uma feature precisar mexer em duas das
+três responsabilidades dele ao mesmo tempo.
+
+### `typescript-eslint` no lugar do `oxlint --type-aware` — `P`
+
+A [Q2](../features/024-dev-harness/open-questions.md) escolheu o `oxlint --type-aware` (2,7 s) contra o
+`typescript-eslint` (18,9 s), com os mesmos achados medidos em 2026-09-28. O que se aceitou foi a
+maturidade: a análise com tipo do oxlint usa o `typescript-go` pelo `oxlint-tsgolint`, que pode
+divergir do `tsc` que o repositório usa. Trocar custa uma tarde e ~20 s de CI.
+
+**De onde veio:** [dev-harness Q2](../features/024-dev-harness/open-questions.md) · **Volta quando:** o
+lint com tipo discordar do `tsc` num caso real — um falso positivo que não se cala sem desligar a regra,
+ou um defeito que o `typescript-eslint` pega e ele não.
+
 ### Sandbox de filesystem para o agente — `M`
 
 A [T4](../features/024-dev-harness/tasks.md) versiona um `deny` com alvos **nomeados** (`~/.npmrc`, `~/.aws`,
@@ -831,15 +885,23 @@ decisão de ferramenta, não de repositório.
 **De onde veio:** [harness-audit §6](harness-audit.md), itens 6 e 7 · **Volta quando:** o `deny` da T4
 for atravessado por um caminho que ele não previu, ou quando o agente rodar sem supervisão de tela.
 
-### `CODEOWNERS` e aprovação obrigatória em PR — `P`
+### `CODEOWNERS` e aprovação obrigatória em PR — `P` · **a lista do primeiro colaborador**
 
 A [T2](../features/024-dev-harness/tasks.md) protege a `main` com PR e checks obrigatórios, mas com
 `required_approving_review_count: 0` — o GitHub não permite aprovar a própria PR, e exigir uma
 aprovação num repositório de uma pessoa travaria o merge para sempre. `CODEOWNERS` teria a regra
 `* @vinihcrosa`, que não regula nada.
 
+**No dia em que entrar a segunda pessoa**, este item é a lista — os outros continuam onde estão, e
+aqui ficam os links ([Q8](../features/024-dev-harness/open-questions.md), 2026-09-28):
+- [ ] `required_approving_review_count` vai a **1**, e o `CODEOWNERS` nasce;
+- [ ] reabrir o [formatador no repositório inteiro](#formatador-no-repositório-inteiro--m);
+- [ ] reabrir o [revisor de IA no CI](#revisor-de-ia-no-ci--m);
+- [ ] reler a [Q1 da dev-harness](../features/024-dev-harness/open-questions.md): *ninguém passa por
+  cima* continua valendo, mas a saída de emergência — desligar o ruleset — passa a afetar outra pessoa.
+
 **De onde veio:** [dev-harness Q8](../features/024-dev-harness/open-questions.md) · **Volta quando:** o primeiro
-colaborador — no mesmo dia, `required_approving_review_count` vai a 1 e o `CODEOWNERS` nasce.
+colaborador — no mesmo dia, esta lista inteira.
 
 ### Grading de qualidade por domínio, com histórico — `M`
 

@@ -9,9 +9,11 @@ ciclo de vida — preparar, subir, descartar — vivem **num lugar só**, em
 
 | Arquivo | O quê |
 |---|---|
-| `scripts/workspace/env.sh` | Identidade do workspace: slug, modo, state dir, par de portas. Sourced pelos outros três |
-| `scripts/workspace/setup.sh` | Node ≥ 22, `pnpm install --frozen-lockfile`, chromium do playwright, state dir |
-| `scripts/workspace/run.sh` | Resolve as portas, confere que estão livres e faz `exec pnpm dev:turbo` |
+| `scripts/workspace/env.sh` | Identidade do workspace: slug, modo, state dir, par de portas; carrega o nvm no node do `.nvmrc`. Sourced pelos outros três |
+| `scripts/workspace/setup.sh` | o node do `.nvmrc` (major diferente recusa, com a saída), `pnpm install --frozen-lockfile`, chromium do playwright, state dir |
+| `.husky/`, `scripts/harness/git-hook.ts` | os hooks de git, ligados pelo `prepare` do `pnpm install` — que o `setup.sh` roda. O `run.sh` avisa quando a worktree está sem eles |
+| `.nvmrc`, `mise.toml` | a versão exata do node, `22.17.1` — lida pelo nvm, pelo mise e pelos três workflows (`node-version-file`). `scripts/node-version.test.ts` exige que os dois concordem |
+| `scripts/workspace/run.sh` | Resolve as portas, confere que estão livres, liga o log em `$LUMEM_STATE_DIR/daemon.log` (`LUMEM_LOG_FILE`) e faz `exec pnpm dev:turbo` |
 | `scripts/workspace/teardown.sh` | Apaga o state dir do workspace — **só no modo isolado**, e com três guardas antes do `rm -rf` |
 | `scripts/workspace/default-ports.mjs` | O par default (`4317`/`4318`) lido do `ports.json`, porque `env.sh` é bash |
 | `scripts/workspace/pick-ports.mjs` | Par de portas livre derivado do caminho do worktree, para quando o harness não reserva nenhuma |

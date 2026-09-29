@@ -471,14 +471,22 @@ describe("regra 7 — um `index.css` por feature", () => {
 // (T17) já o tinha encolhido para 388 antes de esta fase medir de novo.
 const LARGE_FILE_LIMIT = 400;
 
-const LARGE_FILE_CEILING: Readonly<Record<string, number>> = {
-  "features/checkout/FileTree.tsx": 640,
-  "features/checkout/FileViewer.tsx": 461,
-  "features/checkout/LocalPanel.tsx": 444,
-  "features/checkout/RunDock.tsx": 587,
-  "features/checkout/useFileBuffer.ts": 605,
-  "features/conversation/conversation-model.ts": 751,
-  "features/settings/SettingsPanel.tsx": 567,
+// Desde a Q4 da `024-dev-harness` (2026-09-28) cada entrada carrega o **motivo**
+// no dado, e não só no comentário acima: com agente, *"atualize o número"* vira
+// reflexo, e um campo exigido faz crescer ser uma decisão escrita. O mesmo
+// mecanismo, com teto 700, vale fora de `features/` em
+// `scripts/package-boundaries.test.ts`.
+const LARGE_FILE_CEILING: Readonly<Record<string, { lines: number; reason: string }>> = {
+  "features/checkout/FileTree.tsx": { lines: 640, reason: "linha de base da T25 da `032`" },
+  "features/checkout/FileViewer.tsx": { lines: 461, reason: "linha de base da T25 da `032`" },
+  "features/checkout/LocalPanel.tsx": { lines: 442, reason: "fora das listas da T25 e da Q8 da `032`; 444 → 442 na T9 da `024`" },
+  "features/checkout/RunDock.tsx": { lines: 587, reason: "linha de base da T25 da `032`" },
+  "features/checkout/useFileBuffer.ts": { lines: 605, reason: "linha de base da T25 da `032`" },
+  "features/conversation/conversation-model.ts": {
+    lines: 750,
+    reason: "um `case` por evento, com as frases em arquivos à parte (`033`, `034`, `028` T17); 751 → 750 na T9 da `024`",
+  },
+  "features/settings/SettingsPanel.tsx": { lines: 567, reason: "linha de base da T25 da `032`" },
 };
 
 /** Como `wc -l`: conta quebras de linha, não elementos do `split`. */
@@ -487,7 +495,11 @@ function lineCountOf(text: string): number {
 }
 
 /** Uma frase por caso — cresceu, encolheu sem atualizar o mapa, ou já não precisa da exceção. */
-function sizeRemedy(path: string, lines: number, recorded: number | undefined): string | null {
+function sizeRemedy(path: string, lines: number, entry: { lines: number; reason: string } | undefined): string | null {
+  if (entry !== undefined && entry.reason.trim() === "") {
+    return `\`${path}\` está em \`LARGE_FILE_CEILING\` sem motivo: o motivo é o que a revisão lê.`;
+  }
+  const recorded = entry?.lines;
   if (recorded === undefined) {
     if (lines <= LARGE_FILE_LIMIT) return null;
     return (
@@ -499,8 +511,8 @@ function sizeRemedy(path: string, lines: number, recorded: number | undefined): 
   if (lines > recorded) {
     return (
       `\`${path}\` cresceu de ${recorded} para ${lines} linhas: o mapa não aceita ` +
-      "um número maior que o já registrado — reduza o arquivo, ou atualize " +
-      "`LARGE_FILE_CEILING` para o tamanho novo, com o motivo do crescimento."
+      "um número maior que o já registrado — reduza o arquivo, ou suba o número em " +
+      "`LARGE_FILE_CEILING` com um `reason` novo, que diga por que ele cresceu."
     );
   }
   if (lines < recorded) {

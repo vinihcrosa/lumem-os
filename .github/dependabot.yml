@@ -1,0 +1,29 @@
+# Frescor de dependência (T13 da `024-dev-harness`). Atualização de dependência é
+# uma das três classes de N3: a suíte inteira mais o `smoke:install` a cobrem, e a
+# PR do bot ganha o rótulo `N3: dependência` da T22. Quem mescla continua sendo o
+# dono (Q7).
+version: 2
+updates:
+  - package-ecosystem: npm
+    # O workspace do pnpm é lido inteiro a partir da raiz.
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    groups:
+      dev:
+        dependency-type: development
+      prod:
+        dependency-type: production
+    ignore:
+      # As duas dependências nativas: o pacote publicado depende dos prebuilds
+      # delas, e um major é decisão de release, não de bot. Minor e patch entram.
+      - dependency-name: better-sqlite3
+        update-types: ["version-update:semver-major"]
+      - dependency-name: node-pty
+        update-types: ["version-update:semver-major"]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3

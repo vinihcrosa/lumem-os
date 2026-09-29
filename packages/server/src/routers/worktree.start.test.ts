@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 
 import { ADAPTERS_DIR_NAME, CLAUDE_ADAPTER } from "@lumem/shared";
 import { eq } from "drizzle-orm";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi, type Mock } from "vitest";
 
 import { AcpManager } from "../acp/AcpManager.js";
 import { createAgentAccountRepository } from "../repositories/agentAccount.js";
@@ -19,6 +19,14 @@ import {
 } from "../testing/acp-fake-agent.js";
 import { createTestCaller, type TestCaller } from "../testing/caller.js";
 import { cleanupGitFixtures, createRepo, runGit, tempDir } from "../testing/git-fixtures.js";
+
+/**
+ * A spy whose implementation may be async. `Spy` returns
+ * `void` since vitest 4, and an `async` implementation of a `void` function is
+ * what `no-misused-promises` exists to catch — here it is only the type that is
+ * wrong, so the type says what the spy really returns.
+ */
+type Spy = Mock<(...args: any[]) => unknown>;
 
 /**
  * `worktree.start` — criar worktree **é** abrir agente com prompt (`033` §3.3).
@@ -51,8 +59,8 @@ function stageManagedAdapter(state: string): string {
 
 interface FakeScripts {
   runner: ScriptRunner;
-  runToCompletion: ReturnType<typeof vi.fn>;
-  start: ReturnType<typeof vi.fn>;
+  runToCompletion: Spy;
+  start: Spy;
   /** Solta o `setup` mais antigo que ainda espera, com o exit escolhido. */
   finish(exitCode: number | null): void;
 }

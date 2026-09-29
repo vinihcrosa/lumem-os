@@ -51,3 +51,7 @@ storybook-static/
 
 # scratch: discovery e planos para agentes (não versionado)
 /tmp/
+
+# Stryker (T14 da 024-dev-harness)
+.stryker-tmp/
+reports/mutation/

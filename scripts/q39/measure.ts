@@ -142,7 +142,7 @@ async function runTurn(
     let tokens = 0;
     let cost: number | null = null;
     const off = manager.onEvent(info.id, ({ event }: { event: Record<string, unknown> }) => {
-      if (event["type"] === "message" && event["role"] !== "user") text += String(event["text"] ?? "");
+      if (event["type"] === "message" && event["role"] !== "user") text += typeof event["text"] === "string" ? event["text"] : "";
       if (event["type"] === "usage") {
         // `used` e `cost.amount`: a janela de contexto e o dinheiro moram em
         // campos com nome próprio, e ler `tokens`/`cost` direto devolve

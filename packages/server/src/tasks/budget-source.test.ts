@@ -42,7 +42,7 @@ async function scene(
   const { api, db } = caller();
   const space = await api.workspace.create({ name: `acme-${newId()}` });
   if (Object.keys(budget).length > 0) {
-    await db.update(workspace).set(budget).where(eq(workspace.id, space.id)).run();
+    db.update(workspace).set(budget).where(eq(workspace.id, space.id)).run();
   }
 
   const projectId = newId();

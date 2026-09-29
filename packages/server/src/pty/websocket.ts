@@ -10,6 +10,8 @@ import {
 import type { FastifyInstance } from "fastify";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
 
+import { frameText } from "../ws-text.js";
+
 import { isDomainError, type DomainErrorCode } from "../errors.js";
 import { onUpgradePath } from "../ws/upgrade.js";
 import type { PtyManager } from "./PtyManager.js";
@@ -107,7 +109,7 @@ export function registerPtyWebSocket({
         return;
       }
 
-      const decoded = decodePtyClientMessage(raw.toString());
+      const decoded = decodePtyClientMessage(frameText(raw));
       if (!decoded.ok) {
         // One bad frame is not a reason to drop a live terminal.
         send({ type: "error", code: "INVALID_MESSAGE", message: decoded.error });

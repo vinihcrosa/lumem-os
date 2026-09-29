@@ -16,7 +16,7 @@ import { createTaskReviewRepository } from "../repositories/task-review.js";
 import { readProjectScripts } from "../scripts/project-scripts.js";
 import type { ScriptRunner } from "../scripts/ScriptRunner.js";
 
-import type { ConveyorPorts, GateVerdict, PreparedCheckout } from "./conveyor.js";
+import type { ConveyorPorts, PreparedCheckout } from "./conveyor.js";
 import { decideGate } from "./gate.js";
 import { pausedUntil } from "./pause.js";
 import { matches, type Reproducer } from "./reproduce.js";

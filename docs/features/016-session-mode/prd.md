@@ -6,7 +6,7 @@
 > **Tasks:** [tasks.md](tasks.md) — 12 entregues, em seis commits
 > **Sucede:** [acp-sessions](../006-acp-sessions/prd.md), que trouxe os seletores (F2.6) e o pedido de
 > permissão
-> **Desenho:** feito no Open Design — `packages/web/prototype/lumem-session-mode.html`. Sete seções:
+> **Desenho:** feito no Open Design — packages/web/prototype/lumem-session-mode.html. Sete seções:
 > a barra muda ao lado do que entra no lugar dela, o eixo de autoria, os três valores, o rastro do
 > `automático`, o portão do `liberado`, as bordas, e o que isto cobra. Ele **desenha as propostas** da
 > [Q2](open-questions.md) (glifo `◈` + rótulo em português), da [Q3](open-questions.md) (a regra na

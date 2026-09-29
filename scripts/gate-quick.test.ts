@@ -6,10 +6,14 @@ import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  backgroundCommand,
   changedFiles,
   decide,
   describeDecision,
+  describeDocs,
+  docsCheckNeeded,
   E2E_GLOBS,
+  FIXTURE_GLOBS,
   FULL_SUITE_GLOBS,
   GRAPH_GLOBS,
   resolveBase,
@@ -406,5 +410,55 @@ describe("describeDecision", () => {
     expect(describeDecision({ run: "all", reason: "unresolved-base" }, "bad", 0)).not.toContain(
       "nothing to run",
     );
+  });
+});
+
+describe("a categoria docs", () => {
+  it("um commit só de documentação roda o docs:check, e diz que rodou", () => {
+    expect(docsCheckNeeded(["docs/x.md"])).toBe(true);
+    expect(describeDocs(["docs/x.md"], "HEAD^")).toContain("running docs:check");
+  });
+
+  it("documentação ao lado de código ainda roda o docs:check — a doc não encolhe a seleção", () => {
+    expect(docsCheckNeeded(["CLAUDE.md"])).toBe(true);
+    expect(decide(["packages/server/src/config.ts"], [], []).run).toBe("changed");
+  });
+
+  it("sem doc mudada, não roda", () => {
+    expect(docsCheckNeeded([])).toBe(false);
+  });
+
+  it("\"não sei\" nunca vira \"nada a fazer\"", () => {
+    expect(docsCheckNeeded(null)).toBe(true);
+  });
+});
+
+describe("fixture de teste escrita em markdown", () => {
+  it("o glob de fixture pega o `.md` que o glob de documentação deixaria só para o docs:check", () => {
+    expect(FIXTURE_GLOBS).toEqual(["**/fixtures/**"]);
+    // a decisão trata o que o runner soma a `untraceable` como mudança que roda tudo
+    expect(decide([], ["scripts/feature-flow/fixtures/prd.md"], []).run).toBe("all");
+  });
+});
+
+describe("o gate roda em prioridade baixa, e não toma a máquina", () => {
+  const argv = ["pnpm", "exec", "vitest", "run"];
+  it("por padrão, com nice — mesmo tempo da suíte, e a máquina continua respondendo", () => {
+    expect(backgroundCommand(argv, { platform: "darwin", priority: undefined, hasTaskpolicy: true })).toEqual([
+      "nice",
+      "-n",
+      "15",
+      ...argv,
+    ]);
+    expect(backgroundCommand(argv, { platform: "linux", priority: undefined, hasTaskpolicy: false })[0]).toBe("nice");
+  });
+  it("LUMEM_TEST_PRIORITY=background, no macOS, prende nos núcleos de eficiência", () => {
+    expect(backgroundCommand(argv, { platform: "darwin", priority: "background", hasTaskpolicy: true }).slice(0, 2)).toEqual([
+      "taskpolicy",
+      "-b",
+    ]);
+  });
+  it("LUMEM_TEST_PRIORITY=normal devolve a máquina inteira", () => {
+    expect(backgroundCommand(argv, { platform: "darwin", priority: "normal", hasTaskpolicy: true })).toEqual(argv);
   });
 });

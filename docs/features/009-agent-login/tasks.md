@@ -1,7 +1,7 @@
 # Conectar agente — Tasks
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md) — 8 fechadas
-**Protótipo:** `packages/web/prototype/lumem-agent-login.html`
+**Protótipo:** packages/web/prototype/lumem-agent-login.html
 **Sucede:** [onboarding](../008-onboarding/tasks.md)
 **Status:** completa
 **Histórico:** **8 de 8 entregues.** Gate cheio verde — 1.705 unit/integration + 27 e2e.
@@ -159,7 +159,7 @@ coluna nova, nenhuma flag.
 #### C1: O painel ✅
 
 **What**: `AgentLogin` — rodapé com estado, e os seis estados do painel.
-**Where**: `packages/web/src/components/AgentLogin.tsx`, `agent-login.css`, `useLoginTerminal.ts`,
+**Where**: packages/web/src/components/AgentLogin.tsx, `agent-login.css`, `useLoginTerminal.ts`,
 `App.tsx`, testes
 
 **Done when**:
@@ -181,7 +181,7 @@ coluna nova, nenhuma flag.
 #### C2: O onboarding passa a instalar também ✅
 
 **What**: O passo 2 do fluxo usa a mesma instalação, em vez do comando copiável.
-**Where**: `packages/web/src/setup/AgentStep.tsx`, `setup-flow.test.tsx`
+**Where**: `packages/web/src/features/setup/AgentStep.tsx`, `setup-flow.test.tsx`
 
 **Done when**:
 - [x] Botão que instala, progresso, e a mesma versão fixa

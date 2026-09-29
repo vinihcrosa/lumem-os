@@ -6,13 +6,7 @@ import {
   Banner,
   Button,
   Card,
-  CheckList,
-  CheckRow,
   Chip,
-  Choice,
-  ChoiceGroup,
-  Coach,
-  CopyCommand,
   EmptyState,
   Field,
   Glyph,
@@ -25,11 +19,9 @@ import {
   Row,
   SectionHead,
   Skeleton,
-  Steps,
   Tab,
   TabStrip,
   TabToggle,
-  WizardCard,
 } from "./index.js";
 
 /**

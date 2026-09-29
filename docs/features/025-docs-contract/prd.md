@@ -77,7 +77,7 @@ nova:
 
 | Camada | Onde | Afirma | Morre como |
 |---|---|---|---|
-| **Decisão** | `docs/adr/YYYY-MM-DD-HHMM-slug.md` | *"em 2026-08-17 escolhemos ACP, e o que perdeu foi isto"* | **superada** por outro ADR que a nomeia. Nunca editada, nunca apagada |
+| **Decisão** | docs/adr/YYYY-MM-DD-HHMM-slug.md | *"em 2026-08-17 escolhemos ACP, e o que perdeu foi isto"* | **superada** por outro ADR que a nomeia. Nunca editada, nunca apagada |
 | **Estudo** | `docs/project/*.md` | a medição, a discussão e o contra-argumento que sustentaram uma decisão | fica como registro; **não afirma decisão** |
 | **Execução** | `docs/features/NNN-nome/` | o que uma feature quis fazer, na época dela | fica como registro. Requisito contradito ganha nota com escopo |
 | **Vigor** | o código | o que o sistema faz **hoje** | — |

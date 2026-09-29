@@ -14,7 +14,7 @@ opções já derrubadas com razão escrita, e duas delas foram derrubadas de nov
 
 ### Q1 — O identificador do ADR é data ou número?
 
-A referência escolheu data (`docs/adr/2026-08-11-slug.md`) com uma razão que se aplica aqui em
+A referência escolheu data (docs/adr/2026-08-11-slug.md) com uma razão que se aplica aqui em
 dobro: *"an agent that proposes ADRs makes parallel creation normal rather than exceptional"* — e
 este repositório roda N agentes em N worktrees pelo Conductor ao mesmo tempo.
 
@@ -413,7 +413,7 @@ adiciona ao corte, além do que já estava contado:
   ficam citando as duas coisas erradas de uma vez. Aceito uma vez;
 - `docs/features/` genérico (sem feature) em `CLAUDE.md:134`, `lumem-dev.md:12`, `lumem-reviewer.md:308`.
 
-O nome do arquivo `prd.md` **fica** — só a categoria muda. `docs/features/017-file-editor/prd.md`.
+O nome do arquivo `prd.md` **fica** — só a categoria muda. docs/features/017-file-editor/prd.md.
 
 **R:** sim
 

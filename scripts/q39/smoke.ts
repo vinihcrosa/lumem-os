@@ -13,7 +13,7 @@ log("spawn ok", info.id, "model=", info.model);
 
 manager.onEvent(info.id, ({ event: e }: { event: Record<string, unknown> }) => {
   const type = String(e["type"]);
-  if (type === "message" || type === "thought") log(type, String(e["text"] ?? "").slice(0, 80));
+  if (type === "message" || type === "thought") log(type, (typeof e["text"] === "string" ? e["text"] : "").slice(0, 80));
   else if (type === "tool_call") log("tool_call", e["title"] ?? e["kind"]);
   else if (type === "permission_request") log("PERMISSION", JSON.stringify(e).slice(0, 200));
   else if (type !== "usage") log(type);

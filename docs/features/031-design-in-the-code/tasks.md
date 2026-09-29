@@ -36,8 +36,8 @@ Storybook — recriaria em uma semana a divergência que esta feature existe par
       **Done when:** `pnpm --filter @lumem/web test` verde, com o comentário do `route.test.ts`
       dizendo por que a asserção sobreviveu ao endereço.
 
-- [x] **T5 — O Open Design sai.** `packages/web/prototype/` (50 arquivos) e `scripts/design-sync.ts`
-      apagados; `scripts/design-derive.ts` no lugar, com `--check`; `design:sync` vira
+- [x] **T5 — O Open Design sai.** `packages/web/prototype/` (50 arquivos) e scripts/design-sync.ts
+      apagados; scripts/design-derive.ts no lugar, com `--check`; `design:sync` vira
       `design:derive` no `package.json`.
       **Done when:** `pnpm --filter @lumem/web design:derive --check` passa e nada no repositório
       menciona `design:sync`.

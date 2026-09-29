@@ -35,7 +35,7 @@
 onde ele foi escrito — e o resultado é que **dado de configuração divide pixel com dado de
 acompanhamento**.
 
-O caso mais visível está em `packages/web/src/components/TaskList.tsx`: um único
+O caso mais visível está em `packages/web/src/features/tasks/TaskList.tsx`: um único
 `<p className="tlist__budget">` ocupa as **linhas 278–356** — 79 linhas de JSX num arquivo de 486 —
 e acumula os três tetos de custo, o nome de uma variável de ambiente, os três degraus da esteira, o
 paralelismo, o interruptor de limpeza de worktree e a métrica de cerimônia. Tudo isso **acima** da
@@ -85,7 +85,7 @@ LUM-59 não é uma preferência numa tela: é uma mudança no **sistema de desig
 
 **Os assuntos têm quatro donos, e não três.** A issue conta workspace, global e navegador; o quarto é
 o **repositório**. O mapa de colunas do tracker mora no `<repo>/.lumem/project.toml`
-(`scripts/project-scripts.ts`, `readColumnMap`) pela Q65 da
+(scripts/project-scripts.ts, `readColumnMap`) pela Q65 da
 [`028`](../028-autonomous-orchestration/open-questions.md) — *o que é do repositório é do time* — e
 viaja com o clone, que é metade do valor dele. A seção `integrações`, sozinha, mistura credencial de
 **máquina** (o cofre em `~/.lumem/_system`, pelo

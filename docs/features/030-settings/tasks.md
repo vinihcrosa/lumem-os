@@ -44,13 +44,13 @@ LUM-57.
 
 | Onde | O quê |
 |---|---|
-| `packages/web/prototype/lumem-settings.html` e `.css` | cópia do Open Design, uma tela por arquivo |
+| packages/web/prototype/lumem-settings.html e `.css` | cópia do Open Design, uma tela por arquivo |
 | `packages/web/src/lib/route.ts` | novo: lê `location.pathname`, escreve com `pushState`/`replaceState`, ouve `popstate` — ~40 linhas, sem dependência |
 | `packages/web/src/App.tsx` | `workspaceView` deixa de ser `useState` e passa a ser derivado do caminho |
-| `packages/web/src/components/SettingsPanel.tsx` | novo: a tela, quatro seções |
-| `packages/web/src/components/TaskList.tsx` | saem as 79 linhas de configuração; **a métrica de cerimônia fica** ([Q9](open-questions.md)) |
-| `packages/web/src/components/SidebarNav.tsx` | a terceira linha, `⚙ Configurações`, e o `aria-label` reescrito |
-| `packages/web/src/components/AgentLogin.tsx` | **nada, nesta feature.** A [Q6](open-questions.md) decidiu que o rodapé **some**, e quem o remove é a LUM-57 |
+| `packages/web/src/features/settings/SettingsPanel.tsx` | novo: a tela, quatro seções |
+| `packages/web/src/features/tasks/TaskList.tsx` | saem as 79 linhas de configuração; **a métrica de cerimônia fica** ([Q9](open-questions.md)) |
+| `packages/web/src/features/workspace/SidebarNav.tsx` | a terceira linha, `⚙ Configurações`, e o `aria-label` reescrito |
+| packages/web/src/components/AgentLogin.tsx | **nada, nesta feature.** A [Q6](open-questions.md) decidiu que o rodapé **some**, e quem o remove é a LUM-57 |
 | `packages/server/src/routers/workspace.ts` | **nada** — `setBudget` já existe, testado e sem chamador |
 | `e2e/settings.spec.ts` | endereço, `F5`, botão voltar e a escrita dos tetos |
 

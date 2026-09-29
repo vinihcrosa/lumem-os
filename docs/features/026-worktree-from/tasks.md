@@ -26,7 +26,7 @@ A ordem tem uma regra: **o que decide vem antes do que escreve; git puro antes d
 | `packages/server/src/pr/GhHost.ts`, `PrHost.ts` | `issue list`, com projeção e fixture |
 | `packages/server/src/pr/PrCache.ts` | onde as issues moram |
 | `packages/server/src/routers/worktree.ts` | `from` no `create`, e a `preview` contando a verdade. Na fase 2 ele só passou a **nomear** a origem de sempre — `{ kind: "new-branch" }`, o mesmo `argv` |
-| `packages/web/src/components/CreateWorktreeDialog.tsx` | o seletor de origem |
+| packages/web/src/components/CreateWorktreeDialog.tsx | o seletor de origem |
 | `e2e/support/fake-gh.mjs` | `issue list` — hoje ele só responde `repo view` e `pr list` |
 
 **O que não muda** — cada um com uma pergunta com nome:
@@ -281,7 +281,7 @@ em cada caso, e a recusa por branch ocupada aparece **antes**, nomeando o checko
 **What**: as quatro abas, a carga **depois** de o modal abrir, e o pré-preenchimento editável — issue
 vira `<numero>-<slug>`, PR vira o `headRefName`. PR fora do disco aparece desabilitada com o motivo;
 branch ocupada leva para a worktree que a tem.
-**Where**: `packages/web/src/components/CreateWorktreeDialog.tsx` e o CSS da folha
+**Where**: packages/web/src/components/CreateWorktreeDialog.tsx e o CSS da folha
 **Done when**: o React usa só `var(--token)`, e o campo de nome aceita digitação antes de qualquer
 listagem chegar.
 **Gate**: `pnpm gate:quick`

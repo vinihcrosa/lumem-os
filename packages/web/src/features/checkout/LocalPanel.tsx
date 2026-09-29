@@ -53,8 +53,7 @@ function ProjectSpend({ projectId }: { projectId: string }) {
   const [period, setPeriod] = useState<NonNullable<UsageWindow>>("7d");
   const usage = useUsageByWorktree(projectId, period);
 
-  const rows: SpendRow[] = [
-    ...(usage.data?.worktrees ?? []).map((row) => ({
+  const rows: SpendRow[] = (usage.data?.worktrees ?? []).map((row) => ({
       id: row.worktreeId,
       name: row.name,
       tokens: row.tokens,
@@ -62,8 +61,7 @@ function ProjectSpend({ projectId }: { projectId: string }) {
       currency: row.currency,
       turns: row.turns,
       kind: "worktree" as const,
-    })),
-  ];
+    }));
   const outside = usage.data?.outside;
   if (outside !== undefined && (outside.turns > 0 || rows.length > 0)) {
     rows.push({

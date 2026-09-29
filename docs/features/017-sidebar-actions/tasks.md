@@ -1,7 +1,7 @@
 # As ações da árvore — Tasks
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
-**Desenho:** `packages/web/prototype/lumem-sidebar-actions.html` (oito quadros)
+**Desenho:** packages/web/prototype/lumem-sidebar-actions.html (oito quadros)
 **Status:** completa
 **Histórico:** **completa** — 11 tasks, entregues em **2026-09-05**.
 
@@ -73,7 +73,7 @@ atravessam.
 #### S3: `Projetos` ganha cabeçalho com ação, em todos os estados
 
 **What**: o `+` de projeto nasce preso ao título, e o título passa a existir mesmo com zero projetos.
-**Where**: `packages/web/src/components/SidebarTree.tsx`, `components/sidebar.css`,
+**Where**: `packages/web/src/features/workspace/SidebarTree.tsx`, `components/sidebar.css`,
 `components/project-ui.test.tsx`
 **Gate**: `pnpm gate:quick`
 
@@ -90,7 +90,7 @@ atravessam.
 
 **What**: o diálogo para de carregar o próprio gatilho; o `App` hospeda; `＋ adicionar projeto` sai
 do rodapé (F1.6).
-**Where**: `packages/web/src/components/AddProjectDialog.tsx`, `App.tsx`, `components/sidebar.css`,
+**Where**: `packages/web/src/features/workspace/AddProjectDialog.tsx`, `App.tsx`, `components/sidebar.css`,
 `components/project-ui.test.tsx`
 **Gate**: `pnpm gate:quick`
 
@@ -104,7 +104,7 @@ do rodapé (F1.6).
 
 **What**: [Q5](open-questions.md) e [Q5a](open-questions.md). O `CloneStatus` muda de hospedeiro, do
 rodapé para dentro do modal, e o modal deixa de fechar.
-**Where**: `packages/web/src/components/AddProjectDialog.tsx`, `CloneStatus.tsx`, `App.tsx`,
+**Where**: `packages/web/src/features/workspace/AddProjectDialog.tsx`, `CloneStatus.tsx`, `App.tsx`,
 `components/clone.css`, `components/clone-ui.test.tsx`
 **Gate**: `pnpm gate:quick`
 
@@ -128,7 +128,7 @@ rodapé para dentro do modal, e o modal deixa de fechar.
 #### S6: A linha do projeto ganha o `+`
 
 **What**: F1.3, F1.4 e F1.8. O `+` que cria worktree, na linha do projeto que a recebe.
-**Where**: `packages/web/src/components/SidebarTree.tsx`, `App.tsx`,
+**Where**: `packages/web/src/features/workspace/SidebarTree.tsx`, `App.tsx`,
 `components/project-ui.test.tsx`
 **Gate**: `pnpm gate:quick`
 
@@ -143,7 +143,7 @@ rodapé para dentro do modal, e o modal deixa de fechar.
 #### S7: `CreateWorktreeDialog` vira corpo de modal e já sabe o projeto
 
 **What**: F1.3 e F1.5. O diálogo perde o gatilho e o seletor implícito; ganha destino.
-**Where**: `packages/web/src/components/CreateWorktreeDialog.tsx`, `App.tsx`,
+**Where**: packages/web/src/components/CreateWorktreeDialog.tsx, `App.tsx`,
 `components/worktree-ui.test.tsx`
 **Gate**: `pnpm gate:quick`
 
@@ -159,7 +159,7 @@ rodapé para dentro do modal, e o modal deixa de fechar.
 
 **What**: [Q4](open-questions.md). Sai o `CreateWorktreeDialog` e sai o bloco `.actions`, que existia
 só para hospedá-lo.
-**Where**: `packages/web/src/components/LocalPanel.tsx`, `components/worktree-ui.test.tsx`
+**Where**: `packages/web/src/features/checkout/LocalPanel.tsx`, `components/worktree-ui.test.tsx`
 **Gate**: `pnpm gate:quick`
 
 **Done when**:
@@ -174,7 +174,7 @@ só para hospedá-lo.
 #### S9: Os textos que apontam para os lugares antigos
 
 **What**: o onboarding ensina onde ficam as duas ações, e as duas mudaram de lugar.
-**Where**: `packages/web/src/setup/Done.tsx`, `setup/TaskStep.tsx`
+**Where**: `packages/web/src/features/setup/Done.tsx`, `setup/TaskStep.tsx`
 **Gate**: `pnpm gate:quick`
 
 **Done when**:

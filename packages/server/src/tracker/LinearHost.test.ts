@@ -168,7 +168,7 @@ describe("a chamada", () => {
     expect((init.headers as Record<string, string>)["authorization"]).toBe(KEY);
     // E **não** no corpo: uma chave em `body` iria para qualquer log de
     // requisição que alguém ligue depois.
-    expect(String(init.body)).not.toContain(KEY);
+    expect(String(init.body as string)).not.toContain(KEY);
   });
 });
 
@@ -217,7 +217,7 @@ describe("a cauda da lista não é descartada em silêncio", () => {
 
     expect(issues.map((one) => one.key)).toEqual(["A-1", "A-2"]);
     const [, second] = fetch.mock.calls as unknown as [unknown, [string, RequestInit]];
-    expect(String(second[1].body)).toContain("cur-1");
+    expect(String(second[1].body as string)).toContain("cur-1");
   });
 
   it("uma página que diz que acabou custa uma chamada só", async () => {

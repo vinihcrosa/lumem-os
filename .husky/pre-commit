@@ -1,0 +1,1 @@
+node --no-warnings --experimental-strip-types scripts/harness/git-hook.ts pre-commit

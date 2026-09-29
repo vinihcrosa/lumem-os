@@ -246,7 +246,7 @@ atravessa o daemon e **não fica**: nem em `~/.lumem`, nem em log, nem de volta 
 **What**: as duas requisições do cliente, e `elicitation: { url: {} }` no `clientCapabilities` — é o
 que faz o `chat-gpt-device-code` aparecer (§4.2, [C7](open-questions.md)).
 **Where**: `packages/server/src/acp/AcpManager.ts`, `packages/shared/src/acp-protocol.ts`,
-`packages/web/src/components/AgentLogin.tsx`
+packages/web/src/components/AgentLogin.tsx
 
 **Done when**:
 - [x] O agente falso pedindo `elicitation/create` produz um evento com **URL e código** para a tela
@@ -262,7 +262,7 @@ que faz o `chat-gpt-device-code` aparecer (§4.2, [C7](open-questions.md)).
 **What**: `AgentLogin` deixa de ser "o agente" e passa a ser uma linha por `agent_config`, com o
 cabeçalho `Agentes` e o `＋` que a [C8](open-questions.md) decidiu. Três classes novas da folha:
 `.foot-head`, `.foot-row--warn`, `.dcode` — mais a correção do `.pip`.
-**Where**: `packages/web/src/components/AgentLogin.tsx`, `packages/web/src/components/agent-login.css`,
+**Where**: packages/web/src/components/AgentLogin.tsx, `packages/web/src/features/agent/agent-login.css`,
 `packages/web/src/styles/contrast.ts`
 
 **Done when**:
@@ -283,7 +283,7 @@ cabeçalho `Agentes` e o `＋` que a [C8](open-questions.md) decidiu. Três clas
 
 **What**: o `＋` instala a spec do Codex (T2, T4), faz o handshake, cria a `agent_config` ACP com a
 versão que o `probe` **detectou**, e abre os jeitos de entrar que o handshake trouxe.
-**Where**: `packages/web/src/components/AgentLogin.tsx`, `packages/server/src/routers/setup.ts`
+**Where**: packages/web/src/components/AgentLogin.tsx, `packages/server/src/routers/setup.ts`
 
 **Done when**:
 - [x] Instalar → `agent_config` nova, transporte `acp`, `adapter_version` vindo do `probe`
@@ -318,7 +318,7 @@ são. É a armadilha do PRD: a coluna não existia.
 `Consumo` da folha, com as duas alternativas recusadas por escrito. Ela aparece **só** quando há mais
 de um agente configurado.
 **Where**: `packages/server/src/usage/query.ts`, `query.test.ts`,
-`packages/web/src/components/WorkspacePanel.tsx`
+`packages/web/src/features/workspace/WorkspacePanel.tsx`
 
 **Done when**:
 - [x] Agrupado: dois agentes na mesma worktree → duas linhas, com os tokens de cada um
@@ -339,8 +339,8 @@ de um agente configurado.
 
 **What**: a F4 é conferência. Duas sessões na mesma worktree, uma por agente: cada aba diz a sua.
 **Reprovou** — o cabeçalho da conversa tinha a string `claude` escrita à mão. A correção entrou aqui.
-**Where**: `e2e/second-agent.spec.ts` (novo), `packages/web/src/components/Conversation.tsx`,
-`packages/web/src/components/SessionTab.tsx`
+**Where**: `e2e/second-agent.spec.ts` (novo), packages/web/src/components/Conversation.tsx,
+`packages/web/src/features/conversation/SessionTab.tsx`
 
 **Done when**:
 - [x] e2e com os dois agentes vindos do mesmo fake, o segundo com `LUMEM_FAKE_PROFILE=codex` — a

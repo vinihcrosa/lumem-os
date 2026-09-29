@@ -9,7 +9,7 @@
 > no mesmo painel — absorvido no §2.2
 > **Perguntas:** [open-questions.md](open-questions.md)
 > **Tasks:** [tasks.md](tasks.md)
-> **Protótipo:** `packages/web/prototype/lumem-pr-bar.html` — abra no navegador
+> **Protótipo:** packages/web/prototype/lumem-pr-bar.html — abra no navegador
 > **Sucede:** [workspace-screen](../010-workspace-screen/prd.md)
 >
 > **Nota de 2026-09-05 — a feature passou a escrever.** As onze perguntas foram respondidas de uma

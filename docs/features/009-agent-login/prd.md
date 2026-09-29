@@ -1,6 +1,6 @@
 # PRD — Conectar agente: login, e só
 
-**Protótipo:** `packages/web/prototype/lumem-agent-login.html` — sete estados, mais os casos e o mapa
+**Protótipo:** packages/web/prototype/lumem-agent-login.html — sete estados, mais os casos e o mapa
 tela ↔ protocolo
 **Sucede:** [onboarding](../008-onboarding/prd.md) · **Depende de:** [acp-sessions](../006-acp-sessions/prd.md)
 **Perguntas:** [open-questions.md](open-questions.md) · **Tasks:** [tasks.md](tasks.md)

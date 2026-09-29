@@ -7,7 +7,7 @@
 > **Tasks:** [tasks.md](tasks.md)
 > **Depende de:** `project.create`/`project.parseSource` e `worktree.create` — as duas mutations já
 > existem e não mudam. Esta feature é de **onde se clica**, não de o que acontece depois
-> **Desenho:** `packages/web/prototype/lumem-sidebar-actions.html` — oito quadros, feito no Open
+> **Desenho:** packages/web/prototype/lumem-sidebar-actions.html — oito quadros, feito no Open
 > Design e sincronizado ([regra](../../project/design-source-of-truth.md)). A Q1 e a Q5 foram
 > revistas **depois** dele, e o desenho foi **reescrito lá** antes de virar código: a tela desenhada
 > e a tela implementada não divergem
@@ -120,10 +120,10 @@ worktree.
 
 | Peça | Onde |
 |---|---|
-| `AddProjectDialog` — campo único, eco do plano, clone com progresso | `packages/web/src/components/AddProjectDialog.tsx` |
-| `CreateWorktreeDialog` — nome que também é branch, aviso de repo sem commit | `packages/web/src/components/CreateWorktreeDialog.tsx` |
+| `AddProjectDialog` — campo único, eco do plano, clone com progresso | `packages/web/src/features/workspace/AddProjectDialog.tsx` |
+| `CreateWorktreeDialog` — nome que também é branch, aviso de repo sem commit | packages/web/src/components/CreateWorktreeDialog.tsx |
 | `Row` — a linha da árvore, com `glyph`, `meta`, `count`, `onToggle`, `onSelect` | `packages/web/src/ui/` |
-| `useTreeExpansion` — quem sabe se um projeto está aberto | `packages/web/src/hooks/useTreeExpansion.ts` |
+| `useTreeExpansion` — quem sabe se um projeto está aberto | `packages/web/src/features/workspace/useTreeExpansion.ts` |
 
 O que **falta** no sistema de design: uma linha da árvore não tem hoje um slot de **ação à direita**,
 e não existe um invólucro de **modal centrado com véu** — os diálogos de hoje são `Card` no fluxo.

@@ -68,7 +68,7 @@ achou o defeito do menu de comandos
 **What**: As três coisas na `conversation.css`, e a mudança de hospedagem no React: a
 `LumemModeMenu` sai de baixo do `.composer` e vira irmã da pílula dentro do mesmo `.config`. O
 `gateOpen`/`modeMenuOpen` continuam no `Conversation` — o portão é do composer.
-**Where**: `packages/web/src/components/conversation.css`, `Conversation.tsx`, `LumemModePill.tsx`
+**Where**: `packages/web/src/features/conversation/conversation.css`, `Conversation.tsx`, `LumemModePill.tsx`
 **Done when**: os comentários que justificavam a fuga passam a dizer o que mudou, e não somem.
 **Gate**: `pnpm gate:quick`
 **Status**: ✅ entregue

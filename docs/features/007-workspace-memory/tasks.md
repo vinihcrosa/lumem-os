@@ -1015,7 +1015,7 @@ histórico não grava linha nova.
 ## S2 — `wm/s2-prototipo` (escopo, sem tasks)
 
 Protótipo HTML+CSS da inbox, da vista de memória e da linha do tempo, sobre os tokens que já existem,
-seguindo a skill `ui-design-prototype`. Vive em `packages/web/prototype/lumem-memory.html`, com seis
+seguindo a skill `ui-design-prototype`. Vive em packages/web/prototype/lumem-memory.html, com seis
 telas: o escopo ativo, a inbox, o conflito no mesmo escopo, a linha do tempo, os números e os vazios.
 
 ### O que a renderização achou

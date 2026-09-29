@@ -13,12 +13,24 @@ source "$(dirname "${BASH_SOURCE[0]}")/env.sh"
 cd "$REPO_ROOT"
 
 echo "==> node"
-node_major="$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)"
-if [ "$node_major" -lt 22 ]; then
-  echo "erro: o repositório exige node >= 22, encontrei $(node -v 2>/dev/null || echo 'nada')" >&2
+# A versão exata mora no `.nvmrc` (T5 da `024-dev-harness`), e um major diferente
+# recusa: o Node 26 desta máquina quebra o jsdom em 340 testes, e o vermelho
+# parece defeito de código. O `--experimental-strip-types` não existe antes do
+# 22.6 — um node velho demais cai no segundo ramo, que diz a mesma coisa.
+if ! command -v node >/dev/null 2>&1; then
+  echo "erro: não há node no PATH; o repositório está pinado no $(cat .nvmrc) — \`nvm install\` ou \`mise install\`" >&2
   exit 1
 fi
-echo "    $(node -v)"
+if ! node --no-warnings --experimental-strip-types scripts/node-version.ts 2>/tmp/lumem-node-version.$$; then
+  if [ -s /tmp/lumem-node-version.$$ ] && grep -q "pinado" /tmp/lumem-node-version.$$; then
+    sed 's/^/    /' /tmp/lumem-node-version.$$ >&2
+  else
+    echo "erro: o repositório está pinado no node $(cat .nvmrc) e encontrei $(node -v) — \`nvm use\` ou \`mise install\`" >&2
+  fi
+  rm -f /tmp/lumem-node-version.$$
+  exit 1
+fi
+rm -f /tmp/lumem-node-version.$$
 
 if ! command -v pnpm >/dev/null 2>&1; then
   echo "erro: pnpm não está no PATH — instale com 'corepack enable pnpm'" >&2

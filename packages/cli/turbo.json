@@ -7,8 +7,10 @@
       // Three directories, not one: `bin/` and `drizzle/` are written by this
       // package's build too, and a cache hit that restored only `dist/` would
       // leave a package with no binary in it — which installs fine and does
-      // nothing.
-      "outputs": ["dist/**", "bin/**", "drizzle/**"]
+      // nothing. The same goes for the two files `build.ts` copies from the
+      // root: a cache hit in a fresh worktree restored everything but the
+      // README, and `manifest.test.ts` failed there and nowhere else.
+      "outputs": ["dist/**", "bin/**", "drizzle/**", "README.md", "LICENSE"]
     }
   }
 }

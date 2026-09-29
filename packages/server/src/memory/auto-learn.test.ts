@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 
 import { CLAUDE_ADAPTER, type AcpEvent } from "@lumem/shared";
 import { eq } from "drizzle-orm";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { AcpManager } from "../acp/AcpManager.js";
 import type { Db } from "../db/index.js";

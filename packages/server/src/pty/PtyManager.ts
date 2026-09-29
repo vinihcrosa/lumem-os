@@ -158,6 +158,7 @@ export class PtyManager {
       session.buffer.append(chunk);
       // A throwing listener must not take down the daemon or starve the other
       // attached clients.
+      // oxlint-disable-next-line unicorn/no-useless-spread -- a copy on purpose: a listener may unsubscribe while the loop runs
       for (const listener of [...session.dataListeners]) {
         try {
           listener(chunk);
@@ -171,6 +172,7 @@ export class PtyManager {
       session.info.state = "exited";
       session.info.exitCode = exitCode;
       session.info.signal = normalizeSignal(signal);
+      // oxlint-disable-next-line unicorn/no-useless-spread -- a copy on purpose: a listener may unsubscribe while the loop runs
       for (const listener of [...session.exitListeners]) {
         try {
           listener({ exitCode, signal: session.info.signal });
@@ -181,6 +183,7 @@ export class PtyManager {
       session.dataListeners.clear();
       session.exitListeners.clear();
 
+      // oxlint-disable-next-line unicorn/no-useless-spread -- a copy on purpose: a listener may unsubscribe while the loop runs
       for (const watcher of [...this.exitWatchers]) {
         try {
           watcher({ ...session.info });

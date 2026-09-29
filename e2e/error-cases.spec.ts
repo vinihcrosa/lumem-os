@@ -7,7 +7,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { E2E_FIXTURE_REPO, E2E_FIXTURE_REPO_ALT } from "./support/fixtures.js";
 import { createWorktree, ensureProject, ensureWorkspace, openProject } from "./support/app.js";
 import { call, query, startDaemon } from "./support/daemon.js";
-import { E2E_RESTART_PORT, E2E_SERVER_PORT } from "../ports.js";
+import { E2E_RESTART_PORT } from "../ports.js";
 
 /**
  * The degraded states of PRD §8.
@@ -17,7 +17,6 @@ import { E2E_RESTART_PORT, E2E_SERVER_PORT } from "../ports.js";
  * possible reasons it is, and leave nothing half-done.
  */
 
-const DAEMON = `http://127.0.0.1:${E2E_SERVER_PORT}`;
 async function openFixtureProject(page: Page): Promise<void> {
   await page.goto("/");
   await ensureWorkspace(page);
