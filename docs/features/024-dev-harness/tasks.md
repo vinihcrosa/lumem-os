@@ -1145,7 +1145,18 @@ nem mutação, e 3151 testes verdes não dizem quantos têm dentes.
 - o job semanal roda e não interfere no CI de PR.
 
 **Gate**: `pnpm gate:mutation`
-**Status**: ⬜ não iniciada
+**Status**: ✅ entregue em 2026-09-28. Stryker 10 com o runner do vitest, `pnpm gate:mutation`, o
+workflow semanal `mutation.yml` (sem gatilho de PR) e o score no `testing.md`: **72,72%** em 5 886
+mutantes, 44 min.
+
+> **SPEC_DEVIATION — o piso é por arquivo, e não global.** O *Done when* pedia que enfraquecer uma
+> asserção derrubasse o score abaixo de `baseline − 2`. **Com um piso global isso não acontece**, e foi
+> medido: enfraquecer todas as asserções do `git-url.test.ts` moveu o total de 72,72 para 71,30 — acima
+> do `break` de 70, Stryker saindo com 0. O `git-url.ts` sozinho caiu de 79,68 para **46,22**. Por isso
+> o piso mora em `scripts/mutation-floors.ts`, um por arquivo, e `scripts/mutation-floor.ts` o confere
+> depois do Stryker: com o teste enfraquecido ele saiu com **1**, nomeando o arquivo; restaurado, voltou a
+> 0 e aos 72,72. O `break` global de 70 fica como rede de baixo. O pedido *"num commit descartável"* foi
+> feito na árvore de trabalho, restaurada logo depois.
 
 ---
 

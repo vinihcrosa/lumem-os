@@ -1,0 +1,48 @@
+name: Mutação
+
+# O número que limita o auto-engano da suíte (T14 da `024-dev-harness`): quantos
+# mutantes dos três diretórios de núcleo — `memory`, `files`, `git`, os que escrevem
+# no disco do usuário e os que decidem — a suíte mata. Semanal, e nunca na PR: custa
+# horas, e o contrato do CI de PR é responder em minutos.
+#
+# O piso mora em `stryker.config.json` (`thresholds.break`) e **só sobe**: o
+# Stryker sai com erro abaixo dele, e o job fica vermelho. O score e o piso de cada
+# medição estão em `docs/project/testing.md`.
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mutation
+  cancel-in-progress: false
+
+env:
+  HUSKY: 0
+
+jobs:
+  mutation:
+    name: score de mutação
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm gate:mutation
+      # O piso por arquivo: o `thresholds.break` do Stryker é um número só, e com
+      # ~5 900 mutantes uma asserção perdida não o move.
+      - run: pnpm exec tsx scripts/mutation-floor.ts reports/mutation/mutation.json
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report
+          path: reports/mutation/mutation.json
+          if-no-files-found: ignore

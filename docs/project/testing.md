@@ -77,6 +77,28 @@ Fonte de verdade da estratégia de teste. O campo `Tests`/`Gate` de toda task sa
 | `docs` | `pnpm docs:check` | Link, âncora, `**Status:**`, **caminho de código em crase que não existe** (fora de ADR, de `references/` e de feature não `completa`) e **linha duplicada numa tabela do índice**. Já roda dentro do `gate:full` pelo `check-docs.test.ts`, e o `gate:quick` o roda sozinho sempre que uma doc mudou — o `--changed` do vitest nunca selecionaria um teste que lê arquivo por caminho |
 | `smoke` | `pnpm smoke:install` | O pacote publicado instala num prefixo limpo e sobe. Não faz parte dos três gates de todo dia: roda no release, e à mão antes de publicar |
 
+### Mutação: o número que limita o auto-engano da suíte
+
+`pnpm gate:mutation` (Stryker, runner do vitest) sobre os três diretórios de núcleo — os que escrevem
+no disco do usuário e os que decidem —, **fora** do `gate:quick` e do `gate:build`: custa minutos. Roda
+semanal pelo `.github/workflows/mutation.yml`, nunca na PR. Medido em **2026-09-28**:
+
+| Diretório | Score | Mutantes |
+|---|---|---|
+| `server/src/memory/` | 72,35% | 3552 |
+| `server/src/git/` | 77,96% | 1547 |
+| `server/src/files/` | 64,08% | 785 |
+| **total** | **72,72%** | 5886 — 4256 mortos, 23 por timeout, 1143 sobreviventes, 462 sem cobertura; **44 min** com 6 processos |
+
+**O piso é por arquivo**, em `scripts/mutation-floors.ts` (o score de cada um menos 2, e **só sobe**),
+checado por `scripts/mutation-floor.ts` depois do Stryker. O `thresholds.break` global (70) existe, mas
+**não pega uma asserção perdida**, e isso foi medido: enfraquecer todas as asserções do
+`git-url.test.ts` levou o total de 72,72 a 71,30 — acima do `break`, Stryker saindo com 0 — enquanto o
+`git-url.ts` caiu de 79,68 para **46,22**, abaixo do piso 77, e o comparador saiu com 1. Com o modo
+incremental, a rodada que só reexecuta os mutantes de um teste mudado custou ~4 min. Os piores arquivos
+do dia — `memory/main-cli.ts` (0%, 6 mutantes), `memory/skill.ts` (28%), `memory/http.ts` (46,6%) — são
+por onde começa quem quiser subir o número.
+
 ### Os hooks de git: feedback, não portão
 
 Desde a T17 da [`024-dev-harness`](../features/024-dev-harness/tasks.md), o husky liga três hooks no
