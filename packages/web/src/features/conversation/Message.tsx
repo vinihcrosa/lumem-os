@@ -1,6 +1,7 @@
 import { Glyph } from "../../ui/index.js";
 
 import { Markdown } from "./Markdown.js";
+import { formatElapsed } from "./ToolCard.js";
 
 /**
  * One person's or one agent's contribution, in the conversation's gutter grid.
@@ -63,6 +64,11 @@ export interface ThoughtProps {
   onToggle(): void;
   /** True while the agent is still thinking — the live line A3 asked for. */
   streaming?: boolean;
+  /**
+   * Do primeiro ao último chunk (`036`). Zero ou ausente — um chunk só — e o
+   * rótulo não diz duração: *"pensou por 0 ms"* seria um número sem notícia.
+   */
+  elapsedMs?: number;
 }
 
 /**
@@ -73,14 +79,15 @@ export interface ThoughtProps {
  * agent is still writing it, the peek line is the sign that something is
  * happening at all.
  */
-export function Thought({ text, open, onToggle, streaming = false }: ThoughtProps) {
-  const label = streaming ? "pensando…" : "pensou";
+export function Thought({ text, open, onToggle, streaming = false, elapsedMs = 0 }: ThoughtProps) {
+  const label = streaming ? "pensando…" : elapsedMs > 0 ? `pensou por ${formatElapsed(elapsedMs)}` : "pensou";
 
   return (
     <>
       <button
         type="button"
-        className="thought focus-ring"
+        // `thought--live` é o brilho enquanto ele pensa (`036`).
+        className={streaming ? "thought thought--live focus-ring" : "thought focus-ring"}
         aria-expanded={open}
         onClick={onToggle}
       >

@@ -762,6 +762,23 @@ o cartão vira registro. Primeira feature no fluxo de checks do
 | [checks.md](features/035-plan-mode/checks.md) | **30 checks em 4 fatias**, perfil `standard`; cada um com a prova nomeada por arquivo e nome de teste |
 | [verification.md](features/035-plan-mode/verification.md) | o relatório do verificador independente, rodada a rodada. A rodada 1 achou o pedido cancelado sem produtor; a rodada 2, uma worktree da spec nova cujo nome casava por substring com o botão *"recarregar"* de outras duas specs — 5 e2e vermelhos só na suíte inteira. A **rodada 3 passou**: 30 checks, 5 falhas injetadas e todas mortas, e a suíte e2e inteira verde (129) |
 
+---
+
+### [reasoning/](features/036-reasoning/) — o pensamento volta a chegar, e diz quanto durou · **completa**
+
+O raciocínio do Claude parou de chegar em 2026-09-08, quando o daemon passou ao `claude-agent-acp@0.75.1`:
+o modelo pensa, o texto vem vazio (`thinking.display: "omitted"`), e o adaptador não emite nada. O
+conserto é a spec do adaptador declarar o `_meta` que pede o pensamento resumido; depois dele, o bloco
+de pensamento ganha duração, abre sozinho enquanto é escrito e brilha. Da
+[LUM-66](https://linear.app/lumem-os/issue/LUM-66/reasoning-o-pensamento-parou-de-chegar-desde-2026-09-08-trazer-de).
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](features/036-reasoning/prd.md) | o plano no formato de checks: a causa conferida na cópia instalada do adaptador, 16 critérios em duas fatias, e uma porta — `AdapterSpec.reasoningMeta`, um `_meta` opaco que a spec declara |
+| [open-questions.md](features/036-reasoning/open-questions.md) | 2 perguntas, **2 respondidas** em 2026-09-29 pela recomendação: uma pasta por issue, e o pedido sempre ligado — a medição mostrou os mesmos tokens de saída com e sem ele |
+| [checks.md](features/036-reasoning/checks.md) | **18 checks em duas fatias**, perfil `standard`. O C7 é uma medição paga, `pnpm measure:thinking`: o pensamento volta no modelo padrão e os cinco modelos do Claude fecham em `end_turn`, Haiku incluído |
+| [verification.md](features/036-reasoning/verification.md) | o relatório do verificador, **PASS na terceira rodada**. As duas primeiras reprovaram o script do C7 — ele aceitava qualquer `turn_end`, e depois saía 0 com a lista de modelos vazia; a segunda virou armadilha em `testing.md` |
+
 ## Convenções
 
 > **`adr/` decide · `project/` sustenta · `features/` executa · o código está em vigor.**

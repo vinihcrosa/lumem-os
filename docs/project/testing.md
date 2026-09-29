@@ -1730,6 +1730,21 @@ inteira. A `main` já tinha `431` no log — o defeito esperava dados suficiente
 consultas no mesmo tique (`trpc-links.test.ts`). A regra: **um lote cujo tamanho cresce com os dados
 precisa de teto**, e um `431` no log do servidor é falha, não ruído.
 
+### "Todos passaram" sobre um conjunto vazio é verde sem prova
+
+**Sintoma:** nenhum na corrida — o verificador da [`036`](../features/036-reasoning/checks.md) achou
+injetando a falha. O `pnpm measure:thinking` (C7) percorre os modelos que o `session/new` do Claude
+oferece e sai 0 se **todos** fecharem em `end_turn`. Com a opção `model` ausente, a lista vinha vazia,
+o script dizia *"end_turn em todos os 0 modelos: sim"* e saía 0 sem ter rodado turno nenhum.
+
+**Causa:** a condição era `refused.length === 0`, que um conjunto vazio satisfaz. E o dia em que o
+conjunto esvazia é justamente o dia em que a prova importa: um pino novo do adaptador que renomeia a
+opção é também o que faz alguém rodar a medição de novo.
+
+A regra: **uma prova do tipo "para cada membro" também afirma que o conjunto não está vazio** — e,
+quando o tamanho é conhecido, que é o tamanho esperado. Na mesma verificação, a primeira rodada achou a
+irmã desta: o script aceitava qualquer `turn_end`, e `refusal` e `max_tokens` também são `turn_end`.
+
 ## Convenções
 
 - Teste de git usa **repositório temporário real**, nunca mock. `git worktree` tem caso de borda em nome com barra e branch existente que mock nenhum reproduz.

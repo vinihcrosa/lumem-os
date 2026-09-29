@@ -91,7 +91,7 @@ export interface PendingPermission {
 
 export type Block =
   | { kind: "message"; messageId: string; text: string }
-  | { kind: "thought"; messageId: string; text: string }
+  | { kind: "thought"; messageId: string; text: string; startedAt: number; endedAt: number }
   | { kind: "tool"; call: ToolCallView }
   | { kind: "permission"; request: PendingPermission }
   /** Something the client received and could not name. Grey, in place. */
@@ -254,12 +254,11 @@ export function reduceConversation(
         { kind: "message", messageId: event.messageId, text: event.text },
       );
 
-    case "thought":
-      return appendText(state, "agent", {
-        kind: "thought",
-        messageId: event.messageId,
-        text: event.text,
-      });
+    case "thought": {
+      // `startedAt` e `endedAt`: o `at` do primeiro e do último chunk (`036`).
+      const { messageId, text } = event;
+      return appendText(state, "agent", { kind: "thought", messageId, text, startedAt: at, endedAt: at });
+    }
 
     case "tool_call":
       return appendBlock(state, "agent", {
@@ -583,7 +582,8 @@ function appendText(
     const blocks = [...last.blocks];
     const open = blocks.at(-1);
     if (open?.kind === incoming.kind && open.messageId === incoming.messageId) {
-      blocks[blocks.length - 1] = { ...open, text: open.text + incoming.text };
+      const endedAt = "endedAt" in incoming ? { endedAt: incoming.endedAt } : {};
+      blocks[blocks.length - 1] = { ...open, text: open.text + incoming.text, ...endedAt };
     } else {
       blocks.push(incoming);
     }

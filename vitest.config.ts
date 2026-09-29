@@ -66,6 +66,11 @@ export default defineConfig({
         // linhas que nenhum teste vai cobrir, num denominador, é o número
         // dizendo que o projeto piorou quando alguém mediu alguma coisa.
         "scripts/q39/**",
+        // A bancada da `036`, pelo mesmo motivo: roda à mão, contra token de verdade.
+        "scripts/measure-thinking.ts",
+        // A galeria do Storybook: é teste para o `sonar-project.properties`, e
+        // nada entregue a importa. As duas listas concordam.
+        "**/*.stories.tsx",
       ],
       reporter: ["text-summary", "lcov"],
     },
