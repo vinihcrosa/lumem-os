@@ -1696,7 +1696,7 @@ botões. As specs dividem o daemon, então o que uma cria entra na tela da outra
 [*o mesmo nome em duas peças clicáveis*](#o-mesmo-nome-em-duas-peças-clicáveis-quebra-22-e2e-de-uma-vez),
 vinda de uma fixture em vez de um componente.
 
-**Conserto:** a worktree mudou de nome e os dois localizadores ganharam `exact: true`. A regra: **uma
+**Conserto:** a worktree virou `plano-reler`, e os três localizadores (`pull-request.spec.ts:90`, `right-panel.spec.ts:103` e `:125`) passaram a `{ name: "⟳ recarregar", exact: true }` — o glifo faz parte do nome acessível, então `exact` com `"recarregar"` sozinho não acha o botão. A regra: **uma
 spec nova só está verde quando a suíte inteira está** — rodar a spec sozinha e as três vizinhas não
 prova nada sobre o daemon que todas dividem. Achado pelo verificador independente, rodada 2 da `035`.
 
