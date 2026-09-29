@@ -272,6 +272,11 @@ describe("checkCodePaths", () => {
     expect(checkCodePaths(root)).toEqual([]);
   });
 
+  it("ignores a build output, which exists only after a build", () => {
+    const root = tree({ "docs/project/x.md": "O bundle sai em `packages/server/dist/server/main.mjs`.\n" });
+    expect(checkCodePaths(root)).toEqual([]);
+  });
+
   it("ignores a path inside a fence", () => {
     const root = tree({ "docs/project/x.md": "```\n`packages/web/src/Gone.tsx`\n```\n" });
     expect(checkCodePaths(root)).toEqual([]);

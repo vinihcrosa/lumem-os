@@ -746,7 +746,24 @@ contrário da regra — a auditoria achou uma (D3), e hoje são cinco em `.claud
 - `pnpm gate:quick` verde.
 
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ não iniciada
+**Status**: ✅ entregue em 2026-09-28. `lumem-adr`, `lumem-feature` (derivada da `tlc-spec-lean`, CC-BY-4.0,
+com as quatro referências adaptadas aos caminhos, validadores e memória daqui) e `lumem-outline`; saem
+`evolutionary-modular-architecture` e a `tlc-spec-lean` copiada; ficam `playwright-skill` e as duas de
+React. `scripts/skills.test.ts` exige nome, descrição, links que resolvem e **só `pnpm <script>` que
+existe** — e ficou vermelho de verdade no primeiro dia, com a skill citando `pnpm feature:check` antes de
+o script existir.
+
+**O passo 6 achou a causa e o remédio.** A skill chegava ao Claude Code sem descrição porque a lista de
+skills tem teto de **1% da janela de contexto**, e quando estoura o Claude Code corta primeiro a descrição
+das skills **menos usadas** — uma skill nova do projeto é sempre a menos usada. Medido: com só
+`project,local` a descrição chega; com todas as camadas, some; com `skillListingBudgetFraction: 0.03` no
+`.claude/settings.json` do projeto, volta com todas as camadas.
+
+**O aceite:** um Claude Sonnet sem histórico, num clone limpo, pedido *"escreva um ADR registrando a
+decisão de usar oxlint…"*, **invocou a `lumem-adr` sozinho** e escreveu o ADR com frontmatter, as quatro
+seções e a linha no índice (US$ 0,51, 15 turnos). O `docs:check` do clone achou um único problema, e
+não era do ADR: a checagem de caminho da T6 acusava `packages/server/dist/…`, que só existe depois de um
+build — corrigida para ignorar saída de build. O ADR de teste ficou no clone, apagado com ele.
 
 ---
 

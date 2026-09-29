@@ -319,6 +319,15 @@ export function checkStatus(root: string): Finding[] {
  */
 export const CODE_PATH = /`((?:packages|scripts|e2e|docs)\/[^`\s*<>{}…]+?\.[A-Za-z]{1,5})`/g;
 
+/**
+ * A path the build writes, not one anybody commits: it exists after `pnpm build`
+ * and nowhere in a fresh clone, so checking it would make the gate depend on
+ * whether someone built first. Found by the first clean-clone run.
+ */
+export function isBuildOutput(path: string): boolean {
+  return /(^|\/)(dist|storybook-static)\//.test(path) || path.startsWith("packages/cli/bin/");
+}
+
 function featureOf(root: string, file: string): string | null {
   const rel = relative(root, file).split(sep);
   return rel[0] === "docs" && rel[1] === "features" && rel[2] !== undefined ? rel[2] : null;
@@ -347,7 +356,7 @@ export function checkCodePaths(root: string): Finding[] {
     lines.forEach((line, index) => {
       for (const match of line.matchAll(CODE_PATH)) {
         const target = (match[1] as string).split("#")[0] as string;
-        if (existsSync(join(root, target))) continue;
+        if (isBuildOutput(target) || existsSync(join(root, target))) continue;
         findings.push({
           kind: "stale-code-path",
           file: rel,
