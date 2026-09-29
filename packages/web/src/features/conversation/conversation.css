@@ -191,7 +191,11 @@
   border-radius: var(--radius-md);
   color: var(--color-turn-user);
 }
-/* Streaming (F2.1): o caret é o único sinal de que o turno não acabou. */
+/*
+ * Streaming (F2.1): o caret diz que o texto ainda cresce. Pisca (`035` S3) —
+ * parado, ele era o mesmo pixel num agente escrevendo e num agente morto.
+ * Degrau, e não esmaecer: é um cursor, e cursor liga e desliga.
+ */
 .mcaret {
   display: inline-block;
   width: var(--space-2);
@@ -199,7 +203,10 @@
   margin-left: var(--space-2);
   background: var(--color-turn-caret);
   vertical-align: text-bottom;
+  animation: mcaret-blink 1s step-end infinite;
 }
+@keyframes mcaret-blink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .mcaret { animation: none; } }
 
 /* ------------------------------------------------------- o raciocínio */
 /*

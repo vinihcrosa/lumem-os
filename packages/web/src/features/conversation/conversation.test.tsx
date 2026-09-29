@@ -626,6 +626,53 @@ describe("um turno que falhou", () => {
   });
 });
 
+describe("o turno vivo na tela (`035` S3)", () => {
+  it("caret nunca na mensagem do usuário", async () => {
+    const { socket } = mount();
+    socket.deliver(attached());
+    socket.deliver({
+      type: "event",
+      at: clock,
+      event: { type: "message", messageId: "u-1", role: "user", text: "roda o gate" },
+    });
+
+    // O turno começou — o `■ interromper` diz isso —, e o último bloco é a pergunta.
+    await screen.findByRole("button", { name: /interromper/ });
+    expect(screen.getByText("roda o gate")).toBeInTheDocument();
+    expect(document.querySelector(".mcaret")).toBeNull();
+
+    // O caret é do agente: aparece quando ele começa a escrever, e só lá.
+    socket.deliver({
+      type: "event",
+      at: clock + 1000,
+      event: { type: "message", messageId: "a-1", role: "agent", text: "Rodando agora." },
+    });
+
+    await screen.findByText(/Rodando agora/);
+    const carets = document.querySelectorAll(".mcaret");
+    expect(carets).toHaveLength(1);
+    expect(carets[0]!.closest(".turn--agent")).not.toBeNull();
+  });
+
+  it("mostra a linha de estado acima do composer enquanto há turno", async () => {
+    const { socket } = mount();
+    socket.deliver(attached());
+    socket.deliver({
+      type: "event",
+      at: Date.now(),
+      event: { type: "message", messageId: "u-1", role: "user", text: "roda o gate" },
+    });
+
+    const line = await screen.findByText(/^trabalhando · \d+ s$/);
+    expect(line.closest(".turn-status")?.nextElementSibling).toHaveClass("composer");
+
+    socket.deliver({ type: "event", at: Date.now(), event: { type: "turn_end", stopReason: "end_turn" } });
+    await waitFor(() => {
+      expect(screen.queryByText(/trabalhando/)).not.toBeInTheDocument();
+    });
+  });
+});
+
 describe("interrupting", () => {
   it("offers to interrupt only while a turn is in flight", async () => {
     const { socket } = mount();

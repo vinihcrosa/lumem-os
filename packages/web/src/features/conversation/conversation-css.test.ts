@@ -218,6 +218,56 @@ describe("the stylesheet stays inside the token system", () => {
   });
 });
 
+describe("o movimento do turno vivo (`035` S3)", () => {
+  const body = stylesheet.replace(/\/\*[\s\S]*?\*\//g, "");
+
+  /** O corpo de cada `@media (prefers-reduced-motion: reduce)`, com as chaves aninhadas. */
+  function reducedMotionBlocks(css: string): string[] {
+    const blocks: string[] = [];
+    for (const match of css.matchAll(/@media\s*\(\s*prefers-reduced-motion:\s*reduce\s*\)\s*\{/g)) {
+      let depth = 1;
+      let index = match.index + match[0].length;
+      const start = index;
+      while (depth > 0 && index < css.length) {
+        if (css[index] === "{") depth += 1;
+        if (css[index] === "}") depth -= 1;
+        index += 1;
+      }
+      blocks.push(css.slice(start, index - 1));
+    }
+    return blocks;
+  }
+
+  /** As declarações das regras cujo seletor, numa lista, nomeia `selector` sozinho. */
+  function declarationsFor(css: string, selector: string): string[] {
+    const found: string[] = [];
+    for (const rule of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      const selectors = rule[1]!.split(",").map((part) => part.trim());
+      if (selectors.includes(selector)) found.push(rule[2]!);
+    }
+    return found;
+  }
+
+  it("o caret pisca", () => {
+    const outside = body.replace(/@media[^{]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g, "");
+    const name = declarationsFor(outside, ".mcaret")
+      .map((declarations) => /animation:\s*([a-zA-Z0-9_-]+)/.exec(declarations)?.[1])
+      .find((value) => value !== undefined && value !== "none");
+
+    expect(name).toBeDefined();
+    expect(body).toMatch(new RegExp(`@keyframes\\s+${name ?? "<nenhum>"}\\s*\\{`));
+  });
+
+  it("movimento reduzido para caret e indicador", () => {
+    const reduced = reducedMotionBlocks(body).join("\n");
+
+    for (const selector of [".mcaret", ".turn-status__pulse"]) {
+      const declarations = declarationsFor(reduced, selector).join(";");
+      expect(declarations, selector).toMatch(/animation:\s*none/);
+    }
+  });
+});
+
 /*
  * There was a third `describe` here: the list of prototype classes this stylesheet
  * deliberately did *not* carry yet, because CSS with no markup is dead CSS.

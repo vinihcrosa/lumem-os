@@ -93,9 +93,12 @@ export function Transcript({
                 // Only the last block of the last turn can still be growing — and
                 // never in a record: a transcript saved before any close replays
                 // with `streaming` on, and nothing there is growing (`035` S1).
+                // Only the agent's: right after sending, the last block is the
+                // question itself, and a caret on it read as the user still typing (S3).
                 streaming={
                   conversation.streaming &&
                   !readOnly &&
+                  turn.role === "agent" &&
                   turnIndex === conversation.turns.length - 1 &&
                   blockIndex === turn.blocks.length - 1
                 }

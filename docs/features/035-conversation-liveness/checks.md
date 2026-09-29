@@ -88,11 +88,11 @@ Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/turn-
 **C21** - `useNow(true)` avança uma vez a cada 1 000 ms de relógio falso; `useNow(false)` não deixa intervalo ligado — `vi.getTimerCount()` é 0 (AC 20) ✓
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/useNow.test.ts -t "tique de 1 s só enquanto ativo"`
 
-**C22** - A regra `.mcaret` tem `animation` apontando para um `@keyframes` do `conversation.css`, e depois do envio, com o último bloco sendo a mensagem do usuário, nenhum `.mcaret` é desenhado (AC 21)
+**C22** - A regra `.mcaret` tem `animation` apontando para um `@keyframes` do `conversation.css`, e depois do envio, com o último bloco sendo a mensagem do usuário, nenhum `.mcaret` é desenhado (AC 21) ✓
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/conversation-css.test.ts -t "o caret pisca"`
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/conversation.test.tsx -t "caret nunca na mensagem do usuário"`
 
-**C23** - Dentro de `@media (prefers-reduced-motion: reduce)`, o caret e o indicador da linha têm `animation: none` (AC 22)
+**C23** - Dentro de `@media (prefers-reduced-motion: reduce)`, o caret e o indicador da linha têm `animation: none` (AC 22) ✓
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/conversation-css.test.ts -t "movimento reduzido para caret e indicador"`
 
 ### S4 - o aviso de silêncio · 3 arquivos · ~20 KB · ~15k
