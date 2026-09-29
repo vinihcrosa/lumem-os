@@ -63,7 +63,7 @@ jobs:
       # propriedade que o `testing.md` nomeia: os dois workflows continuam
       # **independentes**, e o Sonar fora do ar não se parece com a suíte quebrada.
       # -----------------------------------------------------------------------
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
       - uses: actions/setup-node@v4
         with:
