@@ -94,7 +94,7 @@ test("a real task runs from start to finish, with no terminal", async ({ page })
   // typed it into.
   await expect(conv.getByText("arruma o frontmatter vazio")).toBeVisible();
 
-  // Reasoning arrives collapsed (A3).
+  // Reasoning is collapsed once the answer starts (A3); while it streams it is open (`035`).
   await expect(conv.getByRole("button", { name: /pens/ })).toBeVisible();
   await expect(conv.locator(".thought__text")).toHaveCount(0);
 
