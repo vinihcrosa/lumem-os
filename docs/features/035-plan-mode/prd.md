@@ -58,7 +58,8 @@ decisão o cartão vira o registro do que foi decidido — também ao reabrir a 
 ## Flow
 
 Reusa o que existe: o `Markdown.tsx` que a mensagem do agente já usa, o `PendingPermission` e o
-`verdict`/`verdictBy` que o reducer já liga ao tool call pelo `toolCallId`, o `respondToPermission`
+`verdict`/`verdictBy` que o reducer já liga ao tool call pelo `toolCallId` — mais um campo novo ao lado
+deles, `askWithdrawn`, para o pedido que o agente retirou (`cancelled`), que não é veredito —, o `respondToPermission`
 do daemon, e o `TranscriptStore` — que grava o evento como ele saiu, então o registro sobrevive a
 reabrir sem nada novo.
 

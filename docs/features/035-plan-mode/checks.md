@@ -61,31 +61,31 @@ Proof: `pnpm exec vitest run packages/server/src/acp/AcpManager.fake-adapter.tes
 
 ### S3 - aprovar ou recusar com o plano inteiro na tela · 7 files · 120 KB · ~30k
 
-**C13** - Com permissão pendente para um tool call `switch_mode` cujo `content` tem 30 linhas de markdown, o transcript mostra o cartão de aprovação com a linha 1 e a linha 30 visíveis, o `# título` renderizado como heading, e nenhum bloco genérico de permissão (`.perm`) (AC 10)
+**C13** - ✓ Com permissão pendente para um tool call `switch_mode` cujo `content` tem 30 linhas de markdown, o transcript mostra o cartão de aprovação com a linha 1 e a linha 30 visíveis, o `# título` renderizado como heading, e nenhum bloco genérico de permissão (`.perm`) (AC 10)
 Proof: `pnpm exec vitest run packages/web/src/features/conversation/PlanApproval.test.tsx -t "o plano pendente aparece inteiro e renderizado"`
 
-**C14** - O cartão pendente mostra as quatro opções do adaptador com o `name` verbatim, as três `allow_*` na ordem recebida e a `reject_once` depois delas, sob *"ou continuar planejando"* (AC 11)
+**C14** - ✓ O cartão pendente mostra as quatro opções do adaptador com o `name` verbatim, as três `allow_*` na ordem recebida e a `reject_once` depois delas, sob *"ou continuar planejando"* (AC 11)
 Proof: `pnpm exec vitest run packages/web/src/features/conversation/PlanApproval.test.tsx -t "as opções aparecem verbatim e a recusa vem separada"`
 
-**C15** - Clicar em cada uma das quatro opções chama a resposta com o `optionId` dela — uma asserção por opção (AC 12)
+**C15** - ✓ Clicar em cada uma das quatro opções chama a resposta com o `optionId` dela — uma asserção por opção (AC 12)
 Proof: `pnpm exec vitest run packages/web/src/features/conversation/PlanApproval.test.tsx -t "cada opção responde com o seu optionId"`
 
-**C16** - No cartão pendente, Enter responde `exit-plan-default` (a `allow_once`) e Esc responde `reject` (AC 13)
+**C16** - ✓ No cartão pendente, Enter responde `exit-plan-default` (a `allow_once`) e Esc responde `reject` (AC 13)
 Proof: `pnpm exec vitest run packages/web/src/features/conversation/PlanApproval.test.tsx -t "Enter aprova a allow_once e Esc recusa"`
 
-**C17** - `permission_resolved` com `exit-plan-auto` deixa o cartão sem botões e com *"plano aprovado — Yes, and use auto mode"*; o mesmo com `exit-plan-clear-auto` (`allow_always`) e `exit-plan-default` (`allow_once`) mostra o `name` de cada um (AC 14)
+**C17** - ✓ `permission_resolved` com `exit-plan-auto` deixa o cartão sem botões e com *"plano aprovado — Yes, and use auto mode"*; o mesmo com `exit-plan-clear-auto` (`allow_always`) e `exit-plan-default` (`allow_once`) mostra o `name` de cada um (AC 14)
 Proof: `pnpm exec vitest run packages/web/src/features/conversation/PlanApproval.test.tsx -t "aprovar vira registro com o nome da opção"`
 
-**C18** - `permission_resolved` com `reject` deixa o cartão sem botões e com *"você pediu para continuar planejando"* (AC 15)
+**C18** - ✓ `permission_resolved` com `reject` deixa o cartão sem botões e com *"você pediu para continuar planejando"* (AC 15)
 Proof: `pnpm exec vitest run packages/web/src/features/conversation/PlanApproval.test.tsx -t "recusar vira registro de continuar planejando"`
 
-**C19** - `permission_resolved` com `outcome: "cancelled"` deixa o cartão sem botões e com *"pedido cancelado"* (AC 16)
+**C19** - ✓ `permission_resolved` com `outcome: "cancelled"` deixa o cartão sem botões e com *"pedido cancelado"* (AC 16)
 Proof: `pnpm exec vitest run packages/web/src/features/conversation/PlanApproval.test.tsx -t "pedido cancelado vira registro"`
 
-**C20** - No registro, o plano começa recolhido (a linha 30 não está no documento) e o botão *"ver o plano"* o expande inteiro (a linha 30 aparece) (AC 17)
+**C20** - ✓ No registro, o plano começa recolhido (a linha 30 não está no documento) e o botão *"ver o plano"* o expande inteiro (a linha 30 aparece) (AC 17)
 Proof: `pnpm exec vitest run packages/web/src/features/conversation/PlanApproval.test.tsx -t "o registro recolhe o plano e ver o plano o abre"`
 
-**C21** - Um tool call `switch_mode` sem `content` de texto mostra *"o agente não mandou o texto do plano"*, e as quatro opções continuam lá (AC 18)
+**C21** - ✓ Um tool call `switch_mode` sem `content` de texto mostra *"o agente não mandou o texto do plano"*, e as quatro opções continuam lá (AC 18)
 Proof: `pnpm exec vitest run packages/web/src/features/conversation/PlanApproval.test.tsx -t "sem texto do plano o cartão diz e mantém as opções"`
 
 **C22** - No navegador, o plano do roteiro aparece inteiro — a primeira e a última linha visíveis — e aprovar com *"Yes, and use auto mode"* deixa *"plano aprovado — Yes, and use auto mode"* (AC 10, AC 14)

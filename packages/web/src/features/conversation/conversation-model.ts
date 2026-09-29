@@ -66,6 +66,8 @@ export interface ToolCallView {
   verdictBy: "user" | "lumem";
   /** Por que a política aprovou. Null quando foi uma pessoa que respondeu. */
   verdictReason: string | null;
+  /** O agente retirou o pedido (`cancelled`): não é veredito, mas o cartão do plano diz (`035`). */
+  askWithdrawn: boolean;
   /** Kept so a later update can measure against it. */
   readonly startedAt: number;
 }
@@ -276,6 +278,7 @@ export function reduceConversation(
           verdict: null,
           verdictBy: "user",
           verdictReason: null,
+          askWithdrawn: false,
           startedAt: at,
         },
       });
@@ -360,14 +363,17 @@ export function reduceConversation(
               }
             : state.turnTally,
       };
-      return chosen
-        ? updateCall(next, pending.toolCallId, (call) => ({
-            ...call,
-            verdict: chosen,
-            verdictBy: event.by,
-            verdictReason: event.reason,
-          }))
-        : next;
+      if (!chosen) {
+        return hasCall(next.turns, pending.toolCallId)
+          ? updateCall(next, pending.toolCallId, (call) => ({ ...call, askWithdrawn: true }))
+          : next;
+      }
+      return updateCall(next, pending.toolCallId, (call) => ({
+        ...call,
+        verdict: chosen,
+        verdictBy: event.by,
+        verdictReason: event.reason,
+      }));
     }
 
     case "plan":
@@ -673,6 +679,12 @@ function mapTurns(turns: readonly Turn[], change: (block: Block) => Block | null
       return next ? [next] : [];
     }),
   }));
+}
+
+function hasCall(turns: readonly Turn[], toolCallId: string): boolean {
+  return turns.some((turn) =>
+    turn.blocks.some((block) => block.kind === "tool" && block.call.toolCallId === toolCallId),
+  );
 }
 
 function findPermission(turns: readonly Turn[], requestId: string): PendingPermission | null {
