@@ -132,3 +132,6 @@ por acaso passa neles.
 - **Boundary:** C1–C7 fechados no commit da Parte 1. `pnpm measure:thinking` saiu 0 em 2026-09-29: pensamento no padrão (165 caracteres) e `end_turn` em `default`, `opus[1m]`, `claude-fable-5-1[1m]`, `sonnet` e `haiku` — o Haiku 4.5 aceita o `--thinking adaptive` que o pedido liga
 - **Settled mid-build:** a Q2 não reabre — a tabela está na [resposta dela](open-questions.md)
 - **Abandoned:** nada
+- **Boundary:** C8–C18 fechados no commit da Parte 2; C12 e C14 conferidos por mutação (`?? true` no lugar de `?? streaming`, e a chave de volta ao `messageId`)
+- **Settled mid-build:** nada
+- **Abandoned:** nada

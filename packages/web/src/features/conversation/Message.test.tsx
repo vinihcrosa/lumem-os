@@ -104,9 +104,37 @@ describe("Thought", () => {
   it("says it is thinking while it still is", () => {
     // A3 asked for a live line: without it, a long silence and a finished thought
     // look the same.
-    render(<Thought text="ainda decidindo" open={false} onToggle={vi.fn()} streaming />);
+    const { rerender } = render(<Thought text="ainda decidindo" open={false} onToggle={vi.fn()} streaming />);
 
     expect(screen.getByRole("button")).toHaveTextContent("pensando…");
+
+    // `035` C18: a duração é de um pensamento que acabou; enquanto ele dura, não há.
+    rerender(<Thought text="ainda decidindo" open={false} onToggle={vi.fn()} streaming elapsedMs={12_300} />);
+    expect(screen.getByRole("button")).toHaveTextContent("pensando…");
+    expect(screen.getByRole("button")).not.toHaveTextContent("pensou");
+  });
+
+  it("says how long it thought", () => {
+    // `035` C9: `startedAt` 1 000 e `endedAt` 13 300.
+    render(<Thought text="decidido" open={false} onToggle={vi.fn()} elapsedMs={13_300 - 1_000} />);
+
+    expect(screen.getByRole("button")).toHaveTextContent("pensou por 12,3 s");
+  });
+
+  it("says only that it thought when it has no duration", () => {
+    // `035` C10: um chunk só — início e fim no mesmo `at`.
+    render(<Thought text="" open={false} onToggle={vi.fn()} elapsedMs={0} />);
+
+    expect(screen.getByRole("button").textContent?.replace(/[▸▾]/, "")).toBe("pensou");
+  });
+
+  it("marks the label live only while streaming", () => {
+    // `035` C15: é a classe que o brilho anima.
+    const { rerender } = render(<Thought text="algo" open={false} onToggle={vi.fn()} streaming />);
+    expect(screen.getByRole("button")).toHaveClass("thought--live");
+
+    rerender(<Thought text="algo" open={false} onToggle={vi.fn()} elapsedMs={1_000} />);
+    expect(screen.getByRole("button")).not.toHaveClass("thought--live");
   });
 
   it("says it thought, once it has", () => {

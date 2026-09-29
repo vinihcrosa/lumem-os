@@ -185,6 +185,22 @@ describe("every class the conversation asks for exists", () => {
   });
 });
 
+describe("o pensamento em curso", () => {
+  it("animates the live thought and stops under reduced motion", () => {
+    // `035` C16. Lido como texto porque o jsdom não aplica folha de estilo: um
+    // teste de componente não veria a animação faltando, nem o movimento que
+    // continua para quem pediu que parasse.
+    const bodyOnly = stylesheet.replace(/\/\*[\s\S]*?\*\//g, "");
+    const live = [...bodyOnly.matchAll(/\.thought--live\s*\{([^}]*)\}/g)].map((match) => match[1] ?? "");
+    expect(live.some((body) => /\banimation\s*:\s*(?!none\b)[^;]+/.test(body))).toBe(true);
+
+    const reduced = [...bodyOnly.matchAll(/@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{([\s\S]*?)\}\s*\}/g)]
+      .map((match) => match[1] ?? "")
+      .join("\n");
+    expect(reduced).toMatch(/\.thought--live\s*\{[^}]*\banimation\s*:\s*none\b/);
+  });
+});
+
 describe("the stylesheet stays inside the token system", () => {
   it("uses no literal colour", () => {
     // Every colour is a decision that belongs in the generator, where contrast is

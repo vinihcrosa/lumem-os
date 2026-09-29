@@ -214,6 +214,28 @@
   font: var(--text-body-sm);
   color: var(--color-turn-thought);
 }
+/*
+ * O brilho enquanto ele pensa (`035`): uma faixa mais clara passando pelo texto,
+ * sem mudar a cor de nada parado. É o sinal de vida de um silêncio longo; sem
+ * ele, *"pensando…"* e um turno pendurado se leem igual.
+ */
+.thought--live {
+  background: linear-gradient(
+    90deg,
+    var(--color-turn-thought) 40%,
+    var(--color-text-primary) 50%,
+    var(--color-turn-thought) 60%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: thought-shimmer 2s linear infinite;
+}
+@keyframes thought-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .thought--live { animation: none; background: none; color: var(--color-turn-thought); }
+}
 .thought__twist { font-size: var(--size-icon-xs); }
 .thought__peek { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-style: italic; }
 .thought__text {

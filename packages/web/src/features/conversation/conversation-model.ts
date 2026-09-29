@@ -89,7 +89,11 @@ export interface PendingPermission {
 
 export type Block =
   | { kind: "message"; messageId: string; text: string }
-  | { kind: "thought"; messageId: string; text: string }
+  /**
+   * `startedAt` e `endedAt` são os `at` do primeiro e do último chunk (`035`):
+   * a duração que o bloco diz sai deles, e não de um relógio da tela.
+   */
+  | { kind: "thought"; messageId: string; text: string; startedAt: number; endedAt: number }
   | { kind: "tool"; call: ToolCallView }
   | { kind: "permission"; request: PendingPermission }
   /** Something the client received and could not name. Grey, in place. */
@@ -257,6 +261,8 @@ export function reduceConversation(
         kind: "thought",
         messageId: event.messageId,
         text: event.text,
+        startedAt: at,
+        endedAt: at,
       });
 
     case "tool_call":
@@ -576,8 +582,11 @@ function appendText(
   if (last?.role === role) {
     const blocks = [...last.blocks];
     const open = blocks.at(-1);
-    if (open?.kind === incoming.kind && open.messageId === incoming.messageId) {
+    if (open?.kind === "message" && incoming.kind === "message" && open.messageId === incoming.messageId) {
       blocks[blocks.length - 1] = { ...open, text: open.text + incoming.text };
+    } else if (open?.kind === "thought" && incoming.kind === "thought" && open.messageId === incoming.messageId) {
+      // O começo fica o do primeiro chunk; o fim anda com cada um que chega.
+      blocks[blocks.length - 1] = { ...open, text: open.text + incoming.text, endedAt: incoming.endedAt };
     } else {
       blocks.push(incoming);
     }
