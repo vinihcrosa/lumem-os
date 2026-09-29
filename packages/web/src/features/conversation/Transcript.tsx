@@ -3,9 +3,10 @@ import { useCallback, useRef, useState } from "react";
 import { absoluteStamp } from "../../lib/relative-time.js";
 import { Banner, Coach } from "../../ui/index.js";
 import { ContinueInMenu, type ContinueInProps } from "./ContinueInMenu.js";
-import { type Block, type ConversationState, type TerminalView } from "./conversation-model.js";
+import { type Block, type ConversationState, type PendingPermission, type TerminalView } from "./conversation-model.js";
 import { Message, Thought, TurnFrame } from "./Message.js";
 import { PermissionRequest } from "./PermissionRequest.js";
+import { PlanApproval } from "./PlanApproval.js";
 import { PlanCard } from "./PlanCard.js";
 import { ToolCard } from "./ToolCard.js";
 import { useFirstPermissionCoach, type FirstPermissionCoach } from "./useFirstPermissionCoach.js";
@@ -49,6 +50,18 @@ export function Transcript({
    */
   const coach = useFirstPermissionCoach(conversation.pendingPermission !== null);
   const scroll = useAutoScroll();
+  /*
+   * Os tool calls de sair do plan mode (`035`): o pedido deles aparece no cartão
+   * do plano, e o bloco genérico de permissão some para esse `toolCallId`. Só
+   * quando o tool call existe — sem ele não há cartão, e o pedido fica genérico.
+   */
+  const planCalls = new Set(
+    conversation.turns.flatMap((turn) =>
+      turn.blocks.flatMap((block) =>
+        block.kind === "tool" && block.call.kind === "switch_mode" ? [block.call.toolCallId] : [],
+      ),
+    ),
+  );
 
   return (
     <div className="conv__scroll" ref={scroll}>
@@ -90,6 +103,8 @@ export function Transcript({
                 key={blockIndex}
                 block={block}
                 terminals={conversation.terminals}
+                pending={conversation.pendingPermission}
+                planCalls={planCalls}
                 // Only the last block of the last turn can still be growing.
                 streaming={
                   conversation.streaming &&
@@ -152,6 +167,9 @@ interface BlockViewProps {
   block: Block;
   /** The conversation's terminals; a card picks out its own by id. */
   terminals: readonly TerminalView[];
+  pending: PendingPermission | null;
+  /** Os tool calls `switch_mode`, cujo pedido o cartão do plano mostra. */
+  planCalls: ReadonlySet<string>;
   streaming: boolean;
   openThoughts: ReadonlySet<string>;
   onToggleThought(messageId: string): void;
@@ -165,6 +183,8 @@ interface BlockViewProps {
 function BlockView({
   block,
   terminals,
+  pending,
+  planCalls,
   streaming,
   openThoughts,
   onToggleThought,
@@ -186,8 +206,13 @@ function BlockView({
         />
       );
     case "tool":
+      if (block.call.kind === "switch_mode") {
+        const request = pending?.toolCallId === block.call.toolCallId ? pending : null;
+        return <PlanApproval call={block.call} request={request} onRespond={onRespond} />;
+      }
       return <ToolCard call={block.call} terminals={terminals} />;
     case "permission":
+      if (planCalls.has(block.request.toolCallId)) return null;
       return (
         <>
           <PermissionRequest request={block.request} onRespond={onRespond} />

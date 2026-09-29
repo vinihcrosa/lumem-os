@@ -238,6 +238,77 @@ describe("tool calls", () => {
   });
 });
 
+/**
+ * O `tool_call` inicial também leva `content` (`035`, porta 1).
+ *
+ * É o caminho do plano do plan mode: o adaptador manda o texto inteiro no
+ * `tool_call` que antecede a permissão (`ensureToolCallEmitted`), e antes disto
+ * ele morria aqui — só o `tool_call_update` guardava `content`.
+ */
+describe("o content do tool_call", () => {
+  const PLAN = "# Plano\n\n- ler o loader\n- extrair o parser";
+
+  it("tool_call leva o content traduzido", () => {
+    const event = translateSessionUpdate(
+      {
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-plan",
+        title: "Approve Plan",
+        kind: "switch_mode",
+        status: "pending",
+        content: [{ type: "content", content: { type: "text", text: PLAN } }],
+      },
+      context,
+    );
+
+    expect(event).toEqual({
+      type: "tool_call",
+      toolCallId: "tc-plan",
+      title: "Approve Plan",
+      name: null,
+      kind: "switch_mode",
+      status: "pending",
+      locations: [],
+      content: [{ type: "content", text: PLAN }],
+    });
+  });
+
+  it("tool_call traduz diff e terminal como o update", () => {
+    const content = [
+      { type: "diff", path: "/repo/src/lore/frontmatter.ts", newText: "export {}" },
+      { type: "diff", path: "/repo/src/lore/loader.ts", oldText: "a\n", newText: "b\n" },
+      { type: "terminal", terminalId: "t-1" },
+    ];
+
+    const call = translateSessionUpdate(
+      { sessionUpdate: "tool_call", toolCallId: "tc-1", title: "Write", kind: "edit", content },
+      context,
+    );
+    const update = translateSessionUpdate(
+      { sessionUpdate: "tool_call_update", toolCallId: "tc-1", content },
+      context,
+    );
+
+    const expected = [
+      { type: "diff", path: "/repo/src/lore/frontmatter.ts", oldText: null, newText: "export {}" },
+      { type: "diff", path: "/repo/src/lore/loader.ts", oldText: "a\n", newText: "b\n" },
+      { type: "terminal", terminalId: "t-1" },
+    ];
+    expect(call).toMatchObject({ type: "tool_call", content: expected });
+    expect(update).toMatchObject({ type: "tool_call_update", content: expected });
+  });
+
+  it("tool_call sem content não inventa a chave", () => {
+    const event = translateSessionUpdate(
+      { sessionUpdate: "tool_call", toolCallId: "tc-2", title: "Read", kind: "read" },
+      context,
+    );
+
+    expect(event).toMatchObject({ type: "tool_call", toolCallId: "tc-2" });
+    expect("content" in (event as object)).toBe(false);
+  });
+});
+
 describe("the plan", () => {
   it("translates a plan with its three statuses", () => {
     expect(

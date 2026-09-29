@@ -189,3 +189,22 @@ describe("o agente que não oferece por onde aprovar", () => {
     expect(decision.approve).toBe(false);
   });
 });
+
+describe("o pedido de sair do plan mode (`035`, Q2)", () => {
+  /*
+   * Aprovar um plano é o momento em que alguém lê o que vai ser feito. O pedido
+   * do adaptador tem uma `allow_once` (*"Yes, manually approve edits"*), e sem
+   * esta guarda o `liberado` a escolheria sozinho.
+   */
+  const PLAN_OPTIONS: AcpPermissionOption[] = [
+    { optionId: "exit-plan-auto", name: "Yes, and use auto mode", kind: "allow_always" },
+    { optionId: "exit-plan-default", name: "Yes, manually approve edits", kind: "allow_once" },
+    { optionId: "reject", name: "No, keep planning", kind: "reject_once" },
+  ];
+
+  it.each([["ask"], ["auto"], ["free"]] as const)("nenhum modo do Lumem aprova um plano (%s)", (mode) => {
+    const decision = decidePermission(mode, CWD, call({ kind: "switch_mode", locations: [], options: PLAN_OPTIONS }));
+
+    expect(decision).toEqual({ approve: false, reason: "aprovar um plano é decisão sua" });
+  });
+});

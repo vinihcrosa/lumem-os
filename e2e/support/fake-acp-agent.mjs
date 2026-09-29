@@ -492,6 +492,113 @@ async function runConveyorTurn(text) {
   return "end_turn";
 }
 
+/**
+ * A frase que pede o roteiro de plan mode (`035` S4). Combinada com o spec, e com mais nada.
+ */
+const PLAN_FIRST = "planeje antes";
+
+/** O plano, com mais de 12 linhas: é o teto do `ToolCard` que o cartão não pode ter. */
+const PLAN_TEXT = [
+  "# Separar o parser do loader",
+  "",
+  "O objetivo é o frontmatter vazio virar erro nomeado.",
+  "",
+  "## Passos",
+  "",
+  "1. ler o loader e achar onde o frontmatter é lido",
+  "2. extrair o parser para frontmatter.ts",
+  "3. cobrir frontmatter vazio, aberto e ausente",
+  "4. apontar o loader para o parser novo",
+  "",
+  "## Fora",
+  "",
+  "- mudar o formato do arquivo",
+  "- tocar no cache",
+  "",
+  "Última linha do plano: nada é escrito antes da aprovação.",
+].join("\n");
+
+/**
+ * As quatro opções do `0.75.1`, verbatim (`dist/permissions/options/tools.js`,
+ * `buildExitPlanModePermissionOptions`) — com `auto` entre os modos e um plano
+ * no pedido, que é o caso em que o adaptador oferece as quatro.
+ */
+const PLAN_OPTIONS = [
+  { optionId: "exit-plan-clear-auto", name: "Yes, clear context (32% used) and use auto mode", kind: "allow_always" },
+  { optionId: "exit-plan-auto", name: "Yes, and use auto mode", kind: "allow_always" },
+  { optionId: "exit-plan-default", name: "Yes, manually approve edits", kind: "allow_once" },
+  { optionId: "reject", name: "No, keep planning", kind: "reject_once" },
+];
+
+/** O modo em que cada aprovação deixa a sessão (`dist/permissions/effects.js`). */
+const MODE_AFTER = { "exit-plan-clear-auto": "auto", "exit-plan-auto": "auto", "exit-plan-default": "default" };
+
+/**
+ * O plan mode inteiro, como o adaptador o faz: entra em `plan`, manda o plano
+ * **no `tool_call`** (o caminho do `ensureToolCallEmitted`), pede para sair, e
+ * sai para o modo que a opção escolhida diz. Recusar mantém `plan` e interrompe
+ * o turno — *"User chose to keep planning"*, com `interrupt`.
+ *
+ * O adaptador sem modos (`LUMEM_FAKE_NO_MODES`) não relata modo nenhum: um
+ * `current_mode_update` aqui daria o seletor ao agente, e a política do Lumem
+ * — o que o `liberado` do caso sem modos prova — deixaria de valer.
+ */
+async function runPlanTurn() {
+  const reportsModes = process.env["LUMEM_FAKE_NO_MODES"] !== "1";
+  const switchTo = (mode) => {
+    currentMode = mode;
+    if (reportsModes) update({ sessionUpdate: "current_mode_update", currentModeId: mode });
+  };
+
+  switchTo("plan");
+  await sleep(10);
+
+  const content = [{ type: "content", content: { type: "text", text: PLAN_TEXT } }];
+  update({
+    sessionUpdate: "tool_call",
+    toolCallId: "tc-plan",
+    title: "Approve Plan",
+    name: "ExitPlanMode",
+    kind: "switch_mode",
+    status: "pending",
+    content,
+    locations: [],
+  });
+
+  const outcome = await new Promise((resolve) => {
+    resolvePermission = resolve;
+    write({
+      jsonrpc: "2.0",
+      id: "perm-plan",
+      method: "session/request_permission",
+      params: {
+        sessionId: SESSION_ID,
+        toolCall: {
+          toolCallId: "tc-plan",
+          title: "Approve Plan",
+          kind: "switch_mode",
+          content,
+          rawInput: { plan: PLAN_TEXT },
+        },
+        options: PLAN_OPTIONS,
+      },
+    });
+  });
+
+  const next = outcome?.outcome === "selected" ? MODE_AFTER[outcome.optionId] : undefined;
+  if (next === undefined) return "cancelled";
+
+  switchTo(next);
+  update({ sessionUpdate: "tool_call_update", toolCallId: "tc-plan", status: "completed" });
+  await sleep(10);
+  update({
+    sessionUpdate: "agent_message_chunk",
+    messageId: "plano-aprovado",
+    content: { type: "text", text: `Plano aprovado, seguindo em ${next}.` },
+  });
+  return "end_turn";
+}
+
 async function runTurn(text) {
   // The plan, reissued whole as it advances — which is what the card's "one card
   // that rewrites itself" has to survive.
@@ -986,6 +1093,10 @@ createInterface({ input: process.stdin }).on("line", (line) => {
       }
       if (text.includes(ECHO)) {
         void runEcho(blocks).then((stopReason) => reply(message.id, { stopReason }));
+        return;
+      }
+      if (text.includes(PLAN_FIRST)) {
+        void runPlanTurn().then((stopReason) => reply(message.id, { stopReason }));
         return;
       }
       // O turno da esteira, quando o spec o ligou. Antes do roteirizado pelo

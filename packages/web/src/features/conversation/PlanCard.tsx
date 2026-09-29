@@ -48,7 +48,7 @@ export function PlanCard({ entries, defaultOpen = false }: PlanCardProps) {
         <span className={`plan__glyph${finished ? " plan__glyph--done" : ""}`} aria-hidden="true">
           {finished ? "✓" : "☰"}
         </span>
-        Plano
+        Passos
         <span className="spacer" />
         <span className="plan__count">
           {done} de {entries.length}
