@@ -258,3 +258,12 @@ Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/TurnS
   C31 ficou: o teste novo é quem afirma os dois ids distintos
 - **Abandoned:** nada. O `fallbackMessageId: session.turnId` do texto do agente (`AcpManager.ts:2098`)
   tem o mesmo formato e fica fora do escopo, junto com o estado de turno único da Q5
+- **Boundary:** C7 closed at 4667677 (rodada 4 da verificação, ampliação do C7); o follow-up do pensamento, sem check, em 5ae5c11
+- **Settled mid-build:** o dono autorizou a quinta rodada; o `c2d2e6b` ampliou o C7 e tirou o ✓ dele até a
+  segunda prova passar. Nenhum código de produção mudou: a `Transcript.tsx` já estava certa, faltava prova.
+  A prova nova termina a conversa somente leitura numa `message` do agente sem fecho, o único cenário em que
+  só o `!readOnly` decide, e cai quando ele sai da expressão `streaming` (`Transcript.tsx:119`, o MH da
+  rodada 4); a primeira prova do C7, que termina na pergunta, segue verde sob a mesma mutação, como a
+  verificação previu. O teste a mais (*does not open a thought by itself in a record that never closed*,
+  `Transcript.test.tsx`) cobre o `thoughtOpen` da `036` pela mesma expressão e cai pela mesma mutação
+- **Abandoned:** nada
