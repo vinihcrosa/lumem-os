@@ -1713,6 +1713,23 @@ continuava três abaixo. Um piso só protege o item novo quando é igual ao tama
 compara com o tamanho de hoje**, e quem acrescenta sobe o número até ele. Achado pela injeção de defeito
 do verificador, rodada 2 da `035`.
 
+### Um lote de `GET` que cresce com os dados passa do teto de cabeçalho
+
+**Sintoma:** no CI da PR da [`035`](../features/035-plan-mode/prd.md), `sidebar-nav.spec.ts` falhou nas
+duas tentativas: a lista de worktrees do `repo-acp` mostrava *"Unexpected end of JSON input"*, o
+checkout recém-criado não aparecia na coluna, e na segunda tentativa o `git worktree add` recusava o
+nome que a primeira já tinha criado. Localmente a suíte inteira passava.
+
+**Causa:** o `httpBatchLink` junta as `query` do mesmo tique num `GET`, com caminhos e entradas na
+URL. A sidebar pede um `session.listByScope` por worktree, e com as worktrees que a spec nova
+acrescentou o lote chegou a **16 090 caracteres**; o servidor HTTP do Node conta a linha de requisição
+no teto de cabeçalho (16 KB) e respondeu `431` com corpo vazio. O trace do Playwright mostrou a URL
+inteira. A `main` já tinha `431` no log — o defeito esperava dados suficientes para aparecer.
+
+**Conserto:** `maxURLLength: MAX_BATCH_URL_LENGTH` (4000) no `httpBatchLink`, com teste de sessenta
+consultas no mesmo tique (`trpc-links.test.ts`). A regra: **um lote cujo tamanho cresce com os dados
+precisa de teto**, e um `431` no log do servidor é falha, não ruído.
+
 ## Convenções
 
 - Teste de git usa **repositório temporário real**, nunca mock. `git worktree` tem caso de borda em nome com barra e branch existente que mock nenhum reproduz.

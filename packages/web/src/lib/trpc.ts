@@ -31,6 +31,18 @@ export function travelsAlone(path: string): boolean {
 }
 
 /**
+ * O teto de URL de um lote.
+ *
+ * Um lote de `query` viaja por `GET`, com os caminhos e as entradas na URL, e o
+ * servidor HTTP do Node conta a linha de requisição no teto de cabeçalho (16 KB).
+ * Medido no CI da `035`: a sidebar com as worktrees do `repo-acp` pediu um
+ * `session.listByScope` por worktree no mesmo tique, o lote chegou a 16 090
+ * caracteres, voltou `431` com corpo vazio, e a lista virou *"Unexpected end of
+ * JSON input"*. Acima deste número o `httpBatchLink` parte o lote em dois.
+ */
+export const MAX_BATCH_URL_LENGTH = 4_000;
+
+/**
  * Vanilla tRPC client driven by TanStack Query at the call site.
  *
  * The return type is annotated explicitly rather than inferred: the inferred
@@ -47,7 +59,7 @@ export const trpc: TRPCClient<AppRouter> = createTRPCClient<AppRouter>({
       false: splitLink({
         condition: (operation) => travelsAlone(operation.path),
         true: httpLink({ url: "/trpc" }),
-        false: httpBatchLink({ url: "/trpc" }),
+        false: httpBatchLink({ url: "/trpc", maxURLLength: MAX_BATCH_URL_LENGTH }),
       }),
     }),
   ],

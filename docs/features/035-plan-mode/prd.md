@@ -99,6 +99,7 @@ põe logo acima da `ComposerBox`.
 | permissão | cancelar o turno ou o agente sair passa a emitir `permission_resolved` `cancelled` para todo pedido pendente, e a responder `NOT_FOUND` depois — vale para **todo** pedido, não só o do plano; o bloco genérico (`PermissionRequest`) também deixa de ficar com botões vivos |
 | política | `decidePermission` passa a recusar-se a aprovar `switch_mode` nos três valores; o `automático` já não aprovava (só `read`), o `liberado` aprovava |
 | stored data | nada a migrar: transcripts antigos não têm `content` no `tool_call` e a leitura é *forward-compatible* (`TranscriptStore.ts`); os novos passam a gravá-lo |
+| transporte | o `httpBatchLink` do web ganha `maxURLLength` (`MAX_BATCH_URL_LENGTH`, 4000): no CI da PR, as worktrees que a spec nova pôs no `repo-acp` fizeram o lote de `session.listByScope` passar de 16 KB de URL e voltar `431` — defeito anterior, que a `main` já mostrava no log sem derrubar teste |
 | e2e | o agente falso ganha um roteiro de plan mode, por palavra-chave no prompt, sem mudar o turno padrão que as outras 17 specs usam |
 
 ## Relations
