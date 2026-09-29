@@ -233,8 +233,12 @@ export function useConversationSession(
     const open = (): void => {
       socketRef.current = connect(sessionId, {
         onMessage: (message) => {
-          // A replay means the connection is back; the next drop waits from the start.
-          if (message.type === "attached") attempt = 0;
+          // A replay means the connection is back; the next drop waits from the start,
+          // and a refusal from the dead socket is no longer true.
+          if (message.type === "attached") {
+            attempt = 0;
+            setSendRefusal(null);
+          }
           dispatch({ kind: "message", message });
         },
         onClose: ({ refused }) => {

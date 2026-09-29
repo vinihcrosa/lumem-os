@@ -284,6 +284,14 @@ class LiveSocket {
   garble(error: string): void {
     this.handlers.onDecodeError?.(error);
   }
+
+  /** O socket recusando um envio, com o motivo, como o de verdade faz fechado. */
+  refuseWith(reason: string): void {
+    this.send = () => {
+      this.handlers.onSendRejected?.(reason);
+      return false;
+    };
+  }
 }
 
 function liveStub(): {
@@ -482,6 +490,28 @@ describe("a conexão que cai", () => {
     });
 
     expect(stub.sockets).toHaveLength(4);
+  });
+
+  it("o attached da reabertura tira o motivo de um envio recusado na queda", () => {
+    vi.useFakeTimers();
+    const stub = liveStub();
+    const { result } = renderHook(() => useConversationSession("s-1", { connect: stub.connect }));
+    act(() => stub.last().deliver(attached()));
+
+    // A conexão cai e um `esc` sai nesse meio tempo: o socket morto recusa.
+    act(() => stub.last().hangUp(1006));
+    stub.last().refuseWith("o socket não está aberto");
+    act(() => result.current.cancel());
+    expect(result.current.sendRefusal).toBe("o socket não está aberto");
+
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    act(() => stub.last().deliver(attached()));
+
+    // De volta, o motivo já não é verdade — e nenhum prompt foi mandado para limpá-lo.
+    expect(result.current.sendRefusal).toBeNull();
+    expect(stub.last().sent).toEqual([]);
   });
 
   it("devolve false quando o socket recusa o envio", () => {
