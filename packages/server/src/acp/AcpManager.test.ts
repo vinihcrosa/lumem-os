@@ -3035,6 +3035,106 @@ describe("o adaptador que sai no meio do turno", () => {
     expect(secondOutcome?.error).toBeInstanceOf(AcpTurnFailedError);
   });
 
+  it("records both questions and one closing when the adapter exits with two held", async () => {
+    // A saída pega os dois na leitura do teto, com nenhuma pergunta gravada: o
+    // critério 27 vale para cada um, e o fecho é um só (door 4).
+    const fake = fakeAgentProcess({ prompt: () => Promise.resolve("end_turn") });
+    const budgets = [held<{ kind: "pass" }>(), held<{ kind: "pass" }>()];
+    let budgetReads = 0;
+    const turnFailures = vi.fn();
+    const manager = new AcpManager({
+      spawner: () => fake.process,
+      isAvailable: () => true,
+      handshakeTimeoutMs: 2_000,
+      turnFailures,
+      budget: () => {
+        const read = budgets[budgetReads];
+        budgetReads += 1;
+        return read === undefined ? Promise.resolve({ kind: "pass" }) : read.promise;
+      },
+    });
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: "/repos/lorebase" });
+    const settle = (text: string) =>
+      manager.prompt(info.id, text).then(
+        (stopReason) => ({ stopReason }),
+        (error: unknown) => ({ error }),
+      );
+
+    const first = settle("primeira");
+    await waitFor(() => (budgetReads === 1 ? true : undefined));
+    const second = settle("segunda");
+    await waitFor(() => (budgetReads === 2 ? true : undefined));
+    expect(manager.transcript(info.id)).toEqual([]);
+
+    fake.exit({ exitCode: 137, signal: null });
+    await waitFor(() => (manager.get(info.id)?.state === "exited" ? true : undefined));
+    for (const budget of budgets) budget.release({ kind: "pass" });
+    const both = await Promise.race([
+      Promise.all([first, second]),
+      new Promise<"pendurado">((resolve) => setTimeout(() => resolve("pendurado"), 1_000)),
+    ]);
+
+    expect(manager.transcript(info.id).map((entry) => entry.event)).toEqual([
+      { type: "message", messageId: expect.any(String), role: "user", text: "primeira" },
+      { type: "message", messageId: expect.any(String), role: "user", text: "segunda" },
+      { type: "turn_failed", message: "o agente encerrou no meio do turno (saída 137)" },
+    ]);
+    expect(turnFailures).toHaveBeenCalledTimes(1);
+    expect(turnFailures).toHaveBeenCalledWith(expect.objectContaining({ tag: "turn-failed", code: "exited", sessionId: info.id }));
+    expect(both).not.toBe("pendurado");
+    const [firstOutcome, secondOutcome] = both as { error?: unknown }[];
+    expect(firstOutcome?.error).toBeInstanceOf(AcpTurnFailedError);
+    expect(secondOutcome?.error).toBeInstanceOf(AcpTurnFailedError);
+    // Nenhum `session/prompt` foi para um processo que não existe mais.
+    expect(fake.promptBlocks).toEqual([]);
+  });
+
+  it("closes the remaining prompt when the adapter exits after the first one ends", async () => {
+    // O segundo `prompt` termina e desliga o `promptInFlight`, e o primeiro
+    // ainda espera o teto: a saída não pode confiar nesse campo para saber que
+    // há turno em voo.
+    const fake = fakeAgentProcess({ prompt: () => Promise.resolve("end_turn") });
+    const firstBudget = held<{ kind: "pass" }>();
+    let budgetReads = 0;
+    const manager = new AcpManager({
+      spawner: () => fake.process,
+      isAvailable: () => true,
+      handshakeTimeoutMs: 2_000,
+      budget: () => {
+        budgetReads += 1;
+        return budgetReads === 1 ? firstBudget.promise : Promise.resolve({ kind: "pass" });
+      },
+    });
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: "/repos/lorebase" });
+    const settle = (text: string) =>
+      manager.prompt(info.id, text).then(
+        (stopReason) => ({ stopReason }),
+        (error: unknown) => ({ error }),
+      );
+    const unlessHung = <T,>(turn: Promise<T>) =>
+      Promise.race([turn, new Promise<"pendurado">((resolve) => setTimeout(() => resolve("pendurado"), 1_000))]);
+
+    const first = settle("primeira");
+    await waitFor(() => (budgetReads === 1 ? true : undefined));
+    expect(await unlessHung(settle("segunda"))).toEqual({ stopReason: "end_turn" });
+
+    fake.exit({ exitCode: 137, signal: null });
+    await waitFor(() => (manager.get(info.id)?.state === "exited" ? true : undefined));
+    firstBudget.release({ kind: "pass" });
+    const outcome = await unlessHung(first);
+
+    expect(outcome).not.toBe("pendurado");
+    expect(outcome).not.toEqual({ stopReason: "end_turn" });
+    expect((outcome as { error?: unknown }).error).toBeInstanceOf(AcpTurnFailedError);
+    const events = manager.transcript(info.id).map((entry) => entry.event);
+    expect(events.at(-1)).toEqual({ type: "turn_failed", message: "o agente encerrou no meio do turno (saída 137)" });
+    expect(events.filter((event) => event.type === "turn_failed")).toHaveLength(1);
+    expect(events.filter((event) => event.type === "message" && event.role === "user").map((event) => (event as { text: string }).text)).toEqual([
+      "segunda",
+      "primeira",
+    ]);
+  });
+
   it("gives each question its own message id with two prompts in flight", async () => {
     // O `session.turnId` é sobrescrito pelo segundo `prompt`: a pergunta do
     // primeiro, gravada depois, saía com o id do segundo.
