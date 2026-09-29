@@ -142,8 +142,9 @@ jobs:
           node-version-file: .nvmrc
           registry-url: https://registry.npmjs.org
 
-      # OIDC no `npm publish` pede npm >= 11.5.1, e o Node 22 traz o 10.
-      - run: npm install -g npm@latest
+      # npm@12 requires Node 22.22.2; this runner uses the pinned Node 22.17.1.
+      # npm@11.20.0 supports it and satisfies OIDC's npm >= 11.5.1 requirement.
+      - run: npm install -g npm@11.20.0
 
       - uses: actions/download-artifact@v4
         with:
