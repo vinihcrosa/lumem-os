@@ -1212,6 +1212,22 @@ describe("a conversation that has ended", () => {
     expect(screen.getByRole("button", { name: /retomar/ })).toBeInTheDocument();
   });
 
+  it("conversa encerrada sem fecho não desenha turno vivo", async () => {
+    // `035` S1: uma transcrição gravada antes de qualquer fecho — as que já estão
+    // em disco, ou a de um adaptador que saiu sem o daemon fechar o turno —
+    // termina na pergunta, e o redutor a relê com `streaming` ligado. Somente
+    // leitura desliga tudo o que é de turno vivo.
+    readOnly([
+      entry({ type: "message", messageId: "m-1", role: "user", text: "a pergunta sem resposta" }),
+    ]);
+
+    expect(await screen.findByText("a pergunta sem resposta")).toBeInTheDocument();
+    expect(document.querySelector(".mcaret")).toBeNull();
+    // A linha de estado do turno (S3) diz `trabalhando`; aqui ela não existe.
+    expect(screen.queryByText(/trabalhando/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /interromper/ })).not.toBeInTheDocument();
+  });
+
   it("reports a read that failed instead of showing an empty conversation", async () => {
     render(
       <TestProviders>

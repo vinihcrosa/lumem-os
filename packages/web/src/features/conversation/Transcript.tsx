@@ -90,9 +90,12 @@ export function Transcript({
                 key={blockIndex}
                 block={block}
                 terminals={conversation.terminals}
-                // Only the last block of the last turn can still be growing.
+                // Only the last block of the last turn can still be growing — and
+                // never in a record: a transcript saved before any close replays
+                // with `streaming` on, and nothing there is growing (`035` S1).
                 streaming={
                   conversation.streaming &&
+                  !readOnly &&
                   turnIndex === conversation.turns.length - 1 &&
                   blockIndex === turn.blocks.length - 1
                 }
