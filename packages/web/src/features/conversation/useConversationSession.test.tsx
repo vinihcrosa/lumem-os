@@ -1,6 +1,11 @@
-import type { AcpClientMessage, AcpServerMessage } from "@lumem/shared";
+import {
+  ACP_CLOSE_SESSION_NOT_FOUND,
+  type AcpClientMessage,
+  type AcpServerMessage,
+  type AcpTranscriptEntry,
+} from "@lumem/shared";
 import { act, render, renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AwaitingPermissionProvider, useAwaitingPermission } from "../../hooks/useAwaitingPermission.js";
 import type { AcpSocketHandlers } from "./acp-socket.js";
@@ -20,8 +25,9 @@ class FakeSocket {
   closed = false;
   deliver!: (message: AcpServerMessage) => void;
 
-  send(message: AcpClientMessage): void {
+  send(message: AcpClientMessage): boolean {
     this.sent.push(message);
+    return true;
   }
 
   close(): void {
@@ -41,7 +47,7 @@ function connectStub(): {
   return { socket, connect };
 }
 
-function attached(): AcpServerMessage {
+function attached(transcript: AcpTranscriptEntry[] = []): AcpServerMessage {
   return {
     type: "attached",
     modeOwner: "agent",
@@ -54,7 +60,7 @@ function attached(): AcpServerMessage {
     model: "opus[1m]",
     mode: "auto",
     configOptions: [],
-    transcript: [],
+    transcript,
   };
 }
 
@@ -234,5 +240,262 @@ describe("o aviso de quem está esperando", () => {
     );
 
     expect(captured.current?.isWaiting("s-1")).toBe(false);
+  });
+});
+
+/**
+ * A conexão que cai e volta (`035` S2, door 3).
+ *
+ * Um socket por `connect`, cada um com os seus handlers: é o que deixa o teste
+ * derrubar a conexão corrente e ver se o hook abre **outra**, para a mesma
+ * sessão, na hora certa — e não abre nenhuma quando não deve.
+ */
+class LiveSocket {
+  readonly sent: AcpClientMessage[] = [];
+  closed = false;
+
+  constructor(
+    readonly sessionId: string,
+    private readonly handlers: AcpSocketHandlers,
+  ) {}
+
+  send(message: AcpClientMessage): boolean {
+    this.sent.push(message);
+    return true;
+  }
+
+  close(): void {
+    this.closed = true;
+  }
+
+  deliver(message: AcpServerMessage): void {
+    this.handlers.onMessage(message);
+  }
+
+  /** O daemon, ou a rede, fechando — nunca o cliente. */
+  hangUp(code: number): void {
+    this.handlers.onClose?.({
+      code,
+      clean: false,
+      refused: code === ACP_CLOSE_SESSION_NOT_FOUND,
+    });
+  }
+
+  garble(error: string): void {
+    this.handlers.onDecodeError?.(error);
+  }
+}
+
+function liveStub(): {
+  sockets: LiveSocket[];
+  connect: (sessionId: string, handlers: AcpSocketHandlers) => LiveSocket;
+  last: () => LiveSocket;
+} {
+  const sockets: LiveSocket[] = [];
+  const connect = (sessionId: string, handlers: AcpSocketHandlers): LiveSocket => {
+    const socket = new LiveSocket(sessionId, handlers);
+    sockets.push(socket);
+    return socket;
+  };
+  return { sockets, connect, last: () => sockets.at(-1)! };
+}
+
+let clock = 1_700_000_000_000;
+function entry(event: AcpTranscriptEntry["event"]): AcpTranscriptEntry {
+  clock += 1_000;
+  return { at: clock, event };
+}
+
+describe("a conexão que cai", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("mostra a queda e reabre o socket", () => {
+    vi.useFakeTimers();
+    const stub = liveStub();
+    const { result } = renderHook(() => useConversationSession("s-1", { connect: stub.connect }));
+    act(() => stub.last().deliver(attached()));
+
+    act(() => stub.last().hangUp(1006));
+
+    expect(result.current.state.failure).toMatchObject({
+      message: "conexão com o daemon caiu — reconectando",
+      fatal: false,
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(10_000);
+    });
+
+    expect(stub.sockets).toHaveLength(2);
+    expect(stub.sockets[1]!.sessionId).toBe("s-1");
+  });
+
+  it("espaça as tentativas até 10 s e não desiste", () => {
+    vi.useFakeTimers();
+    const stub = liveStub();
+    renderHook(() => useConversationSession("s-1", { connect: stub.connect }));
+
+    // Cada tentativa falha: o socket novo cai antes de o daemon responder.
+    for (const delay of [500, 1_000, 2_000, 4_000, 8_000, 10_000, 10_000]) {
+      act(() => stub.last().hangUp(1006));
+      const before = stub.sockets.length;
+
+      act(() => {
+        vi.advanceTimersByTime(delay - 1);
+      });
+      expect(stub.sockets).toHaveLength(before);
+
+      act(() => {
+        vi.advanceTimersByTime(1);
+      });
+      expect(stub.sockets).toHaveLength(before + 1);
+    }
+
+    // A oitava reabertura: o teto fica em 10 s, e a aba montada segue tentando.
+    act(() => stub.last().hangUp(1006));
+    act(() => {
+      vi.advanceTimersByTime(10_000);
+    });
+
+    expect(stub.sockets).toHaveLength(9);
+    expect(stub.sockets.every((socket) => socket.sessionId === "s-1")).toBe(true);
+  });
+
+  it("o attached da reabertura substitui a conversa sem duplicar turnos", () => {
+    vi.useFakeTimers();
+    const stub = liveStub();
+    const { result } = renderHook(() => useConversationSession("s-1", { connect: stub.connect }));
+
+    const before = [
+      entry({ type: "message", messageId: "u-1", role: "user", text: "roda o gate" }),
+      entry({ type: "message", messageId: "a-1", role: "agent", text: "rodei" }),
+      entry({ type: "turn_end", stopReason: "end_turn" }),
+    ];
+    act(() => stub.last().deliver(attached(before)));
+    expect(result.current.state.conversation.turns).toHaveLength(2);
+
+    act(() => stub.last().hangUp(1006));
+    act(() => {
+      vi.advanceTimersByTime(10_000);
+    });
+    expect(stub.sockets).toHaveLength(2);
+
+    const after = [
+      ...before,
+      entry({ type: "message", messageId: "u-2", role: "user", text: "e agora?" }),
+    ];
+    act(() => stub.last().deliver(attached(after)));
+
+    expect(result.current.state.conversation.turns).toHaveLength(3);
+    expect(result.current.state.failure).toBeNull();
+  });
+
+  it("sessão que sumiu do daemon não reabre", () => {
+    vi.useFakeTimers();
+    const stub = liveStub();
+    const { result } = renderHook(() => useConversationSession("s-1", { connect: stub.connect }));
+    act(() => stub.last().deliver(attached()));
+
+    act(() => stub.last().hangUp(ACP_CLOSE_SESSION_NOT_FOUND));
+
+    expect(result.current.state.failure?.message).toBe("esta sessão não existe mais no daemon");
+
+    act(() => {
+      vi.advanceTimersByTime(30_000);
+    });
+
+    expect(stub.sockets).toHaveLength(1);
+  });
+
+  it("não reabre depois de desmontar nem ao trocar de sessão", () => {
+    vi.useFakeTimers();
+
+    // Desmontar com a reabertura já agendada.
+    const unmounted = liveStub();
+    const first = renderHook(() => useConversationSession("s-1", { connect: unmounted.connect }));
+    act(() => unmounted.last().hangUp(1006));
+    first.unmount();
+    act(() => {
+      vi.advanceTimersByTime(30_000);
+    });
+
+    expect(unmounted.sockets).toHaveLength(1);
+
+    // Trocar de sessão com a reabertura da antiga já agendada.
+    const switched = liveStub();
+    const second = renderHook(
+      ({ id }: { id: string }) => useConversationSession(id, { connect: switched.connect }),
+      { initialProps: { id: "s-1" } },
+    );
+    act(() => switched.last().hangUp(1006));
+    second.rerender({ id: "s-2" });
+    act(() => {
+      vi.advanceTimersByTime(30_000);
+    });
+
+    expect(switched.sockets.filter((socket) => socket.sessionId === "s-1")).toHaveLength(1);
+    expect(switched.sockets.filter((socket) => socket.sessionId === "s-2")).toHaveLength(1);
+  });
+
+  it("frame que não decodifica vira aviso e não fecha", () => {
+    vi.useFakeTimers();
+    const stub = liveStub();
+    const { result } = renderHook(() => useConversationSession("s-1", { connect: stub.connect }));
+    act(() => stub.last().deliver(attached()));
+
+    act(() => stub.last().garble("event.type: Invalid input"));
+
+    expect(result.current.state.failure).toEqual({
+      message: "o daemon mandou algo que esta tela não entende — recarregue a página",
+      remedy: null,
+      fatal: false,
+    });
+    expect(stub.last().closed).toBe(false);
+    expect(stub.sockets).toHaveLength(1);
+    // Não fatal: a conversa segue aceitando envio pelo mesmo socket.
+    expect(result.current.send("ainda funciona?")).toBe(true);
+    expect(stub.last().sent).toEqual([{ type: "prompt", text: "ainda funciona?" }]);
+  });
+
+  it("uma reabertura que recebeu o attached recomeça a espera do início", () => {
+    vi.useFakeTimers();
+    const stub = liveStub();
+    renderHook(() => useConversationSession("s-1", { connect: stub.connect }));
+
+    // Duas quedas seguidas levam a espera a 1 s; a segunda reabertura volta.
+    act(() => stub.last().hangUp(1006));
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    act(() => stub.last().hangUp(1006));
+    act(() => {
+      vi.advanceTimersByTime(1_000);
+    });
+    act(() => stub.last().deliver(attached()));
+    expect(stub.sockets).toHaveLength(3);
+
+    act(() => stub.last().hangUp(1006));
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+
+    expect(stub.sockets).toHaveLength(4);
+  });
+
+  it("devolve false quando o socket recusa o envio", () => {
+    const stub = liveStub();
+    const { result } = renderHook(() => useConversationSession("s-1", { connect: stub.connect }));
+    act(() => stub.last().deliver(attached()));
+    const socket = stub.last();
+    socket.send = () => false;
+
+    let sent = true;
+    act(() => {
+      sent = result.current.send("oi");
+    });
+
+    expect(sent).toBe(false);
   });
 });

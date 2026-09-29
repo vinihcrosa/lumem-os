@@ -1,5 +1,7 @@
 import {
   ACP_CLOSE_SESSION_NOT_FOUND,
+  ACP_MAX_FRAME_BYTES,
+  encodeAcpClientMessage,
   encodeAcpServerMessage,
   type AcpServerMessage,
 } from "@lumem/shared";
@@ -297,5 +299,47 @@ describe("sending", () => {
     );
 
     expect(() => socket.send({ type: "prompt", text: "" })).not.toThrow();
+  });
+});
+
+describe("a recusa do envio (`035` S2)", () => {
+  it("send devolve false quando recusa", () => {
+    const { socket, fake, rejected } = connect();
+
+    // O socket ainda não abriu.
+    expect(socket.send({ type: "prompt", text: "cedo demais" })).toBe(false);
+    expect(rejected).toEqual(["o socket não está aberto"]);
+
+    fake.open();
+
+    // O schema recusa.
+    expect(socket.send({ type: "prompt", text: "" })).toBe(false);
+    expect(rejected).toHaveLength(2);
+
+    // E o que sai devolve true.
+    expect(socket.send({ type: "prompt", text: "agora sim" })).toBe(true);
+    expect(fake.sent).toHaveLength(1);
+  });
+
+  it("recusa prompt acima de 1 MiB antes do fio", () => {
+    expect(ACP_MAX_FRAME_BYTES).toBe(1024 * 1024);
+    const { socket, fake, rejected } = connect();
+    fake.open();
+    const overhead = encodeAcpClientMessage({ type: "prompt", text: "" }).length;
+
+    // Exatamente no limite: sai.
+    const atLimit = "a".repeat(ACP_MAX_FRAME_BYTES - overhead);
+    expect(socket.send({ type: "prompt", text: atLimit })).toBe(true);
+    expect(fake.sent).toHaveLength(1);
+    expect(new TextEncoder().encode(fake.sent[0]).byteLength).toBe(ACP_MAX_FRAME_BYTES);
+
+    // Um byte acima — medido em bytes UTF-8, não em caracteres: o `é` tem dois
+    // bytes, e o texto tem o mesmo número de caracteres do que acabou de sair.
+    const overByOne = "a".repeat(ACP_MAX_FRAME_BYTES - overhead - 1) + "é";
+    expect(overByOne.length).toBe(atLimit.length);
+    expect(socket.send({ type: "prompt", text: overByOne })).toBe(false);
+
+    expect(fake.sent).toHaveLength(1);
+    expect(rejected).toEqual(["mensagem grande demais — o limite é 1 MiB"]);
   });
 });

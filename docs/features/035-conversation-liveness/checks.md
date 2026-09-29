@@ -42,30 +42,30 @@ Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/conve
 
 ### S2 - a queda da conexão aparece e se conserta · 8 arquivos · ~60 KB · ~30k
 
-**C8** - O socket fechando com `1006` mostra `conexão com o daemon caiu — reconectando` e chama `connect` de novo para a mesma sessão (AC 7, door 3)
+**C8** - O socket fechando com `1006` mostra `conexão com o daemon caiu — reconectando` e chama `connect` de novo para a mesma sessão (AC 7, door 3) ✓
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/useConversationSession.test.tsx -t "mostra a queda e reabre o socket"`
 
-**C9** - Com relógio falso e cada tentativa falhando, as reaberturas acontecem a 500, 1 000, 2 000, 4 000, 8 000, 10 000 e 10 000 ms umas das outras, e a oitava tentativa ainda acontece (AC 8, Q2)
+**C9** - Com relógio falso e cada tentativa falhando, as reaberturas acontecem a 500, 1 000, 2 000, 4 000, 8 000, 10 000 e 10 000 ms umas das outras, e a oitava tentativa ainda acontece (AC 8, Q2) ✓
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/useConversationSession.test.tsx -t "espaça as tentativas até 10 s e não desiste"`
 
-**C10** - O `attached` da reabertura, com a transcrição que já tinha 2 turnos mais 1 novo, deixa `conversation.turns` com 3 turnos e tira o aviso de queda (AC 9)
+**C10** - O `attached` da reabertura, com a transcrição que já tinha 2 turnos mais 1 novo, deixa `conversation.turns` com 3 turnos e tira o aviso de queda (AC 9) ✓
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/useConversationSession.test.tsx -t "o attached da reabertura substitui a conversa sem duplicar turnos"`
 
-**C11** - O socket fechando com `4404` mostra `esta sessão não existe mais no daemon` e `connect` não é chamado de novo em 30 s de relógio falso (AC 10)
+**C11** - O socket fechando com `4404` mostra `esta sessão não existe mais no daemon` e `connect` não é chamado de novo em 30 s de relógio falso (AC 10) ✓
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/useConversationSession.test.tsx -t "sessão que sumiu do daemon não reabre"`
 
-**C12** - Desmontar o hook, ou trocar o `sessionId`, com uma reabertura agendada faz `connect` não ser chamado para a sessão antiga em 30 s de relógio falso (AC 11)
+**C12** - Desmontar o hook, ou trocar o `sessionId`, com uma reabertura agendada faz `connect` não ser chamado para a sessão antiga em 30 s de relógio falso (AC 11) ✓
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/useConversationSession.test.tsx -t "não reabre depois de desmontar nem ao trocar de sessão"`
 
-**C13** - `AcpSocket.send` devolve `false` quando o socket não está aberto e quando o schema recusa; com isso o `send` do hook devolve `false`, e o composer mantém o rascunho e mostra o motivo (AC 12)
+**C13** - `AcpSocket.send` devolve `false` quando o socket não está aberto e quando o schema recusa; com isso o `send` do hook devolve `false`, e o composer mantém o rascunho e mostra o motivo (AC 12) ✓
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/acp-socket.test.ts -t "send devolve false quando recusa"`
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/conversation.test.tsx -t "envio recusado pelo socket mantém o rascunho e mostra o motivo"`
 
-**C14** - Um prompt cujo frame codificado tem exatamente o limite compartilhado sai; um byte acima é recusado antes de `ws.send` com `mensagem grande demais — o limite é 1 MiB`, e o servidor fecha um frame acima do mesmo limite importado de `@lumem/shared` (AC 13)
+**C14** - Um prompt cujo frame codificado tem exatamente o limite compartilhado sai; um byte acima é recusado antes de `ws.send` com `mensagem grande demais — o limite é 1 MiB`, e o servidor fecha um frame acima do mesmo limite importado de `@lumem/shared` (AC 13) ✓
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/acp-socket.test.ts -t "recusa prompt acima de 1 MiB antes do fio"`
 Proof: `pnpm --filter @lumem/server exec vitest run src/acp/websocket.test.ts -t "closes a frame above the shared frame limit"`
 
-**C15** - Um frame que não decodifica mostra `o daemon mandou algo que esta tela não entende — recarregue a página`, não marca a falha como fatal e não fecha o socket (AC 14)
+**C15** - Um frame que não decodifica mostra `o daemon mandou algo que esta tela não entende — recarregue a página`, não marca a falha como fatal e não fecha o socket (AC 14) ✓
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/useConversationSession.test.tsx -t "frame que não decodifica vira aviso e não fecha"`
 
 ### S3 - a linha de estado do turno · 9 arquivos · ~100 KB · ~40k

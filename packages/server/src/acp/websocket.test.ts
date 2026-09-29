@@ -3,6 +3,7 @@ import type { AddressInfo } from "node:net";
 
 import {
   ACP_CLOSE_SESSION_NOT_FOUND,
+  ACP_MAX_FRAME_BYTES,
   ACP_SESSION_PARAM,
   ACP_WS_PATH,
   decodeAcpServerMessage,
@@ -451,6 +452,23 @@ describe("bad frames", () => {
     const error = await client.waitForMessage("error");
 
     expect(error).toMatchObject({ code: "INVALID_MESSAGE", message: /permission request/ });
+  });
+
+  it("closes a frame above the shared frame limit", async () => {
+    const sessionId = await startSession();
+    const client = await TestClient.connect(sessionId);
+    await client.waitForMessage("attached");
+
+    // Exactly at the limit the frame gets through: it is not a message, so the
+    // daemon answers it, and the socket stays open.
+    client.sendRaw("x".repeat(ACP_MAX_FRAME_BYTES));
+    await client.waitForMessage("error");
+    expect(client.closeCode).toBeUndefined();
+
+    // One byte over, and `ws` closes with 1009 (message too big) before reading it.
+    client.sendRaw("x".repeat(ACP_MAX_FRAME_BYTES + 1));
+
+    expect(await client.waitForClose()).toBe(1009);
   });
 
   it("reports a prompt to a session whose agent has gone", async () => {

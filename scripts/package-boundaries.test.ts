@@ -213,7 +213,12 @@ export const OVER_THE_CEILING: Readonly<Record<string, { lines: number; reason: 
   "packages/server/src/tasks/conveyor.ts": { lines: 784, reason: "linha de base 2026-09-28" },
   "packages/server/src/bootstrap.ts": { lines: 781, reason: "linha de base 2026-09-28 (780), mais o import do log em arquivo da T11" },
   "packages/server/src/repositories/task.ts": { lines: 756, reason: "linha de base 2026-09-28" },
-  "packages/shared/src/acp-protocol.ts": { lines: 749, reason: "linha de base 2026-09-28; um tipo por mensagem do protocolo" },
+  "packages/shared/src/acp-protocol.ts": {
+    lines: 758,
+    reason:
+      "linha de base 2026-09-28 (749); um tipo por mensagem do protocolo; mais 9 da `035` S2 — o limite do frame " +
+      "do `/acp`, que o `maxPayload` do servidor e a recusa do web leem de um lugar só",
+  },
   "packages/server/src/tasks/conveyor-ports.ts": { lines: 727, reason: "linha de base 2026-09-28" },
 };
 

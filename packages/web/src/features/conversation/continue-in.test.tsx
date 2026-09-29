@@ -36,8 +36,9 @@ function Providers({ children }: { children: ReactNode }) {
 class FakeSocket {
   readonly sent: AcpClientMessage[] = [];
   deliver!: (message: AcpServerMessage) => void;
-  send(message: AcpClientMessage): void {
+  send(message: AcpClientMessage): boolean {
     this.sent.push(message);
+    return true;
   }
   close(): void {}
 }

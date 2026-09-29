@@ -59,8 +59,9 @@ class FakeSocket {
   closed = false;
   deliver!: (message: AcpServerMessage) => void;
 
-  send(message: AcpClientMessage): void {
+  send(message: AcpClientMessage): boolean {
     this.sent.push(message);
+    return true;
   }
 
   close(): void {
@@ -200,6 +201,45 @@ describe("sending", () => {
 
     expect(socket.sent).toEqual([{ type: "prompt", text: "arruma o frontmatter" }]);
     expect(box).toHaveValue("");
+  });
+
+  it("envio recusado pelo socket mantém o rascunho e mostra o motivo", async () => {
+    // O socket recusa como o `acp-socket` recusa: diz o motivo e devolve false.
+    const user = userEvent.setup();
+    const socket = new FakeSocket();
+    let refuse = true;
+    const connect: AcpConnect = (_sessionId, handlers) => {
+      socket.deliver = handlers.onMessage;
+      return {
+        send: (message) => {
+          if (!refuse) return socket.send(message);
+          handlers.onSendRejected?.("o socket não está aberto");
+          return false;
+        },
+        close: () => socket.close(),
+      };
+    };
+    render(
+      <TestProviders>
+        <Conversation sessionId="s-1" connect={connect} />
+      </TestProviders>,
+    );
+    act(() => socket.deliver(attached()));
+
+    const box = await screen.findByLabelText("mensagem para o agente");
+    await user.click(box);
+    await user.keyboard("não perca isto{Enter}");
+
+    expect(box).toHaveValue("não perca isto");
+    expect(screen.getByText("o socket não está aberto")).toBeInTheDocument();
+
+    // Até o próximo envio: o que sai limpa o rascunho e o motivo.
+    refuse = false;
+    await user.keyboard("{Enter}");
+
+    expect(socket.sent).toEqual([{ type: "prompt", text: "não perca isto" }]);
+    expect(box).toHaveValue("");
+    expect(screen.queryByText("o socket não está aberto")).not.toBeInTheDocument();
   });
 
   it("sends on a plain Enter", async () => {

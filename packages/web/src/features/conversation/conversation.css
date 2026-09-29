@@ -538,6 +538,8 @@
 .composer__in:focus { outline: none; }
 .composer__in--empty { color: var(--color-text-tertiary); }
 .composer__bar { display: flex; align-items: center; gap: var(--space-6); padding: var(--space-6) var(--space-8); border-top: 1px solid var(--color-border-subtle); }
+/* O motivo de um envio que o socket recusou, abaixo da caixa que guardou o rascunho. */
+.composer__refused { margin-top: var(--space-6); }
 
 /*
  * Pílula sem preenchimento: o modo pinta a cor DELE, e um fundo próprio

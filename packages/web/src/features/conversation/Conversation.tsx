@@ -95,10 +95,8 @@ export function Conversation({
   resumeError = null,
   active = true,
 }: ConversationProps) {
-  const { state, attached, readOnly, send, cancel, answer, setMode, setConfig } = useConversationSession(
-    sessionId,
-    { live, connect, load },
-  );
+  const { state, attached, readOnly, send, sendRefusal, cancel, answer, setMode, setConfig } =
+    useConversationSession(sessionId, { live, connect, load });
   const { conversation, session, failure } = state;
 
   /*
@@ -124,6 +122,7 @@ export function Conversation({
       readOnly={readOnly}
       active={active}
       send={send}
+      sendRefusal={sendRefusal}
       cancel={cancel}
       setMode={setMode}
       setConfig={setConfig}
