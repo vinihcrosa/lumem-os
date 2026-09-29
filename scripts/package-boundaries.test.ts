@@ -198,8 +198,9 @@ export const LINE_CEILING = 700;
 
 export const OVER_THE_CEILING: Readonly<Record<string, { lines: number; reason: string }>> = {
   "packages/server/src/acp/AcpManager.ts": {
-    lines: 2818,
-    reason: "linha de base 2026-09-28 (2813) mais 5 exceções de lint na linha da T9; quebrar é feature própria (backlog)",
+    lines: 2827,
+    reason:
+      "linha de base 2026-09-28 (2813) mais 5 exceções de lint na linha da T9, e 9 da `035` — o `reasoningMeta` da spec pelo caminho da `quotaRefusalKind`, que só existe aqui; quebrar é feature própria (backlog)",
   },
   "packages/server/src/db/schema.ts": { lines: 1709, reason: "linha de base 2026-09-28; um schema do drizzle cresce por tabela" },
   "packages/server/src/git/GitService.ts": { lines: 1099, reason: "linha de base 2026-09-28" },

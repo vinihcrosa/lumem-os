@@ -499,12 +499,7 @@ interface Session {
    * declarada, e não descoberta no turno (ADR de 2026-09-13).
    */
   quotaRefusalKind: string | null;
-  /**
-   * O `_meta` do `session/new` e do `session/load`, ou `null` (`035`).
-   *
-   * Da `spec`, pelo mesmo caminho da `quotaRefusalKind`: é ela que sabe o que
-   * este adaptador precisa ouvir para mandar o raciocínio.
-   */
+  /** O `_meta` do `session/new` e do `session/load` (`035`), da `spec` como a `quotaRefusalKind`. */
   reasoningMeta: Readonly<Record<string, unknown>> | null;
   /** O rótulo do agente, para a frase da recusa. */
   agentLabel: string;
@@ -2826,12 +2821,7 @@ function toAuthMethod(method: {
   };
 }
 
-/**
- * O `_meta` que a spec declara para esta sessão, pronto para espalhar — ou nada.
- *
- * Nada, e não `_meta: null`: a chave ausente é o que o protocolo lê como *"sem
- * extensão"*, e é o que o `session/new` mandava antes da `035`.
- */
+/** O `_meta` da spec para espalhar, ou nada — a chave ausente, e não `null`, é *"sem extensão"*. */
 function metaOf(session: Session): { _meta?: Record<string, unknown> } {
   return session.reasoningMeta === null ? {} : { _meta: { ...session.reasoningMeta } };
 }
