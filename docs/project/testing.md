@@ -321,6 +321,23 @@ O `tsc` puro na raiz não enxergava `e2e/`, `playwright.config.ts` nem os `vites
 
 ## Armadilhas já corrigidas
 
+### O mutante que roda o git no diretório errado encontra este repositório
+
+**2026-09-28, na primeira rodada completa do Stryker (T14 da `024-dev-harness`).** O Stryker monta o
+sandbox em `.stryker-tmp/`, **dentro** do checkout. Um mutante de `server/src/git/` que troca o
+diretório de um comando — um `cwd` que vira `""`, um caminho que vira `"Stryker was here!"` — faz o `git`
+rodar no diretório atual, e a busca por repositório **sobe** do sandbox até achar o `.git` deste. O que
+ela fez aqui: trocou o `remote.origin.url` da config **compartilhada pelas 17 worktrees** para um
+`file:///var/folders/…` de teste, e criou uma worktree e uma branch `teste` no repositório. Achado
+porque o `git push` seguinte tentou empurrar para um diretório temporário. Consertado à mão, conferido
+por `diff` contra a cópia da config, e a worktree e a branch — sem commit novo — removidas.
+
+**O conserto:** o `gate:mutation` roda com `GIT_CEILING_DIRECTORIES="$PWD/.stryker-tmp"`, e o git não
+sobe de dentro do sandbox. Provado com uma rodada completa (`--force`) e o `diff` da config, das refs e
+das worktrees antes e depois. **A regra que sobra:** mutação de código que chama `git` só roda com a
+busca de repositório cercada — e é a mesma família da armadilha abaixo: o processo de teste achando o
+repositório de verdade.
+
 ### O `GIT_DIR` que o git exporta para o hook faz a suíte escrever no repositório
 
 **2026-09-28, no primeiro push de verdade com o `pre-push`.** O git roda o hook com `GIT_DIR` (e, no

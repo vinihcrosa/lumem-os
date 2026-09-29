@@ -32,6 +32,13 @@ describe("o piso de mutação, por arquivo", () => {
     expect(problems).toEqual([]);
   });
 
+  it("o gate:mutation cerca a busca de repositório do git no sandbox", () => {
+    // Sem o teto, um mutante de `server/src/git/` que troca o `cwd` fez o git subir do sandbox até este
+    // repositório e reescrever o `origin` (testing.md, armadilhas).
+    const pkg = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8")) as { scripts: Record<string, string> };
+    expect(pkg.scripts["gate:mutation"]).toMatch(/GIT_CEILING_DIRECTORIES="\$PWD\/\.stryker-tmp"/);
+  });
+
   it("o workflow semanal roda o piso depois do Stryker, e nunca numa PR", () => {
     const workflow = readFileSync(join(repoRoot, ".github/workflows/mutation.yml"), "utf8");
     expect(workflow).toContain("scripts/mutation-floor.ts");
