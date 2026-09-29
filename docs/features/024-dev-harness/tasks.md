@@ -122,10 +122,10 @@ de 72h e o número da versão não volta nunca). Hoje custa um comando e não pa
   `release.yml` já registra o formato dessa falha.
 
 **Gate**: `pnpm smoke:install`
-**Status**: ✅ entregue em 2026-09-28, **menos o passo 3**. `~/.npmrc` sem `_authToken` (o arquivo
+**Status**: ✅ entregue em 2026-09-28; o passo 3 em 2026-09-29. `~/.npmrc` sem `_authToken` (o arquivo
 deixou de existir), `npm whoami` sai 1, `npm publish --dry-run` avisa *"requires you to be logged in"* —
-em `--dry-run` o npm avisa em vez de recusar, e o aviso é o sinal —, `smoke:install` verde. **O passo 3,
-revogar o token no npmjs.com, é do dono da conta.**
+em `--dry-run` o npm avisa em vez de recusar, e o aviso é o sinal —, `smoke:install` verde. O passo 3 —
+revogar o token no npmjs.com — **feito pelo dono em 2026-09-29**.
 
 ---
 
@@ -1071,11 +1071,14 @@ verificável deste repositório.
 - o número de PRs abertas pelo bot não passa de 3.
 
 **Gate**: `pnpm gate:full` na PR do bot
-**Status**: 🟡 **parcial** em 2026-09-28. `.github/dependabot.yml` com `npm` e `github-actions`, semanal,
+**Status**: ✅ entregue em 2026-09-29. `.github/dependabot.yml` com `npm` e `github-actions`, semanal,
 até 3 PRs, grupos `dev`/`prod`, sem major das duas nativas; alertas de vulnerabilidade e correções
 automáticas ligados — `dependabot_security_updates` devolve **`enabled`**. A linha da classe N3 foi para o
-`CLAUDE.md`. **Falta, e é do dono:** mesclar a primeira PR do bot com o CI verde — é o aceite que prova a
-esteira ponta a ponta com o ruleset da T2, e mesclar é decisão do dono (o guarda recusa `gh pr merge`).
+`CLAUDE.md`. A primeira PR do bot — [#94](https://github.com/vinihcrosa/lumem-os/pull/94), vitest 3.2.7 →
+4.1.11, um **major** — foi **mesclada pelo dono em 2026-09-29**, pelo ruleset da T2: o aceite ponta a ponta.
+Ela chegou a esta branch pelo merge da `main`, e o lint da T9 pegou o efeito que o CI dela não tinha como
+ver: no vitest 4, `ReturnType<typeof vi.fn>` retorna `void`, e nove `mockImplementation(async …)` viraram
+`no-misused-promises` em dois testes — consertado tipando os spies.
 
 ---
 

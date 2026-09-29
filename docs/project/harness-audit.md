@@ -126,8 +126,8 @@ trava a autonomia — mais do que qualquer lacuna de teste.
 > **Item #1 fechado em 2026-09-28** pela [T1](../features/024-dev-harness/tasks.md): a linha
 > `_authToken` saiu do `~/.npmrc` (o arquivo, que só tinha ela, deixou de existir), `npm whoami` sai
 > com código 1, e `npm publish --dry-run` avisa *"This command requires you to be logged in"*. O
-> `smoke:install` continua verde. **Falta revogar o token no npmjs.com** — apagar do arquivo não
-> invalida a credencial em backup ou snapshot de disco, e isso só o dono da conta faz.
+> `smoke:install` continua verde. O token foi **revogado no npmjs.com** pelo dono em 2026-09-29 — apagar do
+> arquivo não bastava, porque não invalida a credencial em backup ou snapshot de disco.
 
 ## 7. Scorecard
 
