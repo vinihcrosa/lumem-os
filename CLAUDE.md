@@ -51,7 +51,7 @@ feature fecha, ela ganha a linha aqui e o parágrafo lá.
 | [034 agent-accounts](docs/features/034-agent-accounts/prd.md) | completa | mais de uma conta por agente, e a recusa por cota reconhecida por `data.errorKind` |
 | [035 plan-mode](docs/features/035-plan-mode/prd.md) | completa | a faixa do plan mode, e aprovar ou recusar o plano com ele inteiro na tela |
 | [036 reasoning](docs/features/036-reasoning/prd.md) | completa | o pensamento volta a chegar (`reasoningMeta` na spec), e diz quanto durou |
-| [037 conversation-liveness](docs/features/037-conversation-liveness/prd.md) | em execução | sinal de vida: o tempo e o fazer do turno, o âmbar do silêncio, o turno que fecha quando o adaptador morre |
+| [037 conversation-liveness](docs/features/037-conversation-liveness/prd.md) | completa | sinal de vida: o tempo e o fazer do turno, o âmbar do silêncio, o turno que fecha quando o adaptador morre |
 
 Comece pelo [índice da documentação](docs/README.md). Construção é incremental: uma parte por vez,
 bem feita, antes da próxima.

@@ -1,6 +1,6 @@
 # PRD — Sinal de vida da conversa
 
-> **Status:** em execução
+> **Status:** completa
 > **Histórico:** v0.1 — proposta em **2026-09-29**, a partir da
 > [LUM-67](https://linear.app/lumem-os/issue/LUM-67/conversa-sinal-de-vida-saber-se-o-agente-ainda-esta-trabalhando),
 > do projeto *Conversa — imagem, plano, reasoning e sinal de vida*. A issue pedia
@@ -22,6 +22,9 @@
 > v0.5 — **renumerada de `035` para `037` em 2026-09-29**: colidiu com a
 > [`035-plan-mode`](../035-plan-mode/prd.md) e a [`036-reasoning`](../036-reasoning/prd.md), que
 > entraram na `main` antes; esta nunca tinha entrado. Os commits anteriores citam `035` no trailer.
+> v0.6 — **completa em 2026-09-29**: PASS na [rodada 5](verification.md) da verificação, com 31
+> checks. As rodadas 1 e 2 acharam defeitos reais (o `prompt` pendurado, a pergunta perdida); a 3 e a 4,
+> comportamento certo sem prova. O dono autorizou as duas rodadas além do limite de três.
 
 ## Problem
 

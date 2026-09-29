@@ -1,6 +1,6 @@
 # Sinal de vida da conversa — checks
 
-**Status:** em execução
+**Status:** completa
 Profile: ui
 Plan: `docs/features/037-conversation-liveness/prd.md`
 

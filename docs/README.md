@@ -781,7 +781,7 @@ de pensamento ganha duração, abre sozinho enquanto é escrito e brilha. Da
 
 ---
 
-### [conversation-liveness/](features/037-conversation-liveness/) — sinal de vida da conversa · **em execução**
+### [conversation-liveness/](features/037-conversation-liveness/) — sinal de vida da conversa · **completa**
 
 Saber se o agente ainda está trabalhando: a linha acima do composer com o tempo do turno e o que o
 agente faz agora, o âmbar do silêncio longo — que **não** dispara com ferramenta rodando —, o turno
@@ -793,7 +793,7 @@ que fecha quando o adaptador morre e a queda do `/acp` que aparece e se conserta
 | [prd.md](features/037-conversation-liveness/prd.md) | o plano no formato de checks, em quatro fatias e 29 critérios. A Parte 1 foi **medida antes**: com processo real o turno já fechava pelo `turn_failed`; o que sobrava era o adaptador que sai com o stdout aberto, e o replay de transcrição sem fecho. Renumerada de `035` para `037` na colisão com a `035-plan-mode` |
 | [open-questions.md](features/037-conversation-liveness/open-questions.md) | 6 perguntas, **6 respondidas** em 2026-09-29 — o limiar do silêncio (90 s), a reconexão que não desiste, nenhum teto no turno interativo, a pergunta gravada quando o adaptador morre antes de recebê-la, dois `prompt` na mesma sessão **permitidos** (contra a proposta), e o prompt pendente do `setup` que não é reenviado |
 | [checks.md](features/037-conversation-liveness/checks.md) | **31 checks em 4 fatias**, perfil `ui`; C28–C31 e a reescrita do C25 nasceram das verificações |
-| [verification.md](features/037-conversation-liveness/verification.md) | o relatório do verificador independente, rodada a rodada — as três primeiras reprovaram por ramos de corrida do `AcpManager` sem prova |
+| [verification.md](features/037-conversation-liveness/verification.md) | o relatório do verificador independente, rodada a rodada — **PASS na quinta rodada**: as duas primeiras acharam defeitos reais — o `prompt` pendurado e a pergunta perdida —, a terceira e a quarta, comportamento certo sem prova |
 
 ## Convenções
 
