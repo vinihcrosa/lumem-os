@@ -750,7 +750,7 @@ que estava lá desde a pty-vs-acp: a credencial deixa de ser do **agente** e pas
 
 ---
 
-### [reasoning/](features/035-reasoning/) — o pensamento volta a chegar, e diz quanto durou · **proposta**
+### [reasoning/](features/035-reasoning/) — o pensamento volta a chegar, e diz quanto durou · **em execução**
 
 O raciocínio do Claude parou de chegar em 2026-09-08, quando o daemon passou ao `claude-agent-acp@0.75.1`:
 o modelo pensa, o texto vem vazio (`thinking.display: "omitted"`), e o adaptador não emite nada. O
@@ -761,7 +761,8 @@ de pensamento ganha duração, abre sozinho enquanto é escrito e brilha. Da
 | Arquivo | O quê |
 |---|---|
 | [prd.md](features/035-reasoning/prd.md) | o plano no formato de checks: a causa conferida na cópia instalada do adaptador, 16 critérios em duas fatias, e uma porta — `AdapterSpec.reasoningMeta`, um `_meta` opaco que a spec declara |
-| [open-questions.md](features/035-reasoning/open-questions.md) | 2 perguntas, nenhuma bloqueia: uma pasta por issue ou uma para o projeto *Conversa*, e se o pedido vira interruptor em `/settings` |
+| [open-questions.md](features/035-reasoning/open-questions.md) | 2 perguntas, **2 respondidas** em 2026-09-29 pela recomendação: uma pasta por issue, e o pedido sempre ligado — a medição mostrou os mesmos tokens de saída com e sem ele |
+| [checks.md](features/035-reasoning/checks.md) | **18 checks em duas fatias**, perfil `standard`. O C7 é uma medição paga, `pnpm measure:thinking`: o pensamento volta no modelo padrão e os cinco modelos do Claude fecham em `end_turn`, Haiku incluído |
 
 ## Convenções
 

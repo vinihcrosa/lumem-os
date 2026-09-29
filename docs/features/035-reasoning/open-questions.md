@@ -45,7 +45,8 @@ turno real.
   **R:** sempre ligado (2026-09-29). Uma diferença de tokens na medição do AC 5 reabre.
 
   **Medido no mesmo dia, e não reabre.** Seis turnos no modelo padrão (`opus[1m]`, effort `xhigh`),
-  alternando sem e com o pedido, contando o `usage` da resposta do `session/prompt`:
+  alternando sem e com o pedido, contando o `usage` da resposta do `session/prompt` — o mesmo que o
+  `pnpm measure:thinking` passou a imprimir depois da primeira verificação:
 
   | Pedido | Tokens de saída | Escrita de cache | Custo (US$) |
   |---|---|---|---|
