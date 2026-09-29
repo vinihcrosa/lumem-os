@@ -115,4 +115,22 @@ describe("o pensamento na conversa", () => {
     expect(replayed[0]).toHaveTextContent("pensou por 2,4 s");
     expect(replayed[1]).toHaveTextContent("pensou por 12,2 s");
   });
+
+  it("does not open a thought by itself in a record that never closed", () => {
+    // `037` C7: a transcrição gravada sem fecho relê com `streaming` ligado, e o
+    // pensamento do agente é o último bloco dela. Somente leitura, nada cresce.
+    render(
+      <Transcript
+        conversation={reduce([asked(), thought("dois caminhos")])}
+        session={null}
+        failure={null}
+        readOnly
+        answer={vi.fn()}
+      />,
+    );
+
+    const [button] = thoughts();
+    expect(button).toHaveAttribute("aria-expanded", "false");
+    expect(document.querySelector(".thought__text")).toBeNull();
+  });
 });
