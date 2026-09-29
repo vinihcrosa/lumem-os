@@ -135,7 +135,7 @@ Nada solta na raiz além de `README.md` e `CLAUDE.md`; atualize o [índice](docs
 3. ADR só se passa nos **três testes**: difícil de reverter · surpreendente · trade-off real.
 4. ADR não se reverte em parte: o novo **reafirma o que fica**. Nota de PRD não derruba ADR.
 5. Estado se deriva: ADR superado ⇔ outro o nomeia em `supersedes`; nenhum ADR é editado. PRD proposta ⇔
-   não tem `tasks.md` nem `checks.md`, e eles não nascem vazios.
+   não tem `tasks.md` nem `checks.md` — o `docs:check` confere —, e eles não nascem vazios.
 6. **A nota no requisito contradito fica**, delimitando o que sobrou de pé.
 7. Sem índice gerado — **uma decisão em `docs/adr/` vale mais que o seu instinto**.
 

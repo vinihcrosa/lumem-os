@@ -781,7 +781,24 @@ só na skill: sem isto, o `check-docs` acusaria toda feature nova de `Status:` e
 - `pnpm gate:quick` verde.
 
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ não iniciada
+**Status**: ✅ entregue em 2026-09-28. Os cinco passos:
+1. o `check-docs` deriva o `Status:` de `tasks.md` **ou** `checks.md` (3 casos novos, cada um vermelho
+   de propósito);
+2. os três validadores portados para `scripts/feature-flow/` — **70 regras** (plano 29, checks 23,
+   verificação 18), nenhuma deixada de fora — e `pnpm feature:check <plan|checks|verification> <dir>`.
+   **124 testes**, com **um mutante por regra**: o `selftest.py` original deixava 30 das 70 regras sem
+   caso nenhum, e um teste agora falha se uma regra declarada não tiver mutante. Paridade conferida
+   rodando os `.py` originais sobre os 88 mutantes e controles: os totais de erro e aviso bateram em
+   todos. Um detalhe que só aparece portando: `\b` e `\w` do JavaScript são ASCII, e `## Problemática`
+   casaria com `^## Problem\b` — o porte usa a semântica Unicode do Python, com mutante que prova;
+3. o `lumem-dev` executa **fatias do `checks.md`**, escreve o teste a partir do check e não dispara o
+   verificador;
+4. o `lumem-reviewer` é o **verificador**: disparado novo, sobre `<base>..HEAD`, e a única escrita dele é
+   o `verification.md` — o `Write` entrou nas ferramentas só para isso;
+5. a nota da regra 5 já estava no `CLAUDE.md`, e ficou verdadeira.
+
+A portagem foi feita por um subagente em paralelo, e ele achou um ponto cego do `gate:quick`: mudar só
+uma fixture `.md` de teste não roda a suíte que a lê — a correção está no commit seguinte.
 
 ---
 
