@@ -167,6 +167,8 @@ export const CONTRAST_PAIRS: readonly ContrastPair[] = [
   { label: "uso em overage / aviso", fg: "usage/over", bg: "bg/danger-subtle", min: 4.5 },
   // modo: o seletor vive na topbar da conversa, sobre bg/surface.
   { label: "modo plano / seletor", fg: "mode/plan", bg: "bg/surface", min: 4.5 },
+  // A faixa de plan mode acima do composer (`035`): o mesmo tom, sobre o fundo de info.
+  { label: "modo plano / faixa do composer", fg: "mode/plan", bg: "bg/info-subtle", min: 4.5 },
   { label: "modo auto / seletor", fg: "mode/auto", bg: "bg/surface", min: 4.5 },
   { label: "modo bypass / seletor", fg: "mode/bypass", bg: "bg/surface", min: 4.5 },
   // modo do Lumem: quando o agente nao relata `modes`, quem oferece modo e o

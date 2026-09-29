@@ -39,6 +39,7 @@ const components = read(
   "ToolCard.tsx",
   "PermissionRequest.tsx",
   "PlanCard.tsx",
+  "PlanModeBanner.tsx",
   "UsageFooter.tsx",
   "ConfigPills.tsx",
   "LumemModePill.tsx",

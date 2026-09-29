@@ -510,6 +510,19 @@
  * Nenhum e2e o abria, e jsdom não faz layout: o defeito atravessou três
  * features sem aparecer.
  */
+/*
+ * A faixa de plan mode (`035`): o tom da pílula `plan`, em palavras, colada no
+ * topo da caixa — é sobre a próxima mensagem, não sobre a conversa inteira.
+ */
+.plan-mode {
+  margin-bottom: var(--space-6);
+  padding: var(--space-6) var(--space-10);
+  background: var(--color-bg-info-subtle);
+  border: 1px solid var(--color-mode-plan);
+  border-radius: var(--radius-md);
+  font: var(--text-body-sm);
+  color: var(--color-mode-plan);
+}
 .composer__box { background: var(--color-bg-surface); border: 1px solid var(--color-border-default); border-radius: var(--radius-lg); }
 .composer__box--focus { border-color: var(--color-border-focus); }
 /*

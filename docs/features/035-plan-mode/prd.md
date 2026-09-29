@@ -77,14 +77,15 @@ flowchart TD
     CARD --> RESP["permission_response (exists) -> AcpManager.respondToPermission (exists)"]
     RESP --> AD3["adaptador (exists): current_mode_update ao aprovar; fim do turno cancelado ao recusar"]
     AD3 --> RED
-    RED --> BAN["Composer.tsx (exists) - faixa de plan mode enquanto mode === plan"]
+    RED --> BAN["Composer.tsx (exists) - PlanModeBanner (new), a faixa de plan mode enquanto mode === plan"]
 ```
 
 O caminho ramifica — dois eventos do adaptador se encontram no mesmo cartão pelo `toolCallId`, e a
 faixa lê só o `mode` —, por isso o diagrama.
 
 A faixa (Parte 1) é `single module - Composer`: lê `conversation.mode`, que o reducer já tem
-(`conversation-model.ts:399-406`).
+(`conversation-model.ts:399-406`), num componente próprio (`PlanModeBanner.tsx`) que o `Composer`
+põe logo acima da `ComposerBox`.
 
 ## Impact
 

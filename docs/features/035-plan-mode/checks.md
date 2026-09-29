@@ -21,19 +21,19 @@ estes nomes.
 
 ### S1 - a faixa de plan mode · 5 files · 64 KB · ~16k
 
-**C1** - Com `mode: "plan"` e conversa viva, o composer mostra uma faixa `role="status"` com o texto exato *"modo plano — o agente não altera arquivos até você aprovar o plano"*, acima da caixa de texto (AC 1)
+**C1** - ✓ Com `mode: "plan"` e conversa viva, o composer mostra uma faixa `role="status"` com o texto exato *"modo plano — o agente não altera arquivos até você aprovar o plano"*, acima da caixa de texto (AC 1)
 Proof: `pnpm exec vitest run packages/web/src/features/conversation/PlanModeBanner.test.tsx -t "em plan mode a faixa aparece com o texto exato"`
 
-**C2** - Um evento `config` que troca `mode` de `"plan"` para `"auto"` faz a faixa sumir na renderização seguinte (AC 2)
+**C2** - ✓ Um evento `config` que troca `mode` de `"plan"` para `"auto"` faz a faixa sumir na renderização seguinte (AC 2)
 Proof: `pnpm exec vitest run packages/web/src/features/conversation/PlanModeBanner.test.tsx -t "a faixa some quando o modo sai de plan"`
 
-**C3** - Com `mode` em `"auto"`, `"default"`, `"bypassPermissions"` e `""`, a faixa não aparece — uma asserção por valor (AC 3)
+**C3** - ✓ Com `mode` em `"auto"`, `"default"`, `"bypassPermissions"` e `""`, a faixa não aparece — uma asserção por valor (AC 3)
 Proof: `pnpm exec vitest run packages/web/src/features/conversation/PlanModeBanner.test.tsx -t "fora de plan mode não há faixa"`
 
-**C4** - Com `readOnly` e `mode: "plan"`, a faixa não aparece (AC 4)
+**C4** - ✓ Com `readOnly` e `mode: "plan"`, a faixa não aparece (AC 4)
 Proof: `pnpm exec vitest run packages/web/src/features/conversation/PlanModeBanner.test.tsx -t "conversa em leitura não mostra a faixa"`
 
-**C5** - O `PlanCard` mostra *"Passos"* e não mostra *"Plano"* no cabeçalho (AC 5)
+**C5** - ✓ O `PlanCard` mostra *"Passos"* e não mostra *"Plano"* no cabeçalho (AC 5)
 Proof: `pnpm exec vitest run packages/web/src/features/conversation/PlanCard.test.tsx -t "o rótulo da lista é Passos"`
 
 **C6** - No navegador, o prompt do roteiro faz a faixa aparecer, e aprovar com *"Yes, and use auto mode"* a faz sumir (AC 1, AC 2)
