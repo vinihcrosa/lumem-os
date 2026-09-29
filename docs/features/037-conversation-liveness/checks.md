@@ -5,7 +5,7 @@ Profile: ui
 Plan: `docs/features/037-conversation-liveness/prd.md`
 
 31 checks em 4 fatias · 4 portas de mão única · 0 abertas. C28–C30 e a reescrita do C25 vieram da
-verificação da rodada 1, e o C31 da rodada 2 ([Q5](open-questions.md#x-q5--dois-prompt-na-mesma-sessão-ao-mesmo-tempo-são-permitidos)); todos aprovados em 2026-09-29.
+verificação da rodada 1, o C31 da rodada 2 (ampliado na 4) e a segunda prova do C7 da rodada 5 ([Q5](open-questions.md#x-q5--dois-prompt-na-mesma-sessão-ao-mesmo-tempo-são-permitidos)); todos aprovados em 2026-09-29.
 
 As provas nomeiam testes que **ainda não existem**: o nome é a obrigação, e o construtor escreve o
 teste com esse nome a partir do check, nunca lendo a implementação. `S` abrevia
@@ -38,8 +38,9 @@ Proof: `pnpm --filter @lumem/server exec vitest run src/acp/AcpManager.test.ts -
 **C6** - A saída que fecha um turno grava um retrato `turn-failed` no `turnFailures` com `code: "exited"` e o `sessionId` da sessão (AC 5) ✓
 Proof: `pnpm --filter @lumem/server exec vitest run src/acp/AcpManager.test.ts -t "records the exit as a turn-failed portrait"`
 
-**C7** - Uma conversa somente leitura cuja transcrição termina em mensagem do usuário sem fecho não desenha `.mcaret`, nem a linha de estado do turno, nem o botão `■ interromper` (AC 6) ✓
+**C7** - Uma conversa somente leitura cuja transcrição termina em mensagem do usuário sem fecho não desenha `.mcaret`, nem a linha de estado do turno, nem o botão `■ interromper` — e uma que termina numa `message` do agente sem fecho também não desenha `.mcaret` (AC 6; ampliado na rodada 5)
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/conversation.test.tsx -t "conversa encerrada sem fecho não desenha turno vivo"`
+Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/conversation.test.tsx -t "conversa encerrada com resposta do agente sem fecho não desenha caret"`
 
 **C28** - Com o processo saindo com código 137 enquanto a leitura do teto ou a da memória está pendente, a transcrição do turno é a mensagem do usuário seguida de exatamente um `turn_failed` com `o agente encerrou no meio do turno (saída 137)`, o `prompt` rejeita com `AcpTurnFailedError`, o agente não recebe `session/prompt`, e o `/acp` não manda frame `error` (AC 27, Q4) ✓
 Proof: `pnpm --filter @lumem/server exec vitest run src/acp/AcpManager.test.ts -t "keeps the question when the adapter exits before it is asked"`

@@ -1803,6 +1803,21 @@ comportamentos da mesma correção — *um* fecho e *todas* as perguntas — sem
 prova (o C31 ampliado). A regra ganha a segunda metade: **o conserto de uma guarda com dois escritores
 cria um ramo por escritor, e cada ramo precisa de um teste que só ele faz cair**.
 
+### Uma guarda nova sobreposta a uma antiga esconde a antiga do teste
+
+**Sintoma:** a [rodada 4](../features/037-conversation-liveness/verification.md) da `037` tirou o
+`!readOnly` da regra do caret — a regra que a issue pede por nome — e as 25 provas do web continuaram
+verdes. Uma conversa encerrada que termina numa resposta do agente pela metade voltava a piscar o caret.
+
+**Causa:** a prova do C7 montava a conversa encerrada terminando na mensagem **da pessoa**, e ali a guarda
+que a S3 acrescentou depois — caret só em turno do agente — já apagava o caret sozinha. As duas guardas
+decidiam o mesmo cenário, e o teste de uma passava pela outra.
+
+**Conserto:** a segunda prova do C7, terminando num bloco do agente sem fecho. A regra: **quando uma guarda
+nova cobre o cenário do teste de uma antiga, cada uma precisa de um cenário em que só ela decide** — ao
+acrescentar uma condição a uma expressão já provada, releia as provas da expressão e pergunte qual delas
+ainda cai por causa da condição antiga.
+
 ## Convenções
 
 - Teste de git usa **repositório temporário real**, nunca mock. `git worktree` tem caso de borda em nome com barra e branch existente que mock nenhum reproduz.
