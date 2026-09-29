@@ -4,6 +4,12 @@
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
     "noEmit": true,
+    // O web nunca emite `.d.ts` — quem constrói é o Vite. Herdar `declaration`
+    // do base só obriga o tsc a checar portabilidade de tipo que ninguém lê, e
+    // com o vitest 4 o `vi.fn()` inferido passa a apontar para `@vitest/spy`,
+    // que o web não declara (TS2742 em `trpc-mock.ts`).
+    "declaration": false,
+    "declarationMap": false,
     "types": ["vite/client"]
   },
   "include": ["src/**/*", "scripts/**/*", ".storybook/**/*", "vite.config.ts", "vitest.config.ts"]
