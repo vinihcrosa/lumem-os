@@ -748,6 +748,21 @@ que estava lá desde a pty-vs-acp: a credencial deixa de ser do **agente** e pas
 | [open-questions.md](features/034-agent-accounts/open-questions.md) | 15 perguntas, **15 respondidas**, 3 contra a proposta e 2 emendadas — a **Q12**, de 2026-09-28, nasceu de uma conta de verdade batendo no limite semanal: a conversa **oferece** continuar em outra conta, e nunca troca sozinha: a sessão escolhe, pré-selecionada com um **trio padrão** — a conta padrão do agente, e o modelo e effort padrão da conta —, não troca — *continua* numa sessão nova com o contexto levado —, e o Lumem **não controla limite de conta** nenhum. Cada encaixe da esteira tem o seu trio, no `named_agent` que a `028` já tinha. A lista de modelos é gravada no handshake que confere o login. A **Q7** foi respondida pela fase 0 (**vira ADR**), e ela abriu a **Q10**: a conta nova recebe **link** para o que é comportamento (plugins, skills, `CLAUDE.md`), e os MCPs de usuário do Claude ficam fora, ditos na tela |
 | [tasks.md](features/034-agent-accounts/tasks.md) | **as 20 tasks entregues** — a última, a T19, conectou uma segunda assinatura de verdade em 2026-09-28 e achou a entrada dela no Keychain, com o sufixo que a fase 0 leu no binário. A regra de ordem foi **o que isola vem antes do que mostra**: nenhum dos três caminhos de login passava env, o `apiKeyEnv` nunca foi injetado, e a memória spawnava por fora do resolver. O e2e achou o daemon pedindo o comando de login no lugar errado, e o teste de design no app de verdade achou dois defeitos que nenhum teste via — o onboarding dizendo *"pede autenticação"* numa máquina logada, e `/settings` esperando ~10 s por um adaptador que ela não tinha consultado |
 
+---
+
+### [reasoning/](features/035-reasoning/) — o pensamento volta a chegar, e diz quanto durou · **proposta**
+
+O raciocínio do Claude parou de chegar em 2026-09-08, quando o daemon passou ao `claude-agent-acp@0.75.1`:
+o modelo pensa, o texto vem vazio (`thinking.display: "omitted"`), e o adaptador não emite nada. O
+conserto é a spec do adaptador declarar o `_meta` que pede o pensamento resumido; depois dele, o bloco
+de pensamento ganha duração, abre sozinho enquanto é escrito e brilha. Da
+[LUM-66](https://linear.app/lumem-os/issue/LUM-66/reasoning-o-pensamento-parou-de-chegar-desde-2026-09-08-trazer-de).
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](features/035-reasoning/prd.md) | o plano no formato de checks: a causa conferida na cópia instalada do adaptador, 16 critérios em duas fatias, e uma porta — `AdapterSpec.reasoningMeta`, um `_meta` opaco que a spec declara |
+| [open-questions.md](features/035-reasoning/open-questions.md) | 2 perguntas, nenhuma bloqueia: uma pasta por issue ou uma para o projeto *Conversa*, e se o pedido vira interruptor em `/settings` |
+
 ## Convenções
 
 > **`adr/` decide · `project/` sustenta · `features/` executa · o código está em vigor.**
