@@ -60,7 +60,9 @@ jobs:
         run: |
           version="$(node -p "require('./packages/cli/package.json').version")"
           echo "value=$version" >> "$GITHUB_OUTPUT"
-          if [ "${{ github.ref_type }}" = "tag" ] && [ "${{ github.ref_name }}" != "v$version" ]; then
+          expected_tag="v$version"
+          recovery_tag="v${version}-recovery"
+          if [ "${{ github.ref_type }}" = "tag" ] && [ "${{ github.ref_name }}" != "$expected_tag" ] && [ "${{ github.ref_name }}" != "$recovery_tag" ]; then
             echo "::error::a tag ${{ github.ref_name }} não bate com a versão do pacote ($version)"
             exit 1
           fi
@@ -158,7 +160,9 @@ jobs:
         run: npm publish "${{ needs.package.outputs.tarball }}" --access public
 
       - name: a Release, com o tarball anexado
-        if: github.ref_type == 'tag'
+        # Recovery tags repeat a publish after an immutable release tag failed.
+        # Keep the package version fixed, without creating a second GitHub Release.
+        if: github.ref_type == 'tag' && !endsWith(github.ref_name, '-recovery')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
