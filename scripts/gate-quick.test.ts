@@ -12,6 +12,7 @@ import {
   describeDocs,
   docsCheckNeeded,
   E2E_GLOBS,
+  FIXTURE_GLOBS,
   FULL_SUITE_GLOBS,
   GRAPH_GLOBS,
   resolveBase,
@@ -428,5 +429,13 @@ describe("a categoria docs", () => {
 
   it("\"não sei\" nunca vira \"nada a fazer\"", () => {
     expect(docsCheckNeeded(null)).toBe(true);
+  });
+});
+
+describe("fixture de teste escrita em markdown", () => {
+  it("o glob de fixture pega o `.md` que o glob de documentação deixaria só para o docs:check", () => {
+    expect(FIXTURE_GLOBS).toEqual(["**/fixtures/**"]);
+    // a decisão trata o que o runner soma a `untraceable` como mudança que roda tudo
+    expect(decide([], ["scripts/feature-flow/fixtures/prd.md"], []).run).toBe("all");
   });
 });

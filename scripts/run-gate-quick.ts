@@ -9,6 +9,7 @@ import {
   DOCS_GLOBS,
   docsCheckNeeded,
   E2E_GLOBS,
+  FIXTURE_GLOBS,
   FULL_SUITE_GLOBS,
   GRAPH_GLOBS,
   resolveBase,
@@ -21,7 +22,10 @@ const requested = process.env["LUMEM_GATE_BASE"] ?? DEFAULT_BASE;
 // the reader can act on, a 40-hex echo is not.
 const base = resolveBase(requested);
 const graph = changedFiles(GRAPH_GLOBS, base);
-const untraceable = changedFiles(FULL_SUITE_GLOBS, base);
+const fixtures = changedFiles(FIXTURE_GLOBS, base);
+const outside = changedFiles(FULL_SUITE_GLOBS, base);
+// A fixture change runs the suite, like any other input the graph cannot trace.
+const untraceable = outside === null || fixtures === null ? null : [...outside, ...fixtures];
 const e2e = changedFiles(E2E_GLOBS, base);
 const decision = decide(graph, untraceable, e2e);
 

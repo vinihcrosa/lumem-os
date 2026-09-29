@@ -89,6 +89,16 @@ export function describeDocs(docs: readonly string[] | null, base: string): stri
   return `gate:quick — ${docs.length} doc file(s) changed since ${base}; running docs:check.`;
 }
 
+/**
+ * Test fixtures written as markdown. `FULL_SUITE_GLOBS` excludes `*.md` as
+ * documentation, and `DOCS_GLOBS` hands them to `docs:check` — so an edit to
+ * `scripts/feature-flow/fixtures/prd.md` alone ran no test at all, while the
+ * validators' suite reads exactly that file. Found by the agent that ported
+ * them (T21 of the `024`). A fixture is test input, and a change to it is a
+ * change the suite has to see.
+ */
+export const FIXTURE_GLOBS = ["**/fixtures/**"];
+
 export const DEFAULT_BASE = "HEAD^";
 
 /**
