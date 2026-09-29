@@ -160,3 +160,12 @@ Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/TurnS
 - **Abandoned:** nada. O caminho em que o stdout fecha primeiro, deixado de fora no primeiro corte, foi
   fechado a pedido: o `prompt` lê `connection.signal.aborted` e espera a saída por
   `EXIT_AFTER_CLOSE_GRACE_MS` (2 s), com `(saída desconhecida)` se o prazo vencer
+- **Boundary:** C8–C15 closed at 48f4feb
+- **Settled mid-build:** nada perguntado ao usuário. Os avisos de transporte (queda, `4404`, frame
+  ilegível) moram no `failure` que já existia — a queda e o frame ilegível não fatais, o `4404` fatal
+  —, e o `attached` da volta os limpa como limpa qualquer falha; o motivo da recusa é `sendRefusal`,
+  estado do hook ao lado do reducer, limpo no começo de cada envio. O limite é `ACP_MAX_FRAME_BYTES`
+  em `acp-protocol.ts`, que subiu no `OVER_THE_CEILING` para 758, com motivo; o `acp-socket` confere
+  schema, depois tamanho, depois socket aberto
+- **Abandoned:** nada. A reconexão ficou no próprio `useConversationSession` (335 linhas), sem hook
+  extraído; o `MAX_PAYLOAD_BYTES` do `pty/websocket.ts` continua próprio — o `/pty` está fora do escopo
