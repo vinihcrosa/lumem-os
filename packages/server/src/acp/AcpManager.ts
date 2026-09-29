@@ -74,6 +74,15 @@ export const AUTH_STATUS_TIMEOUT_MS = 10_000;
  */
 export const AUTH_STATUS_GRACE_MS = 1_000;
 
+/**
+ * Quanto o turno espera pela saída depois de o stdout fechar (`035` S1).
+ *
+ * O processo de verdade fecha o cano antes de o `exit` chegar, e é a saída que
+ * dá a frase do fecho. Curto porque o turno já acabou; se o processo seguir vivo
+ * com o cano fechado, o fecho diz `(saída desconhecida)`.
+ */
+export const EXIT_AFTER_CLOSE_GRACE_MS = 2_000;
+
 /** Quem roda o `--cli` do adaptador. Injetável porque o binário de teste não tem um. */
 export type AcpCliRunner = (request: AcpCliRequest) => Promise<AcpCliResult>;
 
@@ -1377,6 +1386,9 @@ export class AcpManager {
       // `turnId`, e o erro é o `AcpTurnFailedError` com que ela libertou o pedido;
       // o `ACP connection closed` que o SDK manda depois não conta de novo.
       if (session.turnId !== turnId) throw error;
+      // O cano fechou antes da saída — o caminho do processo real. O erro aqui é
+      // o `ACP connection closed` do SDK, e a frase do fecho é a da saída.
+      if (session.connection.signal.aborted) throw await this.awaitExitAfterClose(session, exited);
       /*
        * Um turno que falha tem de **soltar a marca**, e isso é defeito consertado
        * e não zelo: sem o `finally`, um `session/prompt` recusado deixava
@@ -2536,7 +2548,11 @@ export class AcpManager {
    *
    * Zera o `turnId` para o `prompt` saber que o seu turno já foi fechado.
    */
-  private closeTurnOnExit(session: Session, exitCode: number | null, signal: string | null): void {
+  private closeTurnOnExit(
+    session: Session,
+    exitCode: number | null,
+    signal: string | null,
+  ): AcpTurnFailedError {
     const cause = Object.assign(new Error(`o agente encerrou no meio do turno (${exitText(exitCode, signal)})`), {
       code: "exited",
     });
@@ -2547,6 +2563,29 @@ export class AcpManager {
     this.observeTurnFailure(session, cause);
     const failed = this.turnFailed(session, cause);
     session.releaseTurn?.(failed);
+    return failed;
+  }
+
+  /**
+   * O stdout fechou com o turno em voo: espera a saída fechá-lo, com prazo.
+   *
+   * `exited` rejeita com o `AcpTurnFailedError` do `markExited`, que já fechou o
+   * turno com a frase da saída; se o prazo vence, o fecho é este, sem código nem
+   * sinal. Um fecho só, dos dois jeitos (door 2).
+   */
+  private async awaitExitAfterClose(session: Session, exited: Promise<never>): Promise<AcpTurnFailedError> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const grace = new Promise<void>((resolve) => {
+      timer = setTimeout(resolve, EXIT_AFTER_CLOSE_GRACE_MS);
+    });
+    try {
+      await Promise.race([exited, grace]);
+    } catch (failed) {
+      return failed as AcpTurnFailedError;
+    } finally {
+      clearTimeout(timer);
+    }
+    return this.closeTurnOnExit(session, null, null);
   }
 
   private require(id: string): Session {

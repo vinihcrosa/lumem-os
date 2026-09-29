@@ -2763,6 +2763,38 @@ describe("o adaptador que sai no meio do turno", () => {
     expect(turnFailedIn(manager.transcript(id))).toHaveLength(1);
   });
 
+  it("names the exit even when the pipe closes first", async () => {
+    // O caminho do processo real: o stdout fecha, o SDK rejeita o pedido com
+    // `ACP connection closed`, e só depois a saída chega. A frase é a do door 1,
+    // e não o vocabulário do SDK.
+    const { fake, manager, id, turn } = await inFlight();
+
+    await fake.closeStdout();
+    // Uma volta de relógio para o SDK rejeitar o pedido antes de a saída chegar.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    fake.exit({ exitCode: 137, signal: null });
+    const settled = await turn;
+
+    expect(turnFailedIn(manager.transcript(id))).toEqual([
+      { type: "turn_failed", message: "o agente encerrou no meio do turno (saída 137)" },
+    ]);
+    expect((settled as { error?: unknown }).error).toBeInstanceOf(AcpTurnFailedError);
+  });
+
+  it("names an unknown exit when the process outlives its closed pipe", async () => {
+    // O stdout fechou e a saída não veio no prazo: o turno fecha assim mesmo, e
+    // a frase diz o que se sabe — nada sobre como o processo saiu.
+    const { fake, manager, id, turn } = await inFlight();
+
+    await fake.closeStdout();
+    await turn;
+
+    expect(turnFailedIn(manager.transcript(id))).toEqual([
+      { type: "turn_failed", message: "o agente encerrou no meio do turno (saída desconhecida)" },
+    ]);
+    expect(manager.liveTurns()).toEqual([]);
+  });
+
   it("says nothing when the adapter exits between turns", async () => {
     const fake = fakeAgentProcess({
       async prompt(_text, turn) {

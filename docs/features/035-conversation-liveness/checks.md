@@ -157,6 +157,6 @@ Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/TurnS
 - **Boundary:** C1–C7 closed at b565ebb
 - **Settled mid-build:** nada perguntado ao usuário; o fake ganhou `exit({ exitCode, signal })` e
   `closeStdout()`, e o `AcpManager.ts` subiu no `OVER_THE_CEILING` para 2884, com motivo
-- **Abandoned:** esperar a saída quando o stdout fecha primeiro, para a frase do processo real ser a do
-  door 1 e não `ACP connection closed` — pediria reconhecer o fechamento do SDK e um prazo de espera;
-  nesse caminho o turno continua fechando uma vez só (C4), com a frase do SDK
+- **Abandoned:** nada. O caminho em que o stdout fecha primeiro, deixado de fora no primeiro corte, foi
+  fechado a pedido: o `prompt` lê `connection.signal.aborted` e espera a saída por
+  `EXIT_AFTER_CLOSE_GRACE_MS` (2 s), com `(saída desconhecida)` se o prazo vencer
