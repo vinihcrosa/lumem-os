@@ -198,12 +198,13 @@ export const LINE_CEILING = 700;
 
 export const OVER_THE_CEILING: Readonly<Record<string, { lines: number; reason: string }>> = {
   "packages/server/src/acp/AcpManager.ts": {
-    lines: 2952,
+    lines: 2976,
     reason:
       "linha de base 2026-09-28 (2813) mais 5 exceções de lint na linha da T9; mais 105 da `035` S1 — o fecho do turno " +
       "na saída do processo, e a espera pela saída quando o cano fecha primeiro, moram onde moram `promptInFlight` e o " +
       "`turn_failed` da recusa; mais 29 da rodada 1 da `035` — a pergunta que a saída grava quando chega antes do " +
-      "`session/prompt` (Q4), e o prazo injetável; quebrar é feature própria (backlog)",
+      "`session/prompt` (Q4), e o prazo injetável; mais 24 da rodada 2 — um gatilho por `prompt` em voo (Q5), para a " +
+      "saída libertar todos; quebrar é feature própria (backlog)",
   },
   "packages/server/src/db/schema.ts": { lines: 1709, reason: "linha de base 2026-09-28; um schema do drizzle cresce por tabela" },
   "packages/server/src/git/GitService.ts": { lines: 1099, reason: "linha de base 2026-09-28" },

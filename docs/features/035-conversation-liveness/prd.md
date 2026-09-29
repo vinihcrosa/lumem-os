@@ -84,8 +84,8 @@ flowchart TD
 ```
 
 1. o processo do adaptador sai -> `AcpManager.markExited` (exists) - com `promptInFlight`, emite
-   `turn_failed` (door 1) e o retrato `turn-failed`, solta a marca e liberta o `prompt` pendente
-   **antes** de limpar os listeners; se a saída chegou enquanto o teto ou a memória eram lidos, grava
+   `turn_failed` (door 1) e o retrato `turn-failed`, solta a marca e liberta **todos** os `prompt` em
+   voo, cada um pelo seu gatilho (Q5), **antes** de limpar os listeners; se a saída chegou enquanto o teto ou a memória eram lidos, grava
    antes a mensagem do usuário que o turno guardava, e o `prompt` rejeita com o mesmo
    `AcpTurnFailedError`, que o `websocket.ts` engole (Q4); sem turno em voo, nada muda
 2. `TranscriptStore` (exists) grava a entrada; o websocket `/acp` (exists) a entrega a quem está anexado
@@ -124,6 +124,8 @@ flowchart TD
 | 1. o fecho de um turno cujo adaptador saiu, gravado para sempre na transcrição | `{ type: "turn_failed", message: "o agente encerrou no meio do turno (saída 137)" }` — ou `(sinal SIGKILL)`, ou `(saída desconhecida)` | `turn_end` com `stopReason` novo — o enum é do ACP (`acpStopReasonSchema`) e o `turn_end` é onde o teto `turnsPerSession` conta turno; evento próprio `agent_exited` — uma variante nova quebra o decode de um bundle web em cache mais velho que o daemon, e não diz nada que o `turn_failed` não diga |
 | 2. um fecho só por turno | o `prompt` só emite o seu `turn_failed` se o `turnId` que ele abriu ainda é o turno em voo; `markExited` fecha e zera o `turnId` | dedup no redutor — dois fechos continuariam gravados, e a transcrição é a fonte |
 | 3. reconexão mora no hook, não no socket | `useConversationSession` reabre com `connect()` a 0,5 s, 1 s, 2 s, 4 s, 8 s e depois 10 s fixos; o `acp-socket` segue *um socket, uma vida* | reconexão dentro do `acp-socket` — o contrato dele diz que fechar é destacar, e um socket que se reabre sozinho reenviaria sem ninguém ter escolhido o momento; é o padrão que o `pty-socket` copiaria |
+
+| 4. cada `prompt` em voo tem o seu gatilho de saída (achada na rodada 2, Q5) | o `prompt` guarda um registro por turno — a pergunta, o gatilho que rejeita o pedido e o `failure` que a saída lhe põe —, e as guardas leem o `failure` do **próprio** turno; `markExited` fecha uma vez e liberta todos. Dois `prompt` na mesma sessão continuam permitidos, como em `origin/main`. Substitui o *"`turnId` que ele abriu ainda é o turno em voo"* da door 2, que lia um `prompt` novo como a saída | recusar o segundo `prompt` com um `DomainError` (Q5 A) — mudaria o comportamento de `origin/main`, e a tela não barra o segundo por completo |
 
 - Nothing else in this change is hard to reverse
 

@@ -4,7 +4,7 @@
 Profile: ui
 Plan: `docs/features/035-conversation-liveness/prd.md`
 
-31 checks em 4 fatias · 3 portas de mão única · 0 abertas. C28–C30 e a reescrita do C25 vieram da
+31 checks em 4 fatias · 4 portas de mão única · 0 abertas. C28–C30 e a reescrita do C25 vieram da
 verificação da rodada 1, e o C31 da rodada 2 ([Q5](open-questions.md#x-q5--dois-prompt-na-mesma-sessão-ao-mesmo-tempo-são-permitidos)); todos aprovados em 2026-09-29.
 
 As provas nomeiam testes que **ainda não existem**: o nome é a obrigação, e o construtor escreve o
@@ -53,7 +53,7 @@ Proof: `pnpm --filter @lumem/server exec vitest run src/acp/AcpManager.test.ts -
 Proof: `pnpm --filter @lumem/server exec vitest run src/acp/AcpManager.test.ts -t "names the exit even when the pipe closes first"`
 Proof: `pnpm --filter @lumem/server exec vitest run src/acp/AcpManager.test.ts -t "names an unknown exit when the process outlives its closed pipe"`
 
-**C31** - Com um `prompt` segurado na leitura do teto e um segundo `prompt` à mesma sessão, os dois resolvem com o seu `stopReason`, a transcrição tem as duas mensagens do usuário e nenhum `turn_failed`; e, com o processo saindo com os dois em voo, os dois rejeitam com `AcpTurnFailedError` em menos de 1 s (AC 29, Q5)
+**C31** - Com um `prompt` segurado na leitura do teto e um segundo `prompt` à mesma sessão, os dois resolvem com o seu `stopReason`, a transcrição tem as duas mensagens do usuário e nenhum `turn_failed`; e, com o processo saindo com os dois em voo, os dois rejeitam com `AcpTurnFailedError` em menos de 1 s (AC 29, Q5) ✓
 Proof: `pnpm --filter @lumem/server exec vitest run src/acp/AcpManager.test.ts -t "lets a second prompt run without stranding the first"`
 Proof: `pnpm --filter @lumem/server exec vitest run src/acp/AcpManager.test.ts -t "releases both prompts when the adapter exits with two in flight"`
 
@@ -138,6 +138,7 @@ Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/TurnS
 | dois `prompt` na mesma sessão (2) | os dois terminam sem saída C31 · a saída com os dois em voo C31 | - |
 | door 1 — `turn_failed` na saída (1) | C1 | - |
 | door 2 — um fecho por turno (1) | C4 | - |
+| door 4 — um gatilho por `prompt` em voo (1) | C31 | - |
 | door 3 — reconexão no hook (4) | queda reabre C8 · espera C9 · 4404 não reabre C11 · desmontar não reabre C12 | - |
 | código de fechamento do `/acp` (3) | `1006` C8 · `4404` C11 · fechamento pedido pelo cliente C12 | - |
 | espera entre tentativas (7) | 500 C9 · 1000 C9 · 2000 C9 · 4000 C9 · 8000 C9 · 10000 C9 · 10000 de novo C9 | - |

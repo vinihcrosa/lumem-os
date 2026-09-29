@@ -2965,6 +2965,76 @@ describe("o adaptador que sai no meio do turno", () => {
     expect(outcomes.some(({ closes }) => closes[0]?.type === "turn_end")).toBe(true);
   });
 
+  it("lets a second prompt run without stranding the first", async () => {
+    // O composer só trava quando a mensagem entra na transcrição, e ela entra
+    // depois do teto: uma segunda aba cabe nessa janela. Como em `origin/main`,
+    // os dois terminam — o segundo abrir não é o processo sair.
+    const fake = fakeAgentProcess({ prompt: (text) => Promise.resolve(text === "primeira" ? "end_turn" : "max_tokens") });
+    const firstBudget = held<{ kind: "pass" }>();
+    let budgetReads = 0;
+    const manager = new AcpManager({
+      spawner: () => fake.process,
+      isAvailable: () => true,
+      handshakeTimeoutMs: 2_000,
+      budget: () => {
+        budgetReads += 1;
+        return budgetReads === 1 ? firstBudget.promise : Promise.resolve({ kind: "pass" });
+      },
+    });
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: "/repos/lorebase" });
+    const settle = (text: string) =>
+      manager.prompt(info.id, text).then(
+        (stopReason) => ({ stopReason }),
+        (error: unknown) => ({ error }),
+      );
+    const unlessHung = <T,>(turn: Promise<T>) =>
+      Promise.race([turn, new Promise<"pendurado">((resolve) => setTimeout(() => resolve("pendurado"), 1_000))]);
+
+    const first = settle("primeira");
+    await waitFor(() => (budgetReads === 1 ? true : undefined));
+    const second = settle("segunda");
+    expect(await unlessHung(second)).toEqual({ stopReason: "max_tokens" });
+    firstBudget.release({ kind: "pass" });
+
+    expect(await unlessHung(first)).toEqual({ stopReason: "end_turn" });
+    const events = manager.transcript(info.id).map((entry) => entry.event);
+    expect(events.filter((event) => event.type === "message" && event.role === "user")).toEqual([
+      { type: "message", messageId: expect.any(String), role: "user", text: "segunda" },
+      { type: "message", messageId: expect.any(String), role: "user", text: "primeira" },
+    ]);
+    expect(events.some((event) => event.type === "turn_failed")).toBe(false);
+  });
+
+  it("releases both prompts when the adapter exits with two in flight", async () => {
+    // A saída liberta todos os turnos em voo, e não só o último a começar.
+    const fake = fakeAgentProcess({ prompt: () => new Promise<never>(() => {}) });
+    const manager = new AcpManager({ spawner: () => fake.process, isAvailable: () => true, handshakeTimeoutMs: 2_000 });
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: "/repos/lorebase" });
+    const settle = (text: string) =>
+      manager.prompt(info.id, text).then(
+        (stopReason) => ({ stopReason }),
+        (error: unknown) => ({ error }),
+      );
+    const userMessages = () =>
+      manager
+        .transcript(info.id)
+        .filter((entry) => entry.event.type === "message" && entry.event.role === "user").length;
+
+    const first = settle("primeira");
+    const second = settle("segunda");
+    await waitFor(() => (userMessages() === 2 ? true : undefined));
+    fake.exit({ exitCode: 137, signal: null });
+    const both = await Promise.race([
+      Promise.all([first, second]),
+      new Promise<"pendurado">((resolve) => setTimeout(() => resolve("pendurado"), 1_000)),
+    ]);
+
+    expect(both).not.toBe("pendurado");
+    const [firstOutcome, secondOutcome] = both as { error?: unknown }[];
+    expect(firstOutcome?.error).toBeInstanceOf(AcpTurnFailedError);
+    expect(secondOutcome?.error).toBeInstanceOf(AcpTurnFailedError);
+  });
+
   it("says nothing when the adapter exits between turns", async () => {
     const fake = fakeAgentProcess({
       async prompt(_text, turn) {
