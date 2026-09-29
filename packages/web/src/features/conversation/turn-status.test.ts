@@ -142,30 +142,34 @@ describe("o aviso de silêncio (`035` S4)", () => {
 
   it("ferramenta aberta não é silêncio", () => {
     const now = T0 + 600_000;
-    for (const status of ["running", "pending"] as const) {
-      const folded = replayConversation([user(T0), tool(now - 240_000, status)]);
-      expect(folded.streaming, status).toBe(true);
-      // Nenhuma dobra põe `lastEventAt` antes do `startedAt` da chamada — o
-      // `tool_call` é ele mesmo um evento. Os dois números do check só coexistem
-      // escritos à mão, e é justamente essa distância que prova que o `há` se
-      // mede do início da ferramenta, e não do último evento.
-      const state = { ...folded, lastEventAt: now - 300_000 };
+    const startedAt = now - 240_000;
+    const cases = [
+      {
+        how: "pending, sem evento desde que abriu",
+        entries: [user(T0), tool(startedAt, "pending")],
+        quietSince: startedAt,
+      },
+      {
+        how: "passando a running por um tool_call_update",
+        entries: [
+          user(T0),
+          tool(startedAt, "pending"),
+          { at: now - 100_000, event: { type: "tool_call_update", toolCallId: "tc-1", status: "running" } } as const,
+        ],
+        quietSince: now - 100_000,
+      },
+    ];
 
-      const line = turnLine(state, now);
-      expect(line.tone, status).toBe("normal");
-      expect(line.doing, status).toBe("rodando Bash pnpm gate:quick há 4 min 0 s");
+    for (const { how, entries, quietSince } of cases) {
+      // Só o que o redutor produz: o silêncio é o da dobra, acima do limiar.
+      const state = replayConversation(entries);
+      expect(state.streaming, how).toBe(true);
+      expect(state.lastEventAt, how).toBe(quietSince);
+      expect(now - quietSince, how).toBeGreaterThanOrEqual(90_000);
+
+      // O `há` se mede do início da ferramenta, e não do último evento.
+      expect(turnLine(state, now), how).toEqual({ tone: "normal", doing: "rodando Bash pnpm gate:quick há 4 min 0 s" });
     }
-  });
-
-  it("ferramenta aberta mede do início dela, com evento no meio", () => {
-    const now = T0 + 600_000;
-    const state = replayConversation([
-      user(T0),
-      tool(now - 240_000, "pending"),
-      { at: now - 100_000, event: { type: "tool_call_update", toolCallId: "tc-1", status: "running" } },
-    ]);
-
-    expect(turnLine(state, now)).toEqual({ tone: "normal", doing: "rodando Bash pnpm gate:quick há 4 min 0 s" });
   });
 
   it("permissão pendente não é silêncio", () => {

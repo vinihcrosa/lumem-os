@@ -113,7 +113,7 @@ Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/conve
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/turn-status.test.ts -t "fica âmbar a partir de 90 s sem sinal"`
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/TurnStatus.test.tsx -t "o âmbar mostra o atalho de interromper"`
 
-**C25** - Com uma ferramenta `pending` aberta há 240 s e nenhum evento desde então, e com a mesma ferramenta passando a `running` por um `tool_call_update` há 100 s, a linha diz `rodando <título> há 4 min 0 s` e não tem o tom `warning` — só estados que o redutor produz (AC 24; reescrito na rodada 1)
+**C25** - Com uma ferramenta `pending` aberta há 240 s e nenhum evento desde então, e com a mesma ferramenta passando a `running` por um `tool_call_update` há 100 s, a linha diz `rodando <título> há 4 min 0 s` e não tem o tom `warning` — só estados que o redutor produz (AC 24; reescrito na rodada 1) ✓
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/turn-status.test.ts -t "ferramenta aberta não é silêncio"`
 
 **C26** - Com uma permissão pendente e 300 s sem evento, a linha diz `esperando sua resposta` e não tem o tom `warning` (AC 25) ✓
