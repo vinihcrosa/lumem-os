@@ -21,7 +21,6 @@ export default defineConfig({
     // particular will happily exit 0 having executed nothing.
     passWithNoTests: false,
     maxWorkers: workers,
-    minWorkers: 1,
 
     /**
      * Cobertura.
@@ -41,7 +40,10 @@ export default defineConfig({
      */
     coverage: {
       provider: "v8",
-      include: ["packages/*/src/**", "scripts/**"],
+      // Por extensão, e não `**` solto: no vitest 4 todo arquivo que casa com o
+      // `include` e não foi carregado entra no relatório como não coberto, e o
+      // provider tenta parsear `.sh`, `.css` e `.json` como JavaScript.
+      include: ["packages/*/src/**/*.{ts,tsx}", "scripts/**/*.{ts,mjs}"],
       exclude: [
         "**/*.test.ts",
         "**/*.test.tsx",

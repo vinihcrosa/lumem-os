@@ -13,6 +13,6 @@ import base from "./vitest.config.js";
 export default mergeConfig(
   base,
   defineConfig({
-    test: { maxWorkers: 1, minWorkers: 1, fileParallelism: false },
+    test: { maxWorkers: 1, fileParallelism: false },
   }),
 );
