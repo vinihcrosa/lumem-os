@@ -78,6 +78,9 @@ function show(entries: AcpTranscriptEntry[]) {
 
 const pending = () => show([toolCall(true), request()]);
 
+/** O cartão do plano: as buscas das opções ficam dentro dele, e não no transcript inteiro. */
+const card = () => within(screen.getByRole("group", { name: "aprovar o plano" }));
+
 function optionButtons() {
   return OPTIONS.map((option) => screen.queryByRole("button", { name: option.name }));
 }
@@ -111,7 +114,7 @@ describe("o plano pendente", () => {
     async (optionId, name) => {
       const { answer } = pending();
 
-      await userEvent.click(screen.getByRole("button", { name }));
+      await userEvent.click(card().getByRole("button", { name }));
 
       expect(answer).toHaveBeenCalledExactlyOnceWith("rq-plan", optionId);
     },
@@ -119,11 +122,13 @@ describe("o plano pendente", () => {
 
   it("Enter aprova a allow_once e Esc recusa", async () => {
     const enter = pending();
+    expect(card().getByRole("button", { name: "Yes, manually approve edits" })).toHaveFocus();
     await userEvent.keyboard("{Enter}");
     expect(enter.answer).toHaveBeenCalledExactlyOnceWith("rq-plan", "exit-plan-default");
     enter.view.unmount();
 
     const escape = pending();
+    expect(card().getByRole("button", { name: "No, keep planning" })).toBeInTheDocument();
     await userEvent.keyboard("{Escape}");
     expect(escape.answer).toHaveBeenCalledExactlyOnceWith("rq-plan", "reject");
   });

@@ -61,7 +61,7 @@ describe("a faixa de plan mode", () => {
     expect(screen.queryByText(TEXT)).not.toBeInTheDocument();
   });
 
-  it.each([["auto"], ["default"], ["bypassPermissions"], [""]])(
+  it.each([["auto"], ["default"], ["acceptEdits"], ["bypassPermissions"], [""]])(
     "fora de plan mode não há faixa (%j)",
     (mode) => {
       render(composer(replayConversation([config(mode)])));

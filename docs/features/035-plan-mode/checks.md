@@ -27,7 +27,7 @@ Proof: `pnpm exec vitest run packages/web/src/features/conversation/PlanModeBann
 **C2** - ✓ Um evento `config` que troca `mode` de `"plan"` para `"auto"` faz a faixa sumir na renderização seguinte (AC 2)
 Proof: `pnpm exec vitest run packages/web/src/features/conversation/PlanModeBanner.test.tsx -t "a faixa some quando o modo sai de plan"`
 
-**C3** - Com `mode` em `"auto"`, `"default"`, `"acceptEdits"`, `"bypassPermissions"` e `""`, a faixa não aparece — uma asserção por valor (AC 3)
+**C3** - ✓ Com `mode` em `"auto"`, `"default"`, `"acceptEdits"`, `"bypassPermissions"` e `""`, a faixa não aparece — uma asserção por valor (AC 3)
 Proof: `pnpm exec vitest run packages/web/src/features/conversation/PlanModeBanner.test.tsx -t "fora de plan mode não há faixa"`
 
 **C4** - ✓ Com `readOnly` e `mode: "plan"`, a faixa não aparece (AC 4)
@@ -91,19 +91,19 @@ Proof: `pnpm exec vitest run packages/web/src/features/conversation/PlanApproval
 **C22** - ✓ No navegador, o plano do roteiro aparece inteiro — a primeira e a última linha visíveis — e aprovar com *"Yes, and use auto mode"* deixa *"plano aprovado — Yes, and use auto mode"* (AC 10, AC 14)
 Proof: `pnpm exec playwright test e2e/plan-mode.spec.ts -g "o plano inteiro aparece e aprovar deixa o registro"`
 
-**C23** - No navegador, recarregar a página depois de aprovar mostra o mesmo registro, lido do transcript em disco, e *"ver o plano"* abre o plano com a primeira e a última linha visíveis (AC 19)
+**C23** - ✓ No navegador, recarregar a página depois de aprovar mostra o mesmo registro, lido do transcript em disco, e *"ver o plano"* abre o plano com a primeira e a última linha visíveis (AC 19)
 Proof: `pnpm exec playwright test e2e/plan-mode.spec.ts -g "o registro sobrevive a recarregar"`
 
 **C24** - ✓ No navegador, *"No, keep planning"* deixa *"você pediu para continuar planejando"*, e a faixa de plan mode continua (AC 15, AC 22)
 Proof: `pnpm exec playwright test e2e/plan-mode.spec.ts -g "recusar mantém o plan mode"`
 
-**C28** - Cancelar o turno com o pedido do plano pendente emite `permission_resolved` `{outcome: "cancelled"}` para esse `requestId`, e um `respondToPermission` depois é recusado com `NOT_FOUND` (AC 24)
+**C28** - ✓ Cancelar o turno com o pedido do plano pendente emite `permission_resolved` `{outcome: "cancelled"}` para esse `requestId`, e um `respondToPermission` depois é recusado com `NOT_FOUND` (AC 24)
 Proof: `pnpm exec vitest run packages/server/src/acp/AcpManager.fake-adapter.test.ts -t "cancelar o turno cancela o pedido pendente"`
 
-**C29** - O agente sair com um pedido pendente emite `permission_resolved` `{outcome: "cancelled"}` para esse `requestId` antes do evento de saída (AC 25)
+**C29** - ✓ O agente sair com um pedido pendente emite `permission_resolved` `{outcome: "cancelled"}` para esse `requestId` antes do evento de saída (AC 25)
 Proof: `pnpm exec vitest run packages/server/src/acp/AcpManager.fake-adapter.test.ts -t "o agente sair cancela o pedido pendente"`
 
-**C30** - No navegador, cancelar o turno com o plano pendente deixa *"pedido cancelado"* no cartão, sem botões (AC 16, AC 24)
+**C30** - ✓ No navegador, cancelar o turno com o plano pendente deixa *"pedido cancelado"* no cartão, sem botões (AC 16, AC 24)
 Proof: `pnpm exec playwright test e2e/plan-mode.spec.ts -g "cancelar com o plano pendente deixa pedido cancelado"`
 
 ### S4 - o roteiro de plan mode no agente falso · 2 files · 45 KB · ~11k

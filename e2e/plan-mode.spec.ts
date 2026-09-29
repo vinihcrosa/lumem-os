@@ -36,6 +36,7 @@ const WORKTREES = {
   approve: "plano-aprovar",
   reload: "plano-recarregar",
   reject: "plano-recusar",
+  cancel: "plano-cancelar",
 } as const;
 
 function conversation(page: Page) {
@@ -130,6 +131,12 @@ test("o registro sobrevive a recarregar", async ({ page }) => {
   await expect(after.getByText("plano aprovado — Yes, and use auto mode")).toBeVisible({ timeout: 20_000 });
   await expect(after).toHaveCount(1);
   await expect(after.getByRole("button", { name: "Yes, and use auto mode", exact: true })).toHaveCount(0);
+
+  // E o plano relido do disco: recolhido no registro, inteiro ao abrir.
+  await expect(after.getByText(LAST_LINE)).toHaveCount(0);
+  await after.getByRole("button", { name: "ver o plano" }).click();
+  await expect(after.getByRole("heading", { name: FIRST_LINE })).toBeVisible();
+  await expect(after.getByText(LAST_LINE)).toBeVisible();
 });
 
 test("recusar mantém o plan mode", async ({ page }) => {
@@ -143,4 +150,18 @@ test("recusar mantém o plan mode", async ({ page }) => {
   // O turno acabou — o composer voltou — e o modo continua `plan`.
   await expect(conv.getByLabel("mensagem para o agente")).not.toBeDisabled({ timeout: 20_000 });
   await expect(conv.getByText(BANNER, { exact: true })).toBeVisible();
+});
+
+test("cancelar com o plano pendente deixa pedido cancelado", async ({ page }) => {
+  await arrive(page, WORKTREES.cancel);
+  const conv = conversation(page);
+  const card = await askForPlan(page);
+
+  await conv.getByRole("button", { name: /interromper/ }).click();
+
+  await expect(card.getByText("pedido cancelado")).toBeVisible({ timeout: 20_000 });
+  for (const name of ["Yes, clear context (32% used) and use auto mode", "Yes, and use auto mode", "Yes, manually approve edits", "No, keep planning"]) {
+    await expect(card.getByRole("button", { name, exact: true })).toHaveCount(0);
+  }
+  await expect(conv.getByText("o turno está parado aqui")).toHaveCount(0);
 });

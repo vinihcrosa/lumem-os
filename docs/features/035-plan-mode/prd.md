@@ -78,6 +78,7 @@ flowchart TD
     CARD --> RESP["permission_response (exists) -> AcpManager.respondToPermission (exists)"]
     RESP --> AD3["adaptador (exists): current_mode_update ao aprovar; fim do turno cancelado ao recusar"]
     AD3 --> RED
+    CAN["AcpManager.cancel / markExited (exists) - permission_resolved cancelled para todo pedido pendente, antes da saída"] --> TS
     RED --> BAN["Composer.tsx (exists) - PlanModeBanner (new), a faixa de plan mode enquanto mode === plan"]
 ```
 

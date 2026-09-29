@@ -1532,6 +1532,23 @@ export class AcpManager {
     void session.connection.agent.notify("session/cancel", {
       sessionId: session.info.acpSessionId,
     });
+    // O protocolo: quem cancela responde `cancelled` a todo pedido pendente (`035`).
+    this.cancelPending(session);
+  }
+
+  /**
+   * Todo pedido pendente, respondido `cancelled` e dito na conversa (`035`, 24–25).
+   *
+   * Sem o evento, o cartão ficava com os botões vivos sobre um pedido que o
+   * agente já abandonou, e um clique gravava uma aprovação sobre ele. Fora do
+   * mapa, uma resposta posterior é `NOT_FOUND`.
+   */
+  private cancelPending(session: Session): void {
+    for (const [requestId, pending] of session.pendingPermissions) {
+      pending.resolve({ outcome: "cancelled" });
+      this.emit(session, { type: "permission_resolved", requestId, outcome: "cancelled", by: "user", reason: null });
+    }
+    session.pendingPermissions.clear();
   }
 
   /**
@@ -2455,11 +2472,9 @@ export class AcpManager {
     session.info.exitCode = exitCode;
 
     // Anything still blocked on a person will never be answered now. Resolving
-    // as cancelled is what keeps the agent's own promises from dangling.
-    for (const [, pending] of session.pendingPermissions) {
-      pending.resolve({ outcome: "cancelled" });
-    }
-    session.pendingPermissions.clear();
+    // as cancelled keeps the agent's promises from dangling, and the event —
+    // before the listeners go — keeps the card from offering dead buttons.
+    this.cancelPending(session);
     session.listeners.clear();
 
     /*

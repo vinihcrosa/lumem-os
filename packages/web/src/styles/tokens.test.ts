@@ -62,8 +62,9 @@ describe("contraste", () => {
     //
     // E foi encontrado **três atrás** outra vez, em 2026-09-22, enquanto se media
     // outra coisa: o array estava em `122` e o piso em `119`. Não custa repetir o
-    // que a folga significa — três pares apagáveis sem nada falhar.
-    expect(CONTRAST_PAIRS.length).toBeGreaterThanOrEqual(122);
+    // que a folga significa — três pares apagáveis sem nada falhar. 123 desde a
+    // `035`: a faixa de plan mode, `mode/plan` sobre `bg/info-subtle`.
+    expect(CONTRAST_PAIRS.length).toBeGreaterThanOrEqual(123);
   });
 
   it("aponta só para token que existe", () => {

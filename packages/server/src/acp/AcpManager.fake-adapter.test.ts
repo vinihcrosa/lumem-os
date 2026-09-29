@@ -181,3 +181,55 @@ describe("o roteiro de plan mode do fake", () => {
     ]);
   });
 });
+
+/**
+ * O pedido que ninguém mais vai responder (`035`, critérios 24 e 25).
+ *
+ * O protocolo manda o cliente responder `cancelled` a todo pedido pendente
+ * quando cancela; sem o evento, o cartão ficava com os botões vivos sobre um
+ * pedido abandonado, e um clique gravava *"plano aprovado"* nele.
+ */
+describe("o pedido pendente quando o turno acaba sem resposta", () => {
+  it("cancelar o turno cancela o pedido pendente", async () => {
+    const { manager, id, events } = await planSession();
+
+    const turn = manager.prompt(id, PLAN_PROMPT);
+    const request = await asked(events);
+    manager.cancel(id);
+
+    expect(await turn).toBe("cancelled");
+    expect(events.filter((event) => event.type === "permission_resolved")).toEqual([
+      { type: "permission_resolved", requestId: request.requestId, outcome: "cancelled", by: "user", reason: null },
+    ]);
+
+    let refused: unknown = null;
+    try {
+      manager.respondToPermission(id, request.requestId, "exit-plan-auto");
+    } catch (error) {
+      refused = error;
+    }
+    expect(refused).toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  it("o agente sair cancela o pedido pendente", async () => {
+    const { manager, id, events } = await planSession();
+    const order: string[] = [];
+    manager.onEvent(id, (entry) => order.push(entry.event.type));
+    manager.watchExits((info) => {
+      if (info.id === id) order.push("exit");
+    });
+
+    const turn = manager.prompt(id, PLAN_PROMPT);
+    turn.catch(() => {});
+    const request = await asked(events);
+    manager.kill(id);
+
+    await vi.waitFor(() => expect(order).toContain("exit"), { timeout: 5_000, interval: 10 });
+    const resolved = { type: "permission_resolved", requestId: request.requestId, outcome: "cancelled", by: "user", reason: null };
+    expect(events).toContainEqual(resolved);
+    expect(order.indexOf("permission_resolved")).toBeGreaterThanOrEqual(0);
+    expect(order.indexOf("permission_resolved")).toBeLessThan(order.indexOf("exit"));
+    // No transcript também, que é de onde a aba reaberta o relê.
+    expect(manager.storedTranscript(id).map((entry) => entry.event)).toContainEqual(resolved);
+  });
+});
