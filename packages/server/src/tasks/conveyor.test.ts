@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, type Mock } from "vitest";
 
 import type { TaskRow } from "../db/schema.js";
 import {
@@ -11,6 +11,14 @@ import {
 } from "./conveyor.js";
 import type { QueueEntry, QueueFacts } from "./queue.js";
 import { promptFor } from "./prompts.js";
+
+/**
+ * A spy whose implementation may be async. `Spy` returns
+ * `void` since vitest 4, and an `async` implementation of a `void` function is
+ * what `no-misused-promises` exists to catch — here it is only the type that is
+ * wrong, so the type says what the spy really returns.
+ */
+type Spy = Mock<(...args: any[]) => unknown>;
 
 /**
  * A esteira (`028` Parte 2, T27).
@@ -62,22 +70,22 @@ interface Harness {
   ports: ConveyorPorts;
   calls: string[];
   spies: {
-    openSession: ReturnType<typeof vi.fn>;
-    prompt: ReturnType<typeof vi.fn>;
-    cancel: ReturnType<typeof vi.fn>;
-    closeSession: ReturnType<typeof vi.fn>;
-    advance: ReturnType<typeof vi.fn>;
-    bounce: ReturnType<typeof vi.fn>;
-    openPullRequest: ReturnType<typeof vi.fn>;
-    publishNotes: ReturnType<typeof vi.fn>;
-    block: ReturnType<typeof vi.fn>;
-    park: ReturnType<typeof vi.fn>;
-    comment: ReturnType<typeof vi.fn>;
-    mark: ReturnType<typeof vi.fn>;
-    prepareCheckout: ReturnType<typeof vi.fn>;
-    gate: ReturnType<typeof vi.fn>;
-    quotaRefused: ReturnType<typeof vi.fn>;
-    pause: ReturnType<typeof vi.fn>;
+    openSession: Spy;
+    prompt: Spy;
+    cancel: Spy;
+    closeSession: Spy;
+    advance: Spy;
+    bounce: Spy;
+    openPullRequest: Spy;
+    publishNotes: Spy;
+    block: Spy;
+    park: Spy;
+    comment: Spy;
+    mark: Spy;
+    prepareCheckout: Spy;
+    gate: Spy;
+    quotaRefused: Spy;
+    pause: Spy;
   };
 }
 
