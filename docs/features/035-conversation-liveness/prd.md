@@ -80,7 +80,9 @@ flowchart TD
 
 1. o processo do adaptador sai -> `AcpManager.markExited` (exists) - com `promptInFlight`, emite
    `turn_failed` (door 1) e o retrato `turn-failed`, solta a marca e liberta o `prompt` pendente
-   **antes** de limpar os listeners; sem turno em voo, nada muda
+   **antes** de limpar os listeners; se a saída chegou enquanto o teto ou a memória eram lidos, grava
+   antes a mensagem do usuário que o turno guardava, e o `prompt` rejeita com o mesmo
+   `AcpTurnFailedError`, que o `websocket.ts` engole (Q4); sem turno em voo, nada muda
 2. `TranscriptStore` (exists) grava a entrada; o websocket `/acp` (exists) a entrega a quem está anexado
 3. `useConversationSession` (exists) - dobra o frame no `reduceConversation` (exists), que passa a
    guardar `turnStartedAt` e `lastEventAt` do `at` de cada entrada, puro

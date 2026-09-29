@@ -41,14 +41,14 @@ Proof: `pnpm --filter @lumem/server exec vitest run src/acp/AcpManager.test.ts -
 **C7** - Uma conversa somente leitura cuja transcrição termina em mensagem do usuário sem fecho não desenha `.mcaret`, nem a linha de estado do turno, nem o botão `■ interromper` (AC 6) ✓
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/conversation.test.tsx -t "conversa encerrada sem fecho não desenha turno vivo"`
 
-**C28** - Com o processo saindo com código 137 enquanto a leitura do teto está pendente, a transcrição do turno é a mensagem do usuário seguida de exatamente um `turn_failed` com `o agente encerrou no meio do turno (saída 137)`, o `prompt` rejeita com `AcpTurnFailedError`, o agente não recebe `session/prompt`, e o `/acp` não manda frame `error` (AC 27, Q4)
+**C28** - Com o processo saindo com código 137 enquanto a leitura do teto está pendente, a transcrição do turno é a mensagem do usuário seguida de exatamente um `turn_failed` com `o agente encerrou no meio do turno (saída 137)`, o `prompt` rejeita com `AcpTurnFailedError`, o agente não recebe `session/prompt`, e o `/acp` não manda frame `error` (AC 27, Q4) ✓
 Proof: `pnpm --filter @lumem/server exec vitest run src/acp/AcpManager.test.ts -t "keeps the question when the adapter exits before it is asked"`
 Proof: `pnpm --filter @lumem/server exec vitest run src/acp/websocket.test.ts -t "sends no error frame for a turn the exit already closed"`
 
-**C29** - Com a resposta do `session/prompt` e a saída do processo no mesmo tique, a transcrição do turno tem exatamente um fecho, o `turn_failed` da saída, nenhum `turn_end`, e o `prompt` rejeita com `AcpTurnFailedError` (AC 28, door 2)
+**C29** - Com a resposta do `session/prompt` e a saída do processo no mesmo tique, a transcrição do turno tem exatamente um fecho, o `turn_failed` da saída, nenhum `turn_end`, e o `prompt` rejeita com `AcpTurnFailedError` (AC 28, door 2) ✓
 Proof: `pnpm --filter @lumem/server exec vitest run src/acp/AcpManager.test.ts -t "closes once when the answer and the exit arrive together"`
 
-**C30** - Com o stdout fechando antes da saída — o caminho do processo real —, o fecho diz `o agente encerrou no meio do turno (saída 137)` quando a saída chega no prazo, e `(saída desconhecida)` quando não chega, nunca `ACP connection closed` (AC 1)
+**C30** - Com o stdout fechando antes da saída — o caminho do processo real —, o fecho diz `o agente encerrou no meio do turno (saída 137)` quando a saída chega no prazo, e `(saída desconhecida)` quando não chega, nunca `ACP connection closed` (AC 1) ✓
 Proof: `pnpm --filter @lumem/server exec vitest run src/acp/AcpManager.test.ts -t "names the exit even when the pipe closes first"`
 Proof: `pnpm --filter @lumem/server exec vitest run src/acp/AcpManager.test.ts -t "names an unknown exit when the process outlives its closed pipe"`
 

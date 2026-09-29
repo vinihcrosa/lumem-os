@@ -20,7 +20,7 @@ import { loadConfig } from "../config.js";
 import { openTestDb, type TestDb } from "../db/testing.js";
 import { PtyManager } from "../pty/PtyManager.js";
 import { fakeAgentProcess, type FakeAgentScript } from "../testing/acp-fake-agent.js";
-import { AcpManager } from "./AcpManager.js";
+import { AcpManager, type AcpBudgetSource } from "./AcpManager.js";
 import { frameText } from "../ws-text.js";
 
 /**
@@ -127,6 +127,13 @@ class TestClient {
  */
 const queued: ReturnType<typeof fakeAgentProcess>["process"][] = [];
 
+/**
+ * O teto que o manager compartilhado lê, quando um teste quer segurá-lo.
+ *
+ * `undefined` é *sem teto*: o turno segue como se a fonte não existisse.
+ */
+let budgetHold: AcpBudgetSource | undefined;
+
 /** Starts a session on the manager the server was built with. */
 async function startSession(script: FakeAgentScript = {}): Promise<string> {
   queued.push(fakeAgentProcess(script).process);
@@ -140,12 +147,14 @@ async function startSession(script: FakeAgentScript = {}): Promise<string> {
 
 beforeEach(async () => {
   queued.length = 0;
+  budgetHold = undefined;
   ptyManager = new PtyManager();
   acpManager = new AcpManager({
     // Hands out whichever process the current test queued.
     spawner: () => queued.shift()!,
     isAvailable: () => true,
     handshakeTimeoutMs: 2_000,
+    budget: (info) => budgetHold?.(info) ?? Promise.resolve({ kind: "pass" }),
   });
   database = openTestDb();
   // Imported lazily so the module graph matches production wiring exactly:
@@ -540,6 +549,45 @@ describe("um turno que falhou", () => {
 
     const errors = client.messages.filter((message) => message.type === "error");
     expect(errors).toEqual([expect.objectContaining({ code: "INVALID_MESSAGE" })]);
+  });
+});
+
+describe("o adaptador que sai antes de ouvir a pergunta (`035` Q4)", () => {
+  it("sends no error frame for a turn the exit already closed", async () => {
+    const fake = fakeAgentProcess();
+    queued.push(fake.process);
+    const info = await acpManager.spawn({ command: "claude-agent-acp", cwd: "/repos/lorebase" });
+    const client = await TestClient.connect(info.id);
+    await client.waitForMessage("attached");
+    let release: () => void = () => {};
+    let asked = false;
+    budgetHold = () => {
+      asked = true;
+      return new Promise((resolve) => {
+        release = () => resolve({ kind: "pass" });
+      });
+    };
+
+    client.send({ type: "prompt", text: "tem alguém aí?" });
+    await vi.waitFor(() => expect(asked).toBe(true), WAIT);
+    fake.exit({ exitCode: 137, signal: null });
+    await vi.waitFor(() => expect(acpManager.get(info.id)?.state).toBe("exited"), WAIT);
+    release();
+    await client.waitForEvent("turn_failed");
+    // O truque dos casos acima: a resposta a este quadro só chega depois de a
+    // rejeição do prompt, liberada logo acima, ter sido tratada.
+    client.sendRaw("isto não é json");
+    await client.waitForMessage("error");
+
+    // O fecho da saída é a linha da conversa; nada de `session <id> has exited`
+    // por cima dela.
+    const errors = client.messages.filter((message) => message.type === "error");
+    expect(errors).toEqual([expect.objectContaining({ code: "INVALID_MESSAGE" })]);
+    const said = client.events().filter((event) => event.type === "message" || event.type === "turn_failed");
+    expect(said).toEqual([
+      expect.objectContaining({ type: "message", role: "user", text: "tem alguém aí?" }),
+      { type: "turn_failed", message: "o agente encerrou no meio do turno (saída 137)" },
+    ]);
   });
 });
 

@@ -2665,7 +2665,7 @@ describe("uma recusa por cota", () => {
  */
 describe("o adaptador que sai no meio do turno", () => {
   /** Um agente que começa a responder e nunca termina: o turno fica em voo. */
-  async function inFlight(options: Pick<AcpManagerOptions, "turnFailures"> = {}) {
+  async function inFlight(options: Pick<AcpManagerOptions, "turnFailures" | "exitAfterCloseGraceMs"> = {}) {
     const fake = fakeAgentProcess({
       async prompt(_text, turn) {
         await say(turn, "começando");
@@ -2743,7 +2743,9 @@ describe("o adaptador que sai no meio do turno", () => {
     { order: "a saída antes de o stdout fechar", exitFirst: true },
     { order: "o stdout fechando antes da saída", exitFirst: false },
   ])("closes the turn once whichever side of the pipe goes first: $order", async ({ exitFirst }) => {
-    const { fake, manager, id, turn } = await inFlight();
+    // Prazo curto: na ordem em que o cano fecha primeiro, o turno espera por ele
+    // inteiro antes de a saída chegar.
+    const { fake, manager, id, turn } = await inFlight({ exitAfterCloseGraceMs: 100 });
 
     if (exitFirst) {
       fake.exit({ exitCode: 0, signal: null });
@@ -2767,7 +2769,9 @@ describe("o adaptador que sai no meio do turno", () => {
     // O caminho do processo real: o stdout fecha, o SDK rejeita o pedido com
     // `ACP connection closed`, e só depois a saída chega. A frase é a do door 1,
     // e não o vocabulário do SDK.
-    const { fake, manager, id, turn } = await inFlight();
+
+    // O prazo é folgado de propósito: a saída chega bem dentro dele.
+    const { fake, manager, id, events, turn } = await inFlight({ exitAfterCloseGraceMs: 1_000 });
 
     await fake.closeStdout();
     // Uma volta de relógio para o SDK rejeitar o pedido antes de a saída chegar.
@@ -2775,24 +2779,190 @@ describe("o adaptador que sai no meio do turno", () => {
     fake.exit({ exitCode: 137, signal: null });
     const settled = await turn;
 
-    expect(turnFailedIn(manager.transcript(id))).toEqual([
-      { type: "turn_failed", message: "o agente encerrou no meio do turno (saída 137)" },
-    ]);
-    expect((settled as { error?: unknown }).error).toBeInstanceOf(AcpTurnFailedError);
+    const closing = { type: "turn_failed", message: "o agente encerrou no meio do turno (saída 137)" };
+    expect(turnFailedIn(manager.transcript(id))).toEqual([closing]);
+    expect(events.filter((event) => event.type === "turn_failed")).toEqual([closing]);
+    const error = (settled as { error?: unknown }).error;
+    expect(error).toBeInstanceOf(AcpTurnFailedError);
+    expect((error as Error).message).toBe(closing.message);
+    // O vocabulário do SDK não aparece em lugar nenhum: nem gravado, nem ao vivo.
+    expect(JSON.stringify(manager.transcript(id))).not.toContain("ACP connection closed");
+    expect(JSON.stringify(events)).not.toContain("ACP connection closed");
   });
 
   it("names an unknown exit when the process outlives its closed pipe", async () => {
     // O stdout fechou e a saída não veio no prazo: o turno fecha assim mesmo, e
     // a frase diz o que se sabe — nada sobre como o processo saiu.
-    const { fake, manager, id, turn } = await inFlight();
+    const { fake, manager, id, events, turn } = await inFlight({ exitAfterCloseGraceMs: 50 });
 
     await fake.closeStdout();
-    await turn;
+    const settled = await turn;
 
-    expect(turnFailedIn(manager.transcript(id))).toEqual([
-      { type: "turn_failed", message: "o agente encerrou no meio do turno (saída desconhecida)" },
-    ]);
+    const closing = { type: "turn_failed", message: "o agente encerrou no meio do turno (saída desconhecida)" };
+    expect(turnFailedIn(manager.transcript(id))).toEqual([closing]);
+    expect(events.filter((event) => event.type === "turn_failed")).toEqual([closing]);
+    const error = (settled as { error?: unknown }).error;
+    expect(error).toBeInstanceOf(AcpTurnFailedError);
+    expect((error as Error).message).toBe(closing.message);
+    expect(JSON.stringify(manager.transcript(id))).not.toContain("ACP connection closed");
+    expect(JSON.stringify(events)).not.toContain("ACP connection closed");
     expect(manager.liveTurns()).toEqual([]);
+
+    // A saída que chega depois do prazo não fecha o turno outra vez.
+    fake.exit({ exitCode: 137, signal: null });
+    await waitFor(() => (manager.get(id)?.state === "exited" ? true : undefined));
+    expect(turnFailedIn(manager.transcript(id))).toEqual([closing]);
+  });
+
+  /** Uma promessa que o teste resolve quando quiser. */
+  function held<T>() {
+    let release: (value: T) => void = () => {};
+    const promise = new Promise<T>((resolve) => {
+      release = resolve;
+    });
+    return { promise, release };
+  }
+
+  /** Os eventos do turno: da mensagem do usuário em diante. */
+  function turnOf(entries: readonly AcpTranscriptEntry[]): AcpEvent[] {
+    const events = entries.map((entry) => entry.event);
+    const start = events.findIndex((event) => event.type === "message" && event.role === "user");
+    return start === -1 ? [] : events.slice(start);
+  }
+
+  it("keeps the question when the adapter exits before it is asked", async () => {
+    // A saída chega enquanto o daemon ainda lê o teto: o agente nunca ouviu a
+    // pergunta, e a pessoa, que já teve o rascunho limpo, não pode perdê-la.
+    const fake = fakeAgentProcess({ prompt: () => Promise.resolve("end_turn") });
+    const budget = held<{ kind: "pass" }>();
+    let budgetAsked = false;
+    const manager = new AcpManager({
+      spawner: () => fake.process,
+      isAvailable: () => true,
+      handshakeTimeoutMs: 2_000,
+      budget: () => {
+        budgetAsked = true;
+        return budget.promise;
+      },
+    });
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: "/repos/lorebase" });
+
+    const turn = manager.prompt(info.id, "faz a coisa").then(
+      (stopReason) => ({ stopReason }),
+      (error: unknown) => ({ error }),
+    );
+    await waitFor(() => (budgetAsked ? true : undefined));
+    fake.exit({ exitCode: 137, signal: null });
+    await waitFor(() => (manager.get(info.id)?.state === "exited" ? true : undefined));
+    budget.release({ kind: "pass" });
+    const settled = await turn;
+
+    expect(turnOf(manager.transcript(info.id))).toEqual([
+      { type: "message", messageId: expect.any(String), role: "user", text: "faz a coisa" },
+      { type: "turn_failed", message: "o agente encerrou no meio do turno (saída 137)" },
+    ]);
+    expect((settled as { error?: unknown }).error).toBeInstanceOf(AcpTurnFailedError);
+    // Nenhum `session/prompt` foi para um processo que não existe mais.
+    expect(fake.promptBlocks).toEqual([]);
+  });
+
+  it("keeps the question, and drops the memory, when the adapter exits while memory is read", async () => {
+    // O núcleo da memória nunca chegou ao agente: gravá-lo diria que ele leu o
+    // que não leu. A pergunta, sim, fica.
+    const fake = fakeAgentProcess({ prompt: () => Promise.resolve("end_turn") });
+    const core = held<{ entries: number; text: string } | null>();
+    let coreAsked = false;
+    const manager = new AcpManager({
+      spawner: () => fake.process,
+      isAvailable: () => true,
+      handshakeTimeoutMs: 2_000,
+      preamble: () => {
+        coreAsked = true;
+        return core.promise;
+      },
+    });
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: "/repos/lorebase" });
+
+    const turn = manager.prompt(info.id, "faz a coisa").then(
+      (stopReason) => ({ stopReason }),
+      (error: unknown) => ({ error }),
+    );
+    await waitFor(() => (coreAsked ? true : undefined));
+    fake.exit({ exitCode: null, signal: "SIGKILL" });
+    await waitFor(() => (manager.get(info.id)?.state === "exited" ? true : undefined));
+    core.release({ entries: 1, text: "## Memória\n- use pnpm" });
+    const settled = await turn;
+
+    const events = manager.transcript(info.id).map((entry) => entry.event);
+    expect(events.some((event) => event.type === "memory_core")).toBe(false);
+    expect(turnOf(manager.transcript(info.id))).toEqual([
+      { type: "message", messageId: expect.any(String), role: "user", text: "faz a coisa" },
+      { type: "turn_failed", message: "o agente encerrou no meio do turno (sinal SIGKILL)" },
+    ]);
+    expect((settled as { error?: unknown }).error).toBeInstanceOf(AcpTurnFailedError);
+    expect(fake.promptBlocks).toEqual([]);
+  });
+
+  it("closes once when the answer and the exit arrive together", async () => {
+    /*
+     * A resposta do `session/prompt` passa pelo cano e o processo sai no mesmo
+     * tique, `hops` microtarefas depois — varrido, e não um número só, porque a
+     * janela entre o daemon receber a resposta e fechar o turno tem a largura de
+     * uma ou duas microtarefas, e quantas o SDK gasta até entregar a resposta é
+     * dele. Varrido de 0 até bem depois, o instante da saída atravessa a janela.
+     */
+    const outcomes: { hops: number; settled: { stopReason?: unknown; error?: unknown }; closes: AcpEvent[] }[] = [];
+    for (let hops = 0; hops <= 24; hops++) {
+      const fake = fakeAgentProcess({ prompt: () => Promise.resolve("end_turn") });
+      const decoder = new TextDecoder();
+      const stdout = fake.process.stdout.pipeThrough(
+        new TransformStream<Uint8Array, Uint8Array>({
+          transform(chunk, controller) {
+            controller.enqueue(chunk);
+            if (!decoder.decode(chunk).includes('"stopReason"')) return;
+            let later = Promise.resolve();
+            for (let hop = 0; hop < hops; hop++) later = later.then(() => {});
+            void later.then(() => fake.exit({ exitCode: 137, signal: null }));
+          },
+        }),
+      );
+      const manager = new AcpManager({
+        spawner: () => ({ ...fake.process, stdout }),
+        isAvailable: () => true,
+        handshakeTimeoutMs: 2_000,
+      });
+      const info = await manager.spawn({ command: "claude-agent-acp", cwd: "/repos/lorebase" });
+
+      const settled = await manager.prompt(info.id, "faz a coisa").then(
+        (stopReason) => ({ stopReason }),
+        (error: unknown) => ({ error }),
+      );
+      await waitFor(() => (manager.get(info.id)?.state === "exited" ? true : undefined));
+      // Uma volta de relógio para um segundo fecho, errado, aparecer.
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      const closes = manager
+        .transcript(info.id)
+        .map((entry) => entry.event)
+        .filter((event) => event.type === "turn_end" || event.type === "turn_failed");
+      outcomes.push({ hops, settled, closes });
+    }
+
+    for (const { hops, settled, closes } of outcomes) {
+      if (closes[0]?.type === "turn_end") {
+        // A saída chegou com o turno já fechado: é a saída entre turnos (C5).
+        expect({ hops, closes, settled }).toEqual({ hops, closes: [{ type: "turn_end", stopReason: "end_turn" }], settled: { stopReason: "end_turn" } });
+        continue;
+      }
+      // A saída pegou o turno aberto: um fecho só, o dela, e nenhum `turn_end`.
+      expect({ hops, closes }).toEqual({
+        hops,
+        closes: [{ type: "turn_failed", message: "o agente encerrou no meio do turno (saída 137)" }],
+      });
+      expect(settled.error, `hops ${hops}`).toBeInstanceOf(AcpTurnFailedError);
+    }
+    // A varredura atravessou a resposta: a saída pegou o turno aberto e fechado.
+    expect(outcomes.some(({ closes }) => closes[0]?.type === "turn_failed")).toBe(true);
+    expect(outcomes.some(({ closes }) => closes[0]?.type === "turn_end")).toBe(true);
   });
 
   it("says nothing when the adapter exits between turns", async () => {

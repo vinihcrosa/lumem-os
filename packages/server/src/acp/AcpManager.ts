@@ -484,6 +484,14 @@ interface Session {
    */
   releaseTurn: ((failed: AcpTurnFailedError) => void) | undefined;
   /**
+   * A pergunta do turno em voo enquanto ela ainda não foi para a transcrição.
+   *
+   * O teto e a memória são lidos antes de a mensagem ser gravada, e o processo
+   * pode sair nesse intervalo: aí é a saída que a grava, antes do fecho, para o
+   * replay mostrar o que foi perguntado e o texto não se perder (`035` Q4).
+   */
+  pendingQuestion: string | undefined;
+  /**
    * The agent is still replaying a loaded conversation (D14).
    *
    * The adapter re-streams the whole history around `session/load`. Those updates are
@@ -525,6 +533,8 @@ interface Session {
 export interface AcpManagerOptions {
   spawner?: AcpProcessSpawner;
   handshakeTimeoutMs?: number;
+  /** Quanto o turno espera a saída depois de o stdout fechar; o padrão é `EXIT_AFTER_CLOSE_GRACE_MS`. */
+  exitAfterCloseGraceMs?: number;
   /**
    * How the agent reaches the disk (F4.1).
    *
@@ -671,6 +681,7 @@ export class AcpManager {
   private readonly probing = new Set<AcpProcess>();
   private readonly spawner: AcpProcessSpawner;
   private readonly handshakeTimeoutMs: number;
+  private readonly exitAfterCloseGraceMs: number;
   private readonly isAvailable: (command: string) => boolean;
   private readonly files: FileService;
   private readonly ptyManager: PtyManager | undefined;
@@ -685,6 +696,7 @@ export class AcpManager {
   constructor({
     spawner = spawnAcpProcess,
     handshakeTimeoutMs = DEFAULT_HANDSHAKE_TIMEOUT_MS,
+    exitAfterCloseGraceMs = EXIT_AFTER_CLOSE_GRACE_MS,
     isAvailable = (command) => isCommandAvailable(command),
     files = createFileService(),
     ptyManager,
@@ -698,6 +710,7 @@ export class AcpManager {
   }: AcpManagerOptions = {}) {
     this.spawner = spawner;
     this.handshakeTimeoutMs = handshakeTimeoutMs;
+    this.exitAfterCloseGraceMs = exitAfterCloseGraceMs;
     this.isAvailable = isAvailable;
     this.files = files;
     this.ptyManager = ptyManager;
@@ -1239,6 +1252,7 @@ export class AcpManager {
         : undefined,
       turnId: newId(),
       releaseTurn: undefined,
+      pendingQuestion: undefined,
       replaying: false,
       coreInjected: false,
       quotaRefusalKind: spec?.quotaRefusalKind ?? null,
@@ -1290,6 +1304,15 @@ export class AcpManager {
     const turnId = session.turnId;
     session.promptInFlight = true;
     session.turnStartedAt = new Date();
+    session.pendingQuestion = text;
+    // Corrida contra a saída, e não confiança no cano: o pedido só rejeita
+    // sozinho quando o stdout fecha, e é a saída que o markExited vê. Armada
+    // aqui, antes do teto e da memória, porque a saída pode chegar enquanto eles
+    // são lidos — e aí ninguém ainda corre contra ela.
+    const exited = new Promise<never>((_, reject) => {
+      session.releaseTurn = reject;
+    });
+    void exited.catch(() => undefined);
 
     /*
      * O teto, **antes** de o turno custar (Parte 3, T16).
@@ -1305,6 +1328,9 @@ export class AcpManager {
      * a única saída daqui que precisa limpar.
      */
     const budget = await this.checkBudget(session);
+    // O processo saiu enquanto o teto era lido: a saída já fechou o turno, com a
+    // pergunta, e `exited` rejeita com o fecho dela.
+    if (session.turnId !== turnId) await exited;
     if (budget !== null) {
       this.emit(session, {
         type: "budget",
@@ -1323,6 +1349,8 @@ export class AcpManager {
         // 3 h` num turno que nunca começou.
         session.promptInFlight = false;
         session.turnStartedAt = null;
+        session.pendingQuestion = undefined;
+        session.releaseTurn = undefined;
         throw new DomainError("BLOCKED", budget.message);
       }
     }
@@ -1334,6 +1362,9 @@ export class AcpManager {
     // da mensagem da pessoa na transcrição porque foi antes dela no prompt: a
     // conversa gravada tem que estar na ordem em que o agente leu.
     const preamble = session.coreInjected ? null : await this.coreFor(session);
+    // O mesmo, enquanto a memória era lida. O núcleo não é gravado: o agente
+    // nunca o leu.
+    if (session.turnId !== turnId) await exited;
     if (preamble !== null) {
       // Marcado antes de emitir: se o `session/prompt` falhar, o núcleo já foi
       // para a transcrição e reinjetar no turno seguinte diria duas vezes a
@@ -1346,15 +1377,12 @@ export class AcpManager {
       });
     }
 
-    // O processo saiu enquanto o teto e a memória eram lidos, e a saída já fechou
-    // este turno: a pergunta não vai para um agente que não existe mais.
-    if (session.turnId !== turnId) throw new DomainError("SESSION_EXITED", `session ${id} has exited`);
-
     // The user's own message goes into the transcript before the agent hears it.
     // The adapter does not echo it, so without this line reopening the tab would
     // show every answer and none of the questions — and the replay would not
     // reproduce what the live client saw, since the live client would have had to
     // paint its own message locally.
+    session.pendingQuestion = undefined;
     this.emit(session, {
       type: "message",
       messageId: session.turnId,
@@ -1362,11 +1390,6 @@ export class AcpManager {
       text,
     });
 
-    // Corrida contra a saída, e não confiança no cano: o pedido só rejeita
-    // sozinho quando o stdout fecha, e é a saída que o markExited vê.
-    const exited = new Promise<never>((_, reject) => {
-      session.releaseTurn = reject;
-    });
     let stopReason: StopReason;
     try {
       ({ stopReason } = await Promise.race([
@@ -1405,8 +1428,9 @@ export class AcpManager {
     } finally {
       session.releaseTurn = undefined;
     }
-    // A resposta e a saída chegaram juntas, e a saída fechou primeiro.
-    if (session.turnId !== turnId) throw new DomainError("SESSION_EXITED", `session ${id} has exited`);
+    // A resposta e a saída chegaram juntas, e a saída fechou primeiro: o fecho é
+    // o dela, e nenhum `turn_end` vem depois (door 2).
+    if (session.turnId !== turnId) await exited;
 
     // The fifth card state, and the only place it can be derived (A14). ACP has
     // no `cancelled` status: a call that was still open when the user pressed
@@ -2556,6 +2580,11 @@ export class AcpManager {
     const cause = Object.assign(new Error(`o agente encerrou no meio do turno (${exitText(exitCode, signal)})`), {
       code: "exited",
     });
+    if (session.pendingQuestion !== undefined) {
+      // Saiu antes de ouvir a pergunta: ela vai para a transcrição antes do fecho.
+      this.emit(session, { type: "message", messageId: session.turnId, role: "user", text: session.pendingQuestion });
+      session.pendingQuestion = undefined;
+    }
     session.promptInFlight = false;
     session.turnStartedAt = null;
     session.openToolCalls.clear();
@@ -2576,7 +2605,7 @@ export class AcpManager {
   private async awaitExitAfterClose(session: Session, exited: Promise<never>): Promise<AcpTurnFailedError> {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const grace = new Promise<void>((resolve) => {
-      timer = setTimeout(resolve, EXIT_AFTER_CLOSE_GRACE_MS);
+      timer = setTimeout(resolve, this.exitAfterCloseGraceMs);
     });
     try {
       await Promise.race([exited, grace]);
