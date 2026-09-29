@@ -101,6 +101,8 @@ const INTERPOLATED = [
   "mode-option--free",
   "slash__row--on",
   "slash__row--danger",
+  // O silêncio da linha do turno (`035` S4), ligado por condição no `TurnStatus`.
+  "turn-status--warning",
 ];
 
 function requested(source: string): Set<string> {

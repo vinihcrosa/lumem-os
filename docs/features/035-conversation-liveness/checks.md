@@ -97,17 +97,17 @@ Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/conve
 
 ### S4 - o aviso de silêncio · 3 arquivos · ~20 KB · ~15k
 
-**C24** - Sem ferramenta aberta e sem permissão pendente, 89 s depois de `lastEventAt` a linha não tem o tom `warning`; aos 90 s tem, e diz `sem sinal do agente há 1 min 30 s` com o atalho `esc` (AC 23, Q1)
+**C24** - Sem ferramenta aberta e sem permissão pendente, 89 s depois de `lastEventAt` a linha não tem o tom `warning`; aos 90 s tem, e diz `sem sinal do agente há 1 min 30 s` com o atalho `esc` (AC 23, Q1) ✓
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/turn-status.test.ts -t "fica âmbar a partir de 90 s sem sinal"`
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/TurnStatus.test.tsx -t "o âmbar mostra o atalho de interromper"`
 
-**C25** - Com uma ferramenta `running` iniciada 240 s atrás e 300 s sem evento, a linha diz `rodando <título> há 4 min 0 s` e não tem o tom `warning`; o mesmo com a ferramenta `pending` (AC 24)
+**C25** - Com uma ferramenta `running` iniciada 240 s atrás e 300 s sem evento, a linha diz `rodando <título> há 4 min 0 s` e não tem o tom `warning`; o mesmo com a ferramenta `pending` (AC 24) ✓
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/turn-status.test.ts -t "ferramenta aberta não é silêncio"`
 
-**C26** - Com uma permissão pendente e 300 s sem evento, a linha diz `esperando sua resposta` e não tem o tom `warning` (AC 25)
+**C26** - Com uma permissão pendente e 300 s sem evento, a linha diz `esperando sua resposta` e não tem o tom `warning` (AC 25) ✓
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/turn-status.test.ts -t "permissão pendente não é silêncio"`
 
-**C27** - Com a linha em `warning`, um evento do turno que chega move `lastEventAt`, e o render seguinte está sem o tom `warning` (AC 26)
+**C27** - Com a linha em `warning`, um evento do turno que chega move `lastEventAt`, e o render seguinte está sem o tom `warning` (AC 26) ✓
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/TurnStatus.test.tsx -t "evento novo tira o âmbar"`
 
 ## Coverage

@@ -5,7 +5,7 @@ import type { AcpEvent, AcpTranscriptEntry } from "@lumem/shared";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { replayConversation } from "./conversation-model.js";
+import { reduceConversation, replayConversation } from "./conversation-model.js";
 import { TurnStatus } from "./TurnStatus.js";
 
 afterEach(cleanup);
@@ -69,6 +69,47 @@ describe("a linha de estado do turno", () => {
     render(<TurnStatus conversation={live} readOnly={false} clock={() => STARTED + 5000} />);
 
     expect(screen.getByText("trabalhando · 5 s")).toBeInTheDocument();
+    expect(screen.getByText("pensando")).toBeInTheDocument();
+  });
+});
+
+describe("o aviso de silêncio (`035` S4)", () => {
+  const LAST = STARTED + 1000;
+  const quietAfterWriting = () =>
+    replayConversation([
+      entry(STARTED, { type: "message", messageId: "u-1", role: "user", text: "roda o gate" }),
+      entry(LAST, { type: "message", messageId: "a-1", role: "agent", text: "Vou rodar." }),
+    ]);
+
+  it("o âmbar mostra o atalho de interromper", () => {
+    const early = render(<TurnStatus conversation={quietAfterWriting()} readOnly={false} clock={() => LAST + 89_000} />);
+    expect(early.container.querySelector(".turn-status")).not.toBeNull();
+    expect(early.container.querySelector(".turn-status--warning")).toBeNull();
+    expect(early.container.querySelector(".turn-status .kbd")).toBeNull();
+    early.unmount();
+
+    const view = render(<TurnStatus conversation={quietAfterWriting()} readOnly={false} clock={() => LAST + 90_000} />);
+    const line = view.container.querySelector(".turn-status--warning");
+    expect(line).not.toBeNull();
+    expect(screen.getByText("sem sinal do agente há 1 min 30 s")).toBeInTheDocument();
+    const key = line?.querySelector(".kbd");
+    expect(key?.textContent).toBe("esc");
+    expect(key?.parentElement?.textContent).toMatch(/interromper/);
+  });
+
+  it("evento novo tira o âmbar", () => {
+    const now = LAST + 95_000;
+    const silent = quietAfterWriting();
+    const view = render(<TurnStatus conversation={silent} readOnly={false} clock={() => now} />);
+    expect(view.container.querySelector(".turn-status--warning")).not.toBeNull();
+
+    const woke = reduceConversation(silent, entry(now - 1000, { type: "thought", messageId: "t-1", text: "hmm" }));
+    expect(woke.lastEventAt).toBe(now - 1000);
+    view.rerender(<TurnStatus conversation={woke} readOnly={false} clock={() => now} />);
+
+    expect(view.container.querySelector(".turn-status")).not.toBeNull();
+    expect(view.container.querySelector(".turn-status--warning")).toBeNull();
+    expect(screen.queryByText(/sem sinal do agente/)).not.toBeInTheDocument();
     expect(screen.getByText("pensando")).toBeInTheDocument();
   });
 });

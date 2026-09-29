@@ -74,6 +74,43 @@ export function activityText(activity: TurnActivity): string {
 }
 
 /**
+ * Quanto tempo sem evento, com turno em voo, até a linha ficar âmbar (`035` Q1).
+ *
+ * Uma constante só, e no `web`: o silêncio é leitura da tela, nunca gravado, e
+ * o número se reavalia depois de uma semana de uso — não em `/settings`.
+ */
+export const SILENCE_THRESHOLD_MS = 90_000;
+
+/** O que a linha diz ao lado do tempo do turno, e em que tom. */
+export interface TurnLine {
+  tone: "normal" | "warning";
+  doing: string;
+}
+
+/**
+ * A linha do turno em `now` (`035` S4).
+ *
+ * Ferramenta aberta e permissão pendente nunca são silêncio: a primeira tem o
+ * próprio relógio — medido do início dela, porque um comando longo que não
+ * manda nada é o agente trabalhando —, e a segunda está esperando quem olha.
+ */
+export function turnLine(
+  conversation: Pick<ConversationState, "turns" | "pendingPermission" | "lastEventAt">,
+  now: number,
+): TurnLine {
+  const activity = turnActivity(conversation);
+  if (activity.kind === "tool") {
+    return { tone: "normal", doing: `${activityText(activity)} há ${formatElapsed(now - activity.call.startedAt)}` };
+  }
+
+  const quiet = conversation.lastEventAt === null ? 0 : now - conversation.lastEventAt;
+  if (activity.kind !== "waiting" && quiet >= SILENCE_THRESHOLD_MS) {
+    return { tone: "warning", doing: `sem sinal do agente há ${formatElapsed(quiet)}` };
+  }
+  return { tone: "normal", doing: activityText(activity) };
+}
+
+/**
  * `12 s`, `1 min 12 s`, `3 h 05 min`.
  *
  * Negativo vira `0 s`: o `at` é do daemon e o `now` é do navegador, e um relógio

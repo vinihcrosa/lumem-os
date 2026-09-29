@@ -1,5 +1,5 @@
 import { type ConversationState } from "./conversation-model.js";
-import { activityText, formatElapsed, turnActivity } from "./turn-status.js";
+import { formatElapsed, turnLine } from "./turn-status.js";
 import { useNow } from "./useNow.js";
 
 /**
@@ -23,11 +23,20 @@ export function TurnStatus({ conversation, readOnly, clock = Date.now }: TurnSta
   const now = useNow(live, clock);
   if (!live || conversation.turnStartedAt === null) return null;
 
+  const line = turnLine(conversation, now);
+  const silent = line.tone === "warning";
   return (
-    <div className="turn-status">
+    <div className={`turn-status${silent ? " turn-status--warning" : ""}`}>
       <span className="turn-status__pulse" aria-hidden="true" />
       <span className="turn-status__elapsed">{`trabalhando · ${formatElapsed(now - conversation.turnStartedAt)}`}</span>
-      <span className="turn-status__doing">{activityText(turnActivity(conversation))}</span>
+      <span className="turn-status__doing">{line.doing}</span>
+      {/* O atalho é o do `■ interromper` do cabeçalho; a linha só o reapresenta
+          quando é a pergunta que a pessoa está se fazendo. */}
+      {silent && (
+        <span className="turn-status__hint">
+          <span className="kbd">esc</span> interromper
+        </span>
+      )}
     </div>
   );
 }
