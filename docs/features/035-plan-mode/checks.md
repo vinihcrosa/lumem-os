@@ -4,7 +4,7 @@
 Profile: standard
 Plan: `docs/features/035-plan-mode/prd.md`
 
-27 checks em 4 fatias · 2 portas de mão única · 0 perguntas abertas
+30 checks em 4 fatias · 2 portas de mão única · 0 perguntas abertas
 
 `standard` e não `ui`: não há desenho vinculante — o desenho mora no código
 ([ADR de 2026-09-20](../../adr/2026-09-20-2246-design-lives-in-the-code.md)) e o gate de tokens e
@@ -27,7 +27,7 @@ Proof: `pnpm exec vitest run packages/web/src/features/conversation/PlanModeBann
 **C2** - ✓ Um evento `config` que troca `mode` de `"plan"` para `"auto"` faz a faixa sumir na renderização seguinte (AC 2)
 Proof: `pnpm exec vitest run packages/web/src/features/conversation/PlanModeBanner.test.tsx -t "a faixa some quando o modo sai de plan"`
 
-**C3** - ✓ Com `mode` em `"auto"`, `"default"`, `"bypassPermissions"` e `""`, a faixa não aparece — uma asserção por valor (AC 3)
+**C3** - Com `mode` em `"auto"`, `"default"`, `"acceptEdits"`, `"bypassPermissions"` e `""`, a faixa não aparece — uma asserção por valor (AC 3)
 Proof: `pnpm exec vitest run packages/web/src/features/conversation/PlanModeBanner.test.tsx -t "fora de plan mode não há faixa"`
 
 **C4** - ✓ Com `readOnly` e `mode: "plan"`, a faixa não aparece (AC 4)
@@ -91,11 +91,20 @@ Proof: `pnpm exec vitest run packages/web/src/features/conversation/PlanApproval
 **C22** - ✓ No navegador, o plano do roteiro aparece inteiro — a primeira e a última linha visíveis — e aprovar com *"Yes, and use auto mode"* deixa *"plano aprovado — Yes, and use auto mode"* (AC 10, AC 14)
 Proof: `pnpm exec playwright test e2e/plan-mode.spec.ts -g "o plano inteiro aparece e aprovar deixa o registro"`
 
-**C23** - ✓ No navegador, recarregar a página depois de aprovar mostra o mesmo registro, lido do transcript em disco (AC 19)
+**C23** - No navegador, recarregar a página depois de aprovar mostra o mesmo registro, lido do transcript em disco, e *"ver o plano"* abre o plano com a primeira e a última linha visíveis (AC 19)
 Proof: `pnpm exec playwright test e2e/plan-mode.spec.ts -g "o registro sobrevive a recarregar"`
 
 **C24** - ✓ No navegador, *"No, keep planning"* deixa *"você pediu para continuar planejando"*, e a faixa de plan mode continua (AC 15, AC 22)
 Proof: `pnpm exec playwright test e2e/plan-mode.spec.ts -g "recusar mantém o plan mode"`
+
+**C28** - Cancelar o turno com o pedido do plano pendente emite `permission_resolved` `{outcome: "cancelled"}` para esse `requestId`, e um `respondToPermission` depois é recusado com `NOT_FOUND` (AC 24)
+Proof: `pnpm exec vitest run packages/server/src/acp/AcpManager.fake-adapter.test.ts -t "cancelar o turno cancela o pedido pendente"`
+
+**C29** - O agente sair com um pedido pendente emite `permission_resolved` `{outcome: "cancelled"}` para esse `requestId` antes do evento de saída (AC 25)
+Proof: `pnpm exec vitest run packages/server/src/acp/AcpManager.fake-adapter.test.ts -t "o agente sair cancela o pedido pendente"`
+
+**C30** - No navegador, cancelar o turno com o plano pendente deixa *"pedido cancelado"* no cartão, sem botões (AC 16, AC 24)
+Proof: `pnpm exec playwright test e2e/plan-mode.spec.ts -g "cancelar com o plano pendente deixa pedido cancelado"`
 
 ### S4 - o roteiro de plan mode no agente falso · 2 files · 45 KB · ~11k
 
@@ -112,24 +121,25 @@ Proof: `pnpm exec playwright test e2e/acp-conversation.spec.ts e2e/session-mode.
 
 | Set (size) | Member -> proof | Unproven |
 | --- | --- | --- |
-| valores de `mode` na faixa (5) | `plan` C1 · `auto` C3 · `default` C3 · `bypassPermissions` C3 · `""` C3 | - |
+| valores de `mode` na faixa (6) | `plan` C1 · `auto` C3 · `default` C3 · `acceptEdits` C3 · `bypassPermissions` C3 · `""` C3 | - |
 | transições da faixa (2) | entra em `plan` C6 · sai de `plan` C2 | - |
 | tipos de `content` no `tool_call` (4) | `content` C7 · `diff` C8 · `terminal` C8 · ausente C9 | - |
 | valores da política do Lumem com `switch_mode` (3) | `ask` C11 · `auto` C11 · `free` C11, C12 | - |
 | opções do pedido de plano (4) | `exit-plan-clear-auto` C14, C15, C17 · `exit-plan-auto` C14, C15, C17 · `exit-plan-default` C14, C15, C16, C17 · `reject` C14, C15, C16, C18 | - |
-| desfechos do pedido (4) | `allow_always` C17 · `allow_once` C17 · `reject_once` C18 · `cancelled` C19 | - |
+| desfechos do pedido (4) | `allow_always` C17 · `allow_once` C17 · `reject_once` C18 · `cancelled` C19, C30 | - |
+| produtores de `permission_resolved` `cancelled` (2) | turno cancelado C28, C30 · agente saiu C29 | - |
 | estados do cartão (4) | pendente C13 · pendente sem texto C21 · registro recolhido C20 · registro expandido C20 | - |
 | respostas do roteiro -> modo (4) | `exit-plan-clear-auto` C26 · `exit-plan-auto` C26 · `exit-plan-default` C26 · `reject` C26 | - |
 | porta 1: `tool_call` leva `content` (2 lados) | tradutor C7 · reducer C10 | - |
-| porta 2: o transcript grava o `content` (2 caminhos) | ao vivo C22 · relido do disco C23 | - |
+| porta 2: o transcript grava o `content` (2 caminhos) | ao vivo C22 · relido do disco C23 (o plano aberto depois do reload) | - |
 
-- Afirmações sobre o que atravessa o WebSocket: C12, C22, C23, C24 — cada uma tem prova que cruza o daemon real
+- Afirmações sobre o que atravessa o WebSocket: C12, C22, C23, C24, C28, C29, C30 — cada uma tem prova que cruza o daemon real
 - Nenhum outro check afirma mais do que o caso que a sua prova exercita
 
 ## Swept
 
 - validation: C21 — o `content` sem texto é o único valor fora do esperado que chega ao cartão; o `optionId` desconhecido cai no bloco que existe (`PermissionRequest`)
-- failure modes: C19 — o pedido cancelado no meio (turno cancelado, sessão fechada) é o único desfecho sem escolha
+- failure modes: C28, C29, C30 — o pedido cancelado no meio (turno cancelado, agente saiu) é o único desfecho sem escolha, e o daemon é quem o produz; C19 é o cartão reagindo a ele
 - idempotency: existing - um segundo `permission_response` para o mesmo `requestId` é recusado com `NOT_FOUND` em `AcpManager.respondToPermission`, e o cartão perde os botões no primeiro `permission_resolved` (C17–C19)
 - authorization: C11, C12 — a única autoridade nova é a de **não** aprovar; o daemon ainda não tem autenticação (`019`, proposta)
 - concurrency: existing - um pedido de permissão pendente por sessão; o reducer já descarta o bloco anterior em `permission_request` (`conversation-model.ts:294-321`)

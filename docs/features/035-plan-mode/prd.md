@@ -95,6 +95,7 @@ põe logo acima da `ComposerBox`.
 | domain | termo novo: **plano** passa a ser o texto que o agente pede para aprovar ao sair do plan mode — vive no tool call `switch_mode` |
 | domain | termo existente: `PlanCard` e o rótulo **"Plano"** (`PlanCard.tsx:47-55`) nomeiam a **lista de passos** do agente (`sessionUpdate: "plan"`); o rótulo passa a ser **"Passos"** ([Q3](open-questions.md)); componente e evento mantêm o nome |
 | contract | o evento `tool_call` (`packages/shared/src/acp-protocol.ts:269-277`) ganha `content` opcional; quem lê hoje: o reducer do web (`conversation-model.ts`) e o `AcpManager` (`kindOf`, `commandOf`) — nenhum quebra com um campo a mais |
+| permissão | cancelar o turno ou o agente sair passa a emitir `permission_resolved` `cancelled` para todo pedido pendente, e a responder `NOT_FOUND` depois — vale para **todo** pedido, não só o do plano; o bloco genérico (`PermissionRequest`) também deixa de ficar com botões vivos |
 | política | `decidePermission` passa a recusar-se a aprovar `switch_mode` nos três valores; o `automático` já não aprovava (só `read`), o `liberado` aprovava |
 | stored data | nada a migrar: transcripts antigos não têm `content` no `tool_call` e a leitura é *forward-compatible* (`TranscriptStore.ts`); os novos passam a gravá-lo |
 | e2e | o agente falso ganha um roteiro de plan mode, por palavra-chave no prompt, sem mudar o turno padrão que as outras 17 specs usam |
@@ -165,9 +166,19 @@ O pedido de sair do plan mode vira um cartão com o plano renderizado e as opç�
 16. IF chega `permission_resolved` com `outcome: "cancelled"` THEN the cartão SHALL virar registro, sem botões, com o texto *"pedido cancelado"*
 17. WHILE o cartão é registro the transcript SHALL mostrar o plano recolhido, com um botão *"ver o plano"* que o expande inteiro
 18. IF o tool call `switch_mode` não tem nenhum `content` de texto THEN the cartão SHALL mostrar *"o agente não mandou o texto do plano"* no lugar do plano, e as opções continuam
-19. WHEN uma conversa com um plano decidido é reaberta do disco THEN the transcript SHALL mostrar o mesmo registro, com o mesmo texto do critério 14, 15 ou 16
+19. WHEN uma conversa com um plano decidido é reaberta do disco THEN the transcript SHALL mostrar o mesmo registro, com o mesmo texto do critério 14, 15 ou 16, e *"ver o plano"* SHALL abrir o plano inteiro relido do disco
+24. WHEN a pessoa cancela o turno com um pedido de permissão pendente THEN the daemon SHALL emitir `permission_resolved` com `outcome: "cancelled"` para cada pedido pendente da sessão, e SHALL recusar com `NOT_FOUND` um `permission_response` posterior para qualquer um deles
+25. WHEN o processo do agente sai com um pedido de permissão pendente THEN the daemon SHALL emitir `permission_resolved` com `outcome: "cancelled"` para cada pedido pendente antes de marcar a sessão como encerrada
 
 **Independent test:** e2e contra o roteiro de plan mode do agente falso — ver o plano inteiro, aprovar, ver o registro e a faixa sumir; recarregar e ver o registro.
+
+> **Nota — os critérios 24 e 25 nasceram da verificação de 2026-09-29** ([verification.md](verification.md),
+> F1). O critério 16 supunha um `permission_resolved` cancelado que **o daemon nunca emitia**: `cancel()`
+> não resolvia o pedido pendente e `markExited` o resolvia só para o agente, sem evento. O cartão
+> ficava com os botões vivos depois de um turno cancelado, e um clique gravava *"plano aprovado"* sobre
+> um pedido que o agente já tinha abandonado. O defeito é anterior à `035` e vale para o bloco genérico
+> também; a correção é a do protocolo ACP — ao cancelar, o cliente responde `cancelled` a todo pedido
+> pendente. O critério 16 fica de pé como estava: o que mudou foi ele ganhar quem produz o evento.
 
 ### S4: o roteiro de plan mode no agente falso (P1)
 
@@ -209,7 +220,7 @@ O fluxo passa a ser exercitado a zero token, e serve de e2e para S1 e S3.
 | screen composer · faixa | conversa em leitura | AC 4 |
 | screen composer · faixa | carregando | n/a - a faixa lê `mode`, que chega no frame de attach junto com o resto; não há espera própria |
 | screen composer · faixa | erro | n/a - não há chamada; a faixa só lê o estado |
-| screen composer · faixa | tom e contraste | existing - o gate de tokens e de contraste de `tokens.css` confere `--color-mode-plan` sobre `--color-bg-info-subtle` |
+| screen composer · faixa | tom e contraste | par novo `mode/plan` sobre `bg/info-subtle` em `contrast.ts`, no gate de contraste — não existia antes desta feature (verificação, F4) |
 | screen transcript · cartão de aprovação | estado pendente | AC 10, AC 11 |
 | screen transcript · cartão de aprovação | plano sem texto | AC 18 |
 | screen transcript · cartão de aprovação | depois da decisão | AC 14, AC 15, AC 16, AC 17 |
