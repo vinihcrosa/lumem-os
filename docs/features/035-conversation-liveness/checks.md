@@ -154,3 +154,9 @@ Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/TurnS
   (`lumem-dev`), em sequência, porque S4 lê o que S3 cria e S2 e S3 mexem no mesmo hook
 - Mechanism: um construtor por fatia, nesta ordem — S1, S2, S3, S4; o verificador (`lumem-reviewer`
   novo) depois do último commit, sobre `origin/main..HEAD`
+- **Boundary:** C1–C7 closed at b565ebb
+- **Settled mid-build:** nada perguntado ao usuário; o fake ganhou `exit({ exitCode, signal })` e
+  `closeStdout()`, e o `AcpManager.ts` subiu no `OVER_THE_CEILING` para 2884, com motivo
+- **Abandoned:** esperar a saída quando o stdout fecha primeiro, para a frase do processo real ser a do
+  door 1 e não `ACP connection closed` — pediria reconhecer o fechamento do SDK e um prazo de espera;
+  nesse caminho o turno continua fechando uma vez só (C4), com a frase do SDK
