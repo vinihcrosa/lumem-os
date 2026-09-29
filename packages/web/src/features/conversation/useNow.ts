@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 /**
- * O relógio da linha de estado do turno (`035` S3): um tique por segundo, e
+ * O relógio da linha de estado do turno (`037` S3): um tique por segundo, e
  * nenhum intervalo ligado quando não há turno.
  *
  * Inativo, devolve o último valor sem agendar nada — uma aba escondida, ou uma

@@ -1,7 +1,7 @@
 import type { ConversationState, ToolCallView } from "./conversation-model.js";
 
 /**
- * O que a linha de estado do turno escreve (`035` S3), puro.
+ * O que a linha de estado do turno escreve (`037` S3), puro.
  *
  * Fora do componente pelo mesmo motivo do `turn-close-text.ts`: a frase é o que
  * se testa, e um componente só a desenha. O relógio entra como número — quem lê
@@ -74,7 +74,7 @@ export function activityText(activity: TurnActivity): string {
 }
 
 /**
- * Quanto tempo sem evento, com turno em voo, até a linha ficar âmbar (`035` Q1).
+ * Quanto tempo sem evento, com turno em voo, até a linha ficar âmbar (`037` Q1).
  *
  * Uma constante só, e no `web`: o silêncio é leitura da tela, nunca gravado, e
  * o número se reavalia depois de uma semana de uso — não em `/settings`.
@@ -88,7 +88,7 @@ export interface TurnLine {
 }
 
 /**
- * A linha do turno em `now` (`035` S4).
+ * A linha do turno em `now` (`037` S4).
  *
  * Ferramenta aberta e permissão pendente nunca são silêncio: a primeira tem o
  * próprio relógio — medido do início dela, porque um comando longo que não

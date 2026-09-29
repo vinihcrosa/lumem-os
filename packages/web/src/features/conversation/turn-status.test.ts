@@ -5,7 +5,7 @@ import { replayConversation } from "./conversation-model.js";
 import { activityText, formatElapsed, turnActivity, turnLine } from "./turn-status.js";
 
 /**
- * O que a linha de estado do turno escreve (`035` S3), antes de ser componente.
+ * O que a linha de estado do turno escreve (`037` S3), antes de ser componente.
  *
  * Os estados vêm do redutor, e não montados à mão: a linha lê o que a dobra
  * produz, e um estado que a dobra não produz não é um caso que a tela encontra.
@@ -107,7 +107,7 @@ describe("o fazer do agente", () => {
   });
 });
 
-describe("o aviso de silêncio (`035` S4)", () => {
+describe("o aviso de silêncio (`037` S4)", () => {
   const T0 = 1_800_000_000_000;
   const user = (atMs: number): AcpTranscriptEntry => ({
     at: atMs,

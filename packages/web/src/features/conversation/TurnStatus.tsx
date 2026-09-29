@@ -3,7 +3,7 @@ import { formatElapsed, turnLine } from "./turn-status.js";
 import { useNow } from "./useNow.js";
 
 /**
- * A linha acima do composer enquanto há turno (`035` S3): há quanto tempo, e
+ * A linha acima do composer enquanto há turno (`037` S3): há quanto tempo, e
  * fazendo o quê.
  *
  * Decide sozinha se aparece, com a mesma condição do caret e do `■ interromper`

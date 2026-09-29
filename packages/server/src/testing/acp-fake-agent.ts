@@ -416,7 +416,7 @@ export interface FakeAgentHandle {
    */
   readonly promptBlocks: readonly (readonly string[])[];
   /**
-   * O processo sai **com o stdout ainda aberto** (`035` S1).
+   * O processo sai **com o stdout ainda aberto** (`037` S1).
    *
    * O `kill()` resolve a saída sem fechar os streams, e isto também — mas com o
    * código ou o sinal que o teste escolhe. É o adaptador cujo stdout ficou com um

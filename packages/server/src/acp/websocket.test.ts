@@ -552,7 +552,7 @@ describe("um turno que falhou", () => {
   });
 });
 
-describe("o adaptador que sai antes de ouvir a pergunta (`035` Q4)", () => {
+describe("o adaptador que sai antes de ouvir a pergunta (`037` Q4)", () => {
   it("sends no error frame for a turn the exit already closed", async () => {
     const fake = fakeAgentProcess();
     queued.push(fake.process);

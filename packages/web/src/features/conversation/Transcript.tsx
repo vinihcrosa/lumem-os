@@ -3,9 +3,10 @@ import { useCallback, useRef, useState } from "react";
 import { absoluteStamp } from "../../lib/relative-time.js";
 import { Banner, Coach } from "../../ui/index.js";
 import { ContinueInMenu, type ContinueInProps } from "./ContinueInMenu.js";
-import { type Block, type ConversationState, type TerminalView } from "./conversation-model.js";
+import { type Block, type ConversationState, type PendingPermission, type TerminalView } from "./conversation-model.js";
 import { Message, Thought, TurnFrame } from "./Message.js";
 import { PermissionRequest } from "./PermissionRequest.js";
+import { PlanApproval } from "./PlanApproval.js";
 import { PlanCard } from "./PlanCard.js";
 import { ToolCard } from "./ToolCard.js";
 import { useFirstPermissionCoach, type FirstPermissionCoach } from "./useFirstPermissionCoach.js";
@@ -39,7 +40,17 @@ export function Transcript({
   sessionLink,
   continueIn,
 }: TranscriptProps) {
-  const [openThoughts, setOpenThoughts] = useState<ReadonlySet<string>>(new Set());
+  /**
+   * O que um clique escolheu para cada pensamento, pela posição `turno:bloco`.
+   *
+   * Pela posição, e não pelo `messageId`: o transcript mostra o mesmo id em todos
+   * os pensamentos de um turno, e abrir um abria todos. Blocos só entram no fim
+   * do turno, então a posição de um bloco não muda depois que ele existe.
+   *
+   * Ausente quer dizer *ninguém mexeu*, e aí o bloco segue o stream — aberto
+   * enquanto é escrito, fechado quando acaba (`036`).
+   */
+  const [thoughtChoices, setThoughtChoices] = useState<ReadonlyMap<string, boolean>>(new Map());
   /**
    * The first permission on this machine gets an explanation (F5.4).
    *
@@ -49,6 +60,18 @@ export function Transcript({
    */
   const coach = useFirstPermissionCoach(conversation.pendingPermission !== null);
   const scroll = useAutoScroll();
+  /*
+   * Os tool calls de sair do plan mode (`035`): o pedido deles aparece no cartão
+   * do plano, e o bloco genérico de permissão some para esse `toolCallId`. Só
+   * quando o tool call existe — sem ele não há cartão, e o pedido fica genérico.
+   */
+  const planCalls = new Set(
+    conversation.turns.flatMap((turn) =>
+      turn.blocks.flatMap((block) =>
+        block.kind === "tool" && block.call.kind === "switch_mode" ? [block.call.toolCallId] : [],
+      ),
+    ),
+  );
 
   return (
     <div className="conv__scroll" ref={scroll}>
@@ -85,47 +108,48 @@ export function Transcript({
           <ResumeMark key={turnIndex} at={turn.at ?? null} />
         ) : (
           <TurnFrame key={turnIndex} role={turn.role}>
-            {turn.blocks.map((block, blockIndex) => (
-              <BlockView
-                key={blockIndex}
-                block={block}
-                terminals={conversation.terminals}
-                // Only the last block of the last turn can still be growing — and
-                // never in a record: a transcript saved before any close replays
-                // with `streaming` on, and nothing there is growing (`035` S1).
-                // Only the agent's: right after sending, the last block is the
-                // question itself, and a caret on it read as the user still typing (S3).
-                streaming={
-                  conversation.streaming &&
-                  !readOnly &&
-                  turn.role === "agent" &&
-                  turnIndex === conversation.turns.length - 1 &&
-                  blockIndex === turn.blocks.length - 1
-                }
-                openThoughts={openThoughts}
-                onToggleThought={(messageId) =>
-                  setOpenThoughts((current) => {
-                    const copy = new Set(current);
-                    if (copy.has(messageId)) copy.delete(messageId);
-                    else copy.add(messageId);
-                    return copy;
-                  })
-                }
-                onRespond={(optionId) => {
-                  const request = conversation.pendingPermission;
-                  if (!request) return;
-                  answer(request.requestId, optionId);
-                }}
-                coach={coach}
-                sessionLink={sessionLink}
-                /*
-                 * Só a recusa do **último** turno oferece o gesto: com conversa
-                 * depois dela, a cota já reabriu, e continuar noutra conta por
-                 * causa de um limite que passou é o cabeçalho, não esta linha.
-                 */
-                continueIn={turnIndex === conversation.turns.length - 1 ? continueIn : undefined}
-              />
-            ))}
+            {turn.blocks.map((block, blockIndex) => {
+              // Only the last block of the last turn can still be growing — and
+              // never in a record: a transcript saved before any close replays
+              // with `streaming` on, and nothing there is growing (`037` S1).
+              // Only the agent's: right after sending, the last block is the
+              // question itself, and a caret on it read as the user still typing (S3).
+              const streaming =
+                conversation.streaming &&
+                !readOnly &&
+                turn.role === "agent" &&
+                turnIndex === conversation.turns.length - 1 &&
+                blockIndex === turn.blocks.length - 1;
+              const position = `${turnIndex}:${blockIndex}`;
+              const thoughtOpen = thoughtChoices.get(position) ?? streaming;
+              return (
+                <BlockView
+                  key={blockIndex}
+                  block={block}
+                  terminals={conversation.terminals}
+                  pending={conversation.pendingPermission}
+                  planCalls={planCalls}
+                  streaming={streaming}
+                  thoughtOpen={thoughtOpen}
+                  onToggleThought={() =>
+                    setThoughtChoices((current) => new Map(current).set(position, !thoughtOpen))
+                  }
+                  onRespond={(optionId) => {
+                    const request = conversation.pendingPermission;
+                    if (!request) return;
+                    answer(request.requestId, optionId);
+                  }}
+                  coach={coach}
+                  sessionLink={sessionLink}
+                  /*
+                   * Só a recusa do **último** turno oferece o gesto: com conversa
+                   * depois dela, a cota já reabriu, e continuar noutra conta por
+                   * causa de um limite que passou é o cabeçalho, não esta linha.
+                   */
+                  continueIn={turnIndex === conversation.turns.length - 1 ? continueIn : undefined}
+                />
+              );
+            })}
           </TurnFrame>
         ),
       )}
@@ -158,9 +182,13 @@ interface BlockViewProps {
   block: Block;
   /** The conversation's terminals; a card picks out its own by id. */
   terminals: readonly TerminalView[];
+  pending: PendingPermission | null;
+  /** Os tool calls `switch_mode`, cujo pedido o cartão do plano mostra. */
+  planCalls: ReadonlySet<string>;
   streaming: boolean;
-  openThoughts: ReadonlySet<string>;
-  onToggleThought(messageId: string): void;
+  /** Aberto ou fechado, se este bloco for um pensamento — quem decide é o `Transcript`. */
+  thoughtOpen: boolean;
+  onToggleThought(): void;
   onRespond(optionId: string): void;
   /** The first-time explanation of `Auto`, if it is still owed. */
   coach: FirstPermissionCoach;
@@ -171,8 +199,10 @@ interface BlockViewProps {
 function BlockView({
   block,
   terminals,
+  pending,
+  planCalls,
   streaming,
-  openThoughts,
+  thoughtOpen,
   onToggleThought,
   onRespond,
   coach,
@@ -186,14 +216,20 @@ function BlockView({
       return (
         <Thought
           text={block.text}
-          open={openThoughts.has(block.messageId)}
-          onToggle={() => onToggleThought(block.messageId)}
+          open={thoughtOpen}
+          onToggle={onToggleThought}
           streaming={streaming}
+          elapsedMs={block.endedAt - block.startedAt}
         />
       );
     case "tool":
+      if (block.call.kind === "switch_mode") {
+        const request = pending?.toolCallId === block.call.toolCallId ? pending : null;
+        return <PlanApproval call={block.call} request={request} onRespond={onRespond} />;
+      }
       return <ToolCard call={block.call} terminals={terminals} />;
     case "permission":
+      if (planCalls.has(block.request.toolCallId)) return null;
       return (
         <>
           <PermissionRequest request={block.request} onRespond={onRespond} />

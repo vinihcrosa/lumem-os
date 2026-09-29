@@ -77,14 +77,26 @@ describe("turns", () => {
   });
 
   it("keeps thought separate from what the agent said", () => {
+    const thought = at({ type: "thought", messageId: "t-1", text: "dois caminhos" });
+    const state = from(thought, agentSaid("Vou separar."));
+
+    expect(state.turns[0]?.blocks).toEqual([
+      { kind: "thought", messageId: "t-1", text: "dois caminhos", startedAt: thought.at, endedAt: thought.at },
+      { kind: "message", messageId: "a-1", text: "Vou separar." },
+    ]);
+  });
+
+  it("keeps the at of the first and the last chunk of a thought", () => {
+    // `036` C8: a duração do pensamento sai destes dois números, e o redutor
+    // continua puro — o `at` já chega em cada entrada.
     const state = from(
-      at({ type: "thought", messageId: "t-1", text: "dois caminhos" }),
-      agentSaid("Vou separar."),
+      { at: 1_000, event: { type: "thought", messageId: "t-1", text: "primeiro " } },
+      { at: 5_000, event: { type: "thought", messageId: "t-1", text: "meio " } },
+      { at: 13_300, event: { type: "thought", messageId: "t-1", text: "fim" } },
     );
 
     expect(state.turns[0]?.blocks).toEqual([
-      { kind: "thought", messageId: "t-1", text: "dois caminhos" },
-      { kind: "message", messageId: "a-1", text: "Vou separar." },
+      { kind: "thought", messageId: "t-1", text: "primeiro meio fim", startedAt: 1_000, endedAt: 13_300 },
     ]);
   });
 
@@ -236,6 +248,28 @@ describe("tool calls", () => {
     );
 
     expect(state.turns[0]?.blocks[0]).toMatchObject({ call: { status: "ok" } });
+  });
+});
+
+describe("o content do tool_call (`035`)", () => {
+  it("o content do tool_call fica, e o update o substitui", () => {
+    const plan = { type: "content" as const, text: "# Plano\n\n- ler o loader" };
+    const call = at({
+      type: "tool_call",
+      toolCallId: "tc-plan",
+      title: "Approve Plan",
+      kind: "switch_mode",
+      status: "pending",
+      locations: [],
+      content: [plan],
+    });
+
+    const first = from(call);
+    expect(first.turns[0]?.blocks[0]).toMatchObject({ kind: "tool", call: { content: [plan] } });
+
+    const replaced = { type: "content" as const, text: "outro texto" };
+    const later = feed(first, at({ type: "tool_call_update", toolCallId: "tc-plan", content: [replaced] }));
+    expect(later.turns[0]?.blocks[0]).toMatchObject({ kind: "tool", call: { content: [replaced] } });
   });
 });
 
@@ -895,7 +929,7 @@ describe("um turno que falhou, sem ser cota", () => {
   });
 });
 
-describe("o relógio do turno (`035` S3)", () => {
+describe("o relógio do turno (`037` S3)", () => {
   const stamped = (atMs: number, event: AcpEvent): AcpTranscriptEntry => ({ at: atMs, event });
 
   it("guarda o início do turno e o último evento", () => {

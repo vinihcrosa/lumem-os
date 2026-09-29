@@ -19,6 +19,9 @@
 > [Q5](open-questions.md#x-q5--dois-prompt-na-mesma-sessão-ao-mesmo-tempo-são-permitidos) respondida
 > em **B** — dois `prompt` na mesma sessão continuam permitidos — e a
 > [Q6](open-questions.md#x-q6--o-prompt-pendente-do-setup-perde-o-reenvio-automático) em **A**.
+> v0.5 — **renumerada de `035` para `037` em 2026-09-29**: colidiu com a
+> [`035-plan-mode`](../035-plan-mode/prd.md) e a [`036-reasoning`](../036-reasoning/prd.md), que
+> entraram na `main` antes; esta nunca tinha entrado. Os commits anteriores citam `035` no trailer.
 
 ## Problem
 

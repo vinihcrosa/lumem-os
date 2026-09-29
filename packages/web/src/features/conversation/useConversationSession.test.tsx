@@ -244,7 +244,7 @@ describe("o aviso de quem está esperando", () => {
 });
 
 /**
- * A conexão que cai e volta (`035` S2, door 3).
+ * A conexão que cai e volta (`037` S2, door 3).
  *
  * Um socket por `connect`, cada um com os seus handlers: é o que deixa o teste
  * derrubar a conexão corrente e ver se o hook abre **outra**, para a mesma

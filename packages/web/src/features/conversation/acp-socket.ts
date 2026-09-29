@@ -51,7 +51,7 @@ export interface AcpSocket {
   /**
    * Puts the message on the wire. False when it did not — refused by the schema,
    * above the frame limit, or with the socket not open —, after telling
-   * `onSendRejected` why. The composer keeps a draft that never left (`035` C13).
+   * `onSendRejected` why. The composer keeps a draft that never left (`037` C13).
    */
   send(message: AcpClientMessage): boolean;
   close(): void;

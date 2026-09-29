@@ -192,7 +192,7 @@
   color: var(--color-turn-user);
 }
 /*
- * Streaming (F2.1): o caret diz que o texto ainda cresce. Pisca (`035` S3) —
+ * Streaming (F2.1): o caret diz que o texto ainda cresce. Pisca (`037` S3) —
  * parado, ele era o mesmo pixel num agente escrevendo e num agente morto.
  * Degrau, e não esmaecer: é um cursor, e cursor liga e desliga.
  */
@@ -220,6 +220,37 @@
   gap: var(--space-6);
   font: var(--text-body-sm);
   color: var(--color-turn-thought);
+  /*
+   * Do tamanho do texto, e não da coluna (`036`). Item de grid do `.turn__b`
+   * estica por padrão: o brilho de `.thought--live`, dimensionado pelo botão,
+   * passava a maior parte do tempo longe das letras. O `nowrap` segura o rótulo
+   * numa linha — quem encolhe é a espiada, que já tem reticências.
+   */
+  justify-self: start;
+  max-width: 100%;
+  white-space: nowrap;
+}
+/*
+ * O brilho enquanto ele pensa (`036`): uma faixa mais clara passando pelo texto,
+ * sem mudar a cor de nada parado. É o sinal de vida de um silêncio longo; sem
+ * ele, *"pensando…"* e um turno pendurado se leem igual.
+ */
+.thought--live {
+  background: linear-gradient(
+    90deg,
+    var(--color-turn-thought) 40%,
+    var(--color-text-primary) 50%,
+    var(--color-turn-thought) 60%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: thought-shimmer 2s linear infinite;
+}
+@keyframes thought-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .thought--live { animation: none; background: none; color: var(--color-turn-thought); }
 }
 .thought__twist { font-size: var(--size-icon-xs); }
 .thought__peek { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-style: italic; }
@@ -425,6 +456,41 @@
 .perm__where { font: var(--text-mono-sm); color: var(--color-text-secondary); }
 .perm__why { font: var(--text-body-sm); color: var(--color-text-primary); }
 .perm__opts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-6); }
+/* ------------------------------- o cartão do plano do plan mode (035) */
+/*
+ * O tom do modo `plan`, e não o de aviso do `.perm`: o pedido para o turno do
+ * mesmo jeito, mas o que se lê aqui é um documento, não um comando. O plano é
+ * pintado pelo `.msg`, como a resposta do agente.
+ */
+.plan-approval { background: var(--color-bg-surface); border: 1px solid var(--color-mode-plan); border-radius: var(--radius-md); overflow: hidden; }
+.plan-approval__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  min-height: var(--size-row-compact);
+  padding: 0 var(--space-10);
+  font: var(--text-label-sm);
+  color: var(--color-mode-plan);
+}
+.plan-approval__glyph { flex: none; width: var(--size-icon-md); text-align: center; font-size: var(--size-icon-sm); }
+.plan-approval__why { padding: 0 var(--space-10) var(--space-8); font: var(--text-body-sm); color: var(--color-text-primary); }
+.plan-approval__doc,
+.plan-approval__none { padding: var(--space-10) var(--space-12); border-top: 1px solid var(--color-border-subtle); }
+.plan-approval__none { font: var(--text-body-sm); color: var(--color-text-secondary); }
+.plan-approval__opts { display: grid; gap: var(--space-8); padding: var(--space-10); border-top: 1px solid var(--color-border-subtle); }
+.plan-approval__allow,
+.plan-approval__keep { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-6); }
+.plan-approval__keep { font: var(--text-body-sm); color: var(--color-text-secondary); }
+.plan-approval__record {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-6) var(--space-10);
+  border-top: 1px solid var(--color-border-subtle);
+  font: var(--text-label-sm);
+  color: var(--color-text-primary);
+}
+
 /* `.kbd` mora em `ui/ui.css`: o fluxo de primeiro acesso pede a mesma dica de
    tecla, e dica de tecla é do app, não da conversa. `.btn--brand` e `.btn--warn`
    mudaram de endereço pelo mesmo motivo — variante de `.btn` mora ao lado das
@@ -486,7 +552,7 @@
 
 /* ------------------------------------------- a linha de estado do turno */
 /*
- * Acima do composer, enquanto há turno (`035` S3): há quanto tempo, e fazendo o
+ * Acima do composer, enquanto há turno (`037` S3): há quanto tempo, e fazendo o
  * quê. O ponto é da família do agente, como o `.draft__pulse` — é o agente que
  * está trabalhando, e a marca nunca diz estado. Parado para quem pediu menos
  * movimento: o tempo andando ao lado já diz que está vivo.
@@ -515,7 +581,7 @@
 .turn-status__doing { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text-tertiary); }
 .turn-status__doing::before { content: "· "; }
 @media (prefers-reduced-motion: reduce) { .turn-status__pulse { animation: none; } }
-/* Silêncio (`035` S4): tom de estado, `warning` — a marca nunca é estado. O ponto
+/* Silêncio (`037` S4): tom de estado, `warning` — a marca nunca é estado. O ponto
    para, porque pulsar é dizer "vivo", e é justamente o que não se sabe. */
 .turn-status--warning .turn-status__elapsed,
 .turn-status--warning .turn-status__doing { color: var(--color-text-warning); }
@@ -564,6 +630,19 @@
  * Nenhum e2e o abria, e jsdom não faz layout: o defeito atravessou três
  * features sem aparecer.
  */
+/*
+ * A faixa de plan mode (`035`): o tom da pílula `plan`, em palavras, colada no
+ * topo da caixa — é sobre a próxima mensagem, não sobre a conversa inteira.
+ */
+.plan-mode {
+  margin-bottom: var(--space-6);
+  padding: var(--space-6) var(--space-10);
+  background: var(--color-bg-info-subtle);
+  border: 1px solid var(--color-mode-plan);
+  border-radius: var(--radius-md);
+  font: var(--text-body-sm);
+  color: var(--color-mode-plan);
+}
 .composer__box { background: var(--color-bg-surface); border: 1px solid var(--color-border-default); border-radius: var(--radius-lg); }
 .composer__box--focus { border-color: var(--color-border-focus); }
 /*
@@ -873,14 +952,16 @@
 .count--asking { background: var(--color-bg-warning-subtle); color: var(--color-permission-pending); }
 
 /*
- * Empurra o que vem depois para a direita, e só nestes dois cabeçalhos.
+ * Empurra o que vem depois para a direita, e só nestes cabeçalhos.
  *
  * O protótipo tinha `.spacer` como utilitário global; o app não tem utilitário
  * de layout, e introduzir um por causa de dois lugares é abrir uma porta que não
  * fecha. Escopado, é a mesma regra sem a porta.
  */
 .conv__head .spacer,
-.perm__head .spacer {
+.perm__head .spacer,
+.plan-approval__head .spacer,
+.plan-approval__record .spacer {
   flex: 1;
 }
 /*

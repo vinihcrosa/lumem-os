@@ -5,7 +5,7 @@ import { replayConversation } from "./conversation-model.js";
 import { TurnStatus, type TurnStatusProps } from "./TurnStatus.js";
 
 /**
- * A linha de estado do turno (`035` S3), acima de um composer parado.
+ * A linha de estado do turno (`037` S3), acima de um composer parado.
  *
  * O relógio é fixo em cada história: o decorrido é parte do que se revisa, e um
  * relógio de verdade mudaria o desenho entre duas olhadas.

@@ -302,7 +302,7 @@ describe("sending", () => {
   });
 });
 
-describe("a recusa do envio (`035` S2)", () => {
+describe("a recusa do envio (`037` S2)", () => {
   it("send devolve false quando recusa", () => {
     const { socket, fake, rejected } = connect();
 

@@ -2,7 +2,7 @@
 
 **Status:** em execução
 Profile: ui
-Plan: `docs/features/035-conversation-liveness/prd.md`
+Plan: `docs/features/037-conversation-liveness/prd.md`
 
 31 checks em 4 fatias · 4 portas de mão única · 0 abertas. C28–C30 e a reescrita do C25 vieram da
 verificação da rodada 1, e o C31 da rodada 2 ([Q5](open-questions.md#x-q5--dois-prompt-na-mesma-sessão-ao-mesmo-tempo-são-permitidos)); todos aprovados em 2026-09-29.

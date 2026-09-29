@@ -483,10 +483,11 @@ const LARGE_FILE_CEILING: Readonly<Record<string, { lines: number; reason: strin
   "features/checkout/RunDock.tsx": { lines: 587, reason: "linha de base da T25 da `032`" },
   "features/checkout/useFileBuffer.ts": { lines: 605, reason: "linha de base da T25 da `032`" },
   "features/conversation/conversation-model.ts": {
-    lines: 767,
+    lines: 779,
     reason:
       "um `case` por evento, com as frases em arquivos à parte (`033`, `034`, `028` T17); 751 → 750 na T9 da `024`; " +
-      "mais 17 da `035` S3 — `turnStartedAt` e `lastEventAt` são estado do fold, e carimbá-los fora dele seria " +
+      "750 → 762 na `035`: o pedido retirado (`askWithdrawn`) fica no tool call, que é onde o cartão do plano o lê; " +
+      "mais 17 da `037` S3 — `turnStartedAt` e `lastEventAt` são estado do fold, e carimbá-los fora dele seria " +
       "uma segunda dobra que o replay teria de repetir",
   },
   "features/settings/SettingsPanel.tsx": { lines: 567, reason: "linha de base da T25 da `032`" },

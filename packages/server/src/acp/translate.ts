@@ -221,7 +221,7 @@ export function translateSessionUpdate(
       }
       const status: AcpToolStatus = mapped;
 
-      return {
+      const event: Extract<AcpEvent, { type: "tool_call" }> = {
         type: "tool_call",
         toolCallId,
         title,
@@ -230,6 +230,11 @@ export function translateSessionUpdate(
         status,
         locations: toolLocations(update["locations"]),
       };
+      // O plano do plan mode vem aqui, antes da permissão (`035`). Sem `content`
+      // nenhuma chave: é o formato de todo transcript gravado antes disto.
+      const content = toolContent(update["content"]);
+      if (content !== undefined) event.content = content;
+      return event;
     }
 
     case "tool_call_update": {

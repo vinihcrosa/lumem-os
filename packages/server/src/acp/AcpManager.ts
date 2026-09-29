@@ -75,7 +75,7 @@ export const AUTH_STATUS_TIMEOUT_MS = 10_000;
 export const AUTH_STATUS_GRACE_MS = 1_000;
 
 /**
- * Quanto o turno espera pela saída depois de o stdout fechar (`035` S1).
+ * Quanto o turno espera pela saída depois de o stdout fechar (`037` S1).
  *
  * O processo de verdade fecha o cano antes de o `exit` chegar, e é a saída que
  * dá a frase do fecho. Curto porque o turno já acabou; se o processo seguir vivo
@@ -406,7 +406,7 @@ interface PendingPermission {
 }
 
 /**
- * Um `prompt` em voo, com o que a saída do processo precisa para fechá-lo (`035`).
+ * Um `prompt` em voo, com o que a saída do processo precisa para fechá-lo (`037`).
  *
  * Cada `prompt` tem o seu, porque a pergunta de qual turno a guarda faz — *"a
  * saída me fechou?"* — não pode ser respondida por um estado da sessão que o
@@ -420,7 +420,7 @@ interface TurnInFlight {
    *
    * O teto e a memória são lidos antes de a mensagem ser gravada, e o processo
    * pode sair nesse intervalo: aí é a saída que a grava, antes do fecho, para o
-   * replay mostrar o que foi perguntado e o texto não se perder (`035` Q4).
+   * replay mostrar o que foi perguntado e o texto não se perder (`037` Q4).
    */
   question: string | undefined;
   /** O fecho com que a saída levou este turno, ou `undefined` enquanto ele vive. */
@@ -500,7 +500,7 @@ interface Session {
   /** One id per turn, for chunks the agent sends without a message id. */
   turnId: string;
   /**
-   * Os `prompt` em voo, cada um com o seu gatilho (`035` S1, Q5).
+   * Os `prompt` em voo, cada um com o seu gatilho (`037` S1, Q5).
    *
    * O `session/prompt` só rejeita sozinho quando o stdout fecha, e um adaptador
    * pode sair com ele aberto — herdado por um neto. Sem o gatilho o `prompt`
@@ -542,6 +542,8 @@ interface Session {
    * declarada, e não descoberta no turno (ADR de 2026-09-13).
    */
   quotaRefusalKind: string | null;
+  /** O `_meta` do `session/new` e do `session/load` (`036`), da `spec` como a `quotaRefusalKind`. */
+  reasoningMeta: Readonly<Record<string, unknown>> | null;
   /** O rótulo do agente, para a frase da recusa. */
   agentLabel: string;
   /** A conta da sessão, quando quem a abriu disse. */
@@ -1273,6 +1275,7 @@ export class AcpManager {
       replaying: false,
       coreInjected: false,
       quotaRefusalKind: spec?.quotaRefusalKind ?? null,
+      reasoningMeta: spec?.reasoningMeta ?? null,
       // "agente" quando o catálogo não conhece: a frase continua sendo uma frase,
       // e o nome do binário não é o que alguém chama de agente.
       agentLabel: spec?.label ?? "agente",
@@ -1324,7 +1327,7 @@ export class AcpManager {
     // sozinho quando o stdout fecha, e é a saída que o markExited vê. Armada
     // aqui, antes do teto e da memória, porque a saída pode chegar enquanto eles
     // são lidos — e aí ninguém ainda corre contra ela. Um gatilho por turno: o
-    // `prompt` seguinte não pode tomar o deste (`035` Q5).
+    // `prompt` seguinte não pode tomar o deste (`037` Q5).
     const turn: TurnInFlight = { id: session.turnId, question: text, failure: undefined, release: () => {} };
     const exited = new Promise<never>((_, reject) => {
       turn.release = reject;
@@ -1422,7 +1425,7 @@ export class AcpManager {
         exited,
       ]));
     } catch (error) {
-      // Um fecho só por turno (`035` door 2). A saída já fechou este, e o fecho
+      // Um fecho só por turno (`037` door 2). A saída já fechou este, e o fecho
       // é o `AcpTurnFailedError` com que ela libertou o pedido; o `ACP connection
       // closed` que o SDK manda depois não conta de novo.
       if (turn.failure !== undefined) throw turn.failure;
@@ -1615,6 +1618,23 @@ export class AcpManager {
     void session.connection.agent.notify("session/cancel", {
       sessionId: session.info.acpSessionId,
     });
+    // O protocolo: quem cancela responde `cancelled` a todo pedido pendente (`035`).
+    this.cancelPending(session);
+  }
+
+  /**
+   * Todo pedido pendente, respondido `cancelled` e dito na conversa (`035`, 24–25).
+   *
+   * Sem o evento, o cartão ficava com os botões vivos sobre um pedido que o
+   * agente já abandonou, e um clique gravava uma aprovação sobre ele. Fora do
+   * mapa, uma resposta posterior é `NOT_FOUND`.
+   */
+  private cancelPending(session: Session): void {
+    for (const [requestId, pending] of session.pendingPermissions) {
+      pending.resolve({ outcome: "cancelled" });
+      this.emit(session, { type: "permission_resolved", requestId, outcome: "cancelled", by: "user", reason: null });
+    }
+    session.pendingPermissions.clear();
   }
 
   /**
@@ -2266,7 +2286,7 @@ export class AcpManager {
     let created;
     try {
       created = await this.withTimeout(
-        session.connection.agent.request("session/new", { cwd, mcpServers: [] }),
+        session.connection.agent.request("session/new", { cwd, mcpServers: [], ...metaOf(session) }),
         "session/new",
       );
     } catch (error) {
@@ -2315,6 +2335,7 @@ export class AcpManager {
         sessionId: acpSessionId,
         cwd,
         mcpServers: [],
+        ...metaOf(session),
       }),
       "session/load",
     );
@@ -2541,11 +2562,9 @@ export class AcpManager {
     session.info.exitCode = exitCode;
 
     // Anything still blocked on a person will never be answered now. Resolving
-    // as cancelled is what keeps the agent's own promises from dangling.
-    for (const [, pending] of session.pendingPermissions) {
-      pending.resolve({ outcome: "cancelled" });
-    }
-    session.pendingPermissions.clear();
+    // as cancelled keeps the agent's promises from dangling, and the event —
+    // before the listeners go — keeps the card from offering dead buttons.
+    this.cancelPending(session);
     // Antes de limpar os listeners: quem está com a aba aberta é quem precisa
     // ler que o turno acabou.
     // Também com `promptInFlight` desligado: o primeiro de dois `prompt` que
@@ -2582,7 +2601,7 @@ export class AcpManager {
   }
 
   /**
-   * O turno que o processo levou junto (`035` S1, doors 1 e 2).
+   * O turno que o processo levou junto (`037` S1, doors 1 e 2).
    *
    * Aqui, e não à espera de o `session/prompt` rejeitar: ele só rejeita quando o
    * stdout fecha, e o conserto não pode depender da forma como o estrangeiro
@@ -2973,4 +2992,9 @@ function toAuthMethod(method: {
     args: meta?.args ?? [...(method.args ?? [])],
     label: meta?.label ?? null,
   };
+}
+
+/** O `_meta` da spec para espalhar, ou nada — a chave ausente, e não `null`, é *"sem extensão"*. */
+function metaOf(session: Session): { _meta?: Record<string, unknown> } {
+  return session.reasoningMeta === null ? {} : { _meta: { ...session.reasoningMeta } };
 }

@@ -138,7 +138,7 @@ não é mockado, e nenhum `.skip`, `.todo` ou `.only` entrou em `de6e6e3..54cab5
 Verified at 54cab53.
 
 **Onde.** As mutações rodaram numa cópia descartável de `HEAD`: `git archive HEAD` em
-`/private/tmp/lum035-v3`, com os `node_modules` ligados por symlink. A árvore real não foi tocada: o
+`/private/tmp/lum037-v3`, com os `node_modules` ligados por symlink. A árvore real não foi tocada: o
 `git status --porcelain` estava vazio antes e continuou vazio depois de a cópia ser apagada. Cada
 mutante rodou contra as 17 provas do S1 (`-t "o adaptador que sai|sends no error frame"`).
 

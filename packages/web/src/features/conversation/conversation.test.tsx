@@ -626,7 +626,7 @@ describe("um turno que falhou", () => {
   });
 });
 
-describe("o turno vivo na tela (`035` S3)", () => {
+describe("o turno vivo na tela (`037` S3)", () => {
   it("caret nunca na mensagem do usuário", async () => {
     const { socket } = mount();
     socket.deliver(attached());
@@ -1300,7 +1300,7 @@ describe("a conversation that has ended", () => {
   });
 
   it("conversa encerrada sem fecho não desenha turno vivo", async () => {
-    // `035` S1: uma transcrição gravada antes de qualquer fecho — as que já estão
+    // `037` S1: uma transcrição gravada antes de qualquer fecho — as que já estão
     // em disco, ou a de um adaptador que saiu sem o daemon fechar o turno —
     // termina na pergunta, e o redutor a relê com `streaming` ligado. Somente
     // leitura desliga tudo o que é de turno vivo.

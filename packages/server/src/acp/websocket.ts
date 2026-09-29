@@ -68,7 +68,7 @@ export function registerAcpWebSocket({
 }: RegisterAcpWebSocketOptions): void {
   // A prompt is text a person typed, and F2 does not carry images yet. Without a
   // cap one client can make the daemon buffer whatever it likes. The number is
-  // shared so the browser refuses the same frame before the wire (`035` C14).
+  // shared so the browser refuses the same frame before the wire (`037` C14).
   const wss = new WebSocketServer({ noServer: true, maxPayload: ACP_MAX_FRAME_BYTES });
 
   function attach(ws: WebSocket, sessionId: string): void {

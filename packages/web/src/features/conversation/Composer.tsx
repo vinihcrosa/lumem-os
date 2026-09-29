@@ -8,6 +8,7 @@ import { ComposerBox } from "./ComposerBox.js";
 import { ConfigPills } from "./ConfigPills.js";
 import { FreeModeGate } from "./FreeModeGate.js";
 import { LumemModeMenu, LumemModePill } from "./LumemModePill.js";
+import { PlanModeBanner } from "./PlanModeBanner.js";
 import { filterCommands, slashQuery } from "./SlashMenu.js";
 import { UsageFooter } from "./UsageFooter.js";
 import { useArrival } from "./useArrival.js";
@@ -199,6 +200,7 @@ export function Composer({
             }}
           />
         )}
+        <PlanModeBanner mode={conversation.mode} readOnly={readOnly} />
         <ComposerBox
           value={draft}
           onChange={setDraft}
@@ -280,7 +282,7 @@ export function Composer({
           />
         </ComposerBox>
         {/* Right under the box that kept the draft, so the reason reads as the
-            answer to the send that did not leave (`035` C13). */}
+            answer to the send that did not leave (`037` C13). */}
         {sendRefusal !== null && (
           <div className="composer__refused">
             <Banner tone="danger">{sendRefusal}</Banner>

@@ -66,6 +66,8 @@ export interface ToolCallView {
   verdictBy: "user" | "lumem";
   /** Por que a política aprovou. Null quando foi uma pessoa que respondeu. */
   verdictReason: string | null;
+  /** O agente retirou o pedido (`cancelled`): não é veredito, mas o cartão do plano diz (`035`). */
+  askWithdrawn: boolean;
   /** Kept so a later update can measure against it. */
   readonly startedAt: number;
 }
@@ -89,7 +91,7 @@ export interface PendingPermission {
 
 export type Block =
   | { kind: "message"; messageId: string; text: string }
-  | { kind: "thought"; messageId: string; text: string }
+  | { kind: "thought"; messageId: string; text: string; startedAt: number; endedAt: number }
   | { kind: "tool"; call: ToolCallView }
   | { kind: "permission"; request: PendingPermission }
   /** Something the client received and could not name. Grey, in place. */
@@ -155,7 +157,7 @@ export interface ConversationState {
   streaming: boolean;
   /**
    * The daemon's stamp on the message that opened the turn, and on its newest
-   * event (`035` S3). Null outside a turn. Stamps, not a clock read: the line
+   * event (`037` S3). Null outside a turn. Stamps, not a clock read: the line
    * above the composer subtracts them from its own clock, and the fold stays pure.
    */
   turnStartedAt: number | null;
@@ -269,12 +271,11 @@ function foldEvent(state: ConversationState, { at, event }: AcpTranscriptEntry):
         { kind: "message", messageId: event.messageId, text: event.text },
       );
 
-    case "thought":
-      return appendText(state, "agent", {
-        kind: "thought",
-        messageId: event.messageId,
-        text: event.text,
-      });
+    case "thought": {
+      // `startedAt` e `endedAt`: o `at` do primeiro e do último chunk (`036`).
+      const { messageId, text } = event;
+      return appendText(state, "agent", { kind: "thought", messageId, text, startedAt: at, endedAt: at });
+    }
 
     case "tool_call":
       return appendBlock(state, "agent", {
@@ -286,13 +287,14 @@ function foldEvent(state: ConversationState, { at, event }: AcpTranscriptEntry):
           kind: event.kind,
           status: event.status,
           locations: event.locations,
-          content: [],
+          content: event.content ?? [],
           elapsedMs: null,
           added: null,
           removed: null,
           verdict: null,
           verdictBy: "user",
           verdictReason: null,
+          askWithdrawn: false,
           startedAt: at,
         },
       });
@@ -377,14 +379,17 @@ function foldEvent(state: ConversationState, { at, event }: AcpTranscriptEntry):
               }
             : state.turnTally,
       };
-      return chosen
-        ? updateCall(next, pending.toolCallId, (call) => ({
-            ...call,
-            verdict: chosen,
-            verdictBy: event.by,
-            verdictReason: event.reason,
-          }))
-        : next;
+      if (!chosen) {
+        return hasCall(next.turns, pending.toolCallId)
+          ? updateCall(next, pending.toolCallId, (call) => ({ ...call, askWithdrawn: true }))
+          : next;
+      }
+      return updateCall(next, pending.toolCallId, (call) => ({
+        ...call,
+        verdict: chosen,
+        verdictBy: event.by,
+        verdictReason: event.reason,
+      }));
     }
 
     case "plan":
@@ -594,7 +599,8 @@ function appendText(
     const blocks = [...last.blocks];
     const open = blocks.at(-1);
     if (open?.kind === incoming.kind && open.messageId === incoming.messageId) {
-      blocks[blocks.length - 1] = { ...open, text: open.text + incoming.text };
+      const endedAt = "endedAt" in incoming ? { endedAt: incoming.endedAt } : {};
+      blocks[blocks.length - 1] = { ...open, text: open.text + incoming.text, ...endedAt };
     } else {
       blocks.push(incoming);
     }
@@ -690,6 +696,12 @@ function mapTurns(turns: readonly Turn[], change: (block: Block) => Block | null
       return next ? [next] : [];
     }),
   }));
+}
+
+function hasCall(turns: readonly Turn[], toolCallId: string): boolean {
+  return turns.some((turn) =>
+    turn.blocks.some((block) => block.kind === "tool" && block.call.toolCallId === toolCallId),
+  );
 }
 
 function findPermission(turns: readonly Turn[], requestId: string): PendingPermission | null {

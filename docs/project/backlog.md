@@ -192,7 +192,12 @@ responde `loggedIn` em ~0,6 s sem gastar token.
 a primeira task da [034](../features/034-agent-accounts/prd.md) que fizer a conferência de conta — ela
 conserta isto de graça — ou antes, se alguém instalar o Lumem numa máquina sem login do Claude.
 
-### O `tool_call` que já chega com saída perde a saída — `S`
+### ~~O `tool_call` que já chega com saída perde a saída~~ — **resolvido em 2026-09-29**
+
+Saiu do backlog pela porta 1 da [035](../features/035-plan-mode/prd.md): o evento `tool_call` ganhou
+`content` opcional, traduzido pelo mesmo `toolContent()` do update — o plano do plan mode chega assim.
+O registro abaixo fica porque ele descreve o defeito.
+
 
 `packages/server/src/acp/translate.ts` ignora o `content` do `tool_call` **inicial**, e o schema do
 evento nem tem esse campo: só o `tool_call_update` carrega saída. Um adaptador que mande a saída já
@@ -202,6 +207,19 @@ conta*, que lê o transcript.
 **De onde veio:** a T11 da [agent-accounts](../features/034-agent-accounts/tasks.md), escrevendo o
 teste do corte · **Volta quando:** um transcript mostrar ferramenta sem saída que o agente viu, ou
 um adaptador novo entrar no catálogo.
+
+### Pedido de permissão que sobrevive a um turno que o agente encerrou sozinho — `P`
+
+A [035](../features/035-plan-mode/prd.md) fez o daemon cancelar todo pedido pendente quando **você**
+cancela o turno e quando o agente **sai**. Sobra um caminho: o agente encerrar o turno por conta
+própria (`session/prompt` responde) com um `session/request_permission` ainda sem resposta — o
+adaptador do Claude corre o pedido contra o próprio `AbortSignal`. Aí o pedido continua em
+`pendingPermissions`, os botões continuam vivos, e um clique responde a quem já não espera. Não foi
+reproduzido: o agente falso não chega nesse caminho.
+
+**De onde veio:** a [verificação da 035](../features/035-plan-mode/verification.md), rodada 2, como
+suspeita · **Volta quando:** um transcript mostrar `turn_end` com um `permission_request` sem
+`permission_resolved` depois dele.
 
 ### Terceiro CLI de agente — `M`
 

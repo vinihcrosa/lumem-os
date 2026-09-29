@@ -748,9 +748,40 @@ que estava lá desde a pty-vs-acp: a credencial deixa de ser do **agente** e pas
 | [open-questions.md](features/034-agent-accounts/open-questions.md) | 15 perguntas, **15 respondidas**, 3 contra a proposta e 2 emendadas — a **Q12**, de 2026-09-28, nasceu de uma conta de verdade batendo no limite semanal: a conversa **oferece** continuar em outra conta, e nunca troca sozinha: a sessão escolhe, pré-selecionada com um **trio padrão** — a conta padrão do agente, e o modelo e effort padrão da conta —, não troca — *continua* numa sessão nova com o contexto levado —, e o Lumem **não controla limite de conta** nenhum. Cada encaixe da esteira tem o seu trio, no `named_agent` que a `028` já tinha. A lista de modelos é gravada no handshake que confere o login. A **Q7** foi respondida pela fase 0 (**vira ADR**), e ela abriu a **Q10**: a conta nova recebe **link** para o que é comportamento (plugins, skills, `CLAUDE.md`), e os MCPs de usuário do Claude ficam fora, ditos na tela |
 | [tasks.md](features/034-agent-accounts/tasks.md) | **as 20 tasks entregues** — a última, a T19, conectou uma segunda assinatura de verdade em 2026-09-28 e achou a entrada dela no Keychain, com o sufixo que a fase 0 leu no binário. A regra de ordem foi **o que isola vem antes do que mostra**: nenhum dos três caminhos de login passava env, o `apiKeyEnv` nunca foi injetado, e a memória spawnava por fora do resolver. O e2e achou o daemon pedindo o comando de login no lugar errado, e o teste de design no app de verdade achou dois defeitos que nenhum teste via — o onboarding dizendo *"pede autenticação"* numa máquina logada, e `/settings` esperando ~10 s por um adaptador que ela não tinha consultado |
 
+### [plan-mode/](features/035-plan-mode/) — o plano do plan mode, visível e decidido inteiro · **completa**
+
+Em plan mode, uma faixa diz em palavras que o agente não altera arquivos; quando o plano fica pronto,
+ele aparece **inteiro e renderizado** num cartão com as quatro opções do adaptador, e depois da decisão
+o cartão vira registro. Primeira feature no fluxo de checks do
+[ADR de 2026-09-28](adr/2026-09-28-1952-a-feature-is-proven-by-checks-not-planned-in-tasks.md).
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](features/035-plan-mode/prd.md) | o plano: o adaptador `0.75.1` manda o plano no `content` do tool call `switch_mode`, o tradutor do daemon **descarta** `content` do `tool_call`, o `ToolCard` mostra só as últimas 12 linhas, e o `liberado` aprovaria o pedido sozinho. 25 critérios em quatro fatias e duas portas de mão única — o `tool_call` passa a levar `content`, e o transcript o grava. Os critérios 24 e 25 nasceram da verificação: **nenhum caminho do daemon emitia o pedido cancelado**, e o cartão ficava com botões vivos depois de cancelar |
+| [open-questions.md](features/035-plan-mode/open-questions.md) | **4 perguntas, todas respondidas pela proposta** em 2026-09-29 — opções verbatim, a política nunca aprova plano, a lista de passos vira *"Passos"*, e o registro recolhido |
+| [checks.md](features/035-plan-mode/checks.md) | **30 checks em 4 fatias**, perfil `standard`; cada um com a prova nomeada por arquivo e nome de teste |
+| [verification.md](features/035-plan-mode/verification.md) | o relatório do verificador independente, rodada a rodada. A rodada 1 achou o pedido cancelado sem produtor; a rodada 2, uma worktree da spec nova cujo nome casava por substring com o botão *"recarregar"* de outras duas specs — 5 e2e vermelhos só na suíte inteira. A **rodada 3 passou**: 30 checks, 5 falhas injetadas e todas mortas, e a suíte e2e inteira verde (129) |
+
 ---
 
-### [conversation-liveness/](features/035-conversation-liveness/) — sinal de vida da conversa · **em execução**
+### [reasoning/](features/036-reasoning/) — o pensamento volta a chegar, e diz quanto durou · **completa**
+
+O raciocínio do Claude parou de chegar em 2026-09-08, quando o daemon passou ao `claude-agent-acp@0.75.1`:
+o modelo pensa, o texto vem vazio (`thinking.display: "omitted"`), e o adaptador não emite nada. O
+conserto é a spec do adaptador declarar o `_meta` que pede o pensamento resumido; depois dele, o bloco
+de pensamento ganha duração, abre sozinho enquanto é escrito e brilha. Da
+[LUM-66](https://linear.app/lumem-os/issue/LUM-66/reasoning-o-pensamento-parou-de-chegar-desde-2026-09-08-trazer-de).
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](features/036-reasoning/prd.md) | o plano no formato de checks: a causa conferida na cópia instalada do adaptador, 16 critérios em duas fatias, e uma porta — `AdapterSpec.reasoningMeta`, um `_meta` opaco que a spec declara |
+| [open-questions.md](features/036-reasoning/open-questions.md) | 2 perguntas, **2 respondidas** em 2026-09-29 pela recomendação: uma pasta por issue, e o pedido sempre ligado — a medição mostrou os mesmos tokens de saída com e sem ele |
+| [checks.md](features/036-reasoning/checks.md) | **18 checks em duas fatias**, perfil `standard`. O C7 é uma medição paga, `pnpm measure:thinking`: o pensamento volta no modelo padrão e os cinco modelos do Claude fecham em `end_turn`, Haiku incluído |
+| [verification.md](features/036-reasoning/verification.md) | o relatório do verificador, **PASS na terceira rodada**. As duas primeiras reprovaram o script do C7 — ele aceitava qualquer `turn_end`, e depois saía 0 com a lista de modelos vazia; a segunda virou armadilha em `testing.md` |
+
+---
+
+### [conversation-liveness/](features/037-conversation-liveness/) — sinal de vida da conversa · **em execução**
 
 Saber se o agente ainda está trabalhando: a linha acima do composer com o tempo do turno e o que o
 agente faz agora, o âmbar do silêncio longo — que **não** dispara com ferramenta rodando —, o turno
@@ -759,8 +790,10 @@ que fecha quando o adaptador morre e a queda do `/acp` que aparece e se conserta
 
 | Arquivo | O quê |
 |---|---|
-| [prd.md](features/035-conversation-liveness/prd.md) | o plano no formato de checks, em quatro fatias e 26 critérios. A Parte 1 foi **medida antes**: com processo real o turno já fecha pelo `turn_failed`; o que sobra é o adaptador que sai com o stdout aberto, e o replay de transcrição sem fecho |
-| [open-questions.md](features/035-conversation-liveness/open-questions.md) | 3 perguntas, **3 respondidas** em 2026-09-29, todas a favor da proposta — o limiar do silêncio é 90 s, a reconexão não desiste enquanto a aba está aberta, e o turno interativo não ganha teto |
+| [prd.md](features/037-conversation-liveness/prd.md) | o plano no formato de checks, em quatro fatias e 29 critérios. A Parte 1 foi **medida antes**: com processo real o turno já fechava pelo `turn_failed`; o que sobrava era o adaptador que sai com o stdout aberto, e o replay de transcrição sem fecho. Renumerada de `035` para `037` na colisão com a `035-plan-mode` |
+| [open-questions.md](features/037-conversation-liveness/open-questions.md) | 6 perguntas, **6 respondidas** em 2026-09-29 — o limiar do silêncio (90 s), a reconexão que não desiste, nenhum teto no turno interativo, a pergunta gravada quando o adaptador morre antes de recebê-la, dois `prompt` na mesma sessão **permitidos** (contra a proposta), e o prompt pendente do `setup` que não é reenviado |
+| [checks.md](features/037-conversation-liveness/checks.md) | **31 checks em 4 fatias**, perfil `ui`; C28–C31 e a reescrita do C25 nasceram das verificações |
+| [verification.md](features/037-conversation-liveness/verification.md) | o relatório do verificador independente, rodada a rodada — as três primeiras reprovaram por ramos de corrida do `AcpManager` sem prova |
 
 ## Convenções
 

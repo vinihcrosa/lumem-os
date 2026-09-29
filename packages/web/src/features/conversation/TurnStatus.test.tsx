@@ -73,7 +73,7 @@ describe("a linha de estado do turno", () => {
   });
 });
 
-describe("o aviso de silêncio (`035` S4)", () => {
+describe("o aviso de silêncio (`037` S4)", () => {
   const LAST = STARTED + 1000;
   const quietAfterWriting = () =>
     replayConversation([
