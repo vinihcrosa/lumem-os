@@ -1795,6 +1795,14 @@ um gatilho por turno, disparado só pela saída. A regra: **uma guarda pergunta 
 efeito colateral dele** — antes de ler um campo como sinal, liste quem mais o escreve, e ponha um teste
 com esse outro escritor em cena.
 
+**E ela voltou na rodada seguinte**, noutro campo: a correção passou a fechar o turno na saída também
+quando `promptInFlight` já estava desligado — o primeiro de dois `prompt` o desliga ao terminar —, e
+nenhum teste punha esse escritor em cena. Reverter o ramo deixava as provas verdes; a
+[rodada 3](../features/037-conversation-liveness/verification.md) o achou por mutação, com mais dois
+comportamentos da mesma correção — *um* fecho e *todas* as perguntas — sem asserção. O conserto foi só
+prova (o C31 ampliado). A regra ganha a segunda metade: **o conserto de uma guarda com dois escritores
+cria um ramo por escritor, e cada ramo precisa de um teste que só ele faz cair**.
+
 ## Convenções
 
 - Teste de git usa **repositório temporário real**, nunca mock. `git worktree` tem caso de borda em nome com barra e branch existente que mock nenhum reproduz.
