@@ -89,6 +89,21 @@ Desde a T17 da [`024-dev-harness`](../features/024-dev-harness/tasks.md), o husk
 | `commit-msg` | Conventional Commits, assunto até 72 caracteres | ~0 |
 | `pre-push` | `gate:quick` **desde a ponta do remoto** (e não desde `HEAD^`), pulando uma árvore já carimbada verde em `.git/…/lumem-gate-green` | 0–84 s |
 
+**O `Stop` do Claude** (T19) cobra o mesmo `gate:quick` antes de o agente dizer *pronto*: só quando a
+árvore mudou desde o último carimbo verde, bloqueando **uma vez** por turno, e nunca numa worktree da
+esteira. O custo medido em 2026-09-28, uma mudança de um arquivo por pacote, com a árvore limpa:
+
+| Arquivo mudado | `gate:quick` | Arquivos de teste selecionados |
+|---|---|---|
+| `scripts/pr-class.ts` | 3 s | 1 |
+| `server/src/log-file.ts` | 5 s | 2 |
+| `server/src/tasks/conveyor.ts` | 5 s | 2 |
+| `web/src/lib/pending-writes.ts` | 17 s | 35 |
+| `shared/src/constants.ts` | 72 s | 133 — o `shared` é importado por todos |
+
+**Mediana: 5 s.** Os 84–95 s dos pushes deste trabalho eram o caso *"config mudou, roda tudo"* —
+qualquer `package.json`, `tsconfig.json` ou fixture —, e não o turno típico.
+
 Um hook **não é portão**: `--no-verify` e `HUSKY=0` o atravessam. Para agente, quem os recusa é o
 guarda (`scripts/harness/guard.ts`); para todo mundo, quem garante é o ruleset da `main` e o CI.
 

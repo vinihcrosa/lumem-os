@@ -697,7 +697,17 @@ rode o gate que ela declara"* depender de o agente lembrar dela.
 - `pnpm gate:quick` verde.
 
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ não iniciada
+**Status**: ✅ entregue em 2026-09-28. `scripts/harness/stop.ts` no `Stop` do `.claude/settings.json`, com
+`timeout: 300`; 7 testes. O carimbo passou a guardar **árvore e commit**, e a base do gate é o commit do
+último verde — assim, trabalho commitado e ainda não verificado não escapa. **Medido (passo 0):** mediana
+de **5 s** numa mudança de um arquivo (3, 5, 5, 17 e 72 s — o pior é o `shared`, que todos importam),
+no `testing.md`. **Provado** com a entrada que o Claude manda: com um teste quebrado de propósito, a
+primeira parada foi **bloqueada** em 94 s nomeando o teste, e a segunda (`stop_hook_active: true`) passou
+sem rodar nada.
+
+> **SPEC_DEVIATION.** A esteira é reconhecida pelo **caminho do checkout** — o daemon corta as worktrees
+> dela em `<state dir>/workspaces/<workspace>/<projeto>/worktrees/` — e não por uma variável que o
+> daemon poria na sessão: isso pediria mudar código de produto, e o caminho já distingue.
 
 ---
 
