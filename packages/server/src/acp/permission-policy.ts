@@ -49,6 +49,13 @@ export function decidePermission(
   cwd: string,
   call: PermissionCall,
 ): PermissionDecision {
+  // Antes de todo modo, `ask` incluído (`035`, Q2): sair do plan mode é quando
+  // alguém lê o que vai ser feito, e o pedido tem uma `allow_once` que o
+  // `liberado` escolheria sozinho. O motivo vai no cartão nos três.
+  if (call.kind === "switch_mode") {
+    return { approve: false, reason: "aprovar um plano é decisão sua" };
+  }
+
   if (mode === "ask") {
     // No reason: the person was always going to be asked, and inventing prose
     // for the default would put a justification on every card that has none.

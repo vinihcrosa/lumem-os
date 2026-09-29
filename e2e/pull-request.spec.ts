@@ -87,7 +87,7 @@ function say(pulls: Array<Record<string, unknown>>): void {
  * cliente devolveria o mesmo valor em cache — o TTL vive no daemon.
  */
 async function reload(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "recarregar" }).click();
+  await page.getByRole("button", { name: "⟳ recarregar", exact: true }).click();
 }
 
 function bar(page: Page) {

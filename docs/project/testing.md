@@ -1665,6 +1665,71 @@ prova da forma.
 amostra real, nunca de um fake que a produziu por acidente** — e, sem amostra, o teste diz que é
 suposição.
 
+### Um check sobre como a tela reage a um evento que ninguém produz
+
+**Sintoma:** na [`035`](../features/035-plan-mode/prd.md), cancelar o turno com o plano pendente
+deixava o cartão com os quatro botões vivos, e um clique gravava *"plano aprovado"* sobre um pedido que
+o agente já tinha abandonado. O check do registro *"pedido cancelado"* (C19) estava verde.
+
+**Causa:** o C19 injetava no reducer um `permission_resolved` com `outcome: "cancelled"` — e **nenhum
+caminho do daemon emitia esse evento**. `cancel()` só mandava `session/cancel` ao agente e deixava o
+pedido em `pendingPermissions`; `markExited` o resolvia para o agente, sem evento para o cliente. A prova
+decidia a afirmação *"o cartão reage assim"*, que era verdadeira, e o plano tinha lido isso como
+*"isso acontece"*. O defeito de base é anterior à feature e valia para o bloco genérico também; o que a
+feature trouxe foi a frase no `Swept` dizendo que o cancelamento estava coberto.
+
+**Conserto:** o daemon emite `permission_resolved` `cancelled` para cada pedido pendente ao cancelar e
+quando o agente sai (C28, C29), e um e2e cancela com o plano na tela (C30). A regra: **um check sobre
+como o web reage a um evento nomeia também quem produz o evento** — e, se o produtor não existe, o check
+é dele antes de ser do componente. Achado pelo verificador independente, rodada 1 da `035`.
+
+### O nome de uma fixture casa por substring com o botão de outra spec
+
+**Sintoma:** a [`035`](../features/035-plan-mode/prd.md) acrescentou `e2e/plan-mode.spec.ts`, e cinco
+testes de `pull-request.spec.ts` e `right-panel.spec.ts` ficaram vermelhos — **só na suíte inteira**.
+Cada spec passava sozinha, e a nova também.
+
+**Causa:** a spec nova criava a worktree `plano-recarregar`, que a sidebar desenha como o botão
+*"plano-recarregar 1 sessão"*. As outras duas procuravam `getByRole("button", { name: "recarregar" })`,
+e o `name` do Playwright casa **por substring** sem `exact: true`: o localizador passou a achar dois
+botões. As specs dividem o daemon, então o que uma cria entra na tela da outra. É a mesma família de
+[*o mesmo nome em duas peças clicáveis*](#o-mesmo-nome-em-duas-peças-clicáveis-quebra-22-e2e-de-uma-vez),
+vinda de uma fixture em vez de um componente.
+
+**Conserto:** a worktree virou `plano-reler`, e os três localizadores (`pull-request.spec.ts:90`, `right-panel.spec.ts:103` e `:125`) passaram a `{ name: "⟳ recarregar", exact: true }` — o glifo faz parte do nome acessível, então `exact` com `"recarregar"` sozinho não acha o botão. A regra: **uma
+spec nova só está verde quando a suíte inteira está** — rodar a spec sozinha e as três vizinhas não
+prova nada sobre o daemon que todas dividem. Achado pelo verificador independente, rodada 2 da `035`.
+
+### Um piso de contagem subido de um em um não protege o item novo
+
+**Sintoma:** a `035` criou o par de contraste `mode/plan` sobre `bg/info-subtle` e subiu o piso de
+`tokens.test.ts` de 122 para 123, dizendo que o par não podia mais sumir em silêncio. Apagar o par
+deixava os 13 testes verdes.
+
+**Causa:** o array já tinha **126** pares; o piso estava três abaixo do tamanho real, e subir um só
+continuava três abaixo. Um piso só protege o item novo quando é igual ao tamanho do conjunto.
+
+**Conserto:** o piso é o tamanho real. A regra: **um teste de contagem que existe para impedir remoção
+compara com o tamanho de hoje**, e quem acrescenta sobe o número até ele. Achado pela injeção de defeito
+do verificador, rodada 2 da `035`.
+
+### Um lote de `GET` que cresce com os dados passa do teto de cabeçalho
+
+**Sintoma:** no CI da PR da [`035`](../features/035-plan-mode/prd.md), `sidebar-nav.spec.ts` falhou nas
+duas tentativas: a lista de worktrees do `repo-acp` mostrava *"Unexpected end of JSON input"*, o
+checkout recém-criado não aparecia na coluna, e na segunda tentativa o `git worktree add` recusava o
+nome que a primeira já tinha criado. Localmente a suíte inteira passava.
+
+**Causa:** o `httpBatchLink` junta as `query` do mesmo tique num `GET`, com caminhos e entradas na
+URL. A sidebar pede um `session.listByScope` por worktree, e com as worktrees que a spec nova
+acrescentou o lote chegou a **16 090 caracteres**; o servidor HTTP do Node conta a linha de requisição
+no teto de cabeçalho (16 KB) e respondeu `431` com corpo vazio. O trace do Playwright mostrou a URL
+inteira. A `main` já tinha `431` no log — o defeito esperava dados suficientes para aparecer.
+
+**Conserto:** `maxURLLength: MAX_BATCH_URL_LENGTH` (4000) no `httpBatchLink`, com teste de sessenta
+consultas no mesmo tique (`trpc-links.test.ts`). A regra: **um lote cujo tamanho cresce com os dados
+precisa de teto**, e um `431` no log do servidor é falha, não ruído.
+
 ### "Todos passaram" sobre um conjunto vazio é verde sem prova
 
 **Sintoma:** nenhum na corrida — o verificador da [`036`](../features/036-reasoning/checks.md) achou

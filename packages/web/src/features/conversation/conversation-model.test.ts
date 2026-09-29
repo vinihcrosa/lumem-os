@@ -251,6 +251,28 @@ describe("tool calls", () => {
   });
 });
 
+describe("o content do tool_call (`035`)", () => {
+  it("o content do tool_call fica, e o update o substitui", () => {
+    const plan = { type: "content" as const, text: "# Plano\n\n- ler o loader" };
+    const call = at({
+      type: "tool_call",
+      toolCallId: "tc-plan",
+      title: "Approve Plan",
+      kind: "switch_mode",
+      status: "pending",
+      locations: [],
+      content: [plan],
+    });
+
+    const first = from(call);
+    expect(first.turns[0]?.blocks[0]).toMatchObject({ kind: "tool", call: { content: [plan] } });
+
+    const replaced = { type: "content" as const, text: "outro texto" };
+    const later = feed(first, at({ type: "tool_call_update", toolCallId: "tc-plan", content: [replaced] }));
+    expect(later.turns[0]?.blocks[0]).toMatchObject({ kind: "tool", call: { content: [replaced] } });
+  });
+});
+
 describe("permission", () => {
   const call: AcpEvent = {
     type: "tool_call",

@@ -198,9 +198,11 @@ export const LINE_CEILING = 700;
 
 export const OVER_THE_CEILING: Readonly<Record<string, { lines: number; reason: string }>> = {
   "packages/server/src/acp/AcpManager.ts": {
-    lines: 2827,
+    lines: 2842,
     reason:
-      "linha de base 2026-09-28 (2813) mais 5 exceções de lint na linha da T9, e 9 da `036` — o `reasoningMeta` da spec pelo caminho da `quotaRefusalKind`, que só existe aqui; quebrar é feature própria (backlog)",
+      "linha de base 2026-09-28 (2813) mais 5 exceções de lint na linha da T9; quebrar é feature própria (backlog); " +
+      "2818 → 2833 na `035`: o `cancelPending`, que emite o `permission_resolved` cancelado no cancel e na saída; " +
+      "2833 → 2842 na `036`: o `reasoningMeta` da spec pelo caminho da `quotaRefusalKind`, que só existe aqui",
   },
   "packages/server/src/db/schema.ts": { lines: 1709, reason: "linha de base 2026-09-28; um schema do drizzle cresce por tabela" },
   "packages/server/src/git/GitService.ts": { lines: 1099, reason: "linha de base 2026-09-28" },
@@ -211,7 +213,10 @@ export const OVER_THE_CEILING: Readonly<Record<string, { lines: number; reason: 
   "packages/server/src/tasks/conveyor.ts": { lines: 784, reason: "linha de base 2026-09-28" },
   "packages/server/src/bootstrap.ts": { lines: 781, reason: "linha de base 2026-09-28 (780), mais o import do log em arquivo da T11" },
   "packages/server/src/repositories/task.ts": { lines: 756, reason: "linha de base 2026-09-28" },
-  "packages/shared/src/acp-protocol.ts": { lines: 749, reason: "linha de base 2026-09-28; um tipo por mensagem do protocolo" },
+  "packages/shared/src/acp-protocol.ts": {
+    lines: 751,
+    reason: "linha de base 2026-09-28 (749); um tipo por mensagem do protocolo, e o `content` do `tool_call` da `035`",
+  },
   "packages/server/src/tasks/conveyor-ports.ts": { lines: 727, reason: "linha de base 2026-09-28" },
 };
 

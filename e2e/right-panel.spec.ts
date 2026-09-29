@@ -100,7 +100,7 @@ test("the diff notices what the terminal wrote, in the view that owns it", async
   });
 
   await page.getByRole("tab", { name: /Mudanças/ }).click();
-  await page.getByRole("button", { name: "recarregar" }).click();
+  await page.getByRole("button", { name: "⟳ recarregar", exact: true }).click();
 
   const list = page.getByLabel("arquivos do checkout");
   await expect(list.getByText("README.md")).toBeVisible({ timeout: 20_000 });
@@ -122,7 +122,7 @@ test("the diff notices what the terminal wrote, in the view that owns it", async
   await expect(visiblePanel(page).locator(".xterm-rows")).toContainText("COMITADO", {
     timeout: 20_000,
   });
-  await page.getByRole("button", { name: "recarregar" }).click();
+  await page.getByRole("button", { name: "⟳ recarregar", exact: true }).click();
   await expect(list.getByText("nada por commitar")).toBeVisible({ timeout: 20_000 });
 });
 

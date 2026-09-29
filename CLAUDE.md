@@ -49,6 +49,7 @@ feature fecha, ela ganha a linha aqui e o parágrafo lá.
 | [032 web-architecture](docs/features/032-web-architecture/prd.md) | completa | componente não fala com o transporte; `features/<domínio>/` |
 | [033 acp-only-agents](docs/features/033-acp-only-agents/prd.md) | completa | agente é sempre ACP; abrir agente é compor um prompt |
 | [034 agent-accounts](docs/features/034-agent-accounts/prd.md) | completa | mais de uma conta por agente, e a recusa por cota reconhecida por `data.errorKind` |
+| [035 plan-mode](docs/features/035-plan-mode/prd.md) | completa | a faixa do plan mode, e aprovar ou recusar o plano com ele inteiro na tela |
 | [036 reasoning](docs/features/036-reasoning/prd.md) | completa | o pensamento volta a chegar (`reasoningMeta` na spec), e diz quanto durou |
 
 Comece pelo [índice da documentação](docs/README.md). Construção é incremental: uma parte por vez,
