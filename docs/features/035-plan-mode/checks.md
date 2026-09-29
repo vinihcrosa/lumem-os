@@ -141,3 +141,6 @@ Proof: `pnpm exec playwright test e2e/acp-conversation.spec.ts e2e/session-mode.
 ## Handoff
 
 - S1 = 16k, S2 = 28k (44k), S3 = 30k (74k), S4 = 11k (85k), todos em `conversation/`, `acp/` e `e2e/` — abaixo do orçamento de 150k: um construtor
+- Boundary: `8d6a7b7` — S1–S4 inteiras num construtor só, C1–C27 fechados, cada prova rodada pelo nome e verde; `lint` e `gate:quick` verdes nessa árvore
+- Settled mid-build: nada foi levado ao dono. Decidido na construção, e visível no diff: a marca de concluído vai depois do traço (`**C7** - ✓`), porque o `feature:check` recusa `**C7** ✓ -`; o roteiro de plan mode não manda `current_mode_update` sob `LUMEM_FAKE_NO_MODES` — um modo relatado daria o seletor ao agente e a política do Lumem (C12) deixaria de valer; o pedido retirado vira `askWithdrawn` no `ToolCallView`; a faixa ganhou o par de contraste `mode/plan` sobre `bg/info-subtle`, que o gate não tinha; os tetos de `acp-protocol.ts` (749 → 751) e `conversation-model.ts` (750 → 762) subiram com motivo
+- Abandoned: nada
