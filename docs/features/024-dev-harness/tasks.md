@@ -1161,6 +1161,12 @@ mutantes, 44 min.
 > 0 e aos 72,72. O `break` global de 70 fica como rede de baixo. O pedido *"num commit descartável"* foi
 > feito na árvore de trabalho, restaurada logo depois.
 
+Dois custos que a primeira rodada cobrou, e o que ficou: o sandbox dentro do checkout deixou um mutante do
+`git/` reescrever o `origin` do repositório (consertado com `GIT_CEILING_DIRECTORIES`), e os 6 processos do
+Stryker com o default do vitest travavam a máquina (agora 2 × 1 worker, em `nice`). A rodada completa com
+os dois consertos, em 2026-09-29: **1h19**, 72,71%, os 39 pisos passando, e a config, as refs e as
+worktrees **intactas** no `diff` de antes e depois.
+
 ---
 
 ### T15: O revisor inferencial no CI, não bloqueante, com taxa medida · [#70](https://github.com/vinihcrosa/lumem-os/issues/70)

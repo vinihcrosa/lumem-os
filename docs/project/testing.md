@@ -89,7 +89,7 @@ inutilizável pelos 44 minutos da rodada. Medido com uma sonda de CPU de trabalh
 |---|---|---|---|
 | `nice -n 15` — o padrão | **95 s**, o mesmo da prioridade normal | ~360–550 ms | verde |
 | `taskpolicy -b` — `LUMEM_TEST_PRIORITY=background`, macOS | 408 s | ~350–540 ms | **2 falsos vermelhos por timeout** |
-| mutação, 2 × 1 worker, `nice` | 334 s num arquivo (198 s com 6 processos) | ~320–460 ms | — |
+| mutação, 2 × 1 worker, `nice` | 334 s num arquivo (198 s com 6 processos); a rodada completa, **1h19** (44 min com 6 processos) | ~320–460 ms | 72,71%, os 39 pisos passam |
 
 O `nice` custa zero com a máquina parada — os testes continuam alcançando os núcleos de desempenho que
 ninguém quer — e cede quando alguém quer. O `taskpolicy -b` prende tudo nos núcleos de eficiência: a
@@ -351,9 +351,10 @@ ela fez aqui: trocou o `remote.origin.url` da config **compartilhada pelas 17 wo
 porque o `git push` seguinte tentou empurrar para um diretório temporário. Consertado à mão, conferido
 por `diff` contra a cópia da config, e a worktree e a branch — sem commit novo — removidas.
 
-**O conserto:** o `gate:mutation` roda com `GIT_CEILING_DIRECTORIES="$PWD/.stryker-tmp"`, e o git não
-sobe de dentro do sandbox. Provado com uma rodada completa (`--force`) e o `diff` da config, das refs e
-das worktrees antes e depois. **A regra que sobra:** mutação de código que chama `git` só roda com a
+**O conserto:** o `gate:mutation` roda com `GIT_CEILING_DIRECTORIES` na raiz do sandbox, e o git não
+sobe de dentro dele. **Provado em 2026-09-29** com uma rodada completa — os 5 886 mutantes, 1h19 com 2
+processos de 1 worker em prioridade baixa, score 72,71% — e o `diff` da config compartilhada, das refs e
+das worktrees antes e depois: **nada mudou**. **A regra que sobra:** mutação de código que chama `git` só roda com a
 busca de repositório cercada — e é a mesma família da armadilha abaixo: o processo de teste achando o
 repositório de verdade.
 
