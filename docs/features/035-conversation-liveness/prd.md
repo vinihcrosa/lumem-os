@@ -10,6 +10,10 @@
 > tinha sido consertada pelo `turn_failed` da `028`/`034`, e o que sobrou é mais estreito.
 > v0.2 — **as três perguntas respondidas a favor da proposta** em 2026-09-29, e o
 > [checks.md](checks.md) derivado.
+> v0.3 — **a verificação da rodada 1 reprovou** (2026-09-29): as duas guardas de corrida que a S1
+> acrescentou não tinham prova. Os critérios 27 e 28 nasceram dela, com a
+> [Q4](open-questions.md#x-q4--a-pergunta-fica-gravada-quando-o-adaptador-morre-antes-de-recebê-la)
+> respondida em **A**: a pergunta fica gravada.
 
 ## Problem
 
@@ -130,6 +134,8 @@ Um adaptador que sai no meio do turno deixa na conversa, ao vivo e no replay, um
 4. WHEN o processo sai sem turno em voo THEN o daemon SHALL não emitir `turn_failed`
 5. WHEN a saída fecha um turno THEN o daemon SHALL gravar o retrato `turn-failed` do `observeTurnFailure` com `code: "exited"`
 6. WHILE a conversa é somente leitura the web SHALL não desenhar o caret, a linha de estado do turno nem o `■ interromper`, inclusive numa transcrição que termina em mensagem do usuário sem fecho
+27. IF o processo sai enquanto o daemon lê o teto ou a memória, antes do `session/prompt`, THEN o daemon SHALL gravar a mensagem do usuário seguida de um único `turn_failed` com a frase da saída, não SHALL mandar `session/prompt`, e o `/acp` SHALL não mandar frame `error` por cima
+28. IF a resposta do `session/prompt` e a saída do processo chegam no mesmo tique THEN o daemon SHALL gravar um único fecho, o `turn_failed` da saída, e nenhum `turn_end`
 
 **Independent test:** no teste do `AcpManager`, um agente falso cujo `kill()` não fecha o stdout, morto no meio de um `prompt` — a transcrição termina em `turn_failed` e o `prompt` rejeita.
 

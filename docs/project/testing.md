@@ -1665,6 +1665,40 @@ prova da forma.
 amostra real, nunca de um fake que a produziu por acidente** — e, sem amostra, o teste diz que é
 suposição.
 
+### Uma guarda que o construtor acrescenta sem check é uma guarda sem prova
+
+**Sintoma:** a [`035`](../features/035-conversation-liveness/checks.md) entregou os 27 checks provados e
+reprovou na [verificação da rodada 1](../features/035-conversation-liveness/verification.md): duas
+guardas de corrida do `AcpManager` — o adaptador saindo enquanto o teto e a memória eram lidos, e a
+resposta chegando no mesmo tique da saída — não eram exercitadas por teste nenhum. Tirar qualquer uma
+deixava a suíte verde, e uma delas era o que impedia o `prompt` de ficar pendurado para sempre, que é o
+defeito que a fatia existia para consertar.
+
+**Causa:** o construtor viu as duas janelas enquanto escrevia o conserto, fechou-as, e as reportou como
+*"guardas extras"* sem teste. O check nomeava o caminho principal; o `Coverage` do conjunto *turno em voo
+na saída* tinha dois membros, e o código tinha quatro. Quem enumera o conjunto a partir dos checks nunca
+acha o membro que só existe no código.
+
+**Conserto:** C28 e C29, com a decisão de produto que a guarda tinha tomado sozinha virando pergunta
+([Q4](../features/035-conversation-liveness/open-questions.md#x-q4--a-pergunta-fica-gravada-quando-o-adaptador-morre-antes-de-recebê-la)):
+a guarda descartava a mensagem da pessoa. A regra: **um ramo que o construtor acrescenta além do check é
+um membro novo de um conjunto** — ganha linha no `Coverage` e prova no mesmo commit, ou volta como
+pergunta; *"acrescentei, nenhum teste cobre"* no relatório é o sintoma, não a desculpa.
+
+### Uma prova que percorre um caminho não prova a frase do outro
+
+**Sintoma:** na mesma rodada, o verificador tirou o ramo que troca `ACP connection closed` pela frase do
+Lumem no caminho em que o stdout fecha antes da saída — o caminho do **processo real** —, e os checks
+C1–C7 continuaram verdes. O C4 cobria esse caminho só na **contagem** de fechos, e o teste dele caía no
+prazo vencido.
+
+**Causa:** o C1 afirmava a frase com o agente falso, cujo `kill()` não fecha o stdout — a outra ordem. A
+frase estava provada numa ordem, e a contagem na outra, e nenhum check cruzava as duas.
+
+**Conserto:** o C30, que amarra a frase às duas saídas do caminho real. A regra: **quando um conjunto de
+ordens tem uma afirmação por membro, cada afirmação precisa de prova em cada membro** — a contagem numa
+ordem e a frase noutra somam duas meias provas, não uma inteira.
+
 ## Convenções
 
 - Teste de git usa **repositório temporário real**, nunca mock. `git worktree` tem caso de borda em nome com barra e branch existente que mock nenhum reproduz.

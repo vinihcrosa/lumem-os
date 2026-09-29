@@ -4,7 +4,8 @@
 Profile: ui
 Plan: `docs/features/035-conversation-liveness/prd.md`
 
-27 checks em 4 fatias · 3 portas de mão única · 0 abertas
+30 checks em 4 fatias · 3 portas de mão única · 0 abertas. C28–C30 e a reescrita do C25 vieram da
+[verificação da rodada 1](verification.md) e foram aprovados em 2026-09-29.
 
 As provas nomeiam testes que **ainda não existem**: o nome é a obrigação, e o construtor escreve o
 teste com esse nome a partir do check, nunca lendo a implementação. `S` abrevia
@@ -39,6 +40,17 @@ Proof: `pnpm --filter @lumem/server exec vitest run src/acp/AcpManager.test.ts -
 
 **C7** - Uma conversa somente leitura cuja transcrição termina em mensagem do usuário sem fecho não desenha `.mcaret`, nem a linha de estado do turno, nem o botão `■ interromper` (AC 6) ✓
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/conversation.test.tsx -t "conversa encerrada sem fecho não desenha turno vivo"`
+
+**C28** - Com o processo saindo com código 137 enquanto a leitura do teto está pendente, a transcrição do turno é a mensagem do usuário seguida de exatamente um `turn_failed` com `o agente encerrou no meio do turno (saída 137)`, o `prompt` rejeita com `AcpTurnFailedError`, o agente não recebe `session/prompt`, e o `/acp` não manda frame `error` (AC 27, Q4)
+Proof: `pnpm --filter @lumem/server exec vitest run src/acp/AcpManager.test.ts -t "keeps the question when the adapter exits before it is asked"`
+Proof: `pnpm --filter @lumem/server exec vitest run src/acp/websocket.test.ts -t "sends no error frame for a turn the exit already closed"`
+
+**C29** - Com a resposta do `session/prompt` e a saída do processo no mesmo tique, a transcrição do turno tem exatamente um fecho, o `turn_failed` da saída, nenhum `turn_end`, e o `prompt` rejeita com `AcpTurnFailedError` (AC 28, door 2)
+Proof: `pnpm --filter @lumem/server exec vitest run src/acp/AcpManager.test.ts -t "closes once when the answer and the exit arrive together"`
+
+**C30** - Com o stdout fechando antes da saída — o caminho do processo real —, o fecho diz `o agente encerrou no meio do turno (saída 137)` quando a saída chega no prazo, e `(saída desconhecida)` quando não chega, nunca `ACP connection closed` (AC 1)
+Proof: `pnpm --filter @lumem/server exec vitest run src/acp/AcpManager.test.ts -t "names the exit even when the pipe closes first"`
+Proof: `pnpm --filter @lumem/server exec vitest run src/acp/AcpManager.test.ts -t "names an unknown exit when the process outlives its closed pipe"`
 
 ### S2 - a queda da conexão aparece e se conserta · 8 arquivos · ~60 KB · ~30k
 
@@ -101,7 +113,7 @@ Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/conve
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/turn-status.test.ts -t "fica âmbar a partir de 90 s sem sinal"`
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/TurnStatus.test.tsx -t "o âmbar mostra o atalho de interromper"`
 
-**C25** - Com uma ferramenta `running` iniciada 240 s atrás e 300 s sem evento, a linha diz `rodando <título> há 4 min 0 s` e não tem o tom `warning`; o mesmo com a ferramenta `pending` (AC 24) ✓
+**C25** - Com uma ferramenta `pending` aberta há 240 s e nenhum evento desde então, e com a mesma ferramenta passando a `running` por um `tool_call_update` há 100 s, a linha diz `rodando <título> há 4 min 0 s` e não tem o tom `warning` — só estados que o redutor produz (AC 24; reescrito na rodada 1)
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/turn-status.test.ts -t "ferramenta aberta não é silêncio"`
 
 **C26** - Com uma permissão pendente e 300 s sem evento, a linha diz `esperando sua resposta` e não tem o tom `warning` (AC 25) ✓
@@ -116,7 +128,8 @@ Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/TurnS
 | --- | --- | --- |
 | como o processo saiu (3) | código C2 · sinal C2 · nenhum C2 | - |
 | ordem entre a saída e o fim do stdout (3) | saída e stdout nunca fecha C3 · saída antes do fechamento C4 · fechamento antes da saída C4 | - |
-| turno em voo na saída (2) | sim C1 · não C5 | - |
+| a frase no fechamento antes da saída (2) | saída no prazo C30 · prazo vencido C30 | - |
+| turno em voo na saída (4) | depois do `session/prompt` C1 · durante o teto ou a memória C28 · junto com a resposta C29 · não C5 | - |
 | door 1 — `turn_failed` na saída (1) | C1 | - |
 | door 2 — um fecho por turno (1) | C4 | - |
 | door 3 — reconexão no hook (4) | queda reabre C8 · espera C9 · 4404 não reabre C11 · desmontar não reabre C12 | - |
@@ -138,10 +151,10 @@ Proof: `pnpm --filter @lumem/web exec vitest run src/features/conversation/TurnS
 ## Swept
 
 - validation: C14
-- failure modes: C1, C3
-- idempotency: C4
+- failure modes: C1, C3, C28, C30
+- idempotency: C4, C29
 - authorization: n/a - o daemon não confere quem fala com ele até a `019-daemon-auth`, e nada aqui abre porta nova
-- concurrency: C4 (as duas ordens do cano), C12 (desmontar com reabertura agendada)
+- concurrency: C4 (as duas ordens do cano), C28 (a saída durante a leitura do teto), C29 (a resposta e a saída no mesmo tique), C12 (desmontar com reabertura agendada)
 - data lifecycle: n/a - nada novo é gravado além de um `turn_failed` que já existia; as transcrições antigas sem fecho são lidas por C7
 - dependency failure: C3 (o adaptador), C8 e C11 (o daemon)
 - state transitions: C16, C24, C27

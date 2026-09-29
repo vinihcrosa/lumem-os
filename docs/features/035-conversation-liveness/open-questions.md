@@ -2,8 +2,8 @@
 
 **PRD:** [prd.md](prd.md)
 
-**Estado:** 3 perguntas · **3 respondidas** (2026-09-29), as três **a favor da proposta**. O plano já
-estava escrito com elas, então nenhuma resposta mudou critério. A Q1 e a Q3 vêm da própria
+**Estado:** 4 perguntas · **4 respondidas** (2026-09-29), as quatro **a favor da proposta**. As três
+primeiras o plano já assumia; a Q4 nasceu da verificação da rodada 1 e virou os critérios 27 e 28. A Q1 e a Q3 vêm da própria
 [LUM-67](https://linear.app/lumem-os/issue/LUM-67/conversa-sinal-de-vida-saber-se-o-agente-ainda-esta-trabalhando)
 (*"o que decidir antes de escrever"*); a Q2 nasceu do plano.
 
@@ -65,3 +65,25 @@ que ela pediu de propósito, e a esteira tem teto porque **ninguém** está olha
 *sim*, ele volta como critério de uma fatia nova, com o número e o que a conversa diz quando ele cai.
 
 **R (2026-09-29): não — só o aviso** — a proposta. O teto fica no *Out of scope* do plano.
+
+---
+
+### [x] Q4 — A pergunta fica gravada quando o adaptador morre antes de recebê-la?
+
+Nasceu da [verificação da rodada 1](verification.md). O daemon lê o teto e a memória **antes** de
+gravar a mensagem da pessoa — de propósito: o bloco da memória vem antes da pergunta, na ordem em que
+o agente lê. Se o adaptador sai nesse intervalo, a saída fecha o turno, e a guarda da S1 desistia de
+gravar a mensagem: a transcrição ficava com *"o agente encerrou…"* sem pergunta nenhuma, o composer já
+tinha limpado o rascunho — **o texto sumia** —, e o socket mandava por cima `session <id> has exited`,
+em inglês.
+
+- **A** — gravar a mensagem antes do fecho, e não mandar o frame `error`;
+- **B** — não gravar: o turno não aconteceu, e a pessoa perde o texto;
+- **C** — não gravar e devolver o texto ao composer — contrato novo no `/acp`, para um caso raro.
+
+**Proposta pra reagir:** **A.** O replay mostra o que foi perguntado e que falhou, e o texto não se
+perde. O custo é o daemon guardar o texto do turno para a saída gravá-lo.
+
+**O que a resposta muda:** os critérios 27 e 28 do plano, e os checks C28 e C29.
+
+**R (2026-09-29): A** — a proposta.
