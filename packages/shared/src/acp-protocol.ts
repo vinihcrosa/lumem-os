@@ -277,6 +277,8 @@ export const acpEventSchema = z.discriminatedUnion("type", [
     kind: acpToolKindSchema,
     status: acpToolStatusSchema,
     locations: z.array(acpToolLocationSchema).default([]),
+    /** O plano do plan mode chega aqui (`035`); ausente quando o adaptador não mandou. */
+    content: z.array(acpToolContentSchema).optional(),
   }),
   /**
    * A change to a call already announced. Every field but the id is optional:

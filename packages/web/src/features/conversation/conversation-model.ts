@@ -269,7 +269,7 @@ export function reduceConversation(
           kind: event.kind,
           status: event.status,
           locations: event.locations,
-          content: [],
+          content: event.content ?? [],
           elapsedMs: null,
           added: null,
           removed: null,

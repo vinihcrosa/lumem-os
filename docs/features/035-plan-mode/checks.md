@@ -41,19 +41,19 @@ Proof: `pnpm exec playwright test e2e/plan-mode.spec.ts -g "a faixa aparece em p
 
 ### S2 - o plano chega inteiro ao web · 6 files · 110 KB · ~28k
 
-**C7** - Um `session/update` `tool_call` com `content: [{type:"content", content:{type:"text", text}}]` vira o evento `tool_call` com `content: [{type:"content", text}]` (AC 6)
+**C7** - ✓ Um `session/update` `tool_call` com `content: [{type:"content", content:{type:"text", text}}]` vira o evento `tool_call` com `content: [{type:"content", text}]` (AC 6)
 Proof: `pnpm exec vitest run packages/server/src/acp/translate.test.ts -t "tool_call leva o content traduzido"`
 
-**C8** - Um `tool_call` com `content` de `diff` e de `terminal` é traduzido item por item, igual ao `tool_call_update` (AC 6)
+**C8** - ✓ Um `tool_call` com `content` de `diff` e de `terminal` é traduzido item por item, igual ao `tool_call_update` (AC 6)
 Proof: `pnpm exec vitest run packages/server/src/acp/translate.test.ts -t "tool_call traduz diff e terminal como o update"`
 
-**C9** - Um `tool_call` sem `content` vira um evento sem a chave `content` (`"content" in event === false`) (AC 7)
+**C9** - ✓ Um `tool_call` sem `content` vira um evento sem a chave `content` (`"content" in event === false`) (AC 7)
 Proof: `pnpm exec vitest run packages/server/src/acp/translate.test.ts -t "tool_call sem content não inventa a chave"`
 
-**C10** - O reducer guarda o `content` de um `tool_call` no `ToolCallView`, e um `tool_call_update` com `content` depois o substitui (AC 8)
+**C10** - ✓ O reducer guarda o `content` de um `tool_call` no `ToolCallView`, e um `tool_call_update` com `content` depois o substitui (AC 8)
 Proof: `pnpm exec vitest run packages/web/src/features/conversation/conversation-model.test.ts -t "o content do tool_call fica, e o update o substitui"`
 
-**C11** - `decidePermission` devolve `approve: false` para `kind: "switch_mode"` com opção `allow_once`, em `ask`, `auto` e `free` — tabela de 3 linhas —, com `reason` *"aprovar um plano é decisão sua"* (AC 9)
+**C11** - ✓ `decidePermission` devolve `approve: false` para `kind: "switch_mode"` com opção `allow_once`, em `ask`, `auto` e `free` — tabela de 3 linhas —, com `reason` *"aprovar um plano é decisão sua"* (AC 9)
 Proof: `pnpm exec vitest run packages/server/src/acp/permission-policy.test.ts -t "nenhum modo do Lumem aprova um plano"`
 
 **C12** - Num agente sem modos em `free`, um `session/request_permission` de tool call `switch_mode` emite `permission_request` com aquele `policyReason` e **nenhum** `permission_resolved` (AC 9)
