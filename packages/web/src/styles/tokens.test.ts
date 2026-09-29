@@ -51,7 +51,7 @@ describe("contraste", () => {
     ).toEqual([]);
   });
 
-  it("mede pelo menos 122 pares", () => {
+  it("mede pelo menos 126 pares", () => {
     // Piso, não número exato: acrescentar par não pode falhar isto, e **apagar** par
     // para calar uma reprovação tem de falhar.
     //
@@ -62,8 +62,10 @@ describe("contraste", () => {
     //
     // E foi encontrado **três atrás** outra vez, em 2026-09-22, enquanto se media
     // outra coisa: o array estava em `122` e o piso em `119`. Não custa repetir o
-    // que a folga significa — três pares apagáveis sem nada falhar.
-    expect(CONTRAST_PAIRS.length).toBeGreaterThanOrEqual(122);
+    // que a folga significa — três pares apagáveis sem nada falhar. E uma terceira
+    // vez na `035`: o piso foi a 123 com o array já em 126, e o par da faixa de
+    // plan mode (`mode/plan` sobre `bg/info-subtle`) sumia sem nada falhar.
+    expect(CONTRAST_PAIRS.length).toBeGreaterThanOrEqual(126);
   });
 
   it("aponta só para token que existe", () => {

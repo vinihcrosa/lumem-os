@@ -8,6 +8,7 @@ import { ComposerBox } from "./ComposerBox.js";
 import { ConfigPills } from "./ConfigPills.js";
 import { FreeModeGate } from "./FreeModeGate.js";
 import { LumemModeMenu, LumemModePill } from "./LumemModePill.js";
+import { PlanModeBanner } from "./PlanModeBanner.js";
 import { filterCommands, slashQuery } from "./SlashMenu.js";
 import { UsageFooter } from "./UsageFooter.js";
 import { useArrival } from "./useArrival.js";
@@ -196,6 +197,7 @@ export function Composer({
             }}
           />
         )}
+        <PlanModeBanner mode={conversation.mode} readOnly={readOnly} />
         <ComposerBox
           value={draft}
           onChange={setDraft}

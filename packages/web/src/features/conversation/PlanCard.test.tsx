@@ -115,3 +115,15 @@ describe("the edges", () => {
     expect(screen.queryByText("agora")).not.toBeInTheDocument();
   });
 });
+
+describe("o rótulo (`035`, Q3)", () => {
+  it("o rótulo da lista é Passos", () => {
+    // "Plano" passou a ser o texto que se aprova ao sair do plan mode; com os
+    // dois chamados de plano, "aprovei o plano" fica ambíguo.
+    const { container } = render(<PlanCard entries={plan} />);
+    const head = container.querySelector(".plan__head");
+
+    expect(screen.getByText("Passos")).toBeInTheDocument();
+    expect(head).not.toHaveTextContent(/Plano/);
+  });
+});

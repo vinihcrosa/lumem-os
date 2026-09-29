@@ -28,6 +28,7 @@ function call(overrides: Partial<ToolCallView> = {}): ToolCallView {
     verdict: null,
     verdictBy: "user",
     verdictReason: null,
+    askWithdrawn: false,
     startedAt: 0,
     ...overrides,
   };
