@@ -554,6 +554,35 @@ export const checkoutPort = sqliteTable(
 );
 
 /**
+ * As preferências **da máquina** que o daemon tem (`038`, door 3): hoje, as duas do
+ * update.
+ *
+ * **Exatamente uma linha**, e a garantia é o banco: `CHECK (id = 1)` recusa uma
+ * segunda, e a migração cria a primeira. Um `UPDATE` sobre `id = 1` nunca acha zero
+ * linhas — e é por isso que ninguém precisa de *upsert* para gravar nela. Um
+ * `INSERT OR REPLACE` num lugar só (ou uma tabela vazia que cada leitor trata de
+ * um jeito) é como uma preferência global passa a ter duas versões.
+ *
+ * Os dois campos são de conjunto fechado, pela mesma razão do `state` das outras
+ * tabelas: um typo num `UPDATE` produziria um valor que nenhum leitor sabe ler.
+ * `update_check` é inteiro `0`/`1` (o SQLite não tem booleano) e `auto_update` é
+ * `off` ou `idle` — o segundo, e só ele, é o que faz o daemon se instalar sozinho.
+ */
+export const daemonSettings = sqliteTable(
+  "daemon_settings",
+  {
+    id: integer("id").primaryKey(),
+    updateCheck: integer("update_check").notNull().default(1),
+    autoUpdate: text("auto_update").notNull().default("off"),
+  },
+  (table) => [
+    check("daemon_settings_single_row", sql`${table.id} = 1`),
+    check("daemon_settings_update_check", sql`${table.updateCheck} IN (0, 1)`),
+    check("daemon_settings_auto_update", sql`${table.autoUpdate} IN ('off', 'idle')`),
+  ],
+);
+
+/**
  * O catálogo de memórias — **projeção**, não fonte da verdade.
  *
  * A Q3 decidiu que Markdown no `~/.lumem` é a fonte; esta tabela existe para
@@ -1678,6 +1707,7 @@ export const schema = {
   playbook,
   sessionUsage,
   checkoutPort,
+  daemonSettings,
   task,
   taskComment,
   taskFinding,
@@ -1695,6 +1725,7 @@ export type MemoryEntryRow = typeof memoryEntry.$inferSelect;
 export type PlaybookRow = typeof playbook.$inferSelect;
 export type SessionUsageRow = typeof sessionUsage.$inferSelect;
 export type CheckoutPortRow = typeof checkoutPort.$inferSelect;
+export type DaemonSettingsRow = typeof daemonSettings.$inferSelect;
 export type MemoryDecisionRow = typeof memoryDecision.$inferSelect;
 export type ActionSignalRow = typeof actionSignal.$inferSelect;
 export type MemoryAccessRow = typeof memoryAccess.$inferSelect;

@@ -281,6 +281,13 @@
       "when": 1790619329977,
       "tag": "0039_espera_da_cota",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "6",
+      "when": 1790728825156,
+      "tag": "0040_configuracao_do_daemon",
+      "breakpoints": true
     }
   ]
 }
