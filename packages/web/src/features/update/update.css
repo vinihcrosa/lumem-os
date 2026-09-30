@@ -1,0 +1,21 @@
+/* O aviso de versão nova da topbar (`038`): uma linha curta, ao lado do daemon. */
+.update {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  font: var(--text-mono-sm);
+  color: var(--color-text-secondary);
+}
+
+.update__jump { color: var(--color-text-primary); }
+
+/* O comando é para copiar de outro terminal: legível, e selecionável de uma vez. */
+.update__cmd {
+  padding: var(--space-2) var(--space-6);
+  border-radius: var(--radius-xs);
+  background: var(--color-bg-panel);
+  color: var(--color-text-code);
+  user-select: all;
+}
+
+.update__err { color: var(--color-text-danger); }

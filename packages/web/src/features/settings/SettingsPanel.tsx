@@ -7,6 +7,7 @@ import { Skeleton } from "../../ui/index.js";
 import { AccountsSection } from "./AccountsSection.js";
 import { ConveyorSlots } from "./ConveyorSlots.js";
 import { SaveMark, type SaveState } from "./SaveMark.js";
+import { UpdateSettings } from "./UpdateSettings.js";
 
 /**
  * A tela de configurações (`030-settings`).
@@ -265,6 +266,7 @@ export function SettingsPanel({ workspaceId, workspaceName }: SettingsPanelProps
       <ConveyorSection workspaceId={workspaceId} />
       <AccountsSection />
       <IntegrationsSection />
+      <UpdateSettings />
       <DisplaySection />
     </div>
   );

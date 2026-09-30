@@ -38,6 +38,7 @@ const CLOSED_PREFIXES = [
   "secrets",
   "setup",
   "health",
+  "system",
   "pty",
 ] as const;
 

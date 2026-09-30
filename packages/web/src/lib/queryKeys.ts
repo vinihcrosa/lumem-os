@@ -262,6 +262,12 @@ export function prDraftKey(worktreeId: string) {
 
 export const HEALTH_KEY = ["health"] as const;
 
+/** A versão nova que o daemon sabe que existe, e se ele pode instalá-la (`038`). */
+export const UPDATE_STATUS_KEY = ["system", "updateStatus"] as const;
+
+/** As preferências da máquina que o daemon guarda: verificar versão, atualizar sozinho. */
+export const DAEMON_SETTINGS_KEY = ["system", "settings"] as const;
+
 /** A lista de agentes configurados — lida em oito telas, invalidada em uma. */
 export function agentConfigsKey() {
   return ["agentConfig", "list"] as const;
