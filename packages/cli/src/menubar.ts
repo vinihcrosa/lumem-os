@@ -36,6 +36,33 @@ const APP_BUNDLE = "Lumem.app";
 /** O `.app` viaja dentro do pacote como zip: o npm descarta symlink, e o `.app` vive deles. */
 const APP_ZIP = "Lumem.zip";
 const LINUX_EXECUTABLE = ["app", "lumem-desktop"] as const;
+const USERNS_CLONE = "/proc/sys/kernel/unprivileged_userns_clone";
+const APPARMOR_RESTRICT = "/proc/sys/kernel/apparmor_restrict_unprivileged_userns";
+
+export interface SandboxProbe {
+  /** O que o kernel diz, sem a quebra de linha; `null` quando o arquivo não existe. */
+  usernsClone: string | null;
+  apparmorRestrict: string | null;
+  /** O Chromium não conseguiria criar o sandbox de usuário. */
+  refused: boolean;
+}
+
+/**
+ * O Chromium só sobe o sandbox por user namespaces sem privilégio (o `chrome-sandbox` setuid
+ * não cabe num `npm i -g` de usuário), e dois botões do kernel os negam: o do Debian e
+ * derivados, e o do AppArmor do Ubuntu 23.10 em diante. Arquivo que não existe é kernel
+ * que não tem o botão, então não nega.
+ */
+export function probeSandbox(read: (path: string) => string | null): SandboxProbe {
+  const usernsClone = read(USERNS_CLONE)?.trim() ?? null;
+  const apparmorRestrict = read(APPARMOR_RESTRICT)?.trim() ?? null;
+  return { usernsClone, apparmorRestrict, refused: usernsClone === "0" || apparmorRestrict === "1" };
+}
+
+function sandboxReason({ usernsClone }: SandboxProbe): string {
+  const why = usernsClone === "0" ? "unprivileged_userns_clone=0" : "apparmor_restrict_unprivileged_userns=1";
+  return `o kernel não deixa o Chromium criar o sandbox (${why}); os .desktop levam --no-sandbox.`;
+}
 
 export interface DesktopDeps {
   out: (line: string) => void;
@@ -140,7 +167,7 @@ async function installDesktop(deps: DesktopDeps, layout: Layout): Promise<number
   };
   host.write(join(layout.dataDir, DESKTOP_CONFIG_FILE), `${JSON.stringify(config, null, 2)}\n`);
 
-  const placed = await placeApp(host, layout);
+  const placed = await placeApp(host, layout, out);
   if (placed !== null) {
     err(placed);
     return 1;
@@ -176,7 +203,7 @@ export async function takeDesktopAlong(
     return code;
   }
 
-  const placed = await placeApp(host, layout);
+  const placed = await placeApp(host, layout, out);
   if (placed !== null) {
     err(placed);
     return 1;
@@ -186,10 +213,13 @@ export async function takeDesktopAlong(
 }
 
 /** macOS: descompacta o `.app` em `~/Applications`. Linux: escreve os dois `.desktop`. */
-async function placeApp(host: ServiceHost, layout: Layout): Promise<string | null> {
+async function placeApp(host: ServiceHost, layout: Layout, out: (line: string) => void): Promise<string | null> {
   if (host.platform !== "darwin") {
-    host.write(layout.applicationsEntry, desktopEntry(layout, ["--panel"]));
-    host.write(layout.autostartEntry, desktopEntry(layout, [], "X-GNOME-Autostart-enabled=true\n"));
+    const sandbox = probeSandbox(host.read);
+    if (sandbox.refused) out(sandboxReason(sandbox));
+    const flags = sandbox.refused ? ["--no-sandbox"] : [];
+    host.write(layout.applicationsEntry, desktopEntry(layout, [...flags, "--panel"]));
+    host.write(layout.autostartEntry, desktopEntry(layout, flags, "X-GNOME-Autostart-enabled=true\n"));
     return null;
   }
 

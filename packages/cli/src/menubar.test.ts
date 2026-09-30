@@ -37,6 +37,8 @@ interface RunOptions {
   /** Já há um pacote do app instalado (o caso de `uninstall` e `open`). */
   installed?: boolean;
   env?: NodeJS.ProcessEnv;
+  /** O que `/proc/sys` diz; um caminho que não está aqui não existe na máquina. */
+  sysctl?: Record<string, string>;
 }
 
 function setup(options: RunOptions = {}): Run {
@@ -64,7 +66,7 @@ function setup(options: RunOptions = {}): Run {
       events.push([command, ...args].join(" "));
       return { code: 0, stdout: "", stderr: "" };
     },
-    read: (path) => files.get(path) ?? null,
+    read: (path) => files.get(path) ?? options.sysctl?.[path] ?? null,
     exists: (path) => existing.has(path) || files.has(path),
     write: (path, content) => {
       events.push(`write ${path}`);
@@ -191,6 +193,42 @@ describe("lumem menubar install", () => {
     expect(autostart).toContain(`Exec="${executable}"\n`);
     expect(autostart).not.toContain("--panel");
     expect(linux.events.some((line) => line.startsWith("ditto"))).toBe(false);
+  });
+
+  it("adds no-sandbox only where the kernel refuses the sandbox", async () => {
+    // O Chromium só sobe o sandbox por user namespaces sem privilégio; onde o kernel os nega o
+    // app aborta ao abrir. Então a flag vai **só** onde o kernel nega, e a saída diz por quê.
+    const USERNS = "/proc/sys/kernel/unprivileged_userns_clone";
+    const APPARMOR = "/proc/sys/kernel/apparmor_restrict_unprivileged_userns";
+    const cases: { name: string; sysctl: Record<string, string>; refused: boolean; says: string }[] = [
+      { name: "both allowed", sysctl: { [USERNS]: "1\n", [APPARMOR]: "0\n" }, refused: false, says: "" },
+      { name: "both absent", sysctl: {}, refused: false, says: "" },
+      { name: "userns_clone 0", sysctl: { [USERNS]: "0\n" }, refused: true, says: "unprivileged_userns_clone=0" },
+      { name: "apparmor 1", sysctl: { [APPARMOR]: "1\n" }, refused: true, says: "apparmor_restrict_unprivileged_userns=1" },
+      { name: "both refusing", sysctl: { [USERNS]: "0\n", [APPARMOR]: "1\n" }, refused: true, says: "unprivileged_userns_clone=0" },
+    ];
+    const executable = `${SCOPE_DIR}/lumem-desktop-linux-x64/app/lumem-desktop`;
+
+    for (const { name, sysctl, refused, says } of cases) {
+      const run = setup({ platform: "linux", arch: "x64", sysctl });
+
+      expect(await menubar("install", run.deps), name).toBe(0);
+
+      const launcher = run.files.get("/Users/ana/.local/share/applications/lumem.desktop") ?? "";
+      const autostart = run.files.get("/Users/ana/.config/autostart/lumem.desktop") ?? "";
+      const said = run.out.filter((line) => line.includes("--no-sandbox"));
+      if (refused) {
+        expect(launcher, name).toContain(`Exec="${executable}" --no-sandbox --panel\n`);
+        expect(autostart, name).toContain(`Exec="${executable}" --no-sandbox\n`);
+        expect(said, name).toHaveLength(1);
+        expect(said[0], name).toContain(says);
+      } else {
+        expect(launcher, name).toContain(`Exec="${executable}" --panel\n`);
+        expect(autostart, name).toContain(`Exec="${executable}"\n`);
+        expect(launcher + autostart, name).not.toContain("--no-sandbox");
+        expect(said, name).toEqual([]);
+      }
+    }
   });
 
   it("starts the app after installing it", async () => {
