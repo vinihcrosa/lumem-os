@@ -127,6 +127,6 @@ jobs:
           grep -q '^sonar.sources=' sonar-project.properties || { echo "::error::sonar.sources ausente — com sonar.tests definido, tudo vira teste e a cobertura é descartada em silêncio"; exit 1; }
 
       - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995 # v8.1.0
+        uses: SonarSource/sonarqube-scan-action@ba9859eae8dd6bd29e412f25ddbbef3d032000f4 # v8.2.2
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
