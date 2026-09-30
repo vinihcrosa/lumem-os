@@ -152,8 +152,9 @@ describe("a consulta ao registry", () => {
     const request = vi.fn(
       async (url: string | URL | Request) => {
         const href = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
-        expect(href).toContain("/latest");
-        expect(href).toContain(encodeURIComponent(PACKAGE_NAME));
+        // A URL inteira, e não pedaços dela: é a que o AC 15 da `038` escreve, e a que
+        // o daemon pede — o `%40` de antes era a mesma rota escrita de outro jeito.
+        expect(href).toBe("https://registry.npmjs.org/@vinihcrosa%2Flumem-os/latest");
         return new Response(JSON.stringify({ version: "9.9.9" }), { status: 200 });
       },
     ) as unknown as typeof fetch;

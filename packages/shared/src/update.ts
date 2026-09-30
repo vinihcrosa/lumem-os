@@ -9,8 +9,14 @@
 
 export const PACKAGE_NAME = "@vinihcrosa/lumem-os";
 
-/** The `latest` dist-tag, and nothing else — a few hundred bytes, not the full packument. */
-export const REGISTRY_URL = `https://registry.npmjs.org/${encodeURIComponent(PACKAGE_NAME)}/latest`;
+/**
+ * The `latest` dist-tag, and nothing else — a few hundred bytes, not the full packument.
+ *
+ * Only the slash of the scope is escaped, which is how npm itself writes the
+ * path (`038`, AC 15). The `@` used to be escaped too (`%40`); the registry
+ * answers 200 to both, measured on 2026-09-29.
+ */
+export const REGISTRY_URL = `https://registry.npmjs.org/${PACKAGE_NAME.replace("/", "%2F")}/latest`;
 
 export type PackageManager = "npm" | "pnpm" | "yarn" | "bun";
 
