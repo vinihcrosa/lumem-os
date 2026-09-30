@@ -59,8 +59,9 @@ class FakeSocket {
   closed = false;
   deliver!: (message: AcpServerMessage) => void;
 
-  send(message: AcpClientMessage): void {
+  send(message: AcpClientMessage): boolean {
     this.sent.push(message);
+    return true;
   }
 
   close(): void {
@@ -200,6 +201,45 @@ describe("sending", () => {
 
     expect(socket.sent).toEqual([{ type: "prompt", text: "arruma o frontmatter" }]);
     expect(box).toHaveValue("");
+  });
+
+  it("envio recusado pelo socket mantém o rascunho e mostra o motivo", async () => {
+    // O socket recusa como o `acp-socket` recusa: diz o motivo e devolve false.
+    const user = userEvent.setup();
+    const socket = new FakeSocket();
+    let refuse = true;
+    const connect: AcpConnect = (_sessionId, handlers) => {
+      socket.deliver = handlers.onMessage;
+      return {
+        send: (message) => {
+          if (!refuse) return socket.send(message);
+          handlers.onSendRejected?.("o socket não está aberto");
+          return false;
+        },
+        close: () => socket.close(),
+      };
+    };
+    render(
+      <TestProviders>
+        <Conversation sessionId="s-1" connect={connect} />
+      </TestProviders>,
+    );
+    act(() => socket.deliver(attached()));
+
+    const box = await screen.findByLabelText("mensagem para o agente");
+    await user.click(box);
+    await user.keyboard("não perca isto{Enter}");
+
+    expect(box).toHaveValue("não perca isto");
+    expect(screen.getByText("o socket não está aberto")).toBeInTheDocument();
+
+    // Até o próximo envio: o que sai limpa o rascunho e o motivo.
+    refuse = false;
+    await user.keyboard("{Enter}");
+
+    expect(socket.sent).toEqual([{ type: "prompt", text: "não perca isto" }]);
+    expect(box).toHaveValue("");
+    expect(screen.queryByText("o socket não está aberto")).not.toBeInTheDocument();
   });
 
   it("sends on a plain Enter", async () => {
@@ -586,6 +626,53 @@ describe("um turno que falhou", () => {
   });
 });
 
+describe("o turno vivo na tela (`037` S3)", () => {
+  it("caret nunca na mensagem do usuário", async () => {
+    const { socket } = mount();
+    socket.deliver(attached());
+    socket.deliver({
+      type: "event",
+      at: clock,
+      event: { type: "message", messageId: "u-1", role: "user", text: "roda o gate" },
+    });
+
+    // O turno começou — o `■ interromper` diz isso —, e o último bloco é a pergunta.
+    await screen.findByRole("button", { name: /interromper/ });
+    expect(screen.getByText("roda o gate")).toBeInTheDocument();
+    expect(document.querySelector(".mcaret")).toBeNull();
+
+    // O caret é do agente: aparece quando ele começa a escrever, e só lá.
+    socket.deliver({
+      type: "event",
+      at: clock + 1000,
+      event: { type: "message", messageId: "a-1", role: "agent", text: "Rodando agora." },
+    });
+
+    await screen.findByText(/Rodando agora/);
+    const carets = document.querySelectorAll(".mcaret");
+    expect(carets).toHaveLength(1);
+    expect(carets[0]!.closest(".turn--agent")).not.toBeNull();
+  });
+
+  it("mostra a linha de estado acima do composer enquanto há turno", async () => {
+    const { socket } = mount();
+    socket.deliver(attached());
+    socket.deliver({
+      type: "event",
+      at: Date.now(),
+      event: { type: "message", messageId: "u-1", role: "user", text: "roda o gate" },
+    });
+
+    const line = await screen.findByText(/^trabalhando · \d+ s$/);
+    expect(line.closest(".turn-status")?.nextElementSibling).toHaveClass("composer");
+
+    socket.deliver({ type: "event", at: Date.now(), event: { type: "turn_end", stopReason: "end_turn" } });
+    await waitFor(() => {
+      expect(screen.queryByText(/trabalhando/)).not.toBeInTheDocument();
+    });
+  });
+});
+
 describe("interrupting", () => {
   it("offers to interrupt only while a turn is in flight", async () => {
     const { socket } = mount();
@@ -697,6 +784,17 @@ describe("esc interrupts the turn", () => {
 
     expect(socket.sent).toEqual([]);
     expect(screen.queryByRole("listbox", { name: "comandos do agente" })).not.toBeInTheDocument();
+  });
+
+  it("não desenha a linha de estado numa aba que não está na tela", async () => {
+    // A aba escondida continua montada e com turno em voo: sem o `active` chegando
+    // ao `TurnStatus`, o relógio dela tiquetaquearia para uma linha que ninguém vê.
+    const { socket } = mount({ active: false });
+    socket.deliver(attached([entry({ type: "message", messageId: "u-1", role: "user", text: "vai" })]));
+    await screen.findByRole("button", { name: /interromper/ });
+
+    expect(screen.queryByText(/trabalhando/)).not.toBeInTheDocument();
+    expect(document.querySelector(".turn-status")).toBeNull();
   });
 
   it("stays quiet in a tab that is not the one on screen", async () => {
@@ -1210,6 +1308,35 @@ describe("a conversation that has ended", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("não sabe retomar conversa");
     // Still offered: the reason is not the end of the road.
     expect(screen.getByRole("button", { name: /retomar/ })).toBeInTheDocument();
+  });
+
+  it("conversa encerrada sem fecho não desenha turno vivo", async () => {
+    // `037` S1: uma transcrição gravada antes de qualquer fecho — as que já estão
+    // em disco, ou a de um adaptador que saiu sem o daemon fechar o turno —
+    // termina na pergunta, e o redutor a relê com `streaming` ligado. Somente
+    // leitura desliga tudo o que é de turno vivo.
+    readOnly([
+      entry({ type: "message", messageId: "m-1", role: "user", text: "a pergunta sem resposta" }),
+    ]);
+
+    expect(await screen.findByText("a pergunta sem resposta")).toBeInTheDocument();
+    expect(document.querySelector(".mcaret")).toBeNull();
+    // A linha de estado do turno (S3) diz `trabalhando`; aqui ela não existe.
+    expect(screen.queryByText(/trabalhando/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /interromper/ })).not.toBeInTheDocument();
+  });
+
+  it("conversa encerrada com resposta do agente sem fecho não desenha caret", async () => {
+    // Rodada 5: a prova acima termina na pergunta, onde `turn.role === "agent"`
+    // já apaga o caret sozinho. Aqui a última entrada é do agente — o único caso
+    // em que só o `!readOnly` decide.
+    readOnly([
+      entry({ type: "message", messageId: "m-1", role: "user", text: "a pergunta" }),
+      entry({ type: "message", messageId: "m-1", role: "agent", text: "a resposta pela metade" }),
+    ]);
+
+    expect(await screen.findByText("a resposta pela metade")).toBeInTheDocument();
+    expect(document.querySelector(".mcaret")).toBeNull();
   });
 
   it("reports a read that failed instead of showing an empty conversation", async () => {

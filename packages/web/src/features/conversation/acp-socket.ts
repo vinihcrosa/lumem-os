@@ -1,5 +1,6 @@
 import {
   ACP_CLOSE_SESSION_NOT_FOUND,
+  ACP_MAX_FRAME_BYTES,
   ACP_SESSION_PARAM,
   ACP_WS_PATH,
   acpClientMessageSchema,
@@ -47,7 +48,12 @@ export interface AcpSocketHandlers {
 }
 
 export interface AcpSocket {
-  send(message: AcpClientMessage): void;
+  /**
+   * Puts the message on the wire. False when it did not — refused by the schema,
+   * above the frame limit, or with the socket not open —, after telling
+   * `onSendRejected` why. The composer keeps a draft that never left (`037` C13).
+   */
+  send(message: AcpClientMessage): boolean;
   close(): void;
 }
 
@@ -78,6 +84,9 @@ export interface AcpConnectOptions {
 }
 
 const OPEN = 1;
+
+const TOO_BIG = "mensagem grande demais — o limite é 1 MiB";
+const encoder = new TextEncoder();
 
 export function acpWebSocketUrl(
   sessionId: string,
@@ -131,14 +140,24 @@ export function connectAcpSocket(
             .map((issue) => `${issue.path.join(".") || "<root>"}: ${issue.message}`)
             .join("; "),
         );
-        return;
+        return false;
+      }
+
+      // Measured in bytes, as `ws` measures `maxPayload`: a string's length counts
+      // UTF-16 units, and an accented prompt would slip past a character count and
+      // close the socket with 1009 instead of being refused here.
+      const frame = encodeAcpClientMessage(parsed.data);
+      if (encoder.encode(frame).byteLength > ACP_MAX_FRAME_BYTES) {
+        handlers.onSendRejected?.(TOO_BIG);
+        return false;
       }
 
       if (socket.readyState !== OPEN) {
         handlers.onSendRejected?.("o socket não está aberto");
-        return;
+        return false;
       }
-      socket.send(encodeAcpClientMessage(parsed.data));
+      socket.send(frame);
+      return true;
     },
     close() {
       // Detach only. The daemon keeps the conversation — that is the point.

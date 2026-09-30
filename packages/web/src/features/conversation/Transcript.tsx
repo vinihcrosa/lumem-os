@@ -109,9 +109,15 @@ export function Transcript({
         ) : (
           <TurnFrame key={turnIndex} role={turn.role}>
             {turn.blocks.map((block, blockIndex) => {
-              // Only the last block of the last turn can still be growing.
+              // Only the last block of the last turn can still be growing — and
+              // never in a record: a transcript saved before any close replays
+              // with `streaming` on, and nothing there is growing (`037` S1).
+              // Only the agent's: right after sending, the last block is the
+              // question itself, and a caret on it read as the user still typing (S3).
               const streaming =
                 conversation.streaming &&
+                !readOnly &&
+                turn.role === "agent" &&
                 turnIndex === conversation.turns.length - 1 &&
                 blockIndex === turn.blocks.length - 1;
               const position = `${turnIndex}:${blockIndex}`;

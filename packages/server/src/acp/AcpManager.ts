@@ -74,6 +74,15 @@ export const AUTH_STATUS_TIMEOUT_MS = 10_000;
  */
 export const AUTH_STATUS_GRACE_MS = 1_000;
 
+/**
+ * Quanto o turno espera pela saída depois de o stdout fechar (`037` S1).
+ *
+ * O processo de verdade fecha o cano antes de o `exit` chegar, e é a saída que
+ * dá a frase do fecho. Curto porque o turno já acabou; se o processo seguir vivo
+ * com o cano fechado, o fecho diz `(saída desconhecida)`.
+ */
+export const EXIT_AFTER_CLOSE_GRACE_MS = 2_000;
+
 /** Quem roda o `--cli` do adaptador. Injetável porque o binário de teste não tem um. */
 export type AcpCliRunner = (request: AcpCliRequest) => Promise<AcpCliResult>;
 
@@ -396,6 +405,30 @@ interface PendingPermission {
   resolve(outcome: RequestPermissionOutcome): void;
 }
 
+/**
+ * Um `prompt` em voo, com o que a saída do processo precisa para fechá-lo (`037`).
+ *
+ * Cada `prompt` tem o seu, porque a pergunta de qual turno a guarda faz — *"a
+ * saída me fechou?"* — não pode ser respondida por um estado da sessão que o
+ * `prompt` seguinte também escreve.
+ */
+interface TurnInFlight {
+  /** O id deste turno, para a pergunta gravada pela saída levar o dele. */
+  id: string;
+  /**
+   * A pergunta enquanto ela ainda não foi para a transcrição.
+   *
+   * O teto e a memória são lidos antes de a mensagem ser gravada, e o processo
+   * pode sair nesse intervalo: aí é a saída que a grava, antes do fecho, para o
+   * replay mostrar o que foi perguntado e o texto não se perder (`037` Q4).
+   */
+  question: string | undefined;
+  /** O fecho com que a saída levou este turno, ou `undefined` enquanto ele vive. */
+  failure: AcpTurnFailedError | undefined;
+  /** Rejeita o pedido em voo com o `failure`: o stdout pode nunca fechar. */
+  release: (failed: AcpTurnFailedError) => void;
+}
+
 interface Session {
   info: AcpSessionInfo;
   process: AcpProcess;
@@ -467,6 +500,16 @@ interface Session {
   /** One id per turn, for chunks the agent sends without a message id. */
   turnId: string;
   /**
+   * Os `prompt` em voo, cada um com o seu gatilho (`037` S1, Q5).
+   *
+   * O `session/prompt` só rejeita sozinho quando o stdout fecha, e um adaptador
+   * pode sair com ele aberto — herdado por um neto. Sem o gatilho o `prompt`
+   * ficaria pendente para sempre, e quem o espera — a esteira — junto. É um
+   * conjunto porque dois `prompt` na mesma sessão são permitidos, como sempre
+   * foram, e a saída tem de libertar todos, e não só o último a começar.
+   */
+  turnsInFlight: Set<TurnInFlight>;
+  /**
    * The agent is still replaying a loaded conversation (D14).
    *
    * The adapter re-streams the whole history around `session/load`. Those updates are
@@ -510,6 +553,8 @@ interface Session {
 export interface AcpManagerOptions {
   spawner?: AcpProcessSpawner;
   handshakeTimeoutMs?: number;
+  /** Quanto o turno espera a saída depois de o stdout fechar; o padrão é `EXIT_AFTER_CLOSE_GRACE_MS`. */
+  exitAfterCloseGraceMs?: number;
   /**
    * How the agent reaches the disk (F4.1).
    *
@@ -656,6 +701,7 @@ export class AcpManager {
   private readonly probing = new Set<AcpProcess>();
   private readonly spawner: AcpProcessSpawner;
   private readonly handshakeTimeoutMs: number;
+  private readonly exitAfterCloseGraceMs: number;
   private readonly isAvailable: (command: string) => boolean;
   private readonly files: FileService;
   private readonly ptyManager: PtyManager | undefined;
@@ -670,6 +716,7 @@ export class AcpManager {
   constructor({
     spawner = spawnAcpProcess,
     handshakeTimeoutMs = DEFAULT_HANDSHAKE_TIMEOUT_MS,
+    exitAfterCloseGraceMs = EXIT_AFTER_CLOSE_GRACE_MS,
     isAvailable = (command) => isCommandAvailable(command),
     files = createFileService(),
     ptyManager,
@@ -683,6 +730,7 @@ export class AcpManager {
   }: AcpManagerOptions = {}) {
     this.spawner = spawner;
     this.handshakeTimeoutMs = handshakeTimeoutMs;
+    this.exitAfterCloseGraceMs = exitAfterCloseGraceMs;
     this.isAvailable = isAvailable;
     this.files = files;
     this.ptyManager = ptyManager;
@@ -1223,6 +1271,7 @@ export class AcpManager {
         ? createTerminalBridge({ ptyManager: this.ptyManager, cwd })
         : undefined,
       turnId: newId(),
+      turnsInFlight: new Set(),
       replaying: false,
       coreInjected: false,
       quotaRefusalKind: spec?.quotaRefusalKind ?? null,
@@ -1251,7 +1300,7 @@ export class AcpManager {
 
     // Registered before the handshake so that an adapter dying mid-handshake is
     // recorded as an exit rather than leaving a row that claims to be running.
-    void child.exited.then(({ exitCode }) => this.markExited(session, exitCode));
+    void child.exited.then((status) => this.markExited(session, status));
 
     return { session, child };
   }
@@ -1274,6 +1323,17 @@ export class AcpManager {
     session.turnId = newId();
     session.promptInFlight = true;
     session.turnStartedAt = new Date();
+    // Corrida contra a saída, e não confiança no cano: o pedido só rejeita
+    // sozinho quando o stdout fecha, e é a saída que o markExited vê. Armada
+    // aqui, antes do teto e da memória, porque a saída pode chegar enquanto eles
+    // são lidos — e aí ninguém ainda corre contra ela. Um gatilho por turno: o
+    // `prompt` seguinte não pode tomar o deste (`037` Q5).
+    const turn: TurnInFlight = { id: session.turnId, question: text, failure: undefined, release: () => {} };
+    const exited = new Promise<never>((_, reject) => {
+      turn.release = reject;
+    });
+    void exited.catch(() => undefined);
+    session.turnsInFlight.add(turn);
 
     /*
      * O teto, **antes** de o turno custar (Parte 3, T16).
@@ -1289,6 +1349,9 @@ export class AcpManager {
      * a única saída daqui que precisa limpar.
      */
     const budget = await this.checkBudget(session);
+    // O processo saiu enquanto o teto era lido: a saída já fechou o turno, com a
+    // pergunta, e o fecho é o dela.
+    if (turn.failure !== undefined) throw turn.failure;
     if (budget !== null) {
       this.emit(session, {
         type: "budget",
@@ -1307,6 +1370,7 @@ export class AcpManager {
         // 3 h` num turno que nunca começou.
         session.promptInFlight = false;
         session.turnStartedAt = null;
+        session.turnsInFlight.delete(turn);
         throw new DomainError("BLOCKED", budget.message);
       }
     }
@@ -1318,6 +1382,9 @@ export class AcpManager {
     // da mensagem da pessoa na transcrição porque foi antes dela no prompt: a
     // conversa gravada tem que estar na ordem em que o agente leu.
     const preamble = session.coreInjected ? null : await this.coreFor(session);
+    // O mesmo, enquanto a memória era lida. O núcleo não é gravado: o agente
+    // nunca o leu.
+    if (turn.failure !== undefined) throw turn.failure;
     if (preamble !== null) {
       // Marcado antes de emitir: se o `session/prompt` falhar, o núcleo já foi
       // para a transcrição e reinjetar no turno seguinte diria duas vezes a
@@ -1335,25 +1402,36 @@ export class AcpManager {
     // show every answer and none of the questions — and the replay would not
     // reproduce what the live client saw, since the live client would have had to
     // paint its own message locally.
+    turn.question = undefined;
     this.emit(session, {
       type: "message",
-      messageId: session.turnId,
+      messageId: turn.id,
       role: "user",
       text,
     });
 
     let stopReason: StopReason;
     try {
-      ({ stopReason } = await session.connection.agent.request("session/prompt", {
-        sessionId: session.info.acpSessionId,
-        // Bloco **separado**, nunca concatenado: o texto da pessoa vai verbatim,
-        // como sempre foi, e o que o daemon acrescentou é distinguível de fora.
-        prompt:
-          preamble === null
-            ? [{ type: "text", text }]
-            : [{ type: "text", text: preamble.text }, { type: "text", text }],
-      }));
+      ({ stopReason } = await Promise.race([
+        session.connection.agent.request("session/prompt", {
+          sessionId: session.info.acpSessionId,
+          // Bloco **separado**, nunca concatenado: o texto da pessoa vai verbatim,
+          // como sempre foi, e o que o daemon acrescentou é distinguível de fora.
+          prompt:
+            preamble === null
+              ? [{ type: "text", text }]
+              : [{ type: "text", text: preamble.text }, { type: "text", text }],
+        }),
+        exited,
+      ]));
     } catch (error) {
+      // Um fecho só por turno (`037` door 2). A saída já fechou este, e o fecho
+      // é o `AcpTurnFailedError` com que ela libertou o pedido; o `ACP connection
+      // closed` que o SDK manda depois não conta de novo.
+      if (turn.failure !== undefined) throw turn.failure;
+      // O cano fechou antes da saída — o caminho do processo real. O erro aqui é
+      // o `ACP connection closed` do SDK, e a frase do fecho é a da saída.
+      if (session.connection.signal.aborted) throw await this.awaitExitAfterClose(session, exited);
       /*
        * Um turno que falha tem de **soltar a marca**, e isso é defeito consertado
        * e não zelo: sem o `finally`, um `session/prompt` recusado deixava
@@ -1367,7 +1445,12 @@ export class AcpManager {
       this.observeTurnFailure(session, error);
       if (isQuotaRefusal(error, session.quotaRefusalKind)) throw this.quotaRefused(session, error);
       throw this.turnFailed(session, error);
+    } finally {
+      session.turnsInFlight.delete(turn);
     }
+    // A resposta e a saída chegaram juntas, e a saída fechou primeiro: o fecho é
+    // o dela, e nenhum `turn_end` vem depois (door 2).
+    if (turn.failure !== undefined) throw turn.failure;
 
     // The fifth card state, and the only place it can be derived (A14). ACP has
     // no `cancelled` status: a call that was still open when the user pressed
@@ -2469,7 +2552,10 @@ export class AcpManager {
     }
   }
 
-  private markExited(session: Session, exitCode: number | null): void {
+  private markExited(
+    session: Session,
+    { exitCode, signal }: { exitCode: number | null; signal: string | null },
+  ): void {
     if (session.info.state === "exited") return;
 
     session.info.state = "exited";
@@ -2479,6 +2565,11 @@ export class AcpManager {
     // as cancelled keeps the agent's promises from dangling, and the event —
     // before the listeners go — keeps the card from offering dead buttons.
     this.cancelPending(session);
+    // Antes de limpar os listeners: quem está com a aba aberta é quem precisa
+    // ler que o turno acabou.
+    // Também com `promptInFlight` desligado: o primeiro de dois `prompt` que
+    // termina o desliga, e o segundo ainda está em voo.
+    if (session.promptInFlight || session.turnsInFlight.size > 0) this.closeTurnOnExit(session, exitCode, signal);
     session.listeners.clear();
 
     /*
@@ -2507,6 +2598,66 @@ export class AcpManager {
         /* a broken watcher must not take the daemon with it */
       }
     }
+  }
+
+  /**
+   * O turno que o processo levou junto (`037` S1, doors 1 e 2).
+   *
+   * Aqui, e não à espera de o `session/prompt` rejeitar: ele só rejeita quando o
+   * stdout fecha, e o conserto não pode depender da forma como o estrangeiro
+   * fecha o cano. O fecho é um `turn_failed`, e não um `turn_end` — é neste que
+   * o teto conta turno, e um que morreu não aconteceu.
+   *
+   * Marca o `failure` de cada turno em voo, e é isso que os `prompt` leem para
+   * saber que o seu já foi fechado: a saída fecha **todos**, e o fecho é um só.
+   */
+  private closeTurnOnExit(
+    session: Session,
+    exitCode: number | null,
+    signal: string | null,
+  ): AcpTurnFailedError {
+    const cause = Object.assign(new Error(`o agente encerrou no meio do turno (${exitText(exitCode, signal)})`), {
+      code: "exited",
+    });
+    for (const turn of session.turnsInFlight) {
+      if (turn.question === undefined) continue;
+      // Saiu antes de ouvir a pergunta: ela vai para a transcrição antes do fecho.
+      this.emit(session, { type: "message", messageId: turn.id, role: "user", text: turn.question });
+      turn.question = undefined;
+    }
+    session.promptInFlight = false;
+    session.turnStartedAt = null;
+    session.openToolCalls.clear();
+    this.observeTurnFailure(session, cause);
+    const failed = this.turnFailed(session, cause);
+    for (const turn of session.turnsInFlight) {
+      turn.failure = failed;
+      turn.release(failed);
+    }
+    session.turnsInFlight.clear();
+    return failed;
+  }
+
+  /**
+   * O stdout fechou com o turno em voo: espera a saída fechá-lo, com prazo.
+   *
+   * `exited` rejeita com o `AcpTurnFailedError` do `markExited`, que já fechou o
+   * turno com a frase da saída; se o prazo vence, o fecho é este, sem código nem
+   * sinal. Um fecho só, dos dois jeitos (door 2).
+   */
+  private async awaitExitAfterClose(session: Session, exited: Promise<never>): Promise<AcpTurnFailedError> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const grace = new Promise<void>((resolve) => {
+      timer = setTimeout(resolve, this.exitAfterCloseGraceMs);
+    });
+    try {
+      await Promise.race([exited, grace]);
+    } catch (failed) {
+      return failed as AcpTurnFailedError;
+    } finally {
+      clearTimeout(timer);
+    }
+    return this.closeTurnOnExit(session, null, null);
   }
 
   private require(id: string): Session {
@@ -2781,6 +2932,13 @@ function failureText(error: AcpTurnFailedError): string {
     return error.message;
   }
   return `${error.message}: ${details}`;
+}
+
+/** Como o processo saiu, na frase do turno que ele levou junto. */
+function exitText(exitCode: number | null, signal: string | null): string {
+  if (exitCode !== null) return `saída ${exitCode}`;
+  if (signal !== null) return `sinal ${signal}`;
+  return "saída desconhecida";
 }
 
 /**

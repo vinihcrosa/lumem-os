@@ -928,3 +928,60 @@ describe("um turno que falhou, sem ser cota", () => {
     expect(replayConversation(entries)).toEqual(from(...entries));
   });
 });
+
+describe("o relógio do turno (`037` S3)", () => {
+  const stamped = (atMs: number, event: AcpEvent): AcpTranscriptEntry => ({ at: atMs, event });
+
+  it("guarda o início do turno e o último evento", () => {
+    const asked = from(stamped(1000, { type: "message", messageId: "u-1", role: "user", text: "vai" }));
+
+    expect(asked.turnStartedAt).toBe(1000);
+    expect(asked.lastEventAt).toBe(1000);
+
+    const answering = feed(
+      asked,
+      stamped(4000, { type: "message", messageId: "a-1", role: "agent", text: "olhando" }),
+    );
+
+    expect(answering.lastEventAt).toBe(4000);
+    expect(answering.turnStartedAt).toBe(1000);
+  });
+
+  it("replay e dobra concordam no relógio do turno", () => {
+    const entries = [
+      stamped(1000, { type: "message", messageId: "u-1", role: "user", text: "primeiro" }),
+      stamped(2000, { type: "message", messageId: "a-1", role: "agent", text: "feito" }),
+      stamped(3000, { type: "turn_end", stopReason: "end_turn" }),
+      stamped(10_000, { type: "message", messageId: "u-2", role: "user", text: "segundo" }),
+      stamped(11_000, { type: "thought", messageId: "t-1", text: "hmm" }),
+      stamped(12_000, {
+        type: "tool_call",
+        toolCallId: "tc-1",
+        title: "Read prd.md",
+        kind: "read",
+        status: "running",
+        locations: [],
+      }),
+      stamped(15_000, { type: "tool_call_update", toolCallId: "tc-1", status: "ok" }),
+    ];
+
+    const replayed = replayConversation(entries);
+    // A dobra evento a evento é o caminho ao vivo: o `attached` relê um prefixo,
+    // e o resto chega um frame por vez.
+    let folded = replayConversation(entries.slice(0, 2));
+    for (const entry of entries.slice(2)) folded = reduceConversation(folded, entry);
+
+    expect(replayed.turnStartedAt).toBe(10_000);
+    expect(replayed.lastEventAt).toBe(15_000);
+    expect(folded.turnStartedAt).toBe(replayed.turnStartedAt);
+    expect(folded.lastEventAt).toBe(replayed.lastEventAt);
+
+    // E em cada ponto do caminho, não só no fim.
+    let live = emptyConversation();
+    entries.forEach((entry, index) => {
+      live = reduceConversation(live, entry);
+      const again = replayConversation(entries.slice(0, index + 1));
+      expect([live.turnStartedAt, live.lastEventAt]).toEqual([again.turnStartedAt, again.lastEventAt]);
+    });
+  });
+});

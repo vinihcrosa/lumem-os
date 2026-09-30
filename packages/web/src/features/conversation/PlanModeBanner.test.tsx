@@ -33,6 +33,7 @@ function composer(conversation: ConversationState, readOnly = false) {
       readOnly={readOnly}
       active
       send={() => true}
+      sendRefusal={null}
       cancel={() => {}}
       setMode={() => {}}
       setConfig={() => {}}

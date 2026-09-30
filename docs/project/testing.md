@@ -1745,6 +1745,79 @@ A regra: **uma prova do tipo "para cada membro" também afirma que o conjunto n�
 quando o tamanho é conhecido, que é o tamanho esperado. Na mesma verificação, a primeira rodada achou a
 irmã desta: o script aceitava qualquer `turn_end`, e `refusal` e `max_tokens` também são `turn_end`.
 
+### Uma guarda que o construtor acrescenta sem check é uma guarda sem prova
+
+**Sintoma:** a [`037`](../features/037-conversation-liveness/checks.md) entregou os 27 checks provados e
+reprovou na [verificação da rodada 1](../features/037-conversation-liveness/verification.md): duas
+guardas de corrida do `AcpManager` — o adaptador saindo enquanto o teto e a memória eram lidos, e a
+resposta chegando no mesmo tique da saída — não eram exercitadas por teste nenhum. Tirar qualquer uma
+deixava a suíte verde, e uma delas era o que impedia o `prompt` de ficar pendurado para sempre, que é o
+defeito que a fatia existia para consertar.
+
+**Causa:** o construtor viu as duas janelas enquanto escrevia o conserto, fechou-as, e as reportou como
+*"guardas extras"* sem teste. O check nomeava o caminho principal; o `Coverage` do conjunto *turno em voo
+na saída* tinha dois membros, e o código tinha quatro. Quem enumera o conjunto a partir dos checks nunca
+acha o membro que só existe no código.
+
+**Conserto:** C28 e C29, com a decisão de produto que a guarda tinha tomado sozinha virando pergunta
+([Q4](../features/037-conversation-liveness/open-questions.md#x-q4--a-pergunta-fica-gravada-quando-o-adaptador-morre-antes-de-recebê-la)):
+a guarda descartava a mensagem da pessoa. A regra: **um ramo que o construtor acrescenta além do check é
+um membro novo de um conjunto** — ganha linha no `Coverage` e prova no mesmo commit, ou volta como
+pergunta; *"acrescentei, nenhum teste cobre"* no relatório é o sintoma, não a desculpa.
+
+### Uma prova que percorre um caminho não prova a frase do outro
+
+**Sintoma:** na mesma rodada, o verificador tirou o ramo que troca `ACP connection closed` pela frase do
+Lumem no caminho em que o stdout fecha antes da saída — o caminho do **processo real** —, e os checks
+C1–C7 continuaram verdes. O C4 cobria esse caminho só na **contagem** de fechos, e o teste dele caía no
+prazo vencido.
+
+**Causa:** o C1 afirmava a frase com o agente falso, cujo `kill()` não fecha o stdout — a outra ordem. A
+frase estava provada numa ordem, e a contagem na outra, e nenhum check cruzava as duas.
+
+**Conserto:** o C30, que amarra a frase às duas saídas do caminho real. A regra: **quando um conjunto de
+ordens tem uma afirmação por membro, cada afirmação precisa de prova em cada membro** — a contagem numa
+ordem e a frase noutra somam duas meias provas, não uma inteira.
+
+### Uma guarda que lê um campo com dois escritores confunde os dois
+
+**Sintoma:** a correção da rodada 1 da [`037`](../features/037-conversation-liveness/checks.md) passou os
+30 checks, e a [rodada 2](../features/037-conversation-liveness/verification.md) achou o `prompt`
+pendurado para sempre de novo — por outro caminho: um **segundo** `prompt` na mesma sessão.
+
+**Causa:** as guardas liam *"o `turnId` mudou"* como *"o processo saiu"*. Dois escritores mudam o
+`turnId`: a saída, que o zera, e todo `prompt` novo, que o troca — e o novo ainda sobrescrevia o gatilho
+que libertaria o primeiro. Os testes só tinham um escritor em cena.
+
+**Conserto:** o C31, com a decisão de manter dois `prompt` permitidos
+([Q5](../features/037-conversation-liveness/open-questions.md#x-q5--dois-prompt-na-mesma-sessão-ao-mesmo-tempo-são-permitidos)):
+um gatilho por turno, disparado só pela saída. A regra: **uma guarda pergunta pelo fato, não por um
+efeito colateral dele** — antes de ler um campo como sinal, liste quem mais o escreve, e ponha um teste
+com esse outro escritor em cena.
+
+**E ela voltou na rodada seguinte**, noutro campo: a correção passou a fechar o turno na saída também
+quando `promptInFlight` já estava desligado — o primeiro de dois `prompt` o desliga ao terminar —, e
+nenhum teste punha esse escritor em cena. Reverter o ramo deixava as provas verdes; a
+[rodada 3](../features/037-conversation-liveness/verification.md) o achou por mutação, com mais dois
+comportamentos da mesma correção — *um* fecho e *todas* as perguntas — sem asserção. O conserto foi só
+prova (o C31 ampliado). A regra ganha a segunda metade: **o conserto de uma guarda com dois escritores
+cria um ramo por escritor, e cada ramo precisa de um teste que só ele faz cair**.
+
+### Uma guarda nova sobreposta a uma antiga esconde a antiga do teste
+
+**Sintoma:** a [rodada 4](../features/037-conversation-liveness/verification.md) da `037` tirou o
+`!readOnly` da regra do caret — a regra que a issue pede por nome — e as 25 provas do web continuaram
+verdes. Uma conversa encerrada que termina numa resposta do agente pela metade voltava a piscar o caret.
+
+**Causa:** a prova do C7 montava a conversa encerrada terminando na mensagem **da pessoa**, e ali a guarda
+que a S3 acrescentou depois — caret só em turno do agente — já apagava o caret sozinha. As duas guardas
+decidiam o mesmo cenário, e o teste de uma passava pela outra.
+
+**Conserto:** a segunda prova do C7, terminando num bloco do agente sem fecho. A regra: **quando uma guarda
+nova cobre o cenário do teste de uma antiga, cada uma precisa de um cenário em que só ela decide** — ao
+acrescentar uma condição a uma expressão já provada, releia as provas da expressão e pergunte qual delas
+ainda cai por causa da condição antiga.
+
 ## Convenções
 
 - Teste de git usa **repositório temporário real**, nunca mock. `git worktree` tem caso de borda em nome com barra e branch existente que mock nenhum reproduz.

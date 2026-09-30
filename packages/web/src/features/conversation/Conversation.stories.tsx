@@ -54,7 +54,7 @@ function fakeConnect(): AcpConnect {
   return (_sessionId, handlers) => {
     handlers.onMessage(ATTACHED);
     const socket: AcpSocket = {
-      send: (_message: AcpClientMessage) => undefined,
+      send: (_message: AcpClientMessage) => true,
       close: () => undefined,
     };
     return socket;

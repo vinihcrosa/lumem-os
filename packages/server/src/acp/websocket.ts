@@ -1,5 +1,6 @@
 import {
   ACP_CLOSE_SESSION_NOT_FOUND,
+  ACP_MAX_FRAME_BYTES,
   ACP_SESSION_PARAM,
   ACP_WS_PATH,
   decodeAcpClientMessage,
@@ -16,14 +17,6 @@ import { isDomainError, type DomainErrorCode } from "../errors.js";
 import { onUpgradePath } from "../ws/upgrade.js";
 import { AcpTurnFailedError, modeOwnerOf } from "./AcpManager.js";
 import type { AcpManager } from "./AcpManager.js";
-
-/**
- * Largest frame a client may send.
- *
- * A prompt is text a person typed, and F2 does not carry images yet. Without a
- * cap one client can make the daemon buffer whatever it likes.
- */
-const MAX_PAYLOAD_BYTES = 1024 * 1024;
 
 /** Close code for a daemon that is going away, per RFC 6455. */
 const CLOSE_GOING_AWAY = 1001;
@@ -73,7 +66,10 @@ export function registerAcpWebSocket({
   acpManager,
   path = ACP_WS_PATH,
 }: RegisterAcpWebSocketOptions): void {
-  const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_PAYLOAD_BYTES });
+  // A prompt is text a person typed, and F2 does not carry images yet. Without a
+  // cap one client can make the daemon buffer whatever it likes. The number is
+  // shared so the browser refuses the same frame before the wire (`037` C14).
+  const wss = new WebSocketServer({ noServer: true, maxPayload: ACP_MAX_FRAME_BYTES });
 
   function attach(ws: WebSocket, sessionId: string): void {
     const send = (message: AcpServerMessage): void => {
