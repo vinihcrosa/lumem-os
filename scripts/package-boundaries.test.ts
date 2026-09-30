@@ -198,23 +198,36 @@ export const LINE_CEILING = 700;
 
 export const OVER_THE_CEILING: Readonly<Record<string, { lines: number; reason: string }>> = {
   "packages/server/src/acp/AcpManager.ts": {
-    lines: 3000,
+    lines: 3021,
     reason:
       "linha de base 2026-09-28 (2813) mais 5 exceções de lint na linha da T9; quebrar é feature própria (backlog); " +
       "2818 → 2833 na `035`: o `cancelPending`, que emite o `permission_resolved` cancelado no cancel e na saída; " +
       "2833 → 2842 na `036`: o `reasoningMeta` da spec pelo caminho da `quotaRefusalKind`, que só existe aqui; " +
       "mais 158 da `037` — o fecho do turno na saída do processo e a espera pela saída quando o cano fecha " +
       "primeiro (S1), a pergunta que a saída grava antes do `session/prompt` (Q4) e um gatilho por `prompt` em " +
-      "voo (Q5), que moram onde moram `promptInFlight` e o `turn_failed` da recusa",
+      "voo (Q5), que moram onde moram `promptInFlight` e o `turn_failed` da recusa; " +
+      "3000 → 3021 na `038`: o `setUpdating` e a recusa de `prompt` enquanto o daemon se atualiza, que só " +
+      "existem onde `prompt` marca o turno",
   },
-  "packages/server/src/db/schema.ts": { lines: 1709, reason: "linha de base 2026-09-28; um schema do drizzle cresce por tabela" },
+  "packages/server/src/db/schema.ts": {
+    lines: 1740,
+    reason:
+      "linha de base 2026-09-28; um schema do drizzle cresce por tabela; " +
+      "1709 → 1740 na `038`: `daemon_settings`, a tabela de uma linha com as três `CHECK` (door 3)",
+  },
   "packages/server/src/git/GitService.ts": { lines: 1099, reason: "linha de base 2026-09-28" },
   "packages/server/src/files/FileService.ts": { lines: 971, reason: "linha de base 2026-09-28" },
   "packages/server/src/memory/MemoryService.ts": { lines: 961, reason: "linha de base 2026-09-28" },
   "packages/server/src/sessions/SessionStore.ts": { lines: 951, reason: "linha de base 2026-09-28" },
   "packages/server/src/routers/worktree.ts": { lines: 897, reason: "linha de base 2026-09-28, mais uma exceção de lint na linha da T9" },
   "packages/server/src/tasks/conveyor.ts": { lines: 784, reason: "linha de base 2026-09-28" },
-  "packages/server/src/bootstrap.ts": { lines: 781, reason: "linha de base 2026-09-28 (780), mais o import do log em arquivo da T11" },
+  "packages/server/src/bootstrap.ts": {
+    lines: 833,
+    reason:
+      "linha de base 2026-09-28 (780), mais o import do log em arquivo da T11; " +
+      "781 → 833 na `038`: a versão que sobe para o `openDatabase` copiar o banco, e a atualização do daemon — o serviço, " +
+      "o desligamento por referência, o relógio e o `stop` —, que só o `bootstrap` alcança por ligar o `AcpManager`, o banco e o `createShutdownHandler`",
+  },
   "packages/server/src/repositories/task.ts": { lines: 756, reason: "linha de base 2026-09-28" },
   "packages/shared/src/acp-protocol.ts": {
     lines: 760,
