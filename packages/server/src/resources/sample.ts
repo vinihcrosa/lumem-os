@@ -186,7 +186,9 @@ export function createResourceSampler({
       lastAskedAt = now();
       if (disarm === null) {
         await sample();
-        disarm = every(tick, intervalMs);
+        // Duas primeiras perguntas juntas esperam a mesma leitura e voltam juntas: a segunda
+        // a chegar não arma outro relógio por cima do primeiro, que ficaria sem quem o desarme.
+        disarm ??= every(tick, intervalMs);
       }
       if (latest === null) await sample();
       return latest!;

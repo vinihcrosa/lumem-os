@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { ProcessRow } from "./process-table.js";
 import { createResourceSampler, type ResourceSamplerOptions } from "./sample.js";
@@ -276,5 +276,138 @@ describe("resource sampler", () => {
     const { top } = await sampler.resources();
 
     expect(top.find((entry) => entry.pid === 200)?.label).toBe("Claude");
+  });
+
+  it("rates only what two readings can rate, from any clock", async () => {
+    // Uma amostra na mão de quem testa, com o relógio longe do zero: `agora − antes` só é a
+    // diferença quando `antes` não é 0. Cada pid conta uma história da CPU dele.
+    let tick: () => void = () => undefined;
+    let clock = 1_000_000;
+    const tables = [
+      [row(100, 1, 200, 10, "/opt/node/bin/node"), row(101, 100, 9, 5, "/usr/bin/git"), row(102, 100, 8, 7, "/usr/bin/a")],
+      [row(100, 1, 200, 10.5, "/opt/node/bin/node"), row(101, 100, 9, 5, "/usr/bin/git"), row(102, 100, 8, 6, "/usr/bin/a")],
+      [row(100, 1, 200, 11, "/opt/node/bin/node"), row(101, 100, 9, 5, "/usr/bin/git"), row(102, 100, 8, 9, "/usr/bin/a")],
+    ];
+    const { sampler } = harness((read) => tables[read] ?? tables[2]!, {
+      now: () => clock,
+      every: (fn) => {
+        tick = fn;
+        return () => undefined;
+      },
+    });
+    const settle = () => new Promise<void>((resolve) => setImmediate(resolve));
+    const rates = async () =>
+      Object.fromEntries((await sampler.resources()).top.map((entry) => [entry.pid, entry.cpuPercent]));
+
+    await sampler.resources();
+
+    // 5 s depois: 0,5 s de CPU no `node` são 10,0%; o `git` não gastou nada, e **0%** é uma
+    // medida (ele não é `null`); e o pid 102 voltou com CPU **menor** — outro processo no
+    // mesmo número —, então não há taxa.
+    clock += 5_000;
+    tick();
+    await settle();
+    expect(await rates()).toEqual({ 100: 10, 101: 0, 102: null });
+
+    // Duas leituras no mesmo instante: não há intervalo para dividir, e nada vira `Infinity`.
+    tick();
+    await settle();
+    expect(await rates()).toEqual({ 100: null, 101: null, 102: null });
+  });
+
+  it("stops reading exactly when nobody asked for the whole idle window", async () => {
+    let tick: () => void = () => undefined;
+    let disarmed = 0;
+    let clock = 1_000;
+    const { sampler, reads } = harness(() => TREE(() => 0), {
+      now: () => clock,
+      every: (fn) => {
+        tick = fn;
+        return () => {
+          disarmed += 1;
+        };
+      },
+    });
+    const settle = () => new Promise<void>((resolve) => setImmediate(resolve));
+
+    await sampler.resources();
+    expect(reads()).toBe(1);
+
+    // Um milissegundo antes dos 15 s de silêncio: ainda lê.
+    clock = 1_000 + 15_000 - 1;
+    tick();
+    await settle();
+    expect(reads()).toBe(2);
+    expect(disarmed).toBe(0);
+
+    // Nos 15 s: para, sem ler.
+    clock = 1_000 + 15_000;
+    tick();
+    await settle();
+    expect(reads()).toBe(2);
+    expect(disarmed).toBe(1);
+  });
+
+  it("breaks a tie in size by the lower pid", async () => {
+    const tie = (order: number[]): ProcessRow[] => [
+      row(100, 1, 200, 0, "/opt/node/bin/node"),
+      ...order.map((pid) => row(pid, 100, 50, 0, "/usr/bin/git")),
+    ];
+
+    for (const order of [[401, 402, 403], [403, 402, 401]]) {
+      const { sampler } = harness(() => tie(order));
+      const { top } = await sampler.resources();
+      expect(top.map((entry) => entry.pid)).toEqual([100, 401, 402, 403]);
+    }
+  });
+
+  it("arms one clock when two first questions arrive together", async () => {
+    // O painel e o ícone perguntam juntos no boot: as duas esperam a mesma leitura e voltam juntas.
+    // Um relógio armado por cima do outro deixa o primeiro sem quem o desarme, lendo para sempre.
+    let armed = 0;
+    let disarmed = 0;
+    const { sampler } = harness(() => TREE(() => 0), {
+      every: () => {
+        armed += 1;
+        return () => {
+          disarmed += 1;
+        };
+      },
+    });
+
+    await Promise.all([sampler.resources(), sampler.resources()]);
+    expect(armed).toBe(1);
+
+    sampler.stop();
+    expect(disarmed).toBe(armed);
+  });
+
+  it("ticks on a real interval when none is injected, and stop clears it", async () => {
+    // O relógio de produção: um `setInterval` de verdade (aqui, o falso do vitest), e `stop` o desarma.
+    vi.useFakeTimers();
+    try {
+      let reads = 0;
+      const sampler = createResourceSampler({
+        read: async () => {
+          reads += 1;
+          return TREE(() => 0);
+        },
+        tracked: () => TRACKED,
+        describe: () => null,
+      });
+
+      await sampler.resources();
+      expect(reads).toBe(1);
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect(reads).toBe(2);
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect(reads).toBe(3);
+
+      sampler.stop();
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(reads).toBe(3);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
