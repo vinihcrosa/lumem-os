@@ -12,6 +12,14 @@ import {
 } from "@lumem/shared";
 
 import { probePort } from "./port.js";
+import {
+  START_TIMEOUT_MS,
+  isLoaded,
+  restartService,
+  waitUntil,
+  type ServiceHost,
+  type ServiceIdentity,
+} from "./service.js";
 
 // O que os testes e o resto do CLI sempre importaram daqui; a definição subiu para
 // o `shared`, onde o daemon a lê também (`038`).
@@ -59,6 +67,12 @@ export interface UpgradeDeps {
   install?: (command: InstallCommand) => Promise<number>;
   manager?: PackageManager;
   probe?: typeof probePort;
+  /**
+   * O serviço do sistema (`038`, AC 36). Quando está **carregado**, o `upgrade` o
+   * reinicia depois de instalar e diz a versão que o daemon responde; sem ele — ou
+   * sem serviço carregado — vale a frase de sempre.
+   */
+  service?: { host: ServiceHost; identity: ServiceIdentity };
 }
 
 export async function upgrade(deps: UpgradeDeps): Promise<number> {
@@ -72,6 +86,7 @@ export async function upgrade(deps: UpgradeDeps): Promise<number> {
     install = runInstall,
     manager = detectPackageManager(fileURLToPath(import.meta.url)),
     probe = probePort,
+    service,
   } = deps;
 
   let latest: string;
@@ -118,12 +133,67 @@ export async function upgrade(deps: UpgradeDeps): Promise<number> {
 
   out(`pronto: v${latest} instalado.`);
 
+  if (service !== undefined && (await isLoaded(service.host, service.identity))) {
+    return await restartLoadedService({ service, probe, origin, latest, out, err });
+  }
+
   const occupant = await probe({ origin });
   if (occupant.kind === "lumem") {
     // The daemon loaded its code at boot. The new files are on disk and the
     // process running is still the old one.
     out(`o daemon em ${origin} ainda está na v${occupant.version}: pare e suba de novo para valer.`);
   }
+  return 0;
+}
+
+/**
+ * Reinicia o serviço e só diz que deu certo quando o **daemon novo** responde.
+ *
+ * `kickstart -k` volta antes de o processo velho terminar de fechar, e nesse
+ * intervalo o `/trpc/health` ainda responde a versão de antes: dizer *"reiniciou"*
+ * na primeira resposta seria dizer a versão errada. Por isso se espera a versão que
+ * acabou de ser instalada, e a que sobrar no fim do prazo vai para a mensagem.
+ */
+async function restartLoadedService({
+  service,
+  probe,
+  origin,
+  latest,
+  out,
+  err,
+}: {
+  service: NonNullable<UpgradeDeps["service"]>;
+  probe: typeof probePort;
+  origin: string;
+  latest: string;
+  out: (line: string) => void;
+  err: (line: string) => void;
+}): Promise<number> {
+  const restarted = await restartService(service.host, service.identity);
+  if (!restarted.ok) {
+    err(`a versão nova está instalada, mas o serviço não reiniciou: ${restarted.reason}`);
+    err("rode `lumem stop` e `lumem start` para subir a versão nova.");
+    return 1;
+  }
+
+  let seen = "nenhuma";
+  const came = await waitUntil(
+    service.host,
+    async () => {
+      const occupant = await probe({ origin });
+      if (occupant.kind !== "lumem") return false;
+      seen = `v${occupant.version}`;
+      return occupant.version === latest;
+    },
+    START_TIMEOUT_MS,
+  );
+  if (!came) {
+    err(`o serviço reiniciou, mas o Lumem em ${origin} ainda responde ${seen} e não v${latest}.`);
+    err("`lumem logs` mostra o que o daemon escreveu.");
+    return 1;
+  }
+
+  out(`o serviço reiniciou: o Lumem em ${origin} agora responde v${latest}.`);
   return 0;
 }
 

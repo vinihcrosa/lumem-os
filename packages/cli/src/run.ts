@@ -76,8 +76,9 @@ export async function run(argv: readonly string[], deps: RunDeps): Promise<numbe
   const probe = deps.probe ?? probePort;
 
   if (command.kind === "upgrade") {
-    // No daemon is started, and none is stopped: the upgrade rewrites files on
-    // disk, and a daemon already running is told so at the end.
+    // No daemon is started here. A daemon under the service is restarted by the
+    // upgrade itself once the install worked (`038`, AC 36); one running in the
+    // foreground is told to be restarted by hand.
     return await (deps.upgrade ?? runUpgrade)({
       out,
       err,
@@ -85,6 +86,10 @@ export async function run(argv: readonly string[], deps: RunDeps): Promise<numbe
       check: command.check,
       origin: originOf(Number(env["LUMEM_PORT"] ?? DEFAULT_PORT), env["LUMEM_HOST"] ?? DEFAULT_HOST),
       probe,
+      service: {
+        host: deps.service ?? nodeServiceHost(env, ownPath()),
+        identity: serviceIdentity(env),
+      },
     });
   }
 

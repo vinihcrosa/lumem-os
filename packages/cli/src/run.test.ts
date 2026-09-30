@@ -207,6 +207,27 @@ describe("lumem upgrade", () => {
   });
 });
 
+describe("lumem upgrade e o serviço (038)", () => {
+  it("entrega ao upgrade o sistema e a identidade do serviço", async () => {
+    // A fiação: o `upgrade` só reinicia o que **este** `run` lhe apresenta. Sem esta
+    // linha o `upgrade.ts` passa em todos os casos dele e o comando de verdade nunca
+    // reinicia nada.
+    const upgrade = vi.fn(async () => 0);
+    const { host } = fakeHost();
+
+    await run(
+      ["upgrade"],
+      deps({ upgrade, service: host, env: { LUMEM_SERVICE_LABEL: "tech.cazimi.lumem-smoke" } }),
+    );
+
+    expect(upgrade).toHaveBeenCalledWith(
+      expect.objectContaining({
+        service: { host, identity: { label: "tech.cazimi.lumem-smoke", unit: "lumem.service" } },
+      }),
+    );
+  });
+});
+
 describe("lumem run (o primeiro plano de antes)", () => {
   it("run keeps the foreground behaviour", async () => {
     // O que `lumem` fazia antes da 038, verbo por verbo: sonda a porta, diz que

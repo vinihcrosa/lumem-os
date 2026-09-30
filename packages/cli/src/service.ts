@@ -275,6 +275,28 @@ export async function installService(host: ServiceHost, spec: ServiceSpec): Prom
   return { ok: true, file };
 }
 
+export type RestartResult = { ok: true } | { ok: false; reason: string };
+
+/**
+ * Reinicia o serviço carregado, para ele rodar o código que acabou de ser instalado.
+ *
+ * `kickstart -k` e não `bootout` mais `bootstrap`: o arquivo de serviço não mudou —
+ * é o mesmo `node` e o mesmo `lumem` —, e descarregar o serviço o tiraria do
+ * launchd por um instante em que a máquina pode dormir.
+ */
+export async function restartService(host: ServiceHost, identity: ServiceIdentity): Promise<RestartResult> {
+  const supervisor = supervisorOf(host.platform);
+  if (supervisor === null) return { ok: false, reason: `não há supervisor para ${host.platform}` };
+  const [command, args] =
+    supervisor === "launchd"
+      ? (["launchctl", ["kickstart", "-k", `${domain(host)}/${identity.label}`]] as const)
+      : (["systemctl", ["--user", "restart", identity.unit]] as const);
+
+  const result = await host.exec(command, args);
+  if (result.code === 0) return { ok: true };
+  return failure(`\`${command} ${args.join(" ")}\``, result);
+}
+
 export type StopResult = { ok: true } | { ok: false; reason: string };
 
 /** Chama `check` até dar `true` ou estourar `timeoutMs`; devolve se deu. */
