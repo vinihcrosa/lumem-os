@@ -30,6 +30,19 @@ describe("probePort", () => {
     });
   });
 
+  it("reads a health answer that carries more fields", async () => {
+    // `038`: o `health` ganhou `supervised` e `protocolVersion`. Quem sonda a
+    // porta lê só `ok` e `version`, e campo a mais não pode virar `other`.
+    const request = respond({
+      result: { data: { ok: true, version: "0.7.0", supervised: true, protocolVersion: 1 } },
+    });
+
+    expect(await probePort({ origin: "http://127.0.0.1:4317", request })).toEqual({
+      kind: "lumem",
+      version: "0.7.0",
+    });
+  });
+
   it("qualquer outra coisa na porta é outra coisa", async () => {
     // O caso que importa: um servidor que responde 200 com HTML na mesma URL.
     // Chamar isso de Lumem faria o CLI mandar a pessoa abrir o produto errado.

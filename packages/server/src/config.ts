@@ -122,6 +122,14 @@ export interface ServerConfig {
    * não `homedir()` lido na hora, para um teste poder apontar outro.
    */
   homeDir: string;
+  /**
+   * O daemon roda sob launchd ou `systemd --user` (`038` Parte 1).
+   *
+   * Vem de `LUMEM_SUPERVISOR`, que só o arquivo de serviço escrito pelo
+   * `lumem start` define. É o que libera o botão de atualizar: sair com 0 só
+   * faz o daemon voltar quando alguém o relança.
+   */
+  supervised: boolean;
 }
 
 /** Only the variables this module reads. Keeps tests from touching process.env. */
@@ -140,6 +148,7 @@ export type ConfigEnv = Partial<
   | "LUMEM_TASKS_BUDGET"
   | "LUMEM_CONVEYOR_AGENT"
     | "LUMEM_RUN_PORT_RANGE"
+    | "LUMEM_SUPERVISOR"
     | "HOME"
     | "SHELL",
     string
@@ -222,5 +231,6 @@ export function loadConfig(env: ConfigEnv = process.env): ServerConfig {
     runPortRange: parsePortRange(env.LUMEM_RUN_PORT_RANGE),
     conveyorAgent: env.LUMEM_CONVEYOR_AGENT ?? null,
     homeDir: env.HOME === undefined || env.HOME === "" ? homedir() : env.HOME,
+    supervised: env.LUMEM_SUPERVISOR === "launchd" || env.LUMEM_SUPERVISOR === "systemd",
   };
 }

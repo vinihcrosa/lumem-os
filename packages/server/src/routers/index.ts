@@ -20,9 +20,14 @@ import { workspaceRouter } from "./workspace.js";
 import { worktreeRouter } from "./worktree.js";
 
 export const appRouter = router({
-  health: publicProcedure.query(() => ({
+  health: publicProcedure.query(({ ctx }) => ({
     ok: true as const,
     version: LUMEM_VERSION,
+    supervised: ctx.config.supervised,
+    // O contrato da casca (`038`, porta 4): ela aceita só a versão que conhece, e
+    // comparar `version` por semver faria toda release parecer compatível ou
+    // incompatível por acaso.
+    protocolVersion: 1 as const,
   })),
   adapterCatalog: adapterCatalogRouter,
   agentAccount: agentAccountRouter,
