@@ -104,6 +104,12 @@ export interface BootstrapOptions {
     /** De quanto em quanto o tique de atualizar sozinho pergunta. Só um teste muda. */
     autoIntervalMs?: number;
   };
+  /**
+   * O relógio da esteira do daemon (o intervalo fixo é de 15 s). Só um teste passa: é o
+   * gancho que deixa a prova de `paused` alcançar a esteira que o daemon monta, e não
+   * uma que o teste monta por conta própria.
+   */
+  conveyorSetInterval?: typeof globalThis.setInterval;
 }
 
 /**
@@ -125,6 +131,7 @@ export async function bootstrap({
   database,
   beforeClose,
   update: { autoIntervalMs, ...updateOverrides } = {},
+  conveyorSetInterval,
 }: BootstrapOptions): Promise<FastifyInstance> {
   // Antes do banco, porque o banco mora dentro do state dir e porque o
   // `.gitignore` que exclui o próprio banco do histórico é escrito aqui: abrir
@@ -563,6 +570,7 @@ export async function bootstrap({
     conveyor,
     // Uma instalação em curso (a do botão ou a automática) fechou a porta de prompt.
     paused: () => update.installer.installing(),
+    ...(conveyorSetInterval === undefined ? {} : { setInterval: conveyorSetInterval }),
     log: {
       warn: (...args: Parameters<FastifyBaseLogger["warn"]>) => {
         bootedApp?.log.warn(...args);

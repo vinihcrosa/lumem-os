@@ -25,6 +25,7 @@ import { createAgentConfigRepository } from "./repositories/agentConfig.js";
 import { createDaemonSettingsRepository } from "./repositories/daemonSettings.js";
 import { createProjectRepository } from "./repositories/project.js";
 import * as sessionStoreModule from "./sessions/SessionStore.js";
+import * as conveyorModule from "./tasks/conveyor.js";
 import { adaptersDir } from "./setup/adapter-command.js";
 import { adapterBinaryPath } from "./setup/install-adapter.js";
 import * as reconcileModule from "./setup/reconcile-adapters.js";
@@ -49,6 +50,7 @@ async function boot(
     stateDir?: string;
     env?: Record<string, string>;
     update?: NonNullable<Parameters<typeof bootstrap>[0]["update"]>;
+    conveyorSetInterval?: typeof globalThis.setInterval;
   } = {},
 ) {
   const signalSource = new EventEmitter();
@@ -80,6 +82,7 @@ async function boot(
     ...(overrides.acpManager ? { acpManager: overrides.acpManager } : {}),
     ...(overrides.beforeClose ? { beforeClose: overrides.beforeClose } : {}),
     ...(overrides.update ? { update: overrides.update } : {}),
+    ...(overrides.conveyorSetInterval ? { conveyorSetInterval: overrides.conveyorSetInterval } : {}),
   });
   started.push(app);
 
@@ -250,6 +253,73 @@ describe("bootstrap", () => {
 
     await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0));
     expect(install).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not dispatch from the daemon's own conveyor while it installs by itself", async () => {
+    /*
+     * A fiação do `paused` (`038`, Parte 5; AC 75), na esteira que **o daemon monta**. O
+     * `auto.test.ts` prova o `paused` de um `runConveyorLoop` que o teste constrói, e
+     * trocar `paused: () => update.installer.installing()` por `() => false` no
+     * `bootstrap` deixava a suíte inteira verde: uma prova que monta a própria instância
+     * de uma opção ligada não vê a ligação de produção ser apagada.
+     *
+     * O relógio da esteira é o único gancho (`conveyorSetInterval`); a esteira, a
+     * instalação e o tique de atualizar sozinho são os do daemon.
+     */
+    let fire: () => void = () => undefined;
+    const conveyorClock = ((callback: () => void) => {
+      fire = callback;
+      return { unref: () => undefined };
+    }) as unknown as typeof globalThis.setInterval;
+    const dispatched: string[] = [];
+    const realCreateConveyor = conveyorModule.createConveyor;
+    vi.spyOn(conveyorModule, "createConveyor").mockImplementation((...args) => {
+      const conveyor = realCreateConveyor(...args);
+      vi.spyOn(conveyor, "tick").mockImplementation(async (workspaceId) => {
+        dispatched.push(workspaceId);
+        return 0;
+      });
+      return conveyor;
+    });
+    const database = openTestDb();
+    databases.push(database);
+    const workspace = await createWorkspaceRepository(database.db).create({ name: "pessoal" });
+    const install = vi.fn(() => new Promise<number>(() => {}));
+    const { app, signalSource, exit } = await boot({
+      database,
+      env: { LUMEM_SUPERVISOR: "launchd" },
+      conveyorSetInterval: conveyorClock,
+      update: {
+        current: "0.6.1",
+        request: (async () => Response.json({ version: "0.7.0" })) as typeof fetch,
+        install,
+        manager: "npm",
+        bootDelayMs: 0,
+        autoIntervalMs: 20,
+      },
+    });
+    await vi.waitFor(async () => {
+      const status = await app.inject({ method: "GET", url: "/trpc/system.updateStatus" });
+      expect(status.json().result.data.updateAvailable).toBe(true);
+    });
+
+    // Antes da instalação a passada anda: sem isto o resto não distinguiria "pausada" de "morta".
+    fire();
+    await vi.waitFor(() => expect(dispatched).toEqual([workspace.id]));
+
+    // Liga o interruptor: o tique de 60 s do daemon começa a instalar, e o npm não acaba.
+    createDaemonSettingsRepository(database.db).set({ autoUpdate: "idle" });
+    await vi.waitFor(() => expect(install).toHaveBeenCalledTimes(1));
+
+    fire();
+    fire();
+    fire();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(dispatched).toEqual([workspace.id]);
+
+    // O tique de atualizar sozinho só para pelo desligamento do daemon: sem ele, dispara depois de o banco fechar.
+    signalSource.emit("SIGTERM");
+    await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0));
   });
 
   it("rebuilds a stale memory index before serving", async () => {
