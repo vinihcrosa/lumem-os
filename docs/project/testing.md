@@ -1960,4 +1960,4 @@ precisa dele o carrega onde já há `node_modules`.
 
 O C93 da [038](../features/038-desktop-and-updates/checks.md) testava `unprivileged_userns_clone=0` e `apparmor_restrict_unprivileged_userns=1` cada um com o outro **ausente**, e o Ubuntu 23.10 em diante tem os dois, com `userns_clone=1`. Uma detecção que deixava o botão do Debian decidir sozinho passava na tabela inteira, e o `release.yml`, que rodou num kernel desses, só **imprimia** o valor. A rodada 3 da verificação achou pelo mutante.
 
-**A regra:** uma tabela sobre botões independentes precisa da combinação que a plataforma-alvo entrega, **medida**, e o run real afirma o que mede em vez de só imprimir.
+**A regra:** uma tabela sobre botões independentes cobre **o produto inteiro** dos estados de cada botão (aqui, `0`, `1` ou ausente em cada um: 9 linhas), e não os exemplos. Acrescentar só a combinação medida não bastou: a rodada 4 achou o mutante espelho — o outro botão decidindo sozinho — vivo numa tabela de 6 linhas. Com as 9, sete mutantes de precedência e de ausência caem. E o run real afirma o que mede em vez de só imprimir.

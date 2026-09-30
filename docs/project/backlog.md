@@ -804,8 +804,9 @@ máquina de quem verifica, por isso). O que fica sem prova: o `lumem start` de v
 `system.update`.
 
 **De onde veio:** a verificação da rodada 2 da [038](../features/038-desktop-and-updates/verification.md) ·
-**Volta quando:** houver uma máquina Linux com sessão de login à mão, ou antes da primeira release que
-anunciar suporte a Linux.
+**Volta quando:** **antes da próxima tag** — ela é a primeira release que publica os pacotes do app para
+Linux, e o dono manteve esse gatilho em 2026-09-30 —, ou antes, se houver uma máquina Linux com sessão de
+login à mão.
 
 ### O projeto todo em inglês — `M`
 

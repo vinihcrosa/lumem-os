@@ -200,15 +200,20 @@ describe("lumem menubar install", () => {
     // app aborta ao abrir. Então a flag vai **só** onde o kernel nega, e a saída diz por quê.
     const USERNS = "/proc/sys/kernel/unprivileged_userns_clone";
     const APPARMOR = "/proc/sys/kernel/apparmor_restrict_unprivileged_userns";
+    // Os 9 estados do AC 78: cada botão em `0`, `1` ou ausente. A tabela é o conjunto inteiro, e
+    // não os exemplos: as rodadas 3 e 4 da verificação acharam, cada uma, uma detecção que deixava
+    // um botão decidir sozinho e passava numa tabela que só tinha os casos nomeados.
     const cases: { name: string; sysctl: Record<string, string>; refused: boolean; says: string }[] = [
-      { name: "both allowed", sysctl: { [USERNS]: "1\n", [APPARMOR]: "0\n" }, refused: false, says: "" },
-      { name: "both absent", sysctl: {}, refused: false, says: "" },
-      { name: "userns_clone 0", sysctl: { [USERNS]: "0\n" }, refused: true, says: "unprivileged_userns_clone=0" },
-      { name: "apparmor 1", sysctl: { [APPARMOR]: "1\n" }, refused: true, says: "apparmor_restrict_unprivileged_userns=1" },
-      { name: "both refusing", sysctl: { [USERNS]: "0\n", [APPARMOR]: "1\n" }, refused: true, says: "unprivileged_userns_clone=0" },
-      // O kernel do Ubuntu 23.10 em diante, o único medido de verdade (o runner do `release.yml`):
-      // user namespaces liberados, e o AppArmor os restringindo.
-      { name: "userns_clone 1 and apparmor 1 (Ubuntu 23.10+)", sysctl: { [USERNS]: "1\n", [APPARMOR]: "1\n" }, refused: true, says: "apparmor_restrict_unprivileged_userns=1" },
+      { name: "userns absent, apparmor absent", sysctl: {}, refused: false, says: "" },
+      { name: "userns absent, apparmor 0", sysctl: { [APPARMOR]: "0\n" }, refused: false, says: "" },
+      { name: "userns absent, apparmor 1", sysctl: { [APPARMOR]: "1\n" }, refused: true, says: "apparmor_restrict_unprivileged_userns=1" },
+      { name: "userns 1, apparmor absent", sysctl: { [USERNS]: "1\n" }, refused: false, says: "" },
+      { name: "userns 1, apparmor 0", sysctl: { [USERNS]: "1\n", [APPARMOR]: "0\n" }, refused: false, says: "" },
+      // O kernel do Ubuntu 23.10 em diante, o que o runner do `release.yml` mediu.
+      { name: "userns 1, apparmor 1 (Ubuntu 23.10+)", sysctl: { [USERNS]: "1\n", [APPARMOR]: "1\n" }, refused: true, says: "apparmor_restrict_unprivileged_userns=1" },
+      { name: "userns 0, apparmor absent", sysctl: { [USERNS]: "0\n" }, refused: true, says: "unprivileged_userns_clone=0" },
+      { name: "userns 0, apparmor 0", sysctl: { [USERNS]: "0\n", [APPARMOR]: "0\n" }, refused: true, says: "unprivileged_userns_clone=0" },
+      { name: "userns 0, apparmor 1", sysctl: { [USERNS]: "0\n", [APPARMOR]: "1\n" }, refused: true, says: "unprivileged_userns_clone=0" },
     ];
     const executable = `${SCOPE_DIR}/lumem-desktop-linux-x64/app/lumem-desktop`;
 
