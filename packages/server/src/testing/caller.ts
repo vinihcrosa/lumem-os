@@ -40,6 +40,12 @@ export interface TestCaller {
   acpManager: AcpManager;
   sessionStore: SessionStore;
   scripts: ScriptRunner;
+  /**
+   * Espera o que a API deixou rodando em segundo plano: o `setup` que o
+   * `worktree.create` dispara sem `await`. Sem isso, um teste que declara o
+   * `[scripts]` logo depois de criar a worktree disputa o arquivo com o gancho.
+   */
+  settled(): Promise<void>;
   git: GitService;
   pr: PrCache;
   events: EventBus;
@@ -178,16 +184,27 @@ export function createTestCaller(
   // Same wiring the daemon uses: without it a session that ends on its own
   // stays `running` and the removal rules read stale state.
   const stopTracking = sessionStore.trackExits();
+  /*
+   * Os `start` em voo do runner de verdade. O `worktree.create` dispara o `setup` com
+   * `void`, e o gancho lê o `[scripts]` *depois* de a chamada ter voltado: sob carga,
+   * depois de o teste ter escrito o arquivo — e então roda o `setup` do teste uma
+   * segunda vez, com uma linha de execução que o teste não iniciou. Deixar o teste
+   * esperar o gancho fechar é o que o torna determinístico; um `sleep` só o adiaria.
+   */
+  const inFlight = new Set<Promise<unknown>>();
   const scripts =
     overrides.scripts ??
-    createScriptRunner({
-      db: database.db,
-      sessionStore,
-      ptyManager,
-      shell: config.shell,
-      portRange: config.runPortRange,
-      events,
-    });
+    trackStarts(
+      createScriptRunner({
+        db: database.db,
+        sessionStore,
+        ptyManager,
+        shell: config.shell,
+        portRange: config.runPortRange,
+        events,
+      }),
+      inFlight,
+    );
 
   /*
    * O adaptador padrão é o de verdade, e ele **não** é exercitado por acidente:
@@ -251,6 +268,9 @@ export function createTestCaller(
     acpManager,
     sessionStore,
     scripts,
+    async settled() {
+      while (inFlight.size > 0) await Promise.allSettled(inFlight);
+    },
     git,
     pr: prCache,
     events,
@@ -264,6 +284,28 @@ export function createTestCaller(
       database.cleanup();
       // Só o que este caller criou: um `LUMEM_STATE_DIR` vindo do teste é do teste.
       if (ownedStateDir) rmSync(stateDir, { recursive: true, force: true });
+    },
+  };
+}
+
+/**
+ * O runner com os `start` anotados enquanto não terminam.
+ *
+ * Espalhar o objeto mantém o `this` certo: `runToCompletion` chama `this.start`, e
+ * com o espalhamento isso cai no `start` anotado — o que é o desejado.
+ */
+function trackStarts(runner: ScriptRunner, inFlight: Set<Promise<unknown>>): ScriptRunner {
+  return {
+    ...runner,
+    start(scope, phase) {
+      const started = runner.start(scope, phase);
+      const tracked = started.then(
+        () => {},
+        () => {},
+      );
+      inFlight.add(tracked);
+      void tracked.then(() => inFlight.delete(tracked));
+      return started;
     },
   };
 }

@@ -54,6 +54,9 @@ async function setup(): Promise<Fixture> {
     name: "lorebase",
   });
   const worktree = await context.api.worktree.create({ projectId: project.id, name: "teste" });
+  // O `create` dispara o `setup` sem esperar; ele tem de falhar (nada declarado ainda)
+  // *antes* de o teste escrever o arquivo, senão roda o comando do teste uma vez a mais.
+  await context.settled();
   return {
     ctx: context,
     projectId: project.id,
