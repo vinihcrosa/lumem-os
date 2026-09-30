@@ -1,6 +1,6 @@
 # O Lumem fica de pé sozinho, se atualiza, e mora na barra — checks
 
-> **Status:** em execução
+> **Status:** completa
 
 Profile: standard
 Plan: `docs/features/038-desktop-and-updates/prd.md`

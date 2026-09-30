@@ -7,7 +7,7 @@
  * Passos: `ten-sessions`.
  *
  * É o experimento 3 da fase 0 virado gate: a meta era *"medir a árvore a cada 3 s com
- * 10 sessões abertas custa menos de 1% de CPU do daemon"*, e um número escrito num
+ * 10 sessões abertas custa menos de 1% de CPU do daemon"* — hoje a cada 5 s (o C61, 2026-09-30) —, e um número escrito num
  * documento envelhece sem ninguém notar. Aqui o número é **medido**, e o script sai 0
  * só abaixo do limite.
  *

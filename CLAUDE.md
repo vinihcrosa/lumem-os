@@ -52,7 +52,7 @@ feature fecha, ela ganha a linha aqui e o parágrafo lá.
 | [035 plan-mode](docs/features/035-plan-mode/prd.md) | completa | a faixa do plan mode, e aprovar ou recusar o plano com ele inteiro na tela |
 | [036 reasoning](docs/features/036-reasoning/prd.md) | completa | o pensamento volta a chegar (`reasoningMeta` na spec), e diz quanto durou |
 | [037 conversation-liveness](docs/features/037-conversation-liveness/prd.md) | completa | sinal de vida: o tempo e o fazer do turno, o âmbar do silêncio, o turno que fecha quando o adaptador morre |
-| [038 desktop-and-updates](docs/features/038-desktop-and-updates/prd.md) | em execução | o daemon sob launchd/systemd, o update num gesto (e sozinho quando ocioso), e o app Electron na barra |
+| [038 desktop-and-updates](docs/features/038-desktop-and-updates/prd.md) | completa | o daemon sob launchd/systemd, o update num gesto (e sozinho quando ocioso), e o app Electron na barra |
 
 Comece pelo [índice da documentação](docs/README.md). Construção é incremental: uma parte por vez,
 bem feita, antes da próxima.

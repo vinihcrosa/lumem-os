@@ -793,6 +793,24 @@ do Windows e a decisão de assinatura de lá.
 **De onde veio:** a A3 da discovery de 2026-09-29 · **Volta quando:** a
 [distribuição no Windows](../features/014-distribution/prd.md) deixar de estar fora.
 
+### Os testes a reforçar da 038 — `P`
+
+A [038](../features/038-desktop-and-updates/prd.md) fechou pela regra de parada de 2026-09-30: nenhum defeito de
+comportamento, e uma lista de **testes fracos sobre código que se comporta certo**, que não bloqueou. Estão no
+[relatório da rodada 6](../features/038-desktop-and-updates/verification.md), seção *Não bloqueia*, cada um com o
+arquivo, a linha e o teste de uma linha que o fecha. Os que mais valem:
+
+- as guardas de `stat` malformado do Linux (`packages/server/src/resources/process-table.ts`) ficaram
+  inalcançáveis nos testes depois da leitura em duas passadas — a asserção passa por outro motivo;
+- o *`status` só da árvore* no Linux e as raízes que o amostrador passa ao leitor não têm prova nomeada;
+- os 5 s do C61 não são afirmados por nenhum teste;
+- a leitura em duas passadas nunca rodou num kernel Linux de verdade;
+- um `runningCount` instável sob carga (`scripts.test.ts`), e o relógio da verificação de versão disparando
+  depois de fechar o banco nos testes do `bootstrap`.
+
+**De onde veio:** a rodada 6 da verificação da 038 · **Volta quando:** a próxima feature que mexer em
+`resources/`, `update/` ou nos scripts de smoke — ou antes da próxima tag, junto com o `systemd --user`.
+
 ### O `systemd --user` de verdade no `smoke:service` — `P`
 
 O `pnpm smoke:service` só rodou contra o launchd. No Linux, o que existe é apoio: um systemd 252 num

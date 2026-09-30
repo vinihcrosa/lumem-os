@@ -1,6 +1,6 @@
 # O Lumem fica de pé sozinho, se atualiza, e mora na barra do sistema
 
-> **Status:** em execução
+> **Status:** completa
 > **Histórico:** v0.1 — proposta em **2026-09-29**, a partir da discovery *Menu bar app and auto-update*
 > no Outline ([a discovery](https://wiki.cazimi.tech/doc/menu-bar-app-and-auto-update-2026-09-29-GlrYzLAAou) ·
 > [as perguntas, respondidas](https://wiki.cazimi.tech/doc/open-questions-menu-bar-and-auto-update-S8ijH9cb9K)).

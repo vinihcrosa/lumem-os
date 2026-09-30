@@ -1,452 +1,417 @@
 # O Lumem fica de pé sozinho, se atualiza, e mora na barra — verification
 
-## Rodada 1 (reprovada, em `2ab18e3b`)
-
-A rodada 1 leu C1–C85 em `b226b4b..2ab18e3b` e reprovou. As lacunas, na ordem dela:
-
-1. A fiação `paused: () => update.installer.installing()` da esteira do daemon não tinha prova (C83), e o
-   mutante F1 sobrevivia. **Fechada na rodada 2.** O mutante morre de novo nesta rodada (M1).
-2. A casa decimal do `cpuPercent` só era provada com inteiros, e abaixo do router (C46): o mutante F2.
-   **Fechada na rodada 2.** Morre de novo nesta rodada (M2).
-3. A metade de Linux do C78 não tinha rodado. **Fechada na rodada 3**, pelo `release.yml` em `dry_run`.
-4. Havia membros da Coverage sem prova. Os três blocos do painel foram fechados pelo C86. O `.AppImage` e o
-   `.deb` foram fechados na rodada 3. O `systemd --user` de verdade foi adiado pelo dono (seção *Adiado
-   pelo dono*).
-5. A linha *o serviço de verdade* do `Test policy` só tinha sido cumprida no launchd. A metade do systemd foi
-   adiada pelo dono.
-6. Havia comportamento construído sem check. **Fechado na rodada 2** pelos checks C87–C92.
-
-## Rodada 2 (reprovada, em `2630a3ee`)
-
-A rodada 2 leu C1–C92 e reprovou só pelo que exige Linux. 91 de 92 checks passaram, e as sete falhas
-injetadas morreram. As lacunas, pela ordem:
-
-1. A metade de Linux do C78, e o `.AppImage` e o `.deb` que ninguém tinha produzido. **Fechada na rodada
-   3** pelo run 36722841349.
-2. A linha *o serviço de verdade* do `Test policy` no `systemd --user`. **Adiada pelo dono** para o backlog.
-3. A Q4, aberta. **Respondida (c)**; virou o critério 78 e o C93.
-
-## Rodada 3 (reprovada, em `32f8aac6`)
-
-A rodada 3 leu C1–C93 e reprovou por uma lacuna de teste, e não de comportamento. O CI tinha provado a
-metade de Linux do C78 e produzido os artefatos. As lacunas, pela ordem:
-
-1. **O mutante M7 sobrevivia** (C93, `packages/cli/src/menubar.ts:59`): *"o botão do Debian, quando
-   existe, decide sozinho"*. **Fechada em `2d624cda`:** a tabela ganhou a linha do Ubuntu 23.10+, e o M7
-   morre nesta rodada.
-2. **Um membro da Coverage sem prova:** `userns_clone=1` com `apparmor_restrict=1`, o kernel do runner.
-   **Fechado pela mesma linha.**
-
-Do dono, a rodada 3 pediu uma resposta: o gatilho do item do systemd no backlog dispara na primeira tag?
-A resposta está em *Adiado pelo dono*.
-
-## Rodada 4
-
-**Verdict**: FAIL
+**Verdict**: PASS
 **Profile**: standard
-**Diff range**: b226b4b..2d624cda (desde a rodada 3: `32f8aac6..2d624cda`, um commit, `2d624cda`)
-**Round**: 4 - full
+**Diff range**: b226b4b..38e5db69 (desde a rodada 5: `2b5ac652..38e5db69`, nove commits)
+**Round**: 6 - full, a última por decisão do dono
 **Verifier**: independent sub-agent (author != verifier)
 
-A rodada é inteira, autorizada pelo dono depois do limite de três. Os 93 checks (C1–C93) foram lidos no
-`HEAD` `2d624cda`, e todas as provas rodaram de novo nesse commit. Cada citação abaixo foi impressa linha a
-linha no `HEAD`. Tudo aqui é `verified at 2d624cda`, salvo o run do CI, que é de `32f8aac6`. A seção *A
-evidência do CI* mostra por que ele vale para o `HEAD`.
+**O veredito aplica a regra de parada do dono**, de 2026-09-30, gravada no fim do `## Handoff` do
+`checks.md` (`docs/features/038-desktop-and-updates/checks.md:542`). A decisão é do dono, e não do verificador:
 
-A máquina é um macOS arm64 (Darwin 27), com o Node do `.nvmrc` (`v22.17.1`) e o launchd de verdade.
+- **reprova só defeito de comportamento**: um `Proof:` que falha no `HEAD`, ou código que faz a coisa errada num
+  caso que um critério do `prd.md` define;
+- **não reprova teste fraco sobre código que se comporta certo**: mutante sobrevivente, célula de estado sem
+  prova, prova num nível mais baixo que o ideal. Isso vai para a seção *Não bloqueia (regra de parada)*, em ordem,
+  com o arquivo, a linha e o teste de uma linha que fecharia cada item, para o backlog.
 
-**O que mudou desde a rodada 3.** Entre `32f8aac6` e o `HEAD` só mudou uma coisa fora de `docs/`: três
-linhas em `packages/cli/src/menubar.test.ts`, a sexta linha da tabela do C93 e um comentário. O resto é
-documentação: a lição em `docs/project/testing.md`, a linha do `docs/README.md` e o *Fix round 4* do
-`Handoff`. `git diff --stat 32f8aac6 HEAD -- . ':(exclude)docs' ':(exclude)**/*.test.ts'` sai vazio.
+Nesta rodada as 174 linhas `Proof:` passaram no `HEAD` `38e5db69`, e não achei defeito de comportamento. Pela
+regra, o veredito é PASS. Achei, sim, fraquezas de teste. A maior delas é nova: a leitura em duas passadas
+tornou inalcançáveis as guardas de `stat` malformado que o teste do C51 afirmava. Estão todas em *Não bloqueia*,
+e é ali, e não nas colunas `Killed` e `Unproven`, que a regra as coloca. O validador lê essas duas colunas como
+reprovação, e a regra do dono diz que esses itens não reprovam. Escrevo isso aqui para que ninguém leia a
+mudança de lugar como um item escondido.
 
-**O veredito é FAIL, de novo por uma lacuna de teste, e de novo no C93.** A correção fechou o caso que a
-rodada 3 nomeou, e o M7 morre. O espelho dele sobrevive: o mutante M11, *"o botão do AppArmor, quando
-existe, decide sozinho"*.
+## Rodada 1 (em `2ab18e3b`)
 
-- Ele só erra num canto que a tabela não tem: `unprivileged_userns_clone=0` com
-  `apparmor_restrict_unprivileged_userns=0`. É o kernel do runner com os dois sysctls do administrador: a
-  restrição do AppArmor desligada (o contorno comum) e os user namespaces desligados (o endurecimento
-  comum).
-- Nesse kernel, o mutante não grava `--no-sandbox`, e o app aborta ao abrir.
-- Ele passa pela prova do C93, pela suíte inteira do CLI (115 de 115) e pelos testes de `scripts/`.
+Veredito: reprovada. As lacunas, em ordem:
 
-O `HEAD` acerta nesse kernel: `probeSandbox` devolve `refused: true`. Mas nenhuma asserção o afirma.
+1. A fiação `paused` do `bootstrap` não tinha prova: o mutante F1 sobrevivia. Fechada na rodada 2.
+2. O `cpuPercent` com uma casa decimal só era provado com inteiros: o mutante F2. Fechada na rodada 2.
+3. A metade de Linux do C78 não tinha rodado. Fechada na rodada 3.
+4. O `systemd --user` de verdade não tinha rodado. **Adiado pelo dono.**
+5. Havia comportamento construído sem check. Fechado na rodada 2, pelos C86–C92.
 
-A lição é a mesma da rodada 3, um passo adiante. A tabela cobre 6 dos 9 estados que o AC 78 define: dois
-botões, cada um `0`, `1` ou ausente. Fechar o exemplo nomeado deixou o espelho aberto.
+## Rodada 2 (em `2630a3ee`)
+
+Veredito: reprovada. As lacunas, em ordem:
+
+1. A metade de Linux do C78, com o `.AppImage` e o `.deb`. Fechada na rodada 3.
+2. A Q4 estava aberta. Respondida com (c), e virou o AC 78 e o C93.
+
+## Rodada 3 (em `32f8aac6`)
+
+Veredito: reprovada. O run 36722841349 provou a metade de Linux do C78. A lacuna:
+
+1. O mutante M7 sobrevivia: o botão do Debian decidia sozinho (C93). Fechada em `2d624cda`.
+
+## Rodada 4 (em `2d624cda`)
+
+Veredito: reprovada. A lacuna:
+
+1. O mutante M11 sobrevivia: o botão do AppArmor decidia sozinho, e errava só no estado `(0, 0)`. Fechada em
+   `2b5ac652`, com a tabela dos nove estados.
+
+## Rodada 5 (em `2b5ac652`)
+
+Veredito: reprovada. A lacuna:
+
+1. O mutante M14 sobrevivia (C30): trocar `!isIdle(busy)` por `liveTurns > 0 && runningScripts > 0` no router
+   passava pela suíte inteira do `server`. O AC 27 é um *ou*, e a prova só tinha o estado em que os dois estão
+   ocupados. **Fechada em `c8b75978`.** Nesta rodada o M14 morre no estado *2 turnos, 0 script*.
+
+## Rodada 6
+
+Verified at 38e5db69. É uma rodada inteira. Todas as provas rodaram neste commit, e as citações foram impressas
+linha a linha neste commit. A exceção é o run 36722841349 do CI, que é de `32f8aac6`. A seção *A evidência do
+CI* mostra por que ele ainda vale.
+
+A máquina é um macOS arm64 (Darwin 27), com o Node do `.nvmrc` (`v22.17.1`) e o launchd de verdade. Ela tinha
+cerca de 700 processos durante a medição.
+
+**O que mudou desde a rodada 5.** Fora de `docs/` e dos testes, quatro arquivos:
+
+- `packages/server/src/resources/process-table.ts` lê a tabela em duas passadas;
+- `packages/server/src/resources/sample.ts` corrige os dois relógios (`disarm ??=`, `:204`), passa as raízes ao
+  leitor (`:127`) e amostra a cada 5 s (`:21`);
+- `packages/server/src/testing/measure-resources.ts` mede o `ps` em lote;
+- `packages/web/src/features/menubar/queries.ts:58` pergunta os recursos a cada 5 s.
+
+Os testes ganharam 260 linhas com `expect` e perderam 17. Cada uma das 17 volta igual ou mais forte:
+
+- `toContain("restore")` virou `toEqual(["restore", "show", "focus"])`;
+- `rejects.toThrow(/atualizando/)` virou `rejects.toMatchObject({ code, message })`;
+- o `toBeCloseTo(33.3)` virou `20.0`, porque o intervalo passou de 3 s para 5 s;
+- o `CONFLICT` e os `PRECONDITION_FAILED` sem mensagem ganharam o texto de cada recusa.
+
+Nenhum `.skip`, `.only`, `.todo`, `xit` ou `xdescribe` entrou em `b226b4b..HEAD`.
 
 ## Binding sources
 
-Verified at 2d624cda. O passo 1 não se aplica: o perfil é `standard`, e esse passo só roda sob `ui`. O
-plano não marca nenhuma fonte como *binding*. Os três ADRs de 2026-09-29 e a discovery estão em
-`Sources`, e nenhum check os contradiz. O critério 78 e o C93 concordam com a resposta (c) da Q4 em
-`open-questions.md:128`.
+Verified at 38e5db69. O passo 1 não se aplica: o perfil é `standard`, e esse passo só roda sob `ui`. O plano não
+marca nenhuma fonte como *binding*. Desde a rodada 5, o `prd.md` mudou uma linha, a das Assumptions sobre a
+medição de processos (`prd.md:345`), e ela agora descreve as duas passadas que o código faz.
+
+| Source | Opened | Contradiction | Uncovered |
+| --- | --- | --- | --- |
+| nenhuma fonte marcada *binding* no plano | - | - | - |
 
 ## Checks
 
-Verified at 2d624cda. As provas rodaram numa invocação por pacote, com `--reporter=verbose`, sobre os
-arquivos inteiros que os checks nomeiam:
+Verified at 38e5db69. As provas vitest rodaram numa invocação por pacote, com `--reporter=verbose`, sobre os
+arquivos que os checks nomeiam:
 
-| Pacote | Arquivos | Resultado |
+| Pacote | Arquivos | Resultado da invocação |
 | --- | --- | --- |
-| `packages/cli` | `service`, `run`, `args`, `port`, `upgrade` e `menubar` | 6 files, **105 passed** |
-| `packages/server` | 16 arquivos | **286 passed** |
+| `packages/cli` | `args`, `menubar`, `port`, `run`, `service` e `upgrade` | 6 files, **130 passed** |
+| `packages/server` | 19 arquivos | **315 passed** |
 | `packages/web` | 5 arquivos | **44 passed** |
-| `packages/desktop` | 6 arquivos | **45 passed** |
+| `packages/desktop` | 7 arquivos | **64 passed** |
 | `packages/shared` | `desktop.test.ts` | **5 passed** |
-| `scripts` | `smoke-install`, `release-workflow`, `set-version` e `package-boundaries` | **22 passed** |
+| `scripts` | `package-boundaries`, `release-workflow`, `set-version` e `smoke-install` | **22 passed** |
 
-Os números são os da rodada 3. A linha nova do C93 mora dentro do mesmo `it`, então não conta como teste a
-mais.
-
-Os 104 nomes distintos que os `-t` do `checks.md` pedem foram extraídos do arquivo e procurados um a um na
-saída (`grep -F`). O nome do C62 e o do C90 se repetem. Todos aparecem com `✓`, e nenhum com `×`. O `fails
-alone when` do C86 casa os três casos do `it.each`. O `o .deb do app de desktop` do C78 casa os dois testes
-do `describe`. Nenhum filtro caiu no vazio. As provas que não são vitest rodaram como estão escritas (seção
-*Gate*).
+O `checks.md` tem 174 linhas `Proof:`, e 172 são distintas. As duas repetidas são o e2e do C37 e do C41, e o
+`installs the package of each supported platform` do C62 e do C90. Elas pedem 163 nomes vitest distintos. Procurei
+cada nome na saída, preso ao arquivo dele (`grep "✓" | grep -F <arquivo> | grep -F <nome>`). Os 163 aparecem com
+`✓`, e a saída não tem nenhum `×`. Nenhum filtro caiu no vazio. O `fails alone when` do C86 casa os três casos do
+`it.each`. As provas que não são vitest estão na seção *Gate*.
 
 | Check | Claim | Proof run | Evidence | Result |
 | --- | --- | --- | --- | --- |
-| C1 | plist do launchd com PATH, supervisor, KeepAlive e logs | service.test ✓ | `packages/cli/src/service.test.ts:141` - `expect(parsePlist(files.get(PLIST)!)).toEqual({ … })`; a ordem em `:160` | PASS |
-| C2 | unit do systemd; `daemon-reload` e `enable --now`, nessa ordem | service.test ✓ | `packages/cli/src/service.test.ts:215` - `toContain("ExecStart=/opt/node/bin/node … run\n")`; `:223` - `expect(systemctl.slice(-3)).toEqual([…])`, e o M10 morre ali | PASS |
-| C3 | reescreve o arquivo existente antes de carregar | service.test ✓ | `packages/cli/src/service.test.ts:248` - `expect(rewritten.ProgramArguments).toEqual(["/novo/bin/node", "/novo/lib/lumem.mjs", "run"])` | PASS |
-| C4 | sai 0 no health; sai 1 com as últimas 20 linhas em 15 s | run.test ✓; `smoke:service --only start-waits-for-health` exit 0 | `packages/cli/src/run.test.ts:329` - `toBe(1)`; `:332` - `toContain("linha 30")`; `:335` - `toBeGreaterThanOrEqual(15_000)`; `scripts/smoke-service.ts:142` - `assert(health?.ok === true, …)` (saída: "saiu 0 e o health já respondia (v0.6.1)") | PASS |
-| C5 | sem supervisor: sai 1, não escreve nada, cita `lumem run` | service.test ✓ | `packages/cli/src/service.test.ts:359` - `toEqual({ ok: false, reason: expect.stringContaining("lumem run") })`; `:361` - `files.size` 0 | PASS |
-| C6 | outro Lumem fora do serviço: sai 1 | run.test ✓ | `packages/cli/src/run.test.ts:353` - `toContain("fora do serviço")` | PASS |
-| C7 | sem verbo é `start`; `run` com as quatro opções | args.test ✓ | `packages/cli/src/args.test.ts:24` - `expect(parseCommand([])).toEqual(start)`; `:30` - `toEqual({ kind: "run", port: 5_000, host: "0.0.0.0", stateDir: "/tmp/x", open: true })` | PASS |
-| C8 | `lumem run` é o primeiro plano de antes | run.test ✓ | `packages/cli/src/run.test.ts:292` - `toContain("já tem um Lumem em http://127.0.0.1:4317")`; `:296` - `toBe(1)` | PASS |
-| C9 | stop: `bootout` e apaga o plist, ou `disable --now`; 0 ou 1 em 10 s | service.test ✓; `smoke:service --only stop-leaves-nothing` exit 0 | `packages/cli/src/service.test.ts:378` - `toContain("launchctl bootout gui/501/tech.cazimi.lumem")`; `:412` - `reason` com `"10 s"`; `scripts/smoke-service.ts:156` - `assert((await readHealth()) === null, …)` (saída: "parou, descarregou e não deixou item de login") | PASS |
-| C10 | status: uma linha, 0 ou 3 | run.test ✓ | `packages/cli/src/run.test.ts:473` - `toEqual(["rodando · v0.7.0 · http://127.0.0.1:4317 · supervisionado"])`; `:478` `em primeiro plano`; `parado` e 3 logo abaixo | PASS |
-| C11 | logs: 200 de 250, e `-f` segue | run.test ✓ | `packages/cli/src/run.test.ts:510` - `expect(out[0]).toBe("linha 51")`; `:530` - `toEqual(["linha 251", "linha 252"])` | PASS |
-| C12 | logs sem arquivo: sai 1 com o caminho | run.test ✓ | `packages/cli/src/run.test.ts:536` - `toContain(join(stateDir, "daemon.log"))` | PASS |
-| C13 | `supervised` vem de `LUMEM_SUPERVISOR` | health.test ✓ | `packages/server/src/routers/health.test.ts:27` e `:29` - `true` para `launchd` e `systemd`; `:31`, `:35` e `:37` - `false` sem ela, com `supervisord` e com vazio | PASS |
+| C1 | plist do launchd com PATH, supervisor, KeepAlive e logs | service.test ✓ ×2 | `packages/cli/src/service.test.ts:142` - `expect(parsePlist(files.get(PLIST)!)).toEqual({ … })`; `:511` - o PATH com `' " & < >` lido de volta igual | PASS |
+| C2 | unit do systemd; `daemon-reload` e `enable --now`, nessa ordem; recusa no passo que falha | service.test ✓ ×3 | `packages/cli/src/service.test.ts:227` - `toContain("ExecStart=/opt/node/bin/node … run\n")`; `:234` - `systemctl.slice(-3)` na ordem; `:465` - o texto inteiro com o passo; `:467` - os seguintes não rodam | PASS |
+| C3 | reescreve o arquivo existente antes de carregar | service.test ✓ | `packages/cli/src/service.test.ts:260` - `expect(rewritten.ProgramArguments).toEqual(["/novo/bin/node", "/novo/lib/lumem.mjs", "run"])`; `:262` - a escrita antes do `bootstrap` | PASS |
+| C4 | sai 0 no health; sai 1 com as 20 linhas em 15 s; o serviço leva só o pedido; `--open` | run.test ✓ ×11; `smoke:service --only start-waits-for-health` exit 0 | `packages/cli/src/run.test.ts:333` - `toBe(1)`; `:336` - `"linha 30"`; `:338` - sem `"linha 10"`; `:339` - `toBeGreaterThanOrEqual(15_000)`; `:605` - `expect(carried(fake), name).toEqual(carries)`; `:667` - carregado e atual sem daemon recarrega; `:718` - o navegador só com `--open`; `scripts/smoke-service.ts:142` (saída: "saiu 0 e o health já respondia (v0.6.1)") | PASS |
+| C5 | sem supervisor: sai 1, não escreve nada, cita `lumem run` | service.test ✓ | `packages/cli/src/service.test.ts:374` - `toEqual({ ok: false, reason: expect.stringContaining("lumem run") })`; `:380` - `files.size` 0 | PASS |
+| C6 | outro Lumem fora do serviço: sai 1 | run.test ✓ | `packages/cli/src/run.test.ts:355` - `toBe(1)`; `:357` - `toContain("fora do serviço")`; `:362` - nenhum arquivo | PASS |
+| C7 | sem verbo é `start`; `run` com as quatro opções | args.test ✓ | `packages/cli/src/args.test.ts:24` - `expect(parseCommand([])).toEqual(start)`; `:27` - `run` | PASS |
+| C8 | `lumem run` é o primeiro plano de antes | run.test ✓ | `packages/cli/src/run.test.ts:289` - `toBe("Lumem v0.1.0 — http://127.0.0.1:4317")`; `:296` - `toContain("já tem um Lumem em http://127.0.0.1:4317")` | PASS |
+| C9 | stop: `bootout` e apaga o plist, ou `disable --now`; 0 ou 1 em 10 s | service.test ✓ ×2; `smoke:service --only stop-leaves-nothing` exit 0 | `packages/cli/src/service.test.ts:397` - `toContain("launchctl bootout gui/501/tech.cazimi.lumem")`; `:398` - o plist some; `:404` - `disable --now`; `:431` - `"10 s"`; `:578` - em primeiro plano nada roda; `scripts/smoke-service.ts:156` (saída: "parou, descarregou e não deixou item de login") | PASS |
+| C10 | status: uma linha, 0 ou 3 | run.test ✓ | `packages/cli/src/run.test.ts:480` - `toEqual(["rodando · v0.7.0 · http://127.0.0.1:4317 · supervisionado"])`; `:488` - `toBe(3)`; `:489` `parado` | PASS |
+| C11 | logs: 200 de 250, e `-f` segue | run.test ✓ | `packages/cli/src/run.test.ts:518` - `toHaveLength(200)`; `:519` - `toBe("linha 51")`; `:535` com `-f` | PASS |
+| C12 | logs sem arquivo: sai 1 com o caminho | run.test ✓ | `packages/cli/src/run.test.ts:543` - `toBe(1)`; `:545` - `toContain(join(stateDir, "daemon.log"))` | PASS |
+| C13 | `supervised` vem de `LUMEM_SUPERVISOR` | health.test ✓ | `packages/server/src/routers/health.test.ts:27` - `true` para `launchd`, e as linhas seguintes para `systemd`, vazio e outro valor | PASS |
 | C14 | `protocolVersion: 1`; o `probePort` segue lendo | health.test ✓; port.test ✓ | `packages/server/src/routers/health.test.ts:41` - `toEqual({ … protocolVersion: 1 })`; `packages/cli/src/port.test.ts:40` | PASS |
-| C15 | sobrevive ao chamador e responde `supervised: true` | `smoke:service --only survives-the-caller` exit 0 | `scripts/smoke-service.ts:185` - `assert(health.supervised === true, …)` (saída: "o chamador morreu, e o daemon seguiu respondendo supervised: true"). Sob o launchd | PASS |
+| C15 | sobrevive ao chamador e responde `supervised: true` | `smoke:service --only survives-the-caller` exit 0 | `scripts/smoke-service.ts:185` - `assert(health.supervised === true, …)` (saída: "o chamador morreu, e o daemon seguiu respondendo supervised: true"), sob o launchd | PASS |
 | C16 | o smoke sobe com `lumem run` | smoke-install.test ✓ | `scripts/smoke-install.test.ts:15` - `expect(args).toEqual(["run", "--port", "4397"])` | PASS |
-| C17 | registry no boot e a cada 6 h, só com `accept` | check.test ✓ | `packages/server/src/update/check.test.ts:71-72` - `toBe(REGISTRY)` e `headers` `{ accept: "application/json" }`; `:78` - duas chamadas | PASS |
-| C18 | `updateStatus`: `current`, nulos antes da primeira verificação, e os três `updateAvailable` | system.test ✓ | `packages/server/src/routers/system.test.ts:63` - `toEqual({ … })`; `:78`, `:85`, `:91` | PASS |
-| C19 | timeout, 503 e corpo sem `version` mantêm o anterior, com um `warn` cada | check.test ✓ | `packages/server/src/update/check.test.ts:110` - `toEqual(good)`; `:122` `sem versão`; `:133` - `toHaveBeenCalledWith(10_000)` | PASS |
-| C20 | verificação desligada: nenhuma requisição, `checkEnabled: false` | check.test ✓ | `packages/server/src/update/check.test.ts:193` e `:199` - `checkEnabled()` false; `:201` - `asked` não chamado | PASS |
+| C17 | registry no boot e a cada 6 h, só com `accept` | check.test ✓ | `packages/server/src/update/check.test.ts:71` - `toBe(REGISTRY)`; `:72` - `headers` `{ accept: "application/json" }`; `:78` - a segunda chamada | PASS |
+| C18 | `updateStatus`: `current`, nulos antes, e os três `updateAvailable` | system.test ✓ | `packages/server/src/routers/system.test.ts:63` - `toEqual({ … })`; `:78` `true`; `:85` e `:91` `false` | PASS |
+| C19 | timeout, 503 e sem `version` mantêm o anterior, um `warn` cada | check.test ✓ | `packages/server/src/update/check.test.ts:115` - `toEqual(good)`; `:117` `TimeoutError`; `:122` `503`; `:127` `sem versão`; `:138` - `toHaveBeenCalledWith(10_000)` | PASS |
+| C20 | verificação desligada: nenhuma requisição, `checkEnabled: false` | check.test ✓ | `packages/server/src/update/check.test.ts:169` - `request` não chamado; `:198` e `:204` - `checkEnabled()` false; `:206` | PASS |
 | C21 | `updateCheckForcedOff` e o interruptor desabilitado com o texto | system.test ✓; UpdateSettings.test ✓ | `packages/server/src/routers/system.test.ts:115`; `packages/web/src/features/settings/UpdateSettings.test.tsx:41` `toBeDisabled()` e `:43` `desligado por LUMEM_NO_UPDATE_CHECK` | PASS |
-| C22 | `setSettings` grava a única linha | system.test ✓ | `packages/server/src/routers/system.test.ts:138` - `toEqual([…])` da tabela inteira | PASS |
-| C23 | `autoUpdate: "always"`: `BAD_REQUEST`, linha intacta | system.test ✓ | `packages/server/src/routers/system.test.ts:154` - `rejects.toMatchObject({ code: "BAD_REQUEST" })`; `:157` | PASS |
+| C22 | `setSettings` grava a única linha; a linha ausente falha alto | system.test ✓ ×2 | `packages/server/src/routers/system.test.ts:132` - os valores gravados; `:138` - `toEqual([…])` da tabela inteira; `:159` - `rejects.toThrow(/daemon_settings/)` | PASS |
+| C23 | `autoUpdate: "always"`: `BAD_REQUEST`, linha intacta | system.test ✓ | `packages/server/src/routers/system.test.ts:166` - `rejects` com `BAD_REQUEST`; `:172` - a linha como estava | PASS |
 | C24 | migração: uma linha com os padrões; o CHECK recusa | daemon-settings.test ✓ | `packages/server/src/db/daemon-settings.test.ts:52` - `toEqual([…])`; `:56` - o `INSERT` de `id = 2` recusado | PASS |
 | C25 | topbar `v0.6.1 → v0.7.0` e o botão; nada sem versão nova | UpdateBanner.test ✓ | `packages/web/src/features/update/UpdateBanner.test.tsx:39` - `findByText("v0.6.1 → v0.7.0")`; `:48` - `toBeEmptyDOMElement()` | PASS |
-| C26 | sem supervisor, `lumem upgrade` no lugar do botão | UpdateBanner.test ✓ | `packages/web/src/features/update/UpdateBanner.test.tsx:59` - `getByText("lumem upgrade")` | PASS |
-| C27 | update fecha a porta, instala com o dono, `started: true` | system.test ✓ | `packages/server/src/routers/system.test.ts:169` - `toEqual({ started: true })`; `:176` - a porta antes do instalador | PASS |
+| C26 | sem supervisor, `lumem upgrade` no lugar do botão | UpdateBanner.test ✓ | `packages/web/src/features/update/UpdateBanner.test.tsx:59` - `getByText("lumem upgrade")`; `:60` sem botão | PASS |
+| C27 | update fecha a porta, instala com o dono, `started: true` | system.test ✓ | `packages/server/src/routers/system.test.ts:184` - `toEqual({ started: true })`; `:185` - o comando; `:191` - a porta antes do instalador | PASS |
 | C28 | instalação 0: sai por `createShutdownHandler` com 0 | install.test ✓ | `packages/server/src/update/install.test.ts:44` - `toHaveBeenCalledWith(0)`; `:53` - `close` antes de `exit` | PASS |
-| C29 | instalação 1 ou `ENOENT`: reabre a porta, não sai, e `lastError` | install.test ✓; system.test ✓ | `packages/server/src/update/install.test.ts:78` e `:93` - `lastError()` com `"1"` e com `"spawn npm ENOENT"`; `:81` e `:95` - `exit` não chamado; `packages/server/src/routers/system.test.ts:239` - `updateStatus().lastError` com `"1"` | PASS |
-| C30 | 2 turnos e 1 script: `CONFLICT` com os números | system.test ✓ | `packages/server/src/routers/system.test.ts:189-195` - `code: "CONFLICT"`, a mensagem com os números, e o instalador não chamado | PASS |
-| C31 | segundo update: `CONFLICT` | system.test ✓ | `packages/server/src/routers/system.test.ts:205` e `:207` | PASS |
-| C32 | sem supervisor ou sem versão nova: `PRECONDITION_FAILED` | system.test ✓ | `packages/server/src/routers/system.test.ts:216`, `:224` e `:226` | PASS |
-| C33 | prompt recusado durante a instalação, e nada chega ao agente | AcpManager.test ✓ | `packages/server/src/acp/AcpManager.test.ts:504` - `rejects.toThrow(…)`; `:510` - `promptBlocks` `[]` | PASS |
-| C34 | copia antes de migrar e grava a versão depois | backup.test ✓ | `packages/server/src/db/backup.test.ts:95-96` - a cópia tem só a tabela de antes; `:103` - `"0.7.0"` | PASS |
+| C29 | instalação 1 ou `ENOENT`: reabre a porta, não sai, e `lastError` | install.test ✓; system.test ✓ | `packages/server/src/update/install.test.ts:80` `"1"` e `:95` `"spawn npm ENOENT"`; `:83` e `:97` - `exit` não chamado; `packages/server/src/routers/system.test.ts:276` e `:280` - a próxima começa | PASS |
+| C30 | `CONFLICT` com os dois números nos três estados ocupados, e o instalador não roda | system.test ✓ | `packages/server/src/routers/system.test.ts:198-201` - os estados `(2, 1)`, `(2, 0)` e `(0, 1)`; `:213-216` - `code: "CONFLICT"` e `message: expect.stringMatching(says)`; `:219-220` - `install` e `hold` não chamados. O M14 morre | PASS |
+| C31 | segundo update: `CONFLICT` | system.test ✓ | `packages/server/src/routers/system.test.ts:230` - `CONFLICT` com `"atualização em andamento"`; `:235` - uma instalação só | PASS |
+| C32 | sem supervisor ou sem versão nova: `PRECONDITION_FAILED` | system.test ✓ | `packages/server/src/routers/system.test.ts:244` com `"lumem upgrade"`; `:255` e `:260` com `"versão nova"`; `:265` | PASS |
+| C33 | prompt recusado durante a instalação, e nada chega ao agente | AcpManager.test ✓ | `packages/server/src/acp/AcpManager.test.ts:504` - `rejects.toMatchObject({ … /o Lumem est[aá] se atualizando/ })`; `:511` - `promptBlocks` `[]` | PASS |
+| C34 | copia antes de migrar e grava a versão depois | backup.test ✓ | `packages/server/src/db/backup.test.ts:95` - `["lumem.db.bak-0.6.1"]`; `:96` - a cópia tem só a tabela de antes; `:103` - `"0.7.0"` | PASS |
 | C35 | mantém as 3 mais novas | backup.test ✓ | `packages/server/src/db/backup.test.ts:149` | PASS |
-| C36 | sem `last-version` não copia; migração que falha não grava | backup.test ✓ | `packages/server/src/db/backup.test.ts:184`, `:196` e `:206` | PASS |
-| C37 | recarrega uma vez e diz `Lumem atualizado para v0.7.0` | useVersionReload.test ✓; `playwright test e2e/update.spec.ts` ✓ | `packages/web/src/hooks/useVersionReload.test.tsx:26` e `:33`; `e2e/update.spec.ts:64` - `getByText(\`Lumem atualizado para v${NEW_VERSION}\`)` | PASS |
+| C36 | sem `last-version` não copia; migração que falha não grava | backup.test ✓ | `packages/server/src/db/backup.test.ts:184` e `:185`; `:195` - vazio e só espaço; `:208` - `"0.6.1"` fica | PASS |
+| C37 | recarrega uma vez e diz `Lumem atualizado para v0.7.0` | useVersionReload.test ✓; `e2e/update.spec.ts` ✓ | `packages/web/src/hooks/useVersionReload.test.tsx:26` e `:33`; `e2e/update.spec.ts:64` - `getByText(\`Lumem atualizado para v${NEW_VERSION}\`)` | PASS |
 | C38 | não recarrega duas vezes na mesma aba | useVersionReload.test ✓ | `packages/web/src/hooks/useVersionReload.test.tsx:54` - `toHaveBeenCalledTimes(1)` | PASS |
-| C39 | upgrade reinicia o serviço e imprime a versão de depois | upgrade.test ✓ | `packages/cli/src/upgrade.test.ts:165` `kickstart -k`; `:168` `v0.2.0`; `:177` `systemctl --user restart` | PASS |
-| C40 | o daemon real volta na versão nova sem `lumem start` | `smoke:service --only update-relaunches` exit 0 | `scripts/smoke-service.ts:318` - `health?.version === NEW_VERSION`; `:328` - `supervised === true` (saída: "o supervisor subiu o daemon de novo, na v0.99.0, sem ninguém rodar `lumem start`"). Sob o launchd | PASS |
-| C41 | a página recarregada carrega os assets novos, e não fica em branco | `playwright test e2e/update.spec.ts` ✓ (20,9 s) | `e2e/update.spec.ts:69` - `#root > *` > 0; `:72` - os assets novos | PASS |
-| C42 | `usage.total` soma todos os workspaces; `cost` nulo quando todos são nulos | usage.test ✓ ×2 | `packages/server/src/routers/usage.test.ts:157` - `toEqual({ tokens: 7_500, cost: 1.75, currency: "USD", turns: 4 })`; `:172` - a metade do nulo | PASS |
+| C39 | upgrade reinicia o serviço e imprime a versão de depois | upgrade.test ✓ ×3; service.test ✓ ×2 | `packages/cli/src/upgrade.test.ts:165` `kickstart -k`; `:168` `v0.2.0`; `:200` - o `ENOENT`; `:218` - a origem dada; `packages/cli/src/service.test.ts:546` e `:552` - o comando por supervisor; `:568` - nada sem supervisor | PASS |
+| C40 | o daemon real volta na versão nova sem `lumem start` | `smoke:service --only update-relaunches` exit 0 | `scripts/smoke-service.ts:318` - `health?.version === NEW_VERSION`; `:328` - `supervised === true` (saída: "o supervisor subiu o daemon de novo, na v0.99.0, sem ninguém rodar `lumem start`"), sob o launchd | PASS |
+| C41 | a página recarregada carrega os assets novos, e não fica em branco | `e2e/update.spec.ts` ✓ (20,8 s) | `e2e/update.spec.ts:69` - `#root > *` > 0 | PASS |
+| C42 | `usage.total` soma tudo; `cost` nulo só quando todos são nulos | usage.test ✓ ×2 | `packages/server/src/routers/usage.test.ts:157` - `toEqual({ tokens: 7_500, cost: 1.75, currency: "USD", turns: 4 })`; `:172` | PASS |
 | C43 | uma instrução SQL para 1, 3 e 10 workspaces | usage.test ✓ | `packages/server/src/routers/usage.test.ts:214` - `expect(counts).toEqual([1, 1, 1])` | PASS |
-| C44 | `period` desconhecido: `BAD_REQUEST` | usage.test ✓ | `packages/server/src/routers/usage.test.ts:220-223` - `rejects.toMatchObject({ code: "BAD_REQUEST" })` | PASS |
-| C45 | o relato mais recente, sem a conta que não relatou | agentAccount.test ✓ | `packages/server/src/routers/agentAccount.test.ts:420` - `resolves.toEqual([…])` | PASS |
-| C46 | grupos com `cpuPercent` em uma casa decimal; `top` de 5 | sample.test ✓; system.test ✓ | `packages/server/src/resources/sample.test.ts:156` - `decimals.groups`; `:161` - o `top`; `:127` - o top 5; `packages/server/src/routers/system.test.ts:295` - `toBe(1.6)`, e `:296`. O M2 morre nos dois | PASS |
-| C47 | atribui ao ancestral rastreado mais próximo | attribute.test ✓ | `packages/server/src/resources/attribute.test.ts:35` `"agents"`, `:39` `"terminals"`, `:41` `"daemon"` | PASS |
-| C48 | 1,0 s → 1,5 s em 5 s dá `10.0`; na primeira amostra, `null` | sample.test ✓ | `packages/server/src/resources/sample.test.ts:177` - `cpuPercent: null`; `:182` - `cpuPercent: 10` | PASS |
-| C49 | 15 s sem pergunta: para de ler; a próxima consulta volta | sample.test ✓ | `packages/server/src/resources/sample.test.ts:217` - `toBe(afterQuiet)`; `:222` `afterQuiet + 1` | PASS |
-| C50 | rótulo por sessão e checkout | sample.test ✓ | `packages/server/src/resources/sample.test.ts:261` - `toBe("Claude · lumem-os/bandung")`; `:262`; `:266` `"node"` | PASS |
-| C51 | `ps` no darwin e `/proc` no Linux, de amostras gravadas | process-table.test ✓ | `packages/server/src/resources/process-table.test.ts:152` e `:185` - `toEqual([…])` das duas | PASS |
-| C52 | `system.status`: seis campos, e `attention` com permissão pendente | system.test ✓ | `packages/server/src/routers/system.test.ts:327` - `resolves.toEqual({ … })`; `:345` - `{ liveTurns: 1, attention: true }` | PASS |
-| C53 | manchete `87%`, o `kind` e o tempo até o reset | MenubarScreen.test ✓ | `packages/web/src/features/menubar/MenubarScreen.test.tsx:83` `87%`; `:85` `reseta em 2 h` | PASS |
-| C54 | sem cota, o custo do dia; custo nulo, os tokens | MenubarScreen.test ✓ | `packages/web/src/features/menubar/MenubarScreen.test.tsx:98` `US$ 1,75` e `:100` `{ period: "1d" }`; `:108` `48,2k tokens` | PASS |
-| C55 | ordem dos blocos, linha de versão e ações | MenubarScreen.test ✓ ×2 | `packages/web/src/features/menubar/MenubarScreen.test.tsx:135` - as regiões na ordem; `:162`; `:167` os botões; `:186` `em dia · verificado há 3 min` | PASS |
+| C44 | `period` desconhecido: `BAD_REQUEST` | usage.test ✓ | `packages/server/src/routers/usage.test.ts:223` | PASS |
+| C45 | o relato mais recente por conta, sem a que não relatou | agentAccount.test ✓ | `packages/server/src/routers/agentAccount.test.ts:420` - `resolves.toEqual([…])`; `:455` - só a conta com relato | PASS |
+| C46 | grupos com `cpuPercent` em uma casa; `top` de 5; empate pelo pid | sample.test ✓ ×2; system.test ✓ | `packages/server/src/resources/sample.test.ts:119` e `:127`; `:156` e `:161` - os decimais; `:361` - o empate; `packages/server/src/routers/system.test.ts:332` - `toBe(1.6)`. O M2 morre nos dois | PASS |
+| C47 | atribui ao ancestral rastreado mais próximo | attribute.test ✓; AcpManager.test ✓ | `packages/server/src/resources/attribute.test.ts:35` `"agents"`, `:38` `"terminals"`; `packages/server/src/acp/AcpManager.test.ts:3342` - a sessão que saiu não é listada | PASS |
+| C48 | 1,0 s → 1,5 s em 5 s dá `10.0`; na primeira amostra, `null` | sample.test ✓ ×2 | `packages/server/src/resources/sample.test.ts:177` - `cpuPercent: null`; `:182` - `cpuPercent: 10`; `:311` - `{ 100: 10, 101: 0, 102: null }` | PASS |
+| C49 | 15 s sem pergunta: para de ler; a próxima volta; um relógio só | sample.test ✓ ×4 | `packages/server/src/resources/sample.test.ts:218` - `toBe(afterQuiet)`; `:223` `afterQuiet + 1`; `:341-349` - 14 999 ms lê, 15 000 ms desarma; `:380` - `expect(armed).toBe(1)`; `:383`; `:409` - `stop` limpa o relógio real | PASS |
+| C50 | rótulo por sessão e checkout, e o nome do comando fora dela | sample.test ✓; live.test ✓ ×3; session-place.test ✓ ×2 | `packages/server/src/resources/sample.test.ts:262` - `toBe("Claude · lumem-os/bandung")`; `:268` `"vim"`; `packages/server/src/resources/live.test.ts:126`, `:129` `"Run · lumem-os/bandung"`, `:158` e `:182`; `packages/server/src/resources/session-place.test.ts:42` `"Agente"` e `:54` | PASS |
+| C51 | `ps` em duas passadas no darwin, `/proc` no Linux, de amostras gravadas | process-table.test ✓ ×2 | `packages/server/src/resources/process-table.test.ts:182` - `toEqual([…])` da árvore de cinco, numa tabela de oito; `:195` - `["ps -A -o pid=,ppid=", "ps -x -o pid=,ppid=,rss=,time=,comm= -p 557,2391,4242,4300,4400"]`; `:218` - o `/proc`; `:334` - os formatos de tempo | PASS |
+| C52 | `system.status`: seis campos, e `attention` com permissão pendente | system.test ✓ | `packages/server/src/routers/system.test.ts:364` - `resolves.toEqual({ … })`; `:382` - `{ liveTurns: 1, attention: true }`; `:390` | PASS |
+| C53 | manchete `87%`, o `kind` e o tempo até o reset | MenubarScreen.test ✓ | `packages/web/src/features/menubar/MenubarScreen.test.tsx:83` `87%`; `:84`; `:85` `reseta em 2 h` | PASS |
+| C54 | sem cota, o custo do dia; custo nulo, os tokens | MenubarScreen.test ✓ | `packages/web/src/features/menubar/MenubarScreen.test.tsx:98` `US$ 1,75`; `:100` `{ period: "1d" }`; `:108` `48,2k tokens` | PASS |
+| C55 | ordem dos blocos, linha de versão e ações | MenubarScreen.test ✓ ×2 | `packages/web/src/features/menubar/MenubarScreen.test.tsx:135` - as regiões na ordem; `:162`; `:167`; `:186` `em dia · verificado há 3 min` | PASS |
 | C56 | sem sessão, `nenhuma sessão rodando` | MenubarScreen.test ✓ | `packages/web/src/features/menubar/MenubarScreen.test.tsx:196` | PASS |
-| C57 | recursos falhando: só esse bloco diz | MenubarScreen.test ✓ | `packages/web/src/features/menubar/MenubarScreen.test.tsx:211` e `:217` - `getAllByText(/não consegui ler/)` com 1 | PASS |
+| C57 | recursos falhando: só esse bloco diz | MenubarScreen.test ✓ | `packages/web/src/features/menubar/MenubarScreen.test.tsx:211` e `:217` | PASS |
 | C58 | `2 terminais abertos fecham ao atualizar` | MenubarScreen.test ✓ | `packages/web/src/features/menubar/MenubarScreen.test.tsx:276` | PASS |
-| C59 | `routeOf("/menubar")` e `GET /menubar` com 200 | route.test ✓; static.test ✓ | `packages/web/src/lib/route.test.ts:24`; `packages/server/src/web/static.test.ts:91` `200` e `:93` o shell | PASS |
-| C60 | `/menubar` numa aba mostra os três blocos | `playwright test e2e/menubar.spec.ts` ✓ (16,3 s) | `e2e/menubar.spec.ts:73` - número na manchete; `:89` - `/\d+,\d%/` no Daemon | PASS |
-| C61 | medir a cada 3 s com 10 sessões custa menos de 1% | `measure:resources --only ten-sessions` três vezes, exit 0 | `packages/server/src/testing/measure-resources.ts:92` - `percent < LIMIT_PERCENT`. Saídas: **0,61%**, **0,48%** e **0,68%** (699 processos; 3,3–3,5 ms do daemon e 11–17 ms do `ps` por amostra). Só no macOS | PASS |
-| C62 | `menubar install` nas quatro plataformas, e o `lumem-desktop.json` | menubar.test ✓ | `packages/cli/src/menubar.test.ts:119` - `toContain(\`install npm install --global ${desktopPackageName(key)}@${VERSION}\`)`; `:122` - o JSON inteiro | PASS |
-| C63 | `~/Applications/Lumem.app`; os dois `.desktop` | menubar.test ✓ | `packages/cli/src/menubar.test.ts:173-174` - `rm -rf` e `ditto`; `:192-194` - `Exec=… --panel`, e o autostart sem ele | PASS |
-| C64 | `win32-x64` e `linux-ia32`: sai 1 e lista as quatro | menubar.test ✓ | `packages/cli/src/menubar.test.ts:254` `toBe(1)`; `:259` as quatro no erro | PASS |
-| C65 | upgrade leva o pacote do app e recopia no macOS | upgrade.test ✓ | `packages/cli/src/upgrade.test.ts:245-252` | PASS |
-| C66 | uninstall remove o pacote, o app ou os `.desktop`, e o item de login | menubar.test ✓ | `packages/cli/src/menubar.test.ts:309` - `expect(app).toBeGreaterThan(login)`; `:318-321` no Linux | PASS |
-| C67 | `openAtLogin: true` e um só ícone | main.test ✓ | `packages/desktop/src/main.test.ts:220-221` | PASS |
-| C68 | health e status a cada 10 s | poll.test ✓ | `packages/desktop/src/poll.test.ts:55` - `toEqual(["/trpc/health", "/trpc/system.status"])` | PASS |
-| C69 | a tabela de 5 entradas do ícone | tray-state.test ✓ | `packages/desktop/src/tray-state.test.ts:30` `stopped`; `:33`, `:37` e `:38` `attention`; `:41` `update`; `:44` `running`. O M8 morre em `:33` | PASS |
-| C70 | clique: janela de 360×520 sem moldura em `/menubar`, que esconde de novo e no blur | windows.test ✓ | `packages/desktop/src/windows.test.ts:142` - `toMatchObject({ width: 360, height: 520, frame: false })`; `:163` - `visible` false | PASS |
-| C71 | o menu na ordem, e `Atualizar` só com versão nova | menu.test ✓ | `packages/desktop/src/menu.test.ts:38` - os rótulos na ordem; `:51` - `Atualizar` habilitado | PASS |
-| C72 | uma janela principal, focada na segunda vez | windows.test ✓ | `packages/desktop/src/windows.test.ts:232` - `FakeWindow.all` com 1 | PASS |
-| C73 | Iniciar e Parar com os caminhos gravados | commands.test ✓ | `packages/desktop/src/commands.test.ts:28` | PASS |
-| C74 | daemon parado: a página local | windows.test ✓ | `packages/desktop/src/windows.test.ts:254` - `toEqual([\`file:${STOPPED_PAGE}\`])` | PASS |
+| C59 | `routeOf("/menubar")` e `GET /menubar` com 200 | route.test ✓; static.test ✓ | `packages/web/src/lib/route.test.ts:24`; `packages/server/src/web/static.test.ts:91` | PASS |
+| C60 | `/menubar` numa aba mostra os três blocos | `e2e/menubar.spec.ts` ✓ (19,6 s) | `e2e/menubar.spec.ts:73` - número na manchete; `:89` - `/\d+,\d%/` no Daemon. É o leitor de duas passadas de verdade, no daemon do e2e | PASS |
+| C61 | a cada 5 s com 10 sessões, menos de 1% | `measure:resources --only ten-sessions` três vezes, exit 0; measure-resources.test ✓ ×2 | `packages/server/src/testing/measure-resources.ts:101` - `percent < LIMIT_PERCENT`. Saídas: **0,53%**, **0,53%** e **0,52%** (4,00 + 22,40, 4,79 + 21,80 e 6,01 + 19,80 ms por amostra), numa árvore de 11 processos; `packages/server/src/testing/measure-resources.test.ts:47` e `:52` | PASS |
+| C62 | `menubar install` nas quatro plataformas, e o `lumem-desktop.json` | menubar.test ✓ ×2 | `packages/cli/src/menubar.test.ts:134` - `toContain(\`install npm install --global ${desktopPackageName(key)}@${VERSION}\`)`; `:137` - o JSON inteiro; `:286` e `:290` | PASS |
+| C63 | `~/Applications/Lumem.app`; os dois `.desktop` | menubar.test ✓ ×3 | `packages/cli/src/menubar.test.ts:188-192` - `rm -rf` antes do `ditto`; `:236` - o `Exec=` entre aspas; `:308` e `:314` - o porquê de cada falha | PASS |
+| C64 | `win32-x64` e `linux-ia32`: sai 1 e lista as quatro | menubar.test ✓ | `packages/cli/src/menubar.test.ts:334` `toBe(1)`; `:337` nada rodou; `:339` as quatro | PASS |
+| C65 | upgrade leva o pacote do app e recopia no macOS | upgrade.test ✓ ×2; menubar.test ✓ | `packages/cli/src/upgrade.test.ts:293` e `:297`; `:337-338` - sem app, nada; `packages/cli/src/menubar.test.ts:473` e `:475` | PASS |
+| C66 | uninstall remove o pacote, o app ou os `.desktop`, e o item de login | menubar.test ✓ ×2 | `packages/cli/src/menubar.test.ts:422` - `expect(app).toBeGreaterThan(login)`; `:432-434` em Linux; `:444` - sem app, nenhum `--uninstall` | PASS |
+| C67 | `openAtLogin: true` e um só ícone | main.test ✓ | `packages/desktop/src/main.test.ts:231` - `toEqual([{ openAtLogin: true }])`; `:232` - um ícone | PASS |
+| C68 | health e status a cada 10 s | poll.test ✓ ×3; main.test ✓ | `packages/desktop/src/poll.test.ts:55` - `toEqual(["/trpc/health", "/trpc/system.status"])`; `:62`, `:65` e `:66` `POLL_EVERY_MS` 10 000; `:196`; `packages/desktop/src/main.test.ts:525` | PASS |
+| C69 | a tabela de 5 entradas do ícone | tray-state.test ✓; poll.test ✓ ×2; main.test ✓ | `packages/desktop/src/tray-state.test.ts:30` `stopped`; `:33` e `:37` `attention`; `:41` `update`; `:44` `running`; `packages/desktop/src/poll.test.ts:148` e `:163`; `packages/desktop/src/main.test.ts:489` e `:495` | PASS |
+| C70 | clique: 360×520 sem moldura em `/menubar`, esconde de novo e no blur | windows.test ✓ ×3; main.test ✓ | `packages/desktop/src/windows.test.ts:142` - `toMatchObject({ width: 360, height: 520, frame: false })`; `:153` `/menubar`; `:203` e `:208` - 299 e 300 ms; `:218`; `packages/desktop/src/main.test.ts:503` e `:507` | PASS |
+| C71 | o menu na ordem, e `Atualizar` só com versão nova | menu.test ✓; main.test ✓ | `packages/desktop/src/menu.test.ts:38` - os rótulos na ordem; `:46`; `:51`; `packages/desktop/src/main.test.ts:534-544` - cada item faz o que diz | PASS |
+| C72 | uma janela principal, focada na segunda vez | windows.test ✓ | `packages/desktop/src/windows.test.ts:272` - `<origem>/`; `:275` e `:282` - `["show", "focus"]` | PASS |
+| C73 | Iniciar e Parar com os caminhos gravados | commands.test ✓ ×2 | `packages/desktop/src/commands.test.ts:28`; `:52` - o PATH de quem abriu | PASS |
+| C74 | daemon parado: a página local | windows.test ✓; main.test ✓ | `packages/desktop/src/windows.test.ts:309` - `toEqual([\`file:${STOPPED_PAGE}\`])`; `:315`; `packages/desktop/src/main.test.ts:518` | PASS |
 | C75 | protocolo diferente: a linha de incompatível | menu.test ✓ | `packages/desktop/src/menu.test.ts:94` | PASS |
-| C76 | toda janela travada na origem | windows.test ✓ | `packages/desktop/src/windows.test.ts:295` - `webPreferences`; `:304` e `:309` - `navigate` cancelado; `:317` - `external` | PASS |
+| C76 | toda janela travada na origem | windows.test ✓ ×3 | `packages/desktop/src/windows.test.ts:350` - `webPreferences`; `:359-362` - `navigate` cancelado fora da origem; `:398` e `:406` - `external`; `:415-416` | PASS |
 | C77 | Electron de verdade: o ícone, e o painel em `/menubar` | `playwright test e2e/app.spec.ts -g …` ✓ (2,4 s) | `packages/desktop/e2e/app.spec.ts:96` - `toHaveURL(\`${DAEMON}/menubar\`)`; `:105` - `[360, 520]` | PASS |
-| C78 | o release publica os 4 pacotes e anexa zip, AppImage e deb; o smoke roda no macOS e no Linux | release-workflow.test ✓ ×3; smoke-install.test ✓; `smoke:install --only desktop` exit 0 aqui (darwin-arm64) e no CI (`app (darwin-arm64)` e `app (linux-x64)`, run 36722841349) | `scripts/release-workflow.test.ts:53`, `:72` e `:83` - a matriz, o `--provenance` e `desktop/assets/*.{zip,AppImage,deb}`; `:120` - `homepage`; `:124` - o mantenedor; `scripts/smoke-install.test.ts:52` - `expect(fromWorkspace).toEqual([])`; `scripts/smoke-install.ts:314` - `codesign --verify` (saída aqui: "ad-hoc, e confere"); `scripts/smoke-install.ts:344` - lança se nenhuma janela pediu `/menubar` (saída do CI em Linux: "a janela carregou /menubar") | PASS |
+| C78 | o release publica os 4 pacotes e anexa zip, AppImage e deb; o smoke no macOS e no Linux | release-workflow.test ✓ ×3; smoke-install.test ✓; packaging.test ✓; `smoke:install --only desktop` exit 0 aqui, e o CI (run 36722841349) em `app (darwin-arm64)` e `app (linux-x64)` | `scripts/release-workflow.test.ts:53`, `:72` e `:83`; `:120` e `:124`; `scripts/smoke-install.test.ts:52`; `packages/desktop/src/packaging.test.ts:38-42`; `scripts/smoke-install.ts:314` (saída aqui: "ad-hoc, e confere"); `scripts/smoke-install.ts:344` (saída do CI em Linux: "a janela carregou /menubar") | PASS |
 | C79 | `version:set` escreve o manifesto do app; o desktop só importa do shared | set-version.test ✓; package-boundaries.test ✓ | `scripts/set-version.test.ts:46`; `scripts/package-boundaries.test.ts:152` - `toBe("")` | PASS |
-| C80 | o tique ocioso só instala com `idle` | auto.test ✓ | `packages/server/src/update/auto.test.ts:109` - `off` não instala; `:120` - `idle` instala uma vez | PASS |
-| C81 | esperando, aceita prompt e a esteira anda; instala depois do `turn_end` | auto.test ✓ | `packages/server/src/update/auto.test.ts:192`, `:196` e `:201`; `:215` | PASS |
-| C82 | não cruza major depois da 1.0 | auto.test ✓ | `packages/server/src/update/auto.test.ts:228` - `across.install` não chamado; `:240` - o minor instala. O M9 morre em `:228` | PASS |
-| C83 | durante a instalação automática a esteira não despacha | auto.test ✓; bootstrap.test ✓ | `packages/server/src/bootstrap.test.ts:308` - `[workspace.id]` antes; `:312` - a instalação começou; `:318` - `expect(dispatched).toEqual([workspace.id])` depois; `packages/server/src/update/auto.test.ts:290`. O M1 morre | PASS |
-| C84 | `Atualizar sozinho quando ocioso`, desabilitado sem supervisor | UpdateSettings.test ✓ | `packages/web/src/features/settings/UpdateSettings.test.tsx:85` `toBeDisabled()` e `:87` o texto; `:104` - `{ autoUpdate: "idle" }` | PASS |
-| C85 | o caminho estável sob um store versionado | service.test ✓ | `packages/cli/src/service.test.ts:175` - `programArguments(...)` com o symlink, sem ele e sob npm | PASS |
-| C86 | `Consumo`, `Turnos em voo` e `Versão` falham cada um sozinho | MenubarScreen.test ✓ ×3 | `packages/web/src/features/menubar/MenubarScreen.test.tsx:262` - `findByText(block.says)`; `:266` - ausente nos outros; `:268` - `getAllByText(/não consegui ler/)` com 1 | PASS |
-| C87 | `system.live`: só os turnos em voo, com `label` e `startedAt` ISO, e `openTerminals` | system.test ✓ | `packages/server/src/routers/system.test.ts:404` - `{ turns: [], openTerminals: 0 }`; `:414` - `toEqual([…])`; `:417` ISO; `:419` - `openTerminals` 2 | PASS |
-| C88 | `workspace.recent`: os três mais novos em ordem; a worktree conta; vazio sem sessão | workspace.test ✓ ×2 | `packages/server/src/routers/workspace.test.ts:396` - `toEqual([…])`; `:407` - `resolves.toEqual([])` | PASS |
-| C89 | `menubar open` roda o app com `--panel`; sem app, sai 1 | menubar.test ✓ ×2 | `packages/cli/src/menubar.test.ts:279` - `toEqual(["/Users/ana/Applications/Lumem.app/Contents/MacOS/Lumem --panel"])`; `:283` o do Linux; `:289` `toBe(1)`, `:291` `lumem menubar install` e `:292` nada rodou | PASS |
-| C90 | `lumem-desktop.json` na pasta de dados, reescrito a cada install, e o app o lê de lá | menubar.test ✓ ×2; desktop.test ✓; main.test ✓ ×2 | `packages/cli/src/menubar.test.ts:122` - o JSON na pasta de dados; `:150` - reescrito; `packages/shared/src/desktop.test.ts:28` e `:36`; `packages/desktop/src/main.test.ts:293` - `expect(read, platform).toEqual([expected])`; `:323` e `:325` - sem config, diz `lumem menubar install` e sai | PASS |
-| C91 | o painel recarrega uma vez quando o daemon muda de versão; com a versão igual, não | MenubarScreen.test ✓ ×2 | `packages/web/src/features/menubar/MenubarScreen.test.tsx:363` e `:369` - `reload` uma vez só; `:381` - `not.toHaveBeenCalled()` | PASS |
-| C92 | install com o gerenciador falhando devolve o código, não grava e não abre o app | menubar.test ✓ | `packages/cli/src/menubar.test.ts:266` - `toBe(13)`; `:269` - nenhum `write`; `:270` - `launched` `[]` | PASS |
-| C93 | `--no-sandbox` nos dois `.desktop` só onde o kernel nega o sandbox, e a saída diz por quê | menubar.test `adds no-sandbox only where the kernel refuses the sandbox` ✓ | `packages/cli/src/menubar.test.ts:224-227` - `Exec="…" --no-sandbox --panel\n` no lançador, `--no-sandbox\n` no autostart e uma linha com o porquê; `:229-232` - sem a flag e sem linha; a linha nova em `:211` (`userns_clone 1 and apparmor 1`), onde o M7 agora morre. A tabela não tem `userns_clone 0` com `apparmor 0` (o M11 vive, *Coverage*) | PASS - a prova roda e afirma os seis casos que tem. O que reprova é a Coverage e o M11 |
+| C80 | o tique só instala com `idle`, supervisionado, com versão e ocioso; relido no `start`; tique lento; falha | auto.test ✓ ×5 | `packages/server/src/update/auto.test.ts:111` - `off` não instala; `:123` - `idle` instala uma vez; `:145`, `:150` e `:156` - sem supervisor, sem versão e com script; `:179` e `:190` - relido; `:219` e `:223`; `:241` e `:247`. O M16 morre na prova nomeada | PASS |
+| C81 | esperando, aceita prompt e a esteira anda; instala depois do `turn_end` | auto.test ✓ | `packages/server/src/update/auto.test.ts:286` - `install` não chamado com o turno; `:290` - `resolves.toBe("end_turn")`; `:295` - a esteira; `:303` | PASS |
+| C82 | não cruza major depois da 1.0 | auto.test ✓ | `packages/server/src/update/auto.test.ts:322` - `across.install` não chamado; `:324` - `updateAvailable()` segue true; `:334` e `:340` - o minor e o `0.9.2 → 1.0.0` instalam | PASS |
+| C83 | durante a instalação automática a esteira não despacha | auto.test ✓; bootstrap.test ✓ | `packages/server/src/update/auto.test.ts:401` - `conveyorTick` uma vez; `:410`; `packages/server/src/bootstrap.test.ts:318` - `expect(dispatched).toEqual([workspace.id])`. O M1 morre | PASS |
+| C84 | `Atualizar sozinho quando ocioso`, desabilitado sem supervisor | UpdateSettings.test ✓ | `packages/web/src/features/settings/UpdateSettings.test.tsx:85` `toBeDisabled()`; `:87` o texto; `:104` - `{ autoUpdate: "idle" }` | PASS |
+| C85 | o caminho estável sob um store versionado | service.test ✓ | `packages/cli/src/service.test.ts:176` - com o symlink; `:188` - sem; `:208` - sob npm | PASS |
+| C86 | `Consumo`, `Turnos em voo` e `Versão` falham cada um sozinho | MenubarScreen.test ✓ ×3 | `packages/web/src/features/menubar/MenubarScreen.test.tsx:262` - `findByText(block.says)`; `:266` - ausente nos outros; `:268` - com 1 | PASS |
+| C87 | `system.live`: só os turnos em voo, `label`, `startedAt` ISO e `openTerminals` | system.test ✓ | `packages/server/src/routers/system.test.ts:433` - `{ turns: [], openTerminals: 0 }`; `:451` - `toEqual([…])`; `:454` ISO; `:456` - 2 | PASS |
+| C88 | `workspace.recent`: os três mais novos em ordem; vazio sem sessão | workspace.test ✓ ×2 | `packages/server/src/routers/workspace.test.ts:396` - `toEqual([…])`; `:407` - `resolves.toEqual([])` | PASS |
+| C89 | `menubar open` roda o app com `--panel`; sem app, sai 1 | menubar.test ✓ ×2 | `packages/cli/src/menubar.test.ts:372` - `toEqual(["/Users/ana/Applications/Lumem.app/Contents/MacOS/Lumem --panel"])`; `:376` o do Linux; `:382` `toBe(1)`; `:384`; `:401-404` - os seis casos | PASS |
+| C90 | `lumem-desktop.json` na pasta de dados, reescrito, e o app o lê de lá | menubar.test ✓ ×2; desktop.test ✓; main.test ✓ ×2 | `packages/cli/src/menubar.test.ts:137` e `:165`; `packages/shared/src/desktop.test.ts:28` e `:36`; `packages/desktop/src/main.test.ts:304` - `toEqual([expected])`; `:335` e `:337` | PASS |
+| C91 | o painel recarrega uma vez quando o daemon muda de versão | MenubarScreen.test ✓ ×2 | `packages/web/src/features/menubar/MenubarScreen.test.tsx:363` e `:369`; `:381` - `not.toHaveBeenCalled()` | PASS |
+| C92 | install com o gerenciador falhando: o código, nada gravado, nada aberto | menubar.test ✓ ×3 | `packages/cli/src/menubar.test.ts:359` - `toBe(13)`; `:362`; `:363` - `launched` `[]`; `:296-300`; `:349-353` | PASS |
+| C93 | `--no-sandbox` nos dois `.desktop` só onde o kernel nega, e a saída diz por quê | menubar.test ✓ | `packages/cli/src/menubar.test.ts:248-257` - as nove linhas, uma por estado; `:270-273` - `Exec="…" --no-sandbox --panel\n`, o autostart e o porquê; `:275-278` - sem a flag. M7 e M11 morrem | PASS |
 
 ## Coverage
 
-Verified at 2d624cda. Cada conjunto foi recalculado a partir da própria autoridade, e não relido da tabela
-do `checks.md`:
+Verified at 38e5db69. Cada conjunto foi recalculado a partir da própria autoridade, e não relido da tabela do
+`checks.md`: as rotas e as saídas do CLI vêm do `## Surface` do `prd.md`, as portas do `## Landing`, e os
+estados de cada condição, do código que a decide. Os conjuntos que o diff desta rodada não tocou vêm da rodada 5,
+e cada prova deles rodou de novo aqui.
 
-- as rotas e as saídas do CLI vêm do `## Surface` do `prd.md`;
-- as portas vêm do `## Landing`;
-- os blocos do painel vêm do AC 50;
-- as plataformas e os artefatos vêm dos AC 68 e 69;
-- os estados do kernel vêm do AC 78: dois arquivos em `/proc/sys/kernel`, cada um `0`, `1` ou ausente, o
-  que dá nove estados. O runner tem os dois arquivos, então os nove são alcançáveis num kernel de verdade
-  com `sysctl -w`.
-
-Nem o `prd.md` nem código nenhum mudou desde `32f8aac6`. Por isso, nos conjuntos cuja autoridade é o
-código ou o plano, o recálculo deu os mesmos membros da rodada 3. O de estados do kernel foi refeito do
-zero, e desta vez sobre os nove estados, e não sobre os casos que a tabela tinha.
+Onde um membro só é afirmado por um teste que roda no gate mas que nenhum `Proof:` nomeia, ou onde a asserção
+passa por outro motivo, a célula `Unproven` fica vazia e o membro aponta para *Não bloqueia*. Isso é a regra de
+parada do dono, e não um membro provado.
 
 | Set (size) | Recomputed from | Member -> proof | Unproven |
 | --- | --- | --- | --- |
-| rotas do `Surface` e seus status (11 rotas) | `prd.md` `## Surface` | `health` 200 C13 · `updateStatus` 200 C18 · `update` 200 C27, 409 C30/C31, 412 C32 · `status` 200 C52 · `resources` 200 C46 (router) · `settings`/`setSettings` 200 C22, 400 C23 · `usage.total` 200 C42, 400 C44 · `rateLimits` 200 C45 · `system.live` 200 C87 · `workspace.recent` 200 C88 · `GET /menubar` 200 C59 | - |
+| rotas do `Surface` e seus status (11 rotas) | `prd.md` `## Surface` | `health` 200 C13 · `updateStatus` 200 C18 · `update` 200 C27, 409 C30/C31, 412 C32 · `status` 200 C52 · `resources` 200 C46 · `settings`/`setSettings` 200 C22, 400 C23 · `usage.total` 200 C42, 400 C44 · `rateLimits` 200 C45 · `system.live` 200 C87 · `workspace.recent` 200 C88 · `GET /menubar` 200 C59 | - |
 | verbos do CLI (10) | `prd.md` `Surface`, tabela do CLI | `start` C4 · sem verbo C7 · `run` C8 · `stop` C9 · `status` C10 · `logs` C11 · `upgrade` C39 · `menubar install` C62 · `menubar open` C89 · `menubar uninstall` C66 | - |
-| saídas do CLI que não são 0 (12) | `prd.md` `Surface`, tabela do CLI | `start` 1: C5, C6 e C4 · `stop` 1: C9 · `status` 3: C10 · `logs` 1: C12 · `menubar install` 1: C64 · `menubar install` com o código do gerenciador: C92 · `menubar open` 1: C89 · `upgrade` 1: `packages/cli/src/upgrade.test.ts:87` e `:206` · `upgrade` com o código do gerenciador: `:94` e `:195` · `menubar uninstall` com o código do gerenciador: `packages/cli/src/menubar.test.ts:335`. `open` e `uninstall` fora das quatro passam pela recusa única de `packages/cli/src/menubar.ts:138` | - |
+| saídas do CLI que não são 0 (12) | `prd.md` `Surface`, tabela do CLI | `start` 1: C5, C6 e C4 · `stop` 1: C9 · `status` 3: C10 · `logs` 1: C12 · `menubar install` 1: C64 · o código do gerenciador no `install`: C92 · `menubar open` 1: C89 · `upgrade` 1: C39 (`upgrade.test.ts:198`) · o código do gerenciador no `upgrade` e no `uninstall`: carregados da rodada 5 | - |
 | portas de mão única (9) | `prd.md` `## Landing` | 1 C7 · 2 C1 · 3 C24 · 4 C14 · 5 C62 · 6 C79 · 7 C34 · 8 C27 · 9 C90 | - |
-| supervisores, escritor de serviço (2) | `prd.md` porta 2 | launchd C1 · systemd C2 (e o M10 morre) | - |
-| supervisor de verdade que esta feature deve (1, depois da decisão do dono) | `checks.md` `Test policy`, linha *o serviço de verdade*, com o adiamento em `docs/project/backlog.md:796` | launchd: os quatro passos do `pnpm smoke:service`, exit 0 aqui (C4, C9, C15 e C40). O systemd `--user` saiu do conjunto por decisão do dono, e não por prova (seção *Adiado pelo dono*) | - |
+| supervisores, escritor de serviço (2) | `prd.md` porta 2 | launchd C1 · systemd C2 | - |
+| supervisor de verdade que esta feature deve (1, depois da decisão do dono) | `Test policy`, linha *o serviço de verdade*; `docs/project/backlog.md:796` | launchd: os quatro passos do `smoke:service`, exit 0 aqui. O `systemd --user` saiu do conjunto por decisão do dono (*Adiado pelo dono*) | - |
+| **bloqueios do `system.update` (AC 27–29), como estados** | `prd.md:235-237`; `packages/server/src/routers/system.ts:71-93` | turno e script `(2, 1)`, turno sem script `(2, 0)`, script sem turno `(0, 1)`: C30 (`system.test.ts:198-201`) · ocioso `(0, 0)` aceita: C27 · já instalando: C31 · sem supervisor e sem versão nova, cada um sozinho: C32 | - |
+| **a leitura da tabela em duas passadas (C51)**: darwin (os elos, a árvore, o `-x`, árvore vazia, raiz morta, pai em laço, morto entre as passadas) · Linux (`stat` de todos, `status` só da árvore, `stat` sem `status`) | `packages/server/src/resources/process-table.ts:70-195` | os dois comandos e a árvore no darwin: C51 (`process-table.test.ts:182` e `:195`) · `stat` sem `status` no Linux: C51 (`:375`) · o `status` só da árvore no Linux: teste sem `Proof:` (N2) · árvore vazia, raiz morta e laço: teste sem `Proof:` (`:256`) · `stat` malformado: afirmado, mas por outro motivo (N1) | - |
+| **o amostrador**: primeira pergunta arma, duas juntas armam um relógio, 15 s desarmam, as raízes vão ao leitor | `packages/server/src/resources/sample.ts:124-210` | armar e desarmar C49 · um relógio para duas perguntas C49 (`sample.test.ts:380`) · as raízes que o daemon rastreia: teste sem `Proof:` (N3) | - |
+| **o intervalo de amostragem do C61 (5 s)** | `checks.md` C61; `packages/server/src/resources/sample.ts:21` | medido a 5 s pelo `measure:resources`, que lê a constante · nenhuma asserção nomeada diz 5 (N4) | - |
+| estados do kernel para o sandbox (9) | `prd.md:281` (AC 78); `packages/cli/src/menubar.ts:56-59` | os nove em `packages/cli/src/menubar.test.ts:248-257`, afirmados em `:264-278`; M7 morre em `(1, 1)` e M11 em `(0, 0)` | - |
 | layout do gerenciador global (3) | `prd.md` AC 77 | npm, pnpm com o symlink e pnpm sem ele: C85 | - |
 | plataformas do app no install (4) | `prd.md` porta 5 | as quatro, C62, num laço sobre `DESKTOP_PLATFORMS` | - |
-| as duas metades do AC 69 (2) | `prd.md` AC 69 | macOS: `pnpm smoke:install --only desktop`, exit 0 aqui e no job `app (darwin-arm64)` · Linux: o mesmo comando no job `app (linux-x64)`, com "a janela carregou /menubar" (`scripts/smoke-install.ts:344`) | - |
-| artefatos do release (3 tipos × arquitetura) | `prd.md` AC 68 | `.zip` construído no CI (`app (darwin-*)`) e aqui · `.AppImage` e `.deb` construídos no CI (`building target=AppImage … Lumem-0.6.1-linux-x86_64.AppImage`, `building target=deb … Lumem-0.6.1-linux-amd64.deb`). O anexo pelo `gh release create` só roda numa tag, e o texto dele é afirmado (`scripts/release-workflow.test.ts:83`) | - |
-| estados do kernel para o sandbox (9: `userns_clone` × `apparmor_restrict`, cada um `0`, `1` ou ausente) | `prd.md:281` (AC 78); `packages/cli/src/menubar.ts:56-59` | afirmados em `packages/cli/src/menubar.test.ts:204-211`: `(1, 0)` libera · `(ausente, ausente)` libera · `(0, ausente)` nega · `(ausente, 1)` nega · `(0, 1)` nega · `(1, 1)` nega (a linha nova; o M7 morre). **Três sem asserção:** `(0, 0)` nega; o M11 vive exatamente aí. `(1, ausente)` e `(ausente, 0)` liberam, sem caso | `(0, 0)` - o M11 sobrevive; `(1, ausente)` e `(ausente, 0)` - sem caso |
-| os dois `.desktop` do Linux (2) | `prd.md` AC 54 e 78 | lançador e autostart, com e sem a flag: C93 (`:224-225` e `:229-230`) | - |
-| estados do ícone (4) e linhas da tabela (5) | `prd.md` AC 60 | as cinco linhas, C69 (e o M8 morre) | - |
-| itens do menu (6) | `prd.md` AC 62 | os seis, C71 | - |
-| blocos do `/menubar` que falham sozinhos (4) | `prd.md` AC 50 | `Consumo` C86 · `Turnos em voo` C86 · `Recursos` C57 · `Versão` C86 | - |
-| bloqueios do `system.update` (5) | `prd.md` AC 27–29 | turno C30 · script C30 · instalação em curso C31 · sem supervisor C32 · sem versão nova C32 | - |
-| falhas do registry (3) | `prd.md` AC 17 | timeout, não 2xx e sem `version`: C19 | - |
-| desfechos da instalação (3) | `prd.md` AC 25–26 | 0: C28 · não zero: C29 · falha ao nascer: C29 | - |
-| grupos de recursos (3) | `prd.md` AC 41 | `daemon`, `agents` e `terminals`: C47 | - |
-| manchete do painel (3) | `prd.md` AC 46–47 | cota C53 · custo C54 · tokens C54 | - |
-| valores de `auto_update` (3) | `prd.md` porta 3 | `off` C80 · `idle` C80 · inválido C23 (tRPC) e C24 (CHECK) | - |
-| regra do major no tique (2 lados) | `prd.md` AC 74 | `1.4.0 → 2.0.0` não instala e `0.6.1 → 0.7.0` instala: C82 (e o M9 morre) | - |
-| esteira pausada durante a instalação (2 montagens) | `runConveyorLoop` em `packages/server/src/bootstrap.ts:568`, e a do teste | a do teste: C83 (`auto.test.ts`) · a do daemon: C83 (`bootstrap.test.ts:258`), e o M1 morre | - |
-| startup config `LUMEM_SUPERVISOR` (2 montagens) | lida em cada montagem | o serviço de verdade: `scripts/smoke-service.ts:185` viu `supervised: true` (C15, launchd) · o harness do router: C13 | - |
-
-**Por que os três estados contam, e não só o que tem mutante.** O AC 78 diz *"`0` **ou** `1` … e nenhum
-`--no-sandbox` **de outro jeito**"*. O conjunto que ele decide é o dos nove estados, e não o dos casos que a
-tabela escolheu. Dois dos três sem caso liberam, e não achei mutante plausível que erre só neles. Por isso o
-M11 vem primeiro nas lacunas. Mas cada estado sem caso é um membro sem prova.
-
-A rodada 3 contou este conjunto como *"os cinco casos da tabela, mais o do Ubuntu"*. Por isso a correção
-fechou um membro, e não o conjunto. A tabela de nove linhas custa três linhas e fecha a classe.
-
-Um caminho que o C93 não nomeia, e que por isso não conta como membro: `lumem upgrade` também escreve os
-dois `.desktop`, por `takeDesktopAlong` → `placeApp` (`packages/cli/src/menubar.ts:190` e `:214-222`).
-Nenhum teste afirma o `--no-sandbox` por esse caminho. O AC 78 só fala do `menubar install`, e a função é a
-mesma. Fica como nota, como na rodada 3.
+| as duas metades do AC 69 (2) | `prd.md` AC 69 | macOS: `smoke:install --only desktop`, exit 0 aqui · Linux: o job `app (linux-x64)` do run 36722841349 | - |
+| artefatos do release (3 tipos × arquitetura) | `prd.md` AC 68 | `.zip`, `.AppImage` e `.deb` no run 36722841349; o anexo do `gh release create` é afirmado no texto (`scripts/release-workflow.test.ts:83`) | - |
+| estados do ícone (4), linhas da tabela (5) e itens do menu (6) | `prd.md` AC 60 e 62 | C69 e C71 | - |
+| blocos do `/menubar` que falham sozinhos (4) | `prd.md` AC 50 | `Consumo`, `Turnos em voo` e `Versão` C86 · `Recursos` C57 | - |
+| condições do tique automático (AC 72) | `prd.md:308`; `packages/server/src/update/auto.ts:74-80` | `off` e `idle` C80 · sem supervisor, sem versão e com script: C80, segunda prova · turno em voo C81 · major C82 | - |
+| falhas do registry (3) e desfechos da instalação (3) | `prd.md` AC 17 e AC 25–26 | C19 · C28 e C29 | - |
+| grupos de recursos (3) e manchete do painel (3) | `prd.md` AC 41 e AC 46–47 | C47 · C53 e C54 | - |
+| valores de `auto_update` (3) e a regra do major (4) | `prd.md` porta 3 e AC 74 | `off`, `idle` C80, inválido C23 e C24 · os quatro casos C82 | - |
+| esteira pausada durante a instalação (2 montagens) | `runConveyorLoop` em `packages/server/src/bootstrap.ts:572`, e a do teste | as duas, C83; o M1 morre | - |
+| startup config `LUMEM_SUPERVISOR` (2 montagens) | lida em cada montagem | o serviço de verdade `scripts/smoke-service.ts:185` (C15) · o harness do router C13 | - |
 
 ## Test policy rows
 
-Verified at 2d624cda. Nenhum arquivo que estas linhas classificam mudou desde a rodada 3. Os vereditos
-foram refeitos com as provas rodadas neste `HEAD`.
+Verified at 38e5db69. Desde a rodada 5, esta linha mudou só o que os testes afirmam, e não o código de
+`packages/desktop` nem de `packages/cli`.
 
 | Row | Files it classifies | Required proof | Expectation met |
 | --- | --- | --- | --- |
-| `packages/desktop`, decide | `tray-state.ts`, `menu.ts`, `windows.ts`, `commands.ts` | vitest com o `electron` dublado: `packages/desktop/src/tray-state.test.ts:30`, `menu.test.ts:38`, `windows.test.ts:295` e `commands.test.ts:28` | yes - as 5 linhas do ícone (C69) e os 6 itens do menu (C71), cada um com asserção; o M8 prova que a precedência é afirmada |
-| `packages/desktop`, a casca inteira | `main.ts`, `index.ts`, `preload.ts`, `assets/stopped.html` | um e2e com `_electron.launch`: `packages/desktop/e2e/app.spec.ts:65`, rodado aqui | yes - sobe, cria o ícone, e o painel carrega `/menubar` (macOS); em Linux, o app empacotado subiu sob `xvfb` pelo job `app (linux-x64)` (C78) |
-| `packages/cli`, escritor de serviço | `service.ts` e os verbos de serviço de `run.ts` | vitest com `launchctl`, `systemctl` e o disco dublados | yes - o conteúdo por supervisor (C1, C2), a ordem (`service.test.ts:160` e `:223`, onde o M10 morre) e cada recusa (C5, C6, C9) |
-| `packages/cli`, o serviço de verdade | `service.ts` contra o supervisor do sistema | `pnpm smoke:service`, local | yes, sob o launchd - os quatro passos (subir, sobreviver ao chamador, parar, voltar depois de atualizar) com exit 0 aqui. O systemd `--user` está adiado por decisão do dono (`docs/project/backlog.md:796`), com a data de volta firmada em 2026-09-30: antes da próxima tag. Nenhum check depende dele: C2 é de unidade e está provado; C4, C9, C15 e C40 dizem *o supervisor* e rodaram como escritos |
+| `packages/desktop`, decide | `tray-state.ts`, `menu.ts`, `windows.ts`, `commands.ts` | vitest com o `electron` dublado: `packages/desktop/src/tray-state.test.ts:30`, `menu.test.ts:38`, `windows.test.ts:350` e `commands.test.ts:28` | yes - as 5 linhas do ícone (C69) e os 6 itens do menu (C71), cada um com asserção |
+| `packages/desktop`, a casca inteira | `main.ts`, `index.ts`, `preload.ts`, `assets/stopped.html` | um e2e com `_electron.launch`: `packages/desktop/e2e/app.spec.ts:65`, rodado aqui | yes - sobe, cria o ícone, e o painel carrega `/menubar` (macOS); em Linux o app empacotado subiu sob `xvfb` pelo job `app (linux-x64)` |
+| `packages/cli`, escritor de serviço | `service.ts` e os verbos de serviço de `run.ts` | vitest com `launchctl`, `systemctl` e o disco dublados | yes - o conteúdo por supervisor (C1, C2), a ordem (`service.test.ts:161` e `:234`) e cada recusa (C5, C6, C9, e o passo do systemd em `:465`) |
+| `packages/cli`, o serviço de verdade | `service.ts` contra o supervisor do sistema | `pnpm smoke:service`, local | yes, sob o launchd - os quatro passos com exit 0 aqui. O `systemd --user` foi adiado pelo dono (`docs/project/backlog.md:796`), com gatilho antes da próxima tag |
 
 ## Faults injected
 
-Verified at 2d624cda. As mutações rodaram numa cópia descartável: `git archive HEAD` em `/tmp/v038r4/wt`,
-com os `node_modules` da árvore real ligados por symlink. Nada mexeu no estado do git.
+Verified at 38e5db69. As mutações rodaram numa cópia descartável: `git archive HEAD` em `/tmp/v038r6/wt`, com
+os `node_modules` da árvore real ligados por symlink. Nada mexeu no estado do git.
 
-- Antes de qualquer mutação, as provas-alvo rodaram verdes na cópia: 2, 4 e 1 passed.
-- Cada arquivo mutado foi restaurado da árvore real, com `cmp` conferindo, antes da falha seguinte.
-- A cópia foi apagada, e o M11 rodou numa segunda cópia, também apagada.
-- O porcelain da árvore real estava vazio antes. Ao fim das mutações também estava vazio, e só este
-  arquivo mudou depois.
+- Antes de qualquer mutação, as provas-alvo rodaram verdes na cópia: 59 testes em quatro arquivos do `server`, e
+  20 no `menubar.test.ts`.
+- Cada arquivo mutado foi restaurado da árvore real, com `cmp` conferindo, antes da falha seguinte. No fim, os
+  arquivos de `packages/server/src` e `packages/cli/src` da cópia batiam com os da árvore real.
+- A cópia foi apagada no fim.
+- O porcelain da árvore real era ` M docs/features/038-desktop-and-updates/verification.md` antes, o relatório
+  da rodada 5 ainda sem commit. Ao fim das mutações era o mesmo.
 
-**Por que sete, e não cinco.** O pedido era o M7 e os dois sobreviventes da rodada 1 (M1 e M2), mais pelo
-menos três novos. Os três novos (M8 a M10) caem em superfícies de asserção que nenhuma das quatro rodadas
-tinha derrubado:
-
-- a precedência do ícone (C69);
-- a regra do major no tique (C82);
-- a ordem do `systemctl` (C2).
-
-O M11 é a mutação que o recálculo da Coverage apontou: o espelho do M7, como o M7 foi na rodada 3.
+Cada mutante roda primeiro contra as provas que o check nomeia. Quando elas deixam passar, roda contra o arquivo.
+Os cinco pedidos (M7, M11, M14, M1, M2) e o M16 da rodada 5 são reinjeções. Os seis novos atacam as superfícies
+que esta rodada criou: os dois relógios, as duas passadas, as raízes e o intervalo.
 
 | Mutation | Location | Killed |
 | --- | --- | --- |
-| M7 (o sobrevivente da rodada 3) - `refused: usernsClone !== null ? usernsClone === "0" : apparmorRestrict === "1"`: *o botão do Debian, quando existe, decide sozinho* | `packages/cli/src/menubar.ts:59` | yes - C93 cai no caso novo: `userns_clone 1 and apparmor 1 (Ubuntu 23.10+): expected '[Desktop Entry]…' to contain 'Exec="…'` |
-| M1 (o F1 da rodada 1) - `paused: () => update.installer.installing()` vira `paused: () => false` | `packages/server/src/bootstrap.ts:572` | yes - `does not dispatch from the daemon's own conveyor…` cai com `expected [ …(2) ] to deeply equal [ Array(1) ]` |
-| M2 (o F2 da rodada 1) - `Math.round(value * 10) / 10` vira `Math.round(value)` | `packages/server/src/resources/sample.ts:73` | yes - as duas provas do C46 caem: o amostrador (`expected { …(3) } to deeply equal { …(3) }`) e o router (`expected 2 to be 1.6`) |
-| M8 (C69, novo) - a linha do `update` sobe acima da do `attention`: *versão nova vence o pedido de atenção* | `packages/desktop/src/tray-state.ts:44-45` | yes - `picks the icon by precedence` cai em `tray-state.test.ts:33` com `expected 'update' to be 'attention'` |
-| M9 (C82, novo) - `major(current) >= 1` vira `major(current) > 1`: *o 1.x cruza o major sozinho* | `packages/server/src/update/auto.ts:56` | yes - `never crosses a major after 1.0 on its own` cai em `auto.test.ts:228`: `across.install` foi chamado 1 vez |
-| M10 (C2, novo) - `enable --now` antes de `daemon-reload` | `packages/cli/src/service.ts:285-288` | yes - `writes the systemd unit and enables it` cai em `service.test.ts:223` com `expected [ …(3) ] to deeply equal [ …(3) ]` |
-| M11 (C93, apontado pela Coverage) - `refused: apparmorRestrict !== null ? apparmorRestrict === "1" : usernsClone === "0"`: *o botão do AppArmor, quando existe, decide sozinho* | `packages/cli/src/menubar.ts:59` | no - sobrevive à prova do C93 (1 passed), à suíte inteira do CLI (9 arquivos, 115 passed) e a `scripts/smoke-install.test.ts` e `release-workflow.test.ts` (9 passed). Com `userns_clone=0` e `apparmor_restrict=0`, o `probeSandbox` mutado devolve `refused: false`, e o do `HEAD` devolve `true` (medido nas duas cópias) |
+| M7 - `refused: usernsClone !== null ? usernsClone === "0" : apparmorRestrict === "1"`: o botão do Debian decide sozinho | `packages/cli/src/menubar.ts:59` | yes - C93 cai em `userns 1, apparmor 1 (Ubuntu 23.10+): expected '[Desktop Entry]…' to contain 'Exec="…'` |
+| M11 - `refused: apparmorRestrict !== null ? apparmorRestrict === "1" : usernsClone === "0"`: o botão do AppArmor decide sozinho | `packages/cli/src/menubar.ts:59` | yes - C93 cai em `userns 0, apparmor 0` |
+| M14 - `if (!isIdle(busy))` vira `if (busy.liveTurns > 0 && busy.runningScripts > 0)`, e o import de `isIdle` sai | `packages/server/src/routers/system.ts:8` e `:85` | yes - C30 cai com `promise resolved "{ started: true }" instead of rejecting`. Sobrevivia na rodada 5 |
+| M1 - `paused: () => update.installer.installing()` vira `paused: () => false` | `packages/server/src/bootstrap.ts:572` | yes - C83 cai com `expected [ …(2) ] to deeply equal [ Array(1) ]` |
+| M2 - `Math.round(value * 10) / 10` vira `Math.round(value)` | `packages/server/src/resources/sample.ts:84` | yes - as duas provas do C46: o amostrador (`expected { …(3) } to deeply equal { …(3) }`) e o router (`expected 2 to be 1.6`) |
+| M16 - o tique perde `!supervised \|\|` | `packages/server/src/update/auto.ts:75` | yes - agora pela prova nomeada do C80 (`does nothing without a supervisor…`), com `expected "vi.fn()" to not be called at all` |
+| M17 (novo) - `disarm ??= every(…)` vira `disarm = every(…)`: o defeito dos dois relógios de volta | `packages/server/src/resources/sample.ts:204` | yes - C49 cai em `arms one clock when two first questions arrive together`: `expected 2 to be 1` |
+| M18 (novo) - a árvore não desce: some o `queue.push(...(childrenOf.get(pid) ?? []))` | `packages/server/src/resources/process-table.ts:96` | yes - C51 cai: `expected [ …(1) ] to deeply equal [ …(4) ]` |
+| M19 (novo) - o Linux lê o `status` de todos: some o `if (!inTree.has(entry.pid)) continue;` | `packages/server/src/resources/process-table.ts:172` | yes, pelo arquivo - sobrevive às duas provas do C51 e cai em `reads the Linux status file only for the tree…` (`process-table.test.ts:279`), que nenhum `Proof:` nomeia (N2) |
+| M20 (novo) - o Linux volta a aceitar `stat` sem `status`, com memória zero | `packages/server/src/resources/process-table.ts:176` | yes - C51 cai em `reads every time format ps prints…`: `expected [ [ 10, 'node', 50540544 ], …(1) ] to deeply equal [ [ 10, 'node', 50540544 ] ]` |
+| M21 (novo) - o amostrador pede ao leitor só o pid do daemon: `read([roots.daemonPid])` | `packages/server/src/resources/sample.ts:127` | yes, pelo arquivo - sobrevive às 25 provas nomeadas de `sample`, `live` e `system` e cai em `asks the reader only for the pids the daemon tracks…` (`sample.test.ts:414`), sem `Proof:` (N3) |
+| M22 (novo) - `SAMPLE_INTERVAL_MS` volta para `3_000` | `packages/server/src/resources/sample.ts:21` | yes, pelo arquivo, e por acaso - sobrevive às provas nomeadas do C49 e do C61 e cai em `reports a process born between samples as null…`, cujo relógio fixo de 5 s deixa de bater. O `measure:resources` daria ~0,87% a 3 s e passaria (N4) |
 
-O M11 é plausível, e pela mesma razão que o M7 era. O comentário de `packages/cli/src/menubar.ts:50-55`
-apresenta os dois botões como de distribuições diferentes: *"o do Debian e derivados, e o do AppArmor do
-Ubuntu 23.10 em diante"*. Uma refatoração que leia *"se o arquivo do AppArmor existe, é Ubuntu novo, e o
-AppArmor decide"* produz o M11. É a leitura espelhada da que produz o M7.
+**O Stryker, nos dois arquivos de produção que mudaram.** Rodei o Stryker na mesma cópia, com um
+`stryker.*.json` descartável, `mutate` em `process-table.ts` e `sample.ts`, e os testes de `resources/` e do
+router `system`. O resultado, e o que sobrevive, está em *Não bloqueia* (N1 e N5). Um sobrevivente foi conferido
+à mão (S1) e está lá também. Nenhum deles entra na coluna `Killed` acima, pela regra do dono.
 
-O kernel onde ele erra é o do runner com dois `sysctl -w` comuns: `apparmor_restrict_unprivileged_userns=0`
-(o contorno que se recomenda para apps Electron no Ubuntu 24.04) e `unprivileged_userns_clone=0` (o
-endurecimento). Nesse kernel, o M11 deixa o `.desktop` sem a flag, e o app aborta ao abrir. O passo de Linux
-do smoke também não o pegaria: `scripts/smoke-install.ts:328` só imprime o `Exec=`, e `:337` sobe o app
-com `--no-sandbox` próprio.
+## Não bloqueia (regra de parada)
+
+A regra é do dono, de 2026-09-30 (`checks.md:542`). Cada item aqui é teste fraco sobre código que se comporta
+certo no `HEAD`. Nenhum é um `Proof:` que falha, e nenhum é uma saída errada num caso que um critério define. Vão
+para o backlog, nesta ordem. A coluna *Teste que fecha* é o teste de uma linha que fecharia cada um.
+
+| # | O quê | Onde | Teste que fecha |
+| --- | --- | --- | --- |
+| N1 | **A leitura em duas passadas tornou inalcançáveis as guardas de `stat` malformado do Linux.** O teste as provava com entradas `stat` sem `(`, sem `)`, com `ppid` que não é número, e com entradas que não são pid (`12abc`). Nenhuma dessas entradas tem `status`. Antes de `e921c107`, a linha sem `status` entrava com memória zero, e a guarda era quem a tirava. Agora a segunda passada descarta quem não tem `status`, e a asserção passa por esse motivo. O S1 (`if (open === -1 \|\| close === -1)` vira `if (false)`) sobrevive ao arquivo inteiro. O Stryker acha 25 sobreviventes em `process-table.ts`: os de `:137`, `:138`, `:141`, `:162` e `:166` são dessa classe, e a varredura do `Handoff` (`checks.md:513`) ainda os dá como mortos, porque foi escrita antes de `e921c107`. Em produção todo pid de `/proc` tem `status`, então hoje as guardas decidem sozinhas. O código as mantém, e o comportamento está certo | `packages/server/src/resources/process-table.ts:137-166`; `packages/server/src/resources/process-table.test.ts:347-362` | dar `status` às entradas malformadas: `["/proc/24/status", STATUS_10]`, e o mesmo para 20, 21, 22, 23, 25, `12abc` e `abc12`, no mapa do teste de `:313` |
+| N2 | **O `status` só da árvore, no Linux, não tem prova nomeada.** As duas provas do C51 chamam o leitor de Linux com todos os pids como raízes, e aí a árvore é a tabela inteira. O M19 sobrevive a elas e cai num teste que roda no gate, sem `Proof:` | `packages/server/src/resources/process-table.ts:172`; teste em `process-table.test.ts:279` | nomear `reads the Linux status file only for the tree, and never a process that died before it` como terceira `Proof:` do C51 |
+| N3 | **As raízes que o amostrador passa ao leitor não têm prova nomeada.** Todo leitor falso das provas do C46–C50 ignora o argumento. O M21 sobrevive a elas | `packages/server/src/resources/sample.ts:127`; teste em `sample.test.ts:414` | nomear `asks the reader only for the pids the daemon tracks, and attributes with the same answer` como `Proof:` do C51 ou do C47 |
+| N4 | **Os 5 s do C61 não são afirmados.** O claim diz *"a cada 5 s"*, e nenhuma asserção nomeada diz 5. O `measure:resources` lê a constante e imprime o intervalo, mas a 3 s mediria ~0,87% e sairia 0. O M22 só morre por acaso | `packages/server/src/resources/sample.ts:21` | `expect(SAMPLE_INTERVAL_MS).toBe(5_000)` num teste que o C61 nomeie |
+| N5 | **Mais cinco sobreviventes do Stryker em `sample.ts`.** `disarm?.()` virando `disarm()` sobrevive (`:191`): nenhum teste chama `stop()` sem relógio armado, que é o caminho de um daemon que desliga sem ninguém ter olhado os recursos. Os outros são o `timer.unref()` e o `clearInterval` do relógio real (`:72-74`), o `label: ""` provisório (`:145`) e o `if (latest === null)` (`:206`), que ninguém alcança depois da primeira amostra. A conta: 109 mortos e 6 sobreviventes em `sample.ts`; 173 mortos, 1 por tempo, 25 sobreviventes e 23 sem cobertura em `process-table.ts`. Os 23 sem cobertura são o `nodeProcessTableHost`, que o `measure:resources` e o e2e do C60 exercitam | `packages/server/src/resources/sample.ts:191` | `createResourceSampler(…).stop()` antes de qualquer pergunta, com `expect(() => sampler.stop()).not.toThrow()` |
+| N6 | **A leitura de duas passadas no Linux nunca rodou num kernel de verdade.** O C51 prova o `/proc` com amostras gravadas. O run 36722841349 é de `32f8aac6`, anterior a `e921c107`, e o C78 afirma só que a janela carregou `/menubar`, e não os números do bloco de recursos. O macOS rodou de verdade: o e2e do C60 viu `/\d+,\d%/` no Daemon, e o `measure:resources` a árvore de 11 | `packages/server/src/resources/process-table.ts:159-180` | `pnpm measure:resources --only ten-sessions` numa máquina Linux, ou um passo do `release.yml` em `dry_run` que o rode |
+| N7 | **Uma falha intermitente de `runningCount` sob carga.** Na suíte inteira do `server` na cópia, sob carga (e com um mutante não relacionado em `process-table.ts`), `counts the scripts that are running, in every checkout` recebeu 3 onde esperava 2 (`packages/server/src/routers/scripts.test.ts:107`). Não reproduziu sozinho (3 vezes), nem em quatro rodadas paralelas com o `bootstrap.test.ts`, nem no `gate:quick`. A causa não está achada. Se fosse real, a mensagem do `CONFLICT` do AC 27 contaria scripts a mais, mas a recusa seria a mesma | `packages/server/src/scripts/ScriptRunner.ts:358-366` | repetir o teste com `--repeat` sob `LUMEM_TEST_PRIORITY=normal`, e imprimir as linhas `running` quando o número não bater |
+| N8 | **Testes do `bootstrap` deixam o relógio da verificação armado depois de fechar o banco.** Na mesma rodada sob carga, o tique de 10 s de `check.ts` disparou três vezes depois de o banco fechar: `TypeError: The database connection is not open`, com origem em `src/bootstrap.test.ts`. Em produção a ordem está certa, porque `update.check.stop()` (`bootstrap.ts:636`) vem antes de `openedDatabase.close()` (`:656`). Mas o `checkNow` promete *"nunca lança"* (`check.ts:47`) e chama `enabled()` fora do `try` (`:65`) | `packages/server/src/update/check.ts:65` | `enabled` que lança, e `await expect(check.checkNow()).resolves.toBeUndefined()` |
+| N9 | Carregados da rodada 5, sem mudança: o passo de Linux do `smoke:install` sobe o app com o `--no-sandbox` próprio, e não pelo `Exec=` que o CLI escreveu; o clique do sistema no ícone não é exercitado; o `measure:resources` só roda no macOS | `scripts/smoke-install.ts:337` | lançar pelo `Exec=` do `.desktop` gravado, e afirmar `phase0-q4` em vez de imprimir |
+| N10 | Documentação. O `testing.md` não registra a armadilha que a rodada achou na medição: o `time -p` do macOS trunca cada leitura a 10 ms, e um `ps` medido sozinho perdia metade do custo. Está em `checks.md:495` e no comentário de `measure-resources.ts:110-113`, mas não em *Armadilhas já corrigidas*. O cabeçalho de `measure-resources.ts:9-10` ainda cita a meta da fase 0 com *"a cada 3 s"*, o que é histórico mas lê como vigente. O `refetchInterval: 5_000` de `queries.ts:58` repete à mão a constante do daemon | `docs/project/testing.md`; `packages/server/src/testing/measure-resources.ts:9` | uma entrada nova em *Armadilhas já corrigidas* |
 
 ## A evidência do CI
 
-Run 36722841349 (`workflow_dispatch`, `dry_run`), `headSha` `32f8aac6048114c8c6f1f8ad618a4ac8f1edcbea`. A
-conclusão é `success`. Li o log salvo em `.context/phase0/dry-run-2.log` e busquei de novo, direto do GitHub,
-o do job `app (linux-x64)`: `gh run view 36722841349 --log --job 109913934007`, 639 linhas. O runner é a
-imagem `ubuntu-24.04`, com o kernel `6.17.0-1022-azure`.
+Run 36722841349 (`workflow_dispatch`, `dry_run`), `headSha` `32f8aac6048114c8c6f1f8ad618a4ac8f1edcbea`,
+conclusão `success` (`gh run view 36722841349 --json conclusion,headSha,event`). O log salvo é
+`.context/phase0/dry-run-2.log`, com 1 058 927 bytes. Dele: "phase0-q4: sandbox=refused userns_clone=1
+apparmor_restrict=1" (linha 6701), "a janela carregou /menubar" (6704) e "✓ o app instala e confere" (6706),
+todas do job `app (linux-x64)`.
 
-**Vale para o `HEAD`?** Sim, para tudo que o run exercita. De `32f8aac6` a `2d624cda`, fora de `docs/` e de
-`*.test.ts`, o diff é vazio. O que o run construiu e rodou são os mesmos scripts, o mesmo workflow, o mesmo
-CLI e o mesmo app. A única diferença é a linha nova da tabela, e ela é provada aqui, e não no CI.
+**Vale para o `HEAD`?** Sim, para o que o C78 e o C93 afirmam. De `32f8aac6` a `38e5db69`, fora de `docs/` e dos
+testes, mudaram quatro arquivos:
 
-| Job | Conclusão | O que ele prova aqui |
-| --- | --- | --- |
-| `gates e tarball` | success | `pnpm gate:build` e `pnpm test` num runner Linux: 323 arquivos passed e 1 skipped |
-| `instalar de verdade (ubuntu-latest)` e `(macos-latest)` | success | o caminho padrão do `smoke:install` num runner **sem** `pnpm install`: "✓ o pacote instala e sobe" |
-| `app (linux-x64)` | success | `.AppImage` e `.deb` construídos. E `pnpm smoke:install --only desktop <tarball>`, a segunda `Proof:` do C78, com: "o kernel não deixa o Chromium criar o sandbox (apparmor_restrict_unprivileged_userns=1); os .desktop levam --no-sandbox.", `Exec="…/lumem-desktop" --no-sandbox --panel`, `phase0-q4: sandbox=refused userns_clone=1 apparmor_restrict=1`, "a janela carregou /menubar" e "✓ o app instala e confere" |
-| `app (linux-arm64)` | success | `.AppImage` e `.deb` de arm64 construídos no runner x64. Sem smoke, como o workflow declara |
-| `app (darwin-arm64)` | success | o `.zip`, e o smoke com "ad-hoc, e confere" e "nenhum com.apple.quarantine" |
-| `app (darwin-x64)` | success | o `.zip`. Sem smoke, como o workflow declara |
-| `npm` | skipped | por desenho em `dry_run`. Nem `npm publish --provenance` nem `gh release create` rodaram |
+- `packages/server/src/resources/process-table.ts`;
+- `packages/server/src/resources/sample.ts`;
+- `packages/server/src/testing/measure-resources.ts`;
+- `packages/web/src/features/menubar/queries.ts`.
 
-**É a prova que o C78 nomeia?** Sim, como a rodada 3 julgou. O job `app (linux-x64)` roda o comando da
-segunda `Proof:` no `ubuntu-latest`, com o tarball que ele mesmo empacotou. A metade de Linux do AC 69 é a
-asserção de `scripts/smoke-install.ts:344`, e ela passou. O CI não prova a publicação em si. O C78 a afirma
-pelo texto do workflow, e esse texto está provado.
-
-**E o C93 no kernel de verdade?** O runner é o caso `(1, 1)`. Ali o CLI gravou a flag e disse por quê. É o
-caso que a tabela agora afirma, e é por isso que o M7 morre. O `(0, 0)` do M11 não é o kernel do runner, e
-nenhuma máquina o mediu. É um estado que o AC 78 decide e que a tabela não tem.
+`git diff --name-only 32f8aac6 HEAD -- .github scripts packages/desktop packages/cli/src/menubar.ts
+packages/cli/src/upgrade.ts packages/shared`, sem os testes, sai vazio. O workflow, os scripts de smoke e release,
+o pacote do app e o `menubar` do CLI são os mesmos que o run construiu e rodou. O que mudou é do servidor: como
+ele lê a tabela de processos e a cada quanto amostra. O C78 não afirma nada disso: afirma que o pacote instala, que
+o app sobe sob `xvfb` e que uma janela pede `/menubar`. O C93 no kernel de verdade é o estado `(1, 1)` do runner,
+com o mesmo CLI. O que o run **não** cobre no `HEAD` é a leitura nova no Linux, e ela está em *Não bloqueia*
+(N6).
 
 ## Adiado pelo dono
 
 | O quê | Estado | Onde está a decisão | O que fica sem prova |
 | --- | --- | --- | --- |
-| `pnpm smoke:service` sob o `systemd --user` de verdade | **não rodou em máquina nenhuma**, nem aqui nem no CI, porque os runners não têm sessão de usuário | `docs/project/backlog.md:796` (seção H), com o gatilho *"houver uma máquina Linux com sessão de login à mão, ou antes da primeira release que anunciar suporte a Linux"*. **Decisão do dono em 2026-09-30, relatada pelo orquestrador:** o item fica no backlog com o gatilho como está escrito, e a próxima tag, que publica `@vinihcrosa/lumem-desktop-linux-*`, é a release que o dispara. Então ele roda antes da próxima tag, e não antes de esta feature fechar | o `lumem start` de verdade sob o `systemd --user`, o daemon sobrevivendo ao chamador numa sessão real, e o relançamento depois do `system.update`. O apoio segue sendo o da rodada 2: a unit num systemd 252 em contêiner |
+| `pnpm smoke:service` sob o `systemd --user` de verdade | não rodou em máquina nenhuma. Os runners não têm sessão de usuário | `docs/project/backlog.md:796`, com o gatilho em `:807`: **antes da próxima tag** | o `lumem start` de verdade sob o `systemd --user`, a sobrevivência ao chamador numa sessão real e o relançamento depois do `system.update`. O apoio é a unit num systemd 252 em contêiner, da rodada 2 |
 
-**Nenhum check depende disso para passar como está escrito** (ver a linha do `Test policy`). O C15 cita o
-AC 2 entre parênteses, e é ali que a ausência pesa. Mas o claim dele diz *"um daemon subido por `lumem
-start` de verdade"* e rodou como escrito, sob o launchd.
-
-A resposta do dono fecha a pergunta que a rodada 3 deixou: o gatilho dispara na próxima tag. **Consequência
-prática:** a primeira tag depois desta feature fica presa a um `pnpm smoke:service` com os quatro `--only`
-numa máquina Linux com sessão de login. O `docs/project/backlog.md:807-808` ainda diz o gatilho com as
-palavras de antes, e não nomeia a tag. Quem cortar a próxima tag precisa saber disso por esse texto ou pelo
-runbook de release.
+Isso não é uma falha desta rodada. Nenhum check depende disso para passar como está escrito: o C15 e o C40 dizem
+*o supervisor*, e rodaram sob o launchd.
 
 ## Gate
 
-Verified at 2d624cda.
+Verified at 38e5db69.
 
-- `LUMEM_GATE_BASE=b226b4b pnpm gate:quick`: `docs ok` e a suíte inteira, porque uma dependência mudou.
-  **324 arquivos, 5184 passed, 6 skipped, 0 failed**, `exit=0`. É o mesmo número da rodada 3, porque a linha
-  nova está dentro de um `it` que já existia.
-- Integridade dos testes: nenhum `.skip`, `.only`, `.todo`, `xit` ou `xdescribe` entrou em
-  `b226b4b..HEAD`. Nenhuma linha de teste foi removida em `32f8aac6..HEAD`.
+- `LUMEM_GATE_BASE=b226b4b pnpm gate:quick`: `docs ok`, e a suíte inteira, porque uma dependência mudou. **325
+  arquivos, 5248 passed, 6 skipped, 0 failed**, `exit=0`. Um arquivo a mais que na rodada 5: o
+  `session-place.test.ts`, novo.
 - `pnpm lint`: `exit=0`.
-- `pnpm exec turbo typecheck --force`: `0 cached, 5 successful`. `pnpm exec tsc -p tsconfig.json --noEmit` da
-  raiz: `exit=0`.
+- `pnpm exec turbo typecheck --force`: `Cached: 0 cached, 5 total`, `Tasks: 5 successful, 5 total`. `pnpm exec tsc
+  -p tsconfig.json --noEmit` da raiz: `exit=0`.
 - `pnpm docs:check`: `docs ok`, `exit=0`.
-- `pnpm exec playwright test e2e/update.spec.ts e2e/menubar.spec.ts`: 3 passed (41,7 s).
+- `pnpm exec playwright test e2e/update.spec.ts e2e/menubar.spec.ts`: 3 passed (49,2 s). `o painel abre numa aba
+  e mostra os três blocos` (C60) e `a página volta inteira depois da atualização` (C37, C41), cada um com `✓`.
 - `pnpm --filter @lumem/desktop exec playwright test e2e/app.spec.ts -g "o app sobe e o painel carrega a página
-  do daemon"`: 1 passed (2,4 s).
-- `pnpm smoke:service --only start-waits-for-health`, `--only stop-leaves-nothing`, `--only
-  survives-the-caller` e `--only update-relaunches`: os quatro deram exit 0 sob o launchd, cada um com
-  "✓ o serviço de verdade se comporta". Depois, `launchctl print gui/501/tech.cazimi.lumem-smoke` responde
-  *Could not find service*, e nada do Lumem sobra em `~/Library/LaunchAgents` nem em `launchctl list`.
-- `pnpm measure:resources --only ten-sessions`, três vezes: 0,61%, 0,48% e 0,68%, exit 0.
-- `pnpm smoke:install --only desktop`: exit 0 em darwin-arm64 (pack, instalação num prefixo descartável,
-  `codesign --verify` "ad-hoc, e confere", "nenhum com.apple.quarantine"). Nenhum processo do app ficou
-  rodando.
-- `pnpm smoke:install` (o caminho padrão): exit 0, com "200 text/html; charset=utf-8" e "v0.6.1".
-- O porcelain antes da rodada estava vazio. Depois, só este arquivo:
-  ` M docs/features/038-desktop-and-updates/verification.md`.
-- `pnpm -s feature:check verification docs/features/038-desktop-and-updates`: `exit=1`, com um erro só, `o
-  veredito é FAIL`. É o que um relatório reprovado deve dar, e nenhuma linha contradiz o veredito.
+  do daemon"`: 1 passed (2,4 s), para o C77.
+- `pnpm smoke:service --only start-waits-for-health`, `--only stop-leaves-nothing`, `--only survives-the-caller`
+  e `--only update-relaunches`: os quatro deram exit 0 sob o launchd, cada um com "✓ o serviço de verdade se
+  comporta". Depois, `launchctl print gui/501/tech.cazimi.lumem-smoke` responde *Could not find service*, e
+  `launchctl list` não tem `lumem-smoke`. O `tech.cazimi.lumem.plist` em `~/Library/LaunchAgents` é o serviço de
+  produção do dono, de 12:36, e não um resto do smoke, que usa outro rótulo (`scripts/smoke-service.ts:41`).
+- `pnpm measure:resources --only ten-sessions`, três vezes, cada uma com exit 0 e "✓ dentro do limite":
+
+  | Rodada | Daemon por amostra | `ps` por amostra | Custo |
+  | --- | --- | --- | --- |
+  | 1 | 4,00 ms | 22,40 ms | 0,53% |
+  | 2 | 4,79 ms | 21,80 ms | 0,53% |
+  | 3 | 6,01 ms | 19,80 ms | 0,52% |
+
+  O autor mediu 0,52–0,71%, e a rodada 5 mediu 0,89–0,99% a 3 s.
+- `pnpm smoke:install --only desktop`: exit 0 em darwin-arm64, com "ad-hoc, e confere", "nenhum
+  com.apple.quarantine" e "✓ o app instala e confere". Nenhum processo do app ficou rodando.
+- `pnpm smoke:install` (o caminho padrão): exit 0, com "200 text/html; charset=utf-8", "v0.6.1" e "✓ o pacote
+  instala e sobe".
+- O porcelain antes da rodada e depois de tudo: ` M docs/features/038-desktop-and-updates/verification.md`.
+- `pnpm -s feature:check verification docs/features/038-desktop-and-updates`: `validate-verification: 0 erro(s), 0 aviso(s) em docs/features/038-desktop-and-updates/verification.md`, `exit=0`, sobre este arquivo.
 
 ## Swept
 
-Verified at 2d624cda.
+Verified at 38e5db69.
 
-- **authorization: existing** confere. `system.updateStatus`, `status`, `update`, `resources`, `live`,
-  `settings` e `setSettings` (`packages/server/src/routers/system.ts:29`, `:52`, `:69`, `:105`, `:112`,
-  `:114` e `:116`), `usage.total` (`usage.ts:34`), `agentAccount.rateLimits` (`agentAccount.ts:67`) e
-  `workspace.recent` (`workspace.ts:28`) são `publicProcedure` (`packages/server/src/trpc.ts:144`), a mesma
-  fronteira de todo o `/trpc`.
-- **concurrency: C31, C33, C83**: o M1 morre de novo.
-- **state transitions: C69, C80, C81**: o M8 (precedência do ícone) morre.
-- A janela conhecida da S5 continua sem check, registrada no `Handoff`: uma passada da esteira já em
+- **authorization: existing** confere: as rotas novas são `publicProcedure` (`packages/server/src/trpc.ts:144`),
+  a mesma fronteira de todo o `/trpc`.
+- **concurrency: C31, C33, C83**: o M1 morre. Nesta rodada entra um quarto caso que a varredura achou: as duas
+  primeiras perguntas de `system.resources` juntas (C49, M17).
+- **state transitions: C69, C80, C81**: as linhas do ícone estão afirmadas; o tique morre sem supervisor, agora
+  pela prova nomeada (M16).
+- **failure modes, dependency failure**: o AC 27 está fechado (M14).
+- A janela conhecida da S5 continua registrada no `Handoff`, sem check: uma passada da esteira já em
   `prepareCheckout` não conta como turno em voo.
-
-## Riscos
-
-- **O C61 voltou a ter margem.** Deu 0,61%, 0,48% e 0,68%, contra 0,95%, 0,93% e 0,52% na rodada 3. O que
-  varia é o `ps`: 11–17 ms por amostra, perto da resolução de 10 ms do `time -p`. Numa máquina mais cheia,
-  pode cruzar 1% sem nada ter mudado no código.
-- **O passo de Linux do smoke não abre o `.desktop` que o CLI escreveu.** Ele sobe o binário com
-  `--no-sandbox` próprio (`scripts/smoke-install.ts:337`). Prova que o pacote abre, e não que o lançador
-  gravado abre. É o mesmo buraco por onde o M7 passava e o M11 passa.
-- O clique do sistema operacional no ícone (macOS) e o `measure:resources` em Linux continuam sem rodar.
-- **A próxima tag depende de uma máquina Linux com sessão de login** (seção *Adiado pelo dono*).
 
 ## Quem fecha
 
-Esta é a rodada 4, uma além do limite de três, autorizada pelo dono. A lacuna volta ao dono, com a correção
-nomeada. É pequena e mecânica, do mesmo tamanho da da rodada 3.
-
-**Ranked gaps:**
-
-1. **O mutante M11 sobrevive** - C93 - `packages/cli/src/menubar.ts:59`, com a tabela em
-   `packages/cli/src/menubar.test.ts:204-211`. A menor correção é uma sétima linha:
-   `{ name: "userns_clone 0 and apparmor 0", sysctl: { [USERNS]: "0\n", [APPARMOR]: "0\n" }, refused: true, says: "unprivileged_userns_clone=0" }`.
-   Com ela o M11 cai, porque devolve `false` nesse caso.
-2. **Membros da Coverage sem prova: `(0, 0)`, `(1, ausente)` e `(ausente, 0)`** - C93 - o mesmo lugar. A
-   correção que fecha o conjunto, e não mais um exemplo, é a tabela dos nove estados. São três linhas além
-   das seis de hoje. As duas que faltam além da do item 1:
-   `{ name: "userns_clone 1, apparmor absent", sysctl: { [USERNS]: "1\n" }, refused: false, says: "" }` e
-   `{ name: "userns_clone absent, apparmor 0", sysctl: { [APPARMOR]: "0\n" }, refused: false, says: "" }`.
-
-Opcional, e fora do veredito, como na rodada 3: o passo de Linux do `smoke:install` pode **afirmar** o que
-hoje imprime. Lançar pelo `Exec=` gravado, e não com um `--no-sandbox` próprio, faria do run de CI uma prova
-do C93 num kernel de verdade.
-
-**Só documentação, para depois do veredito:**
-
-- a linha do `verification.md` em `docs/README.md:815` descreve a rodada 3 como a última;
-- o gatilho do item do systemd em `docs/project/backlog.md:807-808` ainda não nomeia a próxima tag, que o
-  dono decidiu ser a que o dispara.
+Esta é a rodada 6, a última por decisão do dono. O veredito é PASS pela regra de parada dele: as 174 provas
+passam no `HEAD`, e não há defeito de comportamento. Os dez itens de *Não bloqueia* vão para o backlog, pela ordem.
 
 **Lição (passo 7).** Proposta para *Armadilhas já corrigidas* de `docs/project/testing.md`. O verificador só
-escreve este arquivo. É uma correção da lição que entrou em `2d624cda`, e não uma nova:
+escreve este arquivo:
 
-> **A tabela sobre botões independentes cobre o produto dos estados de cada botão, e não a combinação
-> medida.** A lição da rodada 3 dizia *"a combinação que a plataforma-alvo entrega, medida"*, e a correção
-> seguiu a regra à risca: acrescentou o `(1, 1)` do runner. O mutante espelhado, *"o outro botão, quando
-> existe, decide sozinho"*, só morre no `(0, 0)`, e nenhuma máquina medida o tem. **A regra:** com dois
-> botões de três estados (`0`, `1`, ausente), a tabela tem as nove linhas. O que se mede numa máquina de
-> verdade vai além delas, e não no lugar delas.
+> **Mudar o caminho do código pode tornar inalcançável a guarda que um teste afirmava, e o teste continua
+> verde.** Na 038, o teste do `/proc` provava as guardas de `stat` malformado com entradas sem `status`. Enquanto
+> a leitura aceitava linha sem `status`, a guarda era quem tirava a entrada. Depois das duas passadas, é a falta
+> de `status` que tira, e remover a guarda passa pelo arquivo inteiro. A varredura de mutantes da mesma rodada,
+> escrita antes da mudança, ainda a dava como morta. **A regra:** uma varredura de mutantes vale para o commit em
+> que rodou. Depois de mudar o código que ela cobriu, roda de novo nos arquivos mudados. E a entrada que prova uma
+> guarda tem de passar por todos os outros filtros, para que só a guarda possa tirá-la.

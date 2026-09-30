@@ -800,7 +800,7 @@ que fecha quando o adaptador morre e a queda do `/acp` que aparece e se conserta
 
 ---
 
-### [desktop-and-updates/](features/038-desktop-and-updates/) — o Lumem fica de pé sozinho, se atualiza, e mora na barra do sistema · **em execução**
+### [desktop-and-updates/](features/038-desktop-and-updates/) — o Lumem fica de pé sozinho, se atualiza, e mora na barra do sistema · **completa**
 
 O daemon passa a rodar sob o launchd ou o `systemd --user`, se atualiza num gesto só (e, se você ligar,
 sozinho quando ocioso), e ganha um app Electron na barra do macOS e do Linux que mostra cota, gasto,
@@ -812,7 +812,7 @@ decisões desceram para os três ADRs de 2026-09-29.
 | [prd.md](features/038-desktop-and-updates/prd.md) | o plano: 78 critérios em cinco fatias — o serviço, o update manual, os dados e a página `/menubar`, o app Electron, e o update quando ocioso — e nove portas de mão única (a nona, o `lumem-desktop.json`, nasceu na construção) |
 | [open-questions.md](features/038-desktop-and-updates/open-questions.md) | 4 perguntas, **4 respondidas**: `lumem` sobe o serviço, a preferência global mora numa tabela de uma linha, e o serviço grava o caminho estável do pacote (a Q3, medida sob pnpm), todas em 2026-09-29; e, em 2026-09-30, o `.desktop` só leva `--no-sandbox` onde o kernel nega o sandbox (a Q4, opção (c)) |
 | [checks.md](features/038-desktop-and-updates/checks.md) | **93 checks em cinco fatias**, perfil `standard`, com `Test policy` para as duas camadas novas — o processo principal do Electron e o escritor de serviço do CLI. Três provas rodam só na máquina de quem verifica: `pnpm smoke:service`, `pnpm measure:resources` e o passo `desktop` do `smoke:install` |
-| [verification.md](features/038-desktop-and-updates/verification.md) | o relatório do verificador independente, rodada a rodada. A rodada 1 reprovou com quatro lacunas de prova; a rodada 2 as fechou (91 de 92) e reprovou só pelo Linux; o `release.yml` em `dry_run` achou dois defeitos de CI e, corrigidos, provou a metade Linux e mediu a Q4. As **rodadas 3 e 4** reprovaram, cada uma, por um mutante do C93 que deixava um botão do kernel decidir sozinho — a tabela passou a cobrir os 9 estados |
+| [verification.md](features/038-desktop-and-updates/verification.md) | o relatório do verificador independente, rodada a rodada. As rodadas 1 a 5 reprovaram, cada uma por uma lacuna diferente — quatro de prova, o Linux, e três mutantes em condições compostas; o `release.yml` em `dry_run` achou dois defeitos de CI. A **rodada 6 passou**, sob a regra de parada do dono de 2026-09-30 (só defeito de comportamento bloqueia): 93 checks, 12 mutantes, nenhum defeito, e dez itens de teste a reforçar que foram para o backlog |
 
 ## Convenções
 
