@@ -198,7 +198,7 @@ export const LINE_CEILING = 700;
 
 export const OVER_THE_CEILING: Readonly<Record<string, { lines: number; reason: string }>> = {
   "packages/server/src/acp/AcpManager.ts": {
-    lines: 3021,
+    lines: 3069,
     reason:
       "linha de base 2026-09-28 (2813) mais 5 exceções de lint na linha da T9; quebrar é feature própria (backlog); " +
       "2818 → 2833 na `035`: o `cancelPending`, que emite o `permission_resolved` cancelado no cancel e na saída; " +
@@ -207,7 +207,9 @@ export const OVER_THE_CEILING: Readonly<Record<string, { lines: number; reason: 
       "primeiro (S1), a pergunta que a saída grava antes do `session/prompt` (Q4) e um gatilho por `prompt` em " +
       "voo (Q5), que moram onde moram `promptInFlight` e o `turn_failed` da recusa; " +
       "3000 → 3021 na `038`: o `setUpdating` e a recusa de `prompt` enquanto o daemon se atualiza, que só " +
-      "existem onde `prompt` marca o turno",
+      "existem onde `prompt` marca o turno; " +
+      "3021 → 3069 na `038`, o painel da barra: `liveProcesses`, `hasPendingPermission`, e o `rateLimits` que passa a " +
+      "dizer quando e de qual conta veio — o que só quem guarda `lastRateLimit` e `pendingPermissions` sabe responder",
   },
   "packages/server/src/db/schema.ts": {
     lines: 1740,
@@ -222,11 +224,12 @@ export const OVER_THE_CEILING: Readonly<Record<string, { lines: number; reason: 
   "packages/server/src/routers/worktree.ts": { lines: 897, reason: "linha de base 2026-09-28, mais uma exceção de lint na linha da T9" },
   "packages/server/src/tasks/conveyor.ts": { lines: 784, reason: "linha de base 2026-09-28" },
   "packages/server/src/bootstrap.ts": {
-    lines: 833,
+    lines: 843,
     reason:
       "linha de base 2026-09-28 (780), mais o import do log em arquivo da T11; " +
       "781 → 833 na `038`: a versão que sobe para o `openDatabase` copiar o banco, e a atualização do daemon — o serviço, " +
-      "o desligamento por referência, o relógio e o `stop` —, que só o `bootstrap` alcança por ligar o `AcpManager`, o banco e o `createShutdownHandler`",
+      "o desligamento por referência, o relógio e o `stop` —, que só o `bootstrap` alcança por ligar o `AcpManager`, o banco e o `createShutdownHandler`; " +
+      "833 → 843 na `038`: o amostrador de recursos do painel, ligado aos dois managers e ao banco, e desarmado no desligamento",
   },
   "packages/server/src/repositories/task.ts": { lines: 756, reason: "linha de base 2026-09-28" },
   "packages/shared/src/acp-protocol.ts": {
