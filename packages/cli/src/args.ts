@@ -7,9 +7,23 @@ import { parseArgs } from "node:util";
  * survive the answer to D2: the daemon runs in the foreground today and will run
  * in the background later, and `lumem stop` needs a place to exist that does not
  * require re-teaching everyone the command they already know.
+ *
+ * `start` is the service and `run` is the foreground process the service itself
+ * executes (`038`, door 1). The verb the unit file names can never change
+ * meaning, which is why the foreground one is not a flag on `start`.
  */
+export interface Where {
+  port: number | null;
+  host: string | null;
+  stateDir: string | null;
+}
+
 export type Command =
-  | { kind: "start"; port: number | null; host: string | null; stateDir: string | null; open: boolean }
+  | ({ kind: "start"; open: boolean } & Where)
+  | ({ kind: "run"; open: boolean } & Where)
+  | ({ kind: "stop" } & Where)
+  | ({ kind: "status" } & Where)
+  | ({ kind: "logs"; follow: boolean } & Where)
   /** Reinstalls the package the daemon ships in. `check` only reports. */
   | { kind: "upgrade"; check: boolean }
   | { kind: "version" }
@@ -20,7 +34,12 @@ export type Command =
 export const HELP = `lumem — harness local de agentes de código
 
 Uso:
-  lumem [start] [opções]     sobe o daemon e serve a interface
+  lumem start [opções]       instala o Lumem como serviço, sobe e serve a interface
+                             (é o que \`lumem\`, sem verbo, faz)
+  lumem run [opções]         roda o daemon em primeiro plano, neste terminal
+  lumem stop                 para o serviço e o tira do login
+  lumem status               diz se está rodando (saída 0) ou parado (saída 3)
+  lumem logs [-f]            as últimas 200 linhas do log do daemon; -f segue
   lumem upgrade [--check]    atualiza o daemon para a última versão do npm
   lumem version              imprime a versão
   lumem help                 imprime esta ajuda
@@ -30,6 +49,7 @@ Opções:
       --host <endereço>      interface de escuta (padrão: 127.0.0.1)
       --state-dir <caminho>  onde o Lumem guarda tudo (padrão: ~/.lumem)
       --open                 abre o navegador quando subir
+  -f, --follow               em \`logs\`, segue o que for escrito
       --check                em \`upgrade\`, só diz se tem versão nova
   -v, --version              o mesmo que \`lumem version\`
   -h, --help                 o mesmo que \`lumem help\`
@@ -42,6 +62,8 @@ function toPort(raw: string): number | null {
   const port = Number.parseInt(raw.trim(), 10);
   return port >= 0 && port <= 65535 ? port : null;
 }
+
+const VERBS_WITH_WHERE = new Set(["start", "run", "stop", "status", "logs"]);
 
 export function parseCommand(argv: readonly string[]): Command {
   let parsed;
@@ -56,6 +78,7 @@ export function parseCommand(argv: readonly string[]): Command {
         "state-dir": { type: "string" },
         open: { type: "boolean", default: false },
         check: { type: "boolean", default: false },
+        follow: { type: "boolean", short: "f", default: false },
         version: { type: "boolean", short: "v", default: false },
         help: { type: "boolean", short: "h", default: false },
       },
@@ -77,18 +100,18 @@ export function parseCommand(argv: readonly string[]): Command {
   if (verb === "help") return { kind: "help" };
   if (verb === "version") return { kind: "version" };
   if (verb === "upgrade") return { kind: "upgrade", check: values.check === true };
-  if (verb !== "start") return { kind: "invalid", message: `comando desconhecido: ${verb}` };
+  if (!VERBS_WITH_WHERE.has(verb)) return { kind: "invalid", message: `comando desconhecido: ${verb}` };
+  if (values.follow === true && verb !== "logs") {
+    return { kind: "invalid", message: "-f só existe em `lumem logs`" };
+  }
 
   const port = values.port === undefined ? null : toPort(values.port);
   if (values.port !== undefined && port === null) {
     return { kind: "invalid", message: `--port tem que ser um número entre 0 e 65535, e veio: ${values.port}` };
   }
 
-  return {
-    kind: "start",
-    port,
-    host: values.host ?? null,
-    stateDir: values["state-dir"] ?? null,
-    open: values.open === true,
-  };
+  const where: Where = { port, host: values.host ?? null, stateDir: values["state-dir"] ?? null };
+  if (verb === "stop" || verb === "status") return { kind: verb, ...where };
+  if (verb === "logs") return { kind: "logs", ...where, follow: values.follow === true };
+  return { kind: verb === "run" ? "run" : "start", ...where, open: values.open === true };
 }

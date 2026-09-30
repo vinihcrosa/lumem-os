@@ -20,8 +20,12 @@ npm i -g @vinihcrosa/lumem-os
 lumem
 ```
 
-The daemon starts on `http://127.0.0.1:4317` and serves the interface from the
-same port. `lumem --open` opens a browser too.
+`lumem` installs the daemon as a service of your login session (launchd on macOS,
+`systemd --user` on Linux) and starts it, so closing the terminal does not stop it.
+It serves the interface on `http://127.0.0.1:4317`. `lumem --open` opens a browser
+too. `lumem status` says whether it is running, `lumem logs [-f]` shows its log and
+`lumem stop` stops it and takes it out of your login. Where there is no supervisor,
+or you would rather keep it in a terminal, `lumem run` is the foreground process.
 
 `lumem upgrade` updates it: it asks npm for the latest version, reinstalls with
 the package manager that owns the installed copy, and — if a daemon is running —
