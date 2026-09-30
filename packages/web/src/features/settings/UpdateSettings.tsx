@@ -1,10 +1,10 @@
 import { Skeleton } from "../../ui/index.js";
-import { useDaemonSettings, useSetDaemonSettings } from "../update/index.js";
+import { useDaemonSettings, useSetDaemonSettings, useUpdateStatus } from "../update/index.js";
 import { SettingRow, SettingSection } from "./SettingsPanel.js";
 
 /**
- * As preferências de versão da máquina (`038`, Parte 2): o interruptor de procurar
- * versão nova.
+ * As preferências de versão da máquina (`038`, Partes 2 e 5): procurar versão nova e
+ * atualizar sozinho quando ocioso.
  *
  * **Desligado à força** é o caso que exige texto: `LUMEM_NO_UPDATE_CHECK=1` no
  * ambiente do daemon vale acima de qualquer coisa que esta tela grave, e um
@@ -14,6 +14,7 @@ import { SettingRow, SettingSection } from "./SettingsPanel.js";
  */
 export function UpdateSettings() {
   const settings = useDaemonSettings();
+  const status = useUpdateStatus();
   const save = useSetDaemonSettings();
 
   const description = (
@@ -41,8 +42,10 @@ export function UpdateSettings() {
     );
   }
 
-  const { updateCheck, updateCheckForcedOff } = settings.data;
+  const { updateCheck, updateCheckForcedOff, autoUpdate } = settings.data;
   const on = updateCheck && !updateCheckForcedOff;
+  const unsupervised = status.data !== undefined && !status.data.supervised;
+  const auto = autoUpdate === "idle";
 
   return (
     <SettingSection title="Atualizações" description={description}>
@@ -72,6 +75,32 @@ export function UpdateSettings() {
                 : on
                   ? "ligado"
                   : "desligado"}
+            </span>
+          </label>
+        </SettingRow>
+        <SettingRow
+          label="Atualizar sozinho quando ocioso"
+          description={
+            <>
+              Instala a versão nova e reinicia quando nenhum turno está em voo e nenhum script de
+              projeto está rodando. Nunca atravessa uma versão maior depois da 1.0. Terminais abertos
+              fecham.
+            </>
+          }
+          owner="máquina"
+        >
+          <label className="set__switch">
+            <input
+              type="checkbox"
+              aria-label="Atualizar sozinho quando ocioso"
+              checked={auto}
+              disabled={status.data === undefined || unsupervised}
+              onChange={(event) => {
+                save.mutate({ autoUpdate: event.target.checked ? "idle" : "off" });
+              }}
+            />
+            <span>
+              {unsupervised ? "precisa do Lumem rodando como serviço" : auto ? "ligado" : "desligado"}
             </span>
           </label>
         </SettingRow>

@@ -4,7 +4,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { UpdateSettings } from "./UpdateSettings.js";
 import { renderWithProviders } from "../../test/render.js";
-import { DEFAULT_DAEMON_SETTINGS, installTrpcDefaults, trpcMock as trpc } from "../../test/trpc-mock.js";
+import {
+  DEFAULT_DAEMON_SETTINGS,
+  NO_UPDATE,
+  installTrpcDefaults,
+  trpcMock as trpc,
+} from "../../test/trpc-mock.js";
 
 vi.mock("../../lib/trpc.js", async () => ({
   trpc: (await import("../../test/trpc-mock.js")).trpcMock,
@@ -63,5 +68,41 @@ describe("o interruptor de procurar versão nova", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("o daemon não respondeu");
     expect(screen.queryByRole("checkbox", { name: CHECK })).not.toBeInTheDocument();
+  });
+});
+
+const AUTO = "Atualizar sozinho quando ocioso";
+const NEEDS_SERVICE = "precisa do Lumem rodando como serviço";
+
+describe("o interruptor de atualizar sozinho", () => {
+  it("binds the auto-update toggle and needs a supervisor", async () => {
+    // Sem supervisor: sair com 0 depois de instalar não faria ninguém subir a versão
+    // nova — o interruptor fica desligado **e diz por quê**, em vez de só recusar.
+    trpc.system.updateStatus.query.mockResolvedValue({ ...NO_UPDATE, supervised: false });
+    const alone = renderWithProviders(<UpdateSettings />);
+
+    const blocked = await screen.findByRole("checkbox", { name: AUTO });
+    expect(blocked).toBeDisabled();
+    expect(blocked).not.toBeChecked();
+    expect(screen.getByText(NEEDS_SERVICE)).toBeInTheDocument();
+    alone.unmount();
+
+    // Sob um supervisor: ligado ao `auto_update`, que vem desligado, e o clique manda só o que mudou.
+    trpc.system.updateStatus.query.mockResolvedValue({ ...NO_UPDATE, supervised: true });
+    trpc.system.settings.query.mockResolvedValue(DEFAULT_DAEMON_SETTINGS);
+    trpc.system.setSettings.mutate.mockResolvedValue({ ...DEFAULT_DAEMON_SETTINGS, autoUpdate: "idle" });
+    const user = userEvent.setup();
+    renderWithProviders(<UpdateSettings />);
+
+    const toggle = await screen.findByRole("checkbox", { name: AUTO });
+    await waitFor(() => expect(toggle).toBeEnabled());
+    expect(toggle).not.toBeChecked();
+    expect(screen.queryByText(NEEDS_SERVICE)).not.toBeInTheDocument();
+
+    await user.click(toggle);
+
+    expect(trpc.system.setSettings.mutate).toHaveBeenCalledWith({ autoUpdate: "idle" });
+    // A tela passa a mostrar o que o daemon **gravou**.
+    await waitFor(() => expect(screen.getByRole("checkbox", { name: AUTO })).toBeChecked());
   });
 });
