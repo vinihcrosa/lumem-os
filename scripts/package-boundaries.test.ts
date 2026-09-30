@@ -17,7 +17,7 @@ import { dirname, join, relative, resolve, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const repoRoot = join(import.meta.dirname, "..");
-const PACKAGES = ["shared", "server", "web", "cli"] as const;
+const PACKAGES = ["shared", "server", "web", "cli", "desktop"] as const;
 type Pkg = (typeof PACKAGES)[number];
 
 interface Source {
@@ -75,6 +75,7 @@ const NAME_OF: Record<Pkg, string> = {
   server: "@lumem/server",
   web: "@lumem/web",
   cli: "@vinihcrosa/lumem-os",
+  desktop: "@lumem/desktop",
 };
 
 describe("a direção de dependência entre pacotes", () => {
@@ -125,6 +126,44 @@ describe("a direção de dependência entre pacotes", () => {
             (i) =>
               `${s.path}:${i.line} importa \`${i.specifier}\`${i.typeOnly ? "" : " como valor"}: a tela só enxerga o ` +
               "daemon por `import type { AppRouter } from \"@lumem/server/router-types\"` — o resto passa pelo `shared`",
+          ),
+      );
+    expect(problems.join("\n")).toBe("");
+  });
+
+  it("desktop imports only from shared", () => {
+    // O app é uma casca sobre a web do daemon (`038`, porta 6): o que ele sabe do resto do
+    // repositório é o contrato que o `shared` publica, e nada do que o daemon executa.
+    const desktop = sources.filter((s) => s.pkg === "desktop");
+    // Sem isto a regra passaria com o pacote vazio — ou com o pacote fora do mapa.
+    expect(desktop.length).toBeGreaterThan(0);
+    const problems = desktop.flatMap((s) =>
+      importsOf(s.text)
+        .filter((i) => {
+          const pkg = lumemPackage(i.specifier);
+          return pkg !== null && pkg !== "@lumem/shared";
+        })
+        .map(
+          (i) =>
+            `${s.path}:${i.line} importa \`${i.specifier}\`: o app de desktop só conhece o \`shared\` — ` +
+            "o que ele precisa do daemon chega pelo `/trpc`, e o que ele divide com o CLI mora no `shared`",
+        ),
+    );
+    expect(problems.join("\n")).toBe("");
+  });
+
+  it("nobody imports desktop", () => {
+    // O app é um artefato à parte, empacotado pelo `electron-builder`: o daemon, a web e o CLI
+    // não o carregam nem dependem dele (ADR de 2026-09-29-2003).
+    const problems = sources
+      .filter((s) => s.pkg !== "desktop")
+      .flatMap((s) =>
+        importsOf(s.text)
+          .filter((i) => lumemPackage(i.specifier) === "@lumem/desktop")
+          .map(
+            (i) =>
+              `${s.path}:${i.line} importa \`${i.specifier}\`: ninguém importa o app de desktop — ` +
+              "o que dois pacotes dividem com ele mora no `shared`",
           ),
       );
     expect(problems.join("\n")).toBe("");

@@ -20,6 +20,7 @@ beforeEach(() => {
   write("packages/shared/src/constants.ts", 'export const LUMEM_VERSION = "0.0.0";\n');
   write("packages/shared/package.json", '{\n  "name": "@lumem/shared",\n  "version": "0.0.0"\n}\n');
   write("packages/cli/package.json", '{\n  "name": "lumem",\n  "version": "0.0.0"\n}\n');
+  write("packages/desktop/package.json", '{\n  "name": "@lumem/desktop",\n  "version": "0.0.0"\n}\n');
 });
 
 afterEach(() => {
@@ -35,6 +36,17 @@ describe("setVersion", () => {
     );
     expect(readFileSync(join(root, "packages/shared/package.json"), "utf8")).toContain('"0.2.0"');
     expect(readFileSync(join(root, "packages/cli/package.json"), "utf8")).toContain('"0.2.0"');
+  });
+
+  it("writes the desktop manifest too", () => {
+    // O pacote do app é publicado na versão do daemon (`038`, AC 70): sem este arquivo o
+    // release publicaria quatro pacotes numa versão e o CLI pediria outra.
+    setVersion(root, "0.7.0");
+
+    expect(JSON.parse(readFileSync(join(root, "packages/desktop/package.json"), "utf8"))).toMatchObject({
+      name: "@lumem/desktop",
+      version: "0.7.0",
+    });
   });
 
   it("aceita prerelease", () => {
