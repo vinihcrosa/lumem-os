@@ -2,7 +2,7 @@
 
 **PRD:** [prd.md](prd.md)
 
-**Estado:** 3 perguntas · **2 respondidas** em 2026-09-29, as duas pela recomendação · **1 aberta**, achada construindo a Parte 2.
+**Estado:** 4 perguntas · **3 respondidas** (Q1 e Q2 em 2026-09-29, pela recomendação; Q3 medida) · **1 aberta**, a Q4, achada construindo a Parte 4.
 
 A discovery do Outline já respondeu 22 perguntas e 7 desdobramentos em 2026-09-29
 ([as perguntas](https://wiki.cazimi.tech/doc/open-questions-menu-bar-and-auto-update-S8ijH9cb9K)), e o
@@ -96,3 +96,31 @@ atualizar sozinho, mas não o que acontece com o `lumem` de hoje nem onde a pref
   atualização não valer. A regra: o arquivo de serviço grava o caminho pelo symlink estável do pacote
   (`<global>/node_modules/@vinihcrosa/lumem-os/bin/lumem.mjs`) sempre que ele existe, e o resolvido só
   quando não há outro — virou o critério 77 e o C85. O `bun` não foi medido.
+
+- [ ] **Q4 — O app abre no Linux sem `--no-sandbox`, em uma distribuição que restringe user namespaces?**
+
+  Achada na Parte 4, escrevendo o pacote do Linux. As janelas do app são `sandbox: true` (AC 67), e o
+  Chromium só sobe o sandbox de processo de duas formas: o helper `chrome-sandbox` **setuid root**, ou
+  *user namespaces* sem privilégio. Um `npm i -g` de usuário não consegue pôr o setuid, então o app depende
+  do segundo — e o Ubuntu 23.10 em diante o restringe por AppArmor
+  (`kernel.apparmor_restrict_unprivileged_userns=1`), caso em que o Electron recusa abrir com *"The SUID
+  sandbox helper binary was found, but is not configured correctly"*. **Não foi medido:** não há máquina
+  Linux aqui, e isto é o comportamento conhecido do Electron nessas distribuições. O que foi feito no
+  código: o `.desktop` que o CLI escreve **não** leva `--no-sandbox`, e o passo do `smoke:install --only
+  desktop` no Linux o passa só ele (o runner do GitHub tem a restrição, e o passo prova o pacote, e não a
+  trava).
+
+  **Opções:**
+  - **(a)** deixar como está e documentar: em Ubuntu 24.04, liberar o binário do app por um perfil do
+    AppArmor, ou o `sysctl`. A trava do AC 67 fica inteira, e quem tem a restrição faz um passo à mão.
+  - **(b)** o `.desktop` sempre leva `--no-sandbox`. Abre em todo lugar, e o sandbox de renderizador some
+    em todo lugar — o app só carrega `127.0.0.1`, mas o AC 67 fica sem o que o sustenta.
+  - **(c)** `lumem menubar install` lê `/proc/sys/kernel/unprivileged_userns_clone` e o sysctl do AppArmor, e
+    escreve `--no-sandbox` **só** onde o sandbox não subiria — dizendo isso na saída. O sandbox fica onde o
+    sistema o deixa existir.
+
+  **Recomendação: (c), depois de medir (a) num Ubuntu 24.04 de verdade.** Se o app abrir com a restrição
+  ligada, a Q4 se fecha sozinha em (a); se não abrir, (c) é o caminho que não tira a trava de quem pode tê-la.
+
+  **O que a resposta muda:** o `desktopEntry` de `packages/cli/src/menubar.ts` e o C63 (o conteúdo do
+  `.desktop`); com (b), o AC 67 ganha uma ressalva no Linux.

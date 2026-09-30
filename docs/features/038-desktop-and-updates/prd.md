@@ -93,10 +93,19 @@ rodando, as consultas de `usage/query.ts`, o roteamento escrito à mão de `web/
 **Parte 4 — o app Electron**
 
 1. `lumem menubar install` → `menubar.ts` do CLI (new, no door - placement per conventions) — instala o
-   pacote da plataforma (door 5), grava os caminhos de `node`, `lumem` e o state dir, e põe o app no lugar
-2. o processo principal em `packages/desktop/` (door 6) — ícone, menu, poll de `health` e `system.status`
+   pacote da plataforma (door 5) com o gerenciador dono da cópia, grava o `lumem-desktop.json` (door 9) com
+   `node`, `lumem`, o state dir, a origem e o `PATH`, e põe o app no lugar: `Lumem.zip` descompactado em
+   `~/Applications` por `ditto` no macOS, os dois `.desktop` no Linux. `open` e `uninstall` moram no mesmo
+   arquivo, e `lumem upgrade` (exists) leva o app junto por `takeDesktopAlong`
+2. o processo principal em `packages/desktop/` (door 6) — o `main.ts` só liga: o ícone
+   (`tray-state.ts`), o menu (`menu.ts`), as janelas e a trava de navegação (`windows.ts`) e o `Iniciar` e
+   `Parar` (`commands.ts`) decidem, e o `poll.ts` pergunta `health` e `system.status`; o `index.ts` é o único
+   arquivo que importa o Electron
 3. out: janelas que carregam `<origem>/menubar` e `<origem>/` do daemon; com o daemon parado, uma página
-   local
+   local (`assets/stopped.html`), e o `Iniciar` dela chega ao `main.ts` pelo `preload.ts`
+4. release: `pack.ts` chama o `electron-builder` e monta o pacote npm de cada plataforma em volta do que
+   ele produz; o job `desktop` de `release.yml` roda um por plataforma e arquitetura, e o job `publish`
+   os publica antes do daemon
 
 **Parte 5 — atualizar sozinho quando ocioso**
 
@@ -117,9 +126,10 @@ rodando, as consultas de `usage/query.ts`, o roteamento escrito à mão de `web/
 | domain | termo existente: `ScriptRunner` ganha `runningCount()` (a metade de *ocioso* que ele responde); implementam a interface o `createScriptRunner` e o fake de `worktree.start.test.ts`. E `DomainErrorCode` ganha `PRECONDITION_FAILED`, que o tRPC mapeia a `PRECONDITION_FAILED` e os dois sockets (`acp/websocket.ts`, `pty/websocket.ts`) a `INTERNAL` |
 | web | `Topbar` ganha o slot `update`, que o `App` preenche com o `UpdateBanner`: `layout/` não conhece `features/`. E o `test/setup.ts` marca toda aba de teste como *já recarregou*, porque os testes de tela respondem `health` com versões que não são a do bundle |
 | web | rota nova `/menubar` em `lib/route.ts`. A armadilha *"Uma tela nova derruba testes cujo mock não a conhece"* de `testing.md` se aplica |
+| web | o `MenubarScreen` também roda `useVersionReload`, com a versão que o `updateStatus` já traz (`current`): o app esconde o painel em vez de fechá-lo, então ele fica aberto por dias, e uma atualização do daemon o deixaria no bundle velho (AC 34). O painel não ganha pergunta nenhuma |
 | stored data | tabela nova `daemon_settings` com uma linha, criada pela migração com os padrões; nada existente muda |
 | stored data | `<stateDir>/last-version` (arquivo novo) e `lumem.db.bak-<versão>` (até 3); na primeira subida com esta feature não há versão anterior registrada, então não há cópia |
-| distribuição | quatro pacotes npm novos por release, e o `version:set` passa de três para quatro lugares (`packages/desktop/package.json`) |
+| distribuição | quatro pacotes npm novos por release, e o `version:set` passa de três para quatro lugares (`packages/desktop/package.json`). O Electron (~300 MB) baixa na primeira vez que alguém o pede, e não no `pnpm install`: só o job `desktop` do release e quem roda o e2e do app pagam |
 | 014 | a [`014-distribution`](../014-distribution/prd.md) §7 ganha a nota nas linhas *Auto-update* e *Assinatura e notarização*, apontando para os ADRs de 2026-09-29 |
 
 ## Relations
@@ -170,6 +180,7 @@ O CLI é consumido por gente e pelos arquivos de serviço, e o código de saída
 | 6 · dependências novas | `electron` e `electron-builder` em `devDependencies` de `packages/desktop`; `packages/desktop` importa só de `@lumem/shared`, cercado em `scripts/package-boundaries.test.ts` | Tauri — WebKitGTK no Linux e plugins em Rust ([ADR](../../adr/2026-09-29-2003-lumem-ships-an-electron-client-next-to-the-daemon.md)) |
 | 7 · a cópia do banco | `<stateDir>/last-version` com a versão da última subida; `lumem.db.bak-<versão anterior>`, até 3, a mais velha sai | uma tabela de versão dentro do próprio banco — teria de abrir o banco que se quer copiar antes de decidir copiá-lo |
 | 8 · o daemon se instala | o daemon roda `npm install --global @vinihcrosa/lumem-os@<latest>` (ou o `pnpm`/`yarn`/`bun` dono da cópia) e sai com `0` para o supervisor subir a versão nova ([ADR](../../adr/2026-09-29-2004-the-daemon-updates-itself-under-a-supervisor.md)) | cópias versionadas atrás de um lançador — feature inteira; o app instalar — quem não tem o app ficaria sem |
+| 9 · o que o CLI deixa para o app | `lumem-desktop.json` em `<dados do app>/lumem-desktop.json` — macOS `~/Library/Application Support/Lumem`, Linux `${XDG_CONFIG_HOME:-~/.config}/Lumem` —, com `{ node, lumem, stateDir, origin, path }` (`path` é o `PATH` do terminal, que o `Iniciar` do app entrega ao `lumem start`); o app o lê ao subir e o CLI o reescreve a cada `menubar install`. O pacote de cada plataforma leva o app **empacotado**: `Lumem.zip` no macOS (`.app` tem symlinks, e o tarball do npm não os guarda) e `app/` no Linux | o app procurar `node` e `lumem` no `PATH` — um app aberto pelo Finder ou pelo autostart não herda o `PATH` do terminal, pelo mesmo motivo de o `PATH` estar gravado no plist |
 
 - Nada mais nesta mudança é difícil de reverter.
 
