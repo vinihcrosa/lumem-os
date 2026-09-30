@@ -189,6 +189,72 @@ describe("process table", () => {
     ]);
   });
 
+  it("reads every time format ps prints, and skips what it cannot read", async () => {
+    // `[[dd-]hh:]mm:ss[.cc]`: os dias valem 86 400 s, com um ou mais dígitos, e a fração é
+    // opcional. Cada linha abaixo é uma forma que o `ps` imprime ou uma que ele nunca imprimiria.
+    const output = [
+      "  10     1    100 2-03:04:05 /bin/days",
+      "  11     1    100 12-01:00:00 /bin/two-digit-days",
+      "  12     1    100 1:02:03 /bin/hours-without-fraction",
+      "  13     1    100 0:05 /bin/seconds-only",
+      "  14     1    100 0:01.50   /bin/with  spaces inside and two spaces before",
+      "", // linha em branco
+      "lixo 15 1 100 0:01.00 /bin/junk-before",
+      "  16     1    100 0:01.00junk /bin/junk-after-time",
+      "  17     1    100 x:yy /bin/not-a-time",
+      "  19     1    100 abc1:02.00 /bin/junk-before-time",
+      "  18     1    100 n/a /bin/no-time",
+    ].join("\n");
+    const darwin = createProcessTableReader(host({ platform: "darwin", exec: async () => output }));
+
+    expect((await darwin()).map((entry) => [entry.pid, entry.cpuSeconds, entry.command])).toEqual([
+      [10, 2 * 86_400 + 3 * 3_600 + 4 * 60 + 5, "/bin/days"],
+      [11, 12 * 86_400 + 3_600, "/bin/two-digit-days"],
+      [12, 3_723, "/bin/hours-without-fraction"],
+      [13, 5, "/bin/seconds-only"],
+      [14, 1.5, "/bin/with  spaces inside and two spaces before"],
+    ]);
+
+    // /proc: só entrada de pid (`12abc` e `abc12` não são), só `stat` inteiro, e o
+    // `readdir` é o de `/proc`. `ppid` ou CPU que não são número, e o parêntese que falta,
+    // tiram o processo da tabela — sem derrubar os outros.
+    const good = STAT_10;
+    const tail = "S 1 1 1 0 -1 4194560 2844 0 397 0 151 1 0 0 20 0 7 0 970";
+    const files = new Map<string, string>([
+      ["/proc/10/stat", good],
+      ["/proc/10/status", STATUS_10],
+      ["/proc/12abc/stat", good],
+      ["/proc/abc12/stat", good],
+      ["/proc/20/stat", `20 (no-ppid) S notanumber 1 1 0 -1 4194560 2844 0 397 0 151 1 0 0 20 0 7 0 970\n`],
+      ["/proc/21/stat", `21 (no-ticks) S 1 1 1 0 -1 4194560 2844 0 397 0 abc 1 0 0 20 0 7 0 970\n`],
+      ["/proc/22/stat", `22 (short) S 1 1 1\n`],
+      ["/proc/23/stat", `23 node ${tail}\n`],
+      // Sem `)`: o `(` sozinho não delimita o `comm`, e o resto ainda teria números de sobra.
+      ["/proc/24/stat", "( 0 1 2 3 4 5 6 7 8 9 10 11 12 13\n"],
+      // Sem `(`: só o `)` existe.
+      ["/proc/25/stat", "25 node) S 1 1 1 0 -1 4194560 2844 0 397 0 151 1 0 0 20 0 7 0 970\n"],
+      // O `stat` existe e o `status` sumiu (o processo morreu no meio): entra, sem memória.
+      ["/proc/26/stat", STAT_10.replace("10 (node)", "26 (node)")],
+    ]);
+    const asked: string[] = [];
+    const linux = createProcessTableReader(
+      host({
+        platform: "linux",
+        readdir: async (path) => {
+          asked.push(path);
+          return ["10", "12abc", "abc12", "20", "21", "22", "23", "24", "25", "26"];
+        },
+        read: async (path) => files.get(path) ?? null,
+      }),
+    );
+
+    expect((await linux()).map((entry) => [entry.pid, entry.command, entry.rssBytes])).toEqual([
+      [10, "node", 49_356 * 1024],
+      [26, "node", 0],
+    ]);
+    expect(asked).toEqual(["/proc"]);
+  });
+
   it("refuses a platform it cannot read", async () => {
     const win = createProcessTableReader(host({ platform: "win32" }));
 

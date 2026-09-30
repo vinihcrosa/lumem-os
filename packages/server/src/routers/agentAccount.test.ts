@@ -433,5 +433,25 @@ describe("agentAccount.rateLimits", () => {
     await expect(ctx.api.agentAccount.rateLimits()).resolves.toMatchObject([
       { accountId: work.id, utilization: 0.95, resetsAt: 1_900_007_200 },
     ]);
+
+    // "Conta sem relato nem aparece" (AC 39) vale para cada metade do que a identifica,
+    // sozinha: uma sessão que relata cota sem conta, e uma com conta mas fora do catálogo
+    // (sem `adapterId`), não entram — e não derrubam quem entra.
+    clock = 4_000;
+    const noAccount = await ctx.acpManager.spawn({
+      command: "claude-agent-acp",
+      cwd: tempDir("lumem-cwd-"),
+      adapterId: "claude",
+    });
+    const noAdapter = await ctx.acpManager.spawn({
+      command: "claude-agent-acp",
+      cwd: tempDir("lumem-cwd-"),
+      account: { id: silent.id, label: silent.label },
+    });
+    report(noAccount.id, 0.99, 1_900_010_000);
+    report(noAdapter.id, 0.98, 1_900_010_001);
+
+    const listed = await ctx.api.agentAccount.rateLimits();
+    expect(listed.map((entry) => entry.accountId)).toEqual([work.id]);
   });
 });

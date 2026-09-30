@@ -184,6 +184,18 @@ describe("the copy before migrating", () => {
     expect(backups(fresh)).toEqual([]);
     expect(readFileSync(fresh.lastVersionPath, "utf8").trim()).toBe("0.7.0");
 
+    // Sem `last-version`, **com** banco: é a pasta de quem vem de antes desta versão, e a
+    // primeira subida não tem de que versão copiar — nada de `lumem.db.bak-null`. O mesmo
+    // vale para um `last-version` vazio.
+    for (const content of [null, "", "\n"]) {
+      const before = home();
+      oldDatabase(before.databasePath);
+      if (content !== null) writeFileSync(before.lastVersionPath, content);
+      upgrade(before, "0.7.0");
+      expect(backups(before), JSON.stringify(content)).toEqual([]);
+      expect(readFileSync(before.lastVersionPath, "utf8").trim()).toBe("0.7.0");
+    }
+
     // Uma migração que falha — a tabela `workspace` já existe e a primeira
     // migração tenta criá-la. A versão que estava gravada continua sendo a que
     // estava: a próxima subida ainda sabe que precisa copiar.

@@ -1,5 +1,7 @@
+import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { session as sessionTable } from "../db/schema.js";
 import { createTestCaller, type TestCaller } from "../testing/caller.js";
 import { cleanupGitFixtures, createRepo, tempDir } from "../testing/git-fixtures.js";
 import { createLiveResources } from "./live.js";
@@ -89,5 +91,94 @@ describe("live resources", () => {
     live.stop();
 
     expect(top[0]).toMatchObject({ pid: 500, label: "Claude · lumem-os/bandung" });
+  });
+
+  it("names a script by its tab, and each adapter by its own catalog id", async () => {
+    const { ctx, worktreeId } = await checkout();
+    const script = await ctx.api.session.createShell({ scopeType: "worktree", scopeId: worktreeId });
+    ctx.db.update(sessionTable).set({ kind: "script", scriptName: "run" }).where(eq(sessionTable.id, script.id)).run();
+    const claude = await ctx.api.session.createShell({ scopeType: "worktree", scopeId: worktreeId });
+    const codex = await ctx.api.session.createShell({ scopeType: "worktree", scopeId: worktreeId });
+    const scriptPid = ctx.ptyManager.livePids().find((live) => live.sessionId === script.id)!.pid;
+
+    const live = createLiveResources({
+      db: ctx.db,
+      ptyManager: ctx.ptyManager,
+      // Dois adaptadores de catálogos diferentes: cada processo leva o título do **seu**.
+      acpManager: {
+        liveProcesses: () => [
+          { sessionId: claude.id, pid: 500, adapterId: "claude" },
+          { sessionId: codex.id, pid: 600, adapterId: "codex" },
+        ],
+      },
+      daemonPid: 100,
+      read: async () => [
+        row(100, 1, 50, "/opt/node"),
+        row(500, 100, 300, "/opt/claude-agent-acp"),
+        row(600, 100, 200, "/opt/codex-acp"),
+        row(scriptPid, 100, 10, "/bin/sh"),
+      ],
+    });
+    const { top } = await live.resources();
+    live.stop();
+
+    const labelOf = (pid: number) => top.find((entry) => entry.pid === pid)?.label;
+    expect(labelOf(500)).toBe("Claude · lumem-os/bandung");
+    expect(labelOf(600)).toBe("Codex · lumem-os/bandung");
+    // O script é a aba que a pessoa vê (`Run`), e não `Terminal`.
+    expect(labelOf(scriptPid)).toBe("Run · lumem-os/bandung");
+  });
+
+  it("falls back to what it can say when the database does not know the session", async () => {
+    const { ctx } = await checkout();
+
+    const live = createLiveResources({
+      db: ctx.db,
+      ptyManager: { livePids: () => [{ sessionId: "sem-linha-de-terminal", pid: 700 }] },
+      acpManager: {
+        liveProcesses: () => [
+          // Sem linha no banco: o agente ainda se chama pelo catálogo, sem checkout.
+          { sessionId: "sem-linha-de-agente", pid: 500, adapterId: "claude" },
+          // Fora do catálogo: não há como nomear, e o comando é a melhor resposta.
+          { sessionId: "sem-catalogo", pid: 600, adapterId: null },
+        ],
+      },
+      daemonPid: 100,
+      read: async () => [
+        row(100, 1, 50, "/opt/node"),
+        row(500, 100, 300, "/opt/claude-agent-acp"),
+        row(600, 100, 200, "/opt/outro-acp"),
+        row(700, 100, 100, "/bin/zsh"),
+      ],
+    });
+    const { top } = await live.resources();
+    live.stop();
+
+    const labelOf = (pid: number) => top.find((entry) => entry.pid === pid)?.label;
+    expect(labelOf(500)).toBe("Claude");
+    expect(labelOf(600)).toBe("outro-acp");
+    // Um terminal que o banco não conhece volta ao nome do comando.
+    expect(labelOf(700)).toBe("zsh");
+  });
+
+  it("does not fail the sample when a session leaves between listing it and naming it", async () => {
+    // `tracked()` e `describe()` leem `liveProcesses()` em instantes diferentes: o agente que
+    // saiu no meio não pode derrubar a amostra, e o processo volta ao nome do comando.
+    const { ctx } = await checkout();
+    let calls = 0;
+
+    const live = createLiveResources({
+      db: ctx.db,
+      ptyManager: { livePids: () => [] },
+      acpManager: {
+        liveProcesses: () => (calls++ === 0 ? [{ sessionId: "saiu", pid: 500, adapterId: "claude" }] : []),
+      },
+      daemonPid: 100,
+      read: async () => [row(100, 1, 50, "/opt/node"), row(500, 100, 300, "/opt/claude-agent-acp")],
+    });
+    const { top } = await live.resources();
+    live.stop();
+
+    expect(top.find((entry) => entry.pid === 500)?.label).toBe("claude-agent-acp");
   });
 });

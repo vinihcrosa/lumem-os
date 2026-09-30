@@ -102,12 +102,15 @@ describe("the automatic install", () => {
     // O padrão: `off`. O mesmo tique, com tudo o mais em ordem, não faz nada.
     const off = await build({ autoUpdate: "off" });
     const closing = vi.spyOn(off.caller.acpManager, "setUpdating");
+    // E o tique desligado é barato: não pergunta nada ao banco de minuto em minuto.
+    const asked = vi.spyOn(off.caller.scripts, "runningCount");
     expect((await off.caller.api.system.settings()).autoUpdate).toBe("off");
 
     await off.auto.tick();
 
     expect(off.install).not.toHaveBeenCalled();
     expect(closing).not.toHaveBeenCalled();
+    expect(asked).not.toHaveBeenCalled();
     expect(off.caller.update.installer.installing()).toBe(false);
 
     // `idle`: o **mesmo instalador** do `system.update` — o gerenciador dono da cópia,
@@ -152,6 +155,97 @@ describe("the automatic install", () => {
     await scripted.auto.tick();
     expect(scripted.install).not.toHaveBeenCalled();
     expect(scripted.caller.update.installer.installing()).toBe(false);
+  });
+
+  it("decides again at the instant of the install, not at the start of the tick", async () => {
+    // A pergunta de scripts espera o banco. Nesse meio tempo a pessoa pode desligar o
+    // interruptor, ou um turno pode abrir: o que decide é relido no instante do `start`.
+    const gate = () => {
+      let release: (count: number) => void = () => undefined;
+      const answer = new Promise<number>((resolve) => {
+        release = resolve;
+      });
+      return { answer, release };
+    };
+
+    // O interruptor de `/settings` desligado durante a espera.
+    const switched = await build();
+    const first = gate();
+    vi.spyOn(switched.caller.scripts, "runningCount").mockReturnValue(first.answer);
+    const switching = switched.auto.tick();
+    await switched.caller.api.system.setSettings({ autoUpdate: "off" });
+    first.release(0);
+    await switching;
+    expect(switched.install).not.toHaveBeenCalled();
+    expect(switched.caller.update.installer.installing()).toBe(false);
+
+    // Um turno que abriu durante a espera.
+    const opened = await build();
+    const second = gate();
+    vi.spyOn(opened.caller.scripts, "runningCount").mockReturnValue(second.answer);
+    const opening = opened.auto.tick();
+    vi.spyOn(opened.caller.acpManager, "liveTurns").mockReturnValue([{ sessionId: "s", startedAt: new Date() }]);
+    second.release(0);
+    await opening;
+    expect(opened.install).not.toHaveBeenCalled();
+    expect(opened.caller.update.installer.installing()).toBe(false);
+
+    // E sem nada disso, o mesmo tique instala: a espera sozinha não recusa.
+    const calm = await build();
+    const third = gate();
+    vi.spyOn(calm.caller.scripts, "runningCount").mockReturnValue(third.answer);
+    const calming = calm.auto.tick();
+    third.release(0);
+    await calming;
+    expect(calm.install).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not let a slow tick be overtaken by the next one", async () => {
+    const { caller, auto, install } = await build();
+    let release: (count: number) => void = () => undefined;
+    const slow = new Promise<number>((resolve) => {
+      release = resolve;
+    });
+    const count = vi.spyOn(caller.scripts, "runningCount").mockReturnValueOnce(slow);
+
+    const slowTick = auto.tick();
+    await auto.tick();
+    // O segundo tique chegou com o primeiro ainda esperando o banco: não pergunta de novo.
+    expect(count).toHaveBeenCalledTimes(1);
+
+    // O primeiro acha um script rodando e desiste; o tique seguinte volta a perguntar.
+    release(1);
+    await slowTick;
+    expect(install).not.toHaveBeenCalled();
+    count.mockResolvedValue(0);
+    await auto.tick();
+    expect(count).toHaveBeenCalledTimes(2);
+    expect(install).toHaveBeenCalledTimes(1);
+  });
+
+  it("never throws: a failure before the install becomes a warning, and the next tick runs", async () => {
+    const { caller, install } = await build();
+    const log = { warn: vi.fn(), info: vi.fn() };
+    const auto = createAutoUpdate({
+      supervised: caller.config.supervised,
+      update: caller.update,
+      settings: createDaemonSettingsRepository(caller.db),
+      busy: { acpManager: caller.acpManager, scripts: caller.scripts },
+      log,
+    });
+    const count = vi.spyOn(caller.scripts, "runningCount").mockRejectedValueOnce(new Error("banco fechado"));
+
+    await expect(auto.tick()).resolves.toBeUndefined();
+
+    expect(install).not.toHaveBeenCalled();
+    expect(log.warn).toHaveBeenCalledTimes(1);
+    expect(log.warn.mock.calls[0]?.[0]).toMatchObject({ err: expect.objectContaining({ message: "banco fechado" }) });
+
+    // O erro não deixou o tique preso como *em andamento*.
+    count.mockResolvedValue(0);
+    await auto.tick();
+    expect(install).toHaveBeenCalledTimes(1);
+    expect(log.info).toHaveBeenCalledTimes(1);
   });
 
   it("does not start a second install while one runs", async () => {
@@ -248,6 +342,23 @@ describe("the automatic install", () => {
     const sameMajor = await build({ current: "1.4.0", latest: "1.5.0" });
     await sameMajor.auto.tick();
     expect(sameMajor.install).toHaveBeenCalledTimes(1);
+
+    // O registry e o `LUMEM_VERSION` podem trazer o `v` na frente, e o major é o mesmo: a
+    // regra não se desarma por causa da grafia.
+    const prefixedAcross = await build({ current: "v1.4.0", latest: "v2.0.0" });
+    await prefixedAcross.auto.tick();
+    expect(prefixedAcross.install).not.toHaveBeenCalled();
+    const prefixedSame = await build({ current: "v1.4.0", latest: "v1.5.0" });
+    await prefixedSame.auto.tick();
+    expect(prefixedSame.install).toHaveBeenCalledTimes(1);
+
+    // O major tem dois dígitos: `9 → 10` cruza, e `10 → 10` não (o primeiro dígito não é o major).
+    const nineToTen = await build({ current: "9.0.0", latest: "10.0.0" });
+    await nineToTen.auto.tick();
+    expect(nineToTen.install).not.toHaveBeenCalled();
+    const tenToTen = await build({ current: "10.0.0", latest: "10.1.0" });
+    await tenToTen.auto.tick();
+    expect(tenToTen.install).toHaveBeenCalledTimes(1);
 
     // O botão manual não muda: cruzar o major é a pessoa quem manda.
     await expect(across.caller.api.system.update()).resolves.toEqual({ started: true });

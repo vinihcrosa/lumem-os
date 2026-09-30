@@ -142,6 +142,21 @@ describe("system.settings", () => {
     // E só o campo que veio muda: o outro fica como estava.
     await caller.api.system.setSettings({ autoUpdate: "idle" });
     expect(await caller.api.system.settings()).toMatchObject({ updateCheck: true, autoUpdate: "idle" });
+
+    // Nenhum campo: não há o que gravar, e a resposta é o que já estava lá — não um erro.
+    expect(await caller.api.system.setSettings({})).toEqual({
+      updateCheck: true,
+      autoUpdate: "idle",
+      updateCheckForcedOff: false,
+    });
+  });
+
+  it("fails loudly when the row the migration creates is missing", async () => {
+    // Seguir com um padrão inventado esconderia um banco que não passou pela migração.
+    const caller = fresh();
+    caller.db.delete(daemonSettings).run();
+
+    await expect(caller.api.system.settings()).rejects.toThrow(/daemon_settings/);
   });
 
   it("setSettings refuses an unknown autoUpdate", async () => {
@@ -177,24 +192,34 @@ describe("system.update", () => {
   });
 
   it("update refuses while anything is live", async () => {
-    const install = vi.fn(async (_command: InstallCommand) => 0);
-    const caller = await supervisedWithNewVersion({ install });
-    const hold = vi.spyOn(caller.acpManager, "setUpdating");
-    vi.spyOn(caller.acpManager, "liveTurns").mockReturnValue([
-      { sessionId: "a", startedAt: new Date() },
-      { sessionId: "b", startedAt: new Date() },
-    ]);
-    vi.spyOn(caller.scripts, "runningCount").mockResolvedValue(1);
+    // "Qualquer turno em voo **ou** qualquer script rodando" (AC 27): cada botão sozinho
+    // recusa, e os dois juntos também. O estado conjunto é o único em que `||` e `&&`
+    // concordam, então ele sozinho não prova a disjunção.
+    const states = [
+      { turns: 2, scripts: 1, says: /2 turnos.*1 script/ },
+      { turns: 2, scripts: 0, says: /2 turnos.*0 script/ },
+      { turns: 0, scripts: 1, says: /0 turnos.*1 script/ },
+    ];
 
-    await expect(caller.api.system.update()).rejects.toMatchObject({
-      code: "CONFLICT",
-      message: expect.stringMatching(/2 turnos.*1 script/),
-    });
+    for (const { turns, scripts, says } of states) {
+      const install = vi.fn(async (_command: InstallCommand) => 0);
+      const caller = await supervisedWithNewVersion({ install });
+      const hold = vi.spyOn(caller.acpManager, "setUpdating");
+      vi.spyOn(caller.acpManager, "liveTurns").mockReturnValue(
+        Array.from({ length: turns }, (_, index) => ({ sessionId: `s${String(index)}`, startedAt: new Date() })),
+      );
+      vi.spyOn(caller.scripts, "runningCount").mockResolvedValue(scripts);
 
-    // Nada começou: nem instalador, nem a porta fechada.
-    expect(install).not.toHaveBeenCalled();
-    expect(hold).not.toHaveBeenCalled();
-    expect((await caller.api.system.updateStatus()).lastError).toBeNull();
+      await expect(caller.api.system.update(), `${String(turns)} turnos, ${String(scripts)} scripts`).rejects.toMatchObject({
+        code: "CONFLICT",
+        message: expect.stringMatching(says),
+      });
+
+      // Nada começou: nem instalador, nem a porta fechada.
+      expect(install, `${String(turns)} turnos, ${String(scripts)} scripts`).not.toHaveBeenCalled();
+      expect(hold).not.toHaveBeenCalled();
+      expect((await caller.api.system.updateStatus()).lastError).toBeNull();
+    }
   });
 
   it("update refuses a second install", async () => {
@@ -202,7 +227,10 @@ describe("system.update", () => {
     const caller = await supervisedWithNewVersion({ install });
 
     await caller.api.system.update();
-    await expect(caller.api.system.update()).rejects.toMatchObject({ code: "CONFLICT" });
+    await expect(caller.api.system.update()).rejects.toMatchObject({
+      code: "CONFLICT",
+      message: expect.stringContaining("atualização em andamento"),
+    });
 
     expect(install).toHaveBeenCalledTimes(1);
   });
@@ -213,7 +241,10 @@ describe("system.update", () => {
     // Versão nova e nenhum supervisor: sair com 0 não faria ninguém subir a nova.
     const alone = fresh({}, { current: "0.6.1", request: registryAnswers("0.7.0") as typeof fetch, install });
     await alone.update.check.checkNow();
-    await expect(alone.api.system.update()).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
+    await expect(alone.api.system.update()).rejects.toMatchObject({
+      code: "PRECONDITION_FAILED",
+      message: expect.stringContaining("lumem upgrade"),
+    });
 
     // Supervisor e nada a instalar: nem a primeira leitura chegou, e depois dela a
     // versão é a mesma.
@@ -221,9 +252,15 @@ describe("system.update", () => {
       { LUMEM_SUPERVISOR: "systemd" },
       { current: "0.7.0", request: registryAnswers("0.7.0") as typeof fetch, install },
     );
-    await expect(nothing.api.system.update()).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
+    await expect(nothing.api.system.update()).rejects.toMatchObject({
+      code: "PRECONDITION_FAILED",
+      message: expect.stringContaining("versão nova"),
+    });
     await nothing.update.check.checkNow();
-    await expect(nothing.api.system.update()).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
+    await expect(nothing.api.system.update()).rejects.toMatchObject({
+      code: "PRECONDITION_FAILED",
+      message: expect.stringContaining("versão nova"),
+    });
 
     expect(install).not.toHaveBeenCalled();
   });

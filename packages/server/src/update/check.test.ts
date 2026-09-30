@@ -80,6 +80,11 @@ describe("the update check", () => {
     expect(request).toHaveBeenCalledTimes(3);
 
     expect(check.last().latest).toBe("0.7.0");
+
+    // Parar desarma o relógio de 6 h: nenhuma pergunta depois disso.
+    check.stop();
+    await vi.advanceTimersByTimeAsync(SIX_HOURS * 2);
+    expect(request).toHaveBeenCalledTimes(3);
   });
 
   it("keeps the last good answer when the registry fails", async () => {

@@ -501,9 +501,10 @@ describe("an update in progress", () => {
     const { manager, sessionId, promptBlocks } = await start();
 
     manager.setUpdating(true);
-    await expect(manager.prompt(sessionId, "faz o deploy")).rejects.toThrow(
-      /o Lumem est[aá] se atualizando/,
-    );
+    await expect(manager.prompt(sessionId, "faz o deploy")).rejects.toMatchObject({
+      code: "BLOCKED",
+      message: expect.stringMatching(/o Lumem est[aá] se atualizando/),
+    });
 
     // A recusa vem antes de qualquer trabalho: nada foi mandado ao agente, e a
     // sessão não ficou dizendo que tem turno em voo (o `update` esperaria por ele).
@@ -3320,5 +3321,24 @@ describe("liveProcesses", () => {
     await manager.spawn({ command: "claude-agent-acp", cwd: "/repos/lorebase", adapterId: "claude" });
 
     expect(manager.liveProcesses()).toEqual([{ sessionId: first.id, pid: 4321, adapterId: "claude" }]);
+  });
+
+  it("does not list a process whose session has exited", async () => {
+    // O pid de uma sessão que saiu pode já ser de outro processo: listá-lo atribuiria o
+    // consumo dele a um adaptador que não existe mais.
+    const gone = fakeAgentProcess();
+    const manager = new AcpManager({
+      spawner: () => ({ ...gone.process, pid: 4321 }),
+      isAvailable: () => true,
+    });
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: "/repos/lorebase", adapterId: "claude" });
+    expect(manager.liveProcesses()).toHaveLength(1);
+
+    manager.kill(info.id);
+    await vi.waitFor(() => {
+      expect(manager.list().find((session) => session.id === info.id)?.state).toBe("exited");
+    });
+
+    expect(manager.liveProcesses()).toEqual([]);
   });
 });

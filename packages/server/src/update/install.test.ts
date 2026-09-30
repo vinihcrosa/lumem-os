@@ -37,7 +37,7 @@ function build(overrides: Partial<InstallerOptions> = {}) {
 
 describe("the install", () => {
   it("exits 0 through the shutdown handler after a good install", async () => {
-    const { installer, install, held, close, exit } = build();
+    const { installer, install, held, close, exit, log } = build();
 
     installer.start("0.7.0");
 
@@ -52,6 +52,8 @@ describe("the install", () => {
     expect(close).toHaveBeenCalledTimes(1);
     expect(close.mock.invocationCallOrder[0]).toBeLessThan(exit.mock.invocationCallOrder[0]!);
     expect(exit).toHaveBeenCalledTimes(1);
+    // E o handler soube por quê: a razão do desligamento é a atualização.
+    expect(log.info).toHaveBeenCalledWith({ signal: "update" }, "shutting down");
     // E a porta de prompt continua fechada: o processo está indo embora.
     expect(held).toEqual([true]);
     expect(installer.installing()).toBe(true);
