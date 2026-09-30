@@ -4,6 +4,7 @@ import { z } from "zod";
 import { DomainError } from "../errors.js";
 import { AUTO_UPDATE_VALUES, createDaemonSettingsRepository } from "../repositories/daemonSettings.js";
 import { domainSafeAsync, publicProcedure, router, type Context } from "../trpc.js";
+import { liveSessions } from "../resources/session-place.js";
 import { busyNow, isIdle } from "../update/idle.js";
 
 /**
@@ -102,6 +103,13 @@ export const systemRouter = router({
    * pergunta não paga o `ps`.
    */
   resources: publicProcedure.query(({ ctx }) => ctx.resources.resources()),
+
+  /**
+   * O que está rodando agora, nomeado — a lista de turnos e os shells que uma
+   * atualização fecha, para o painel da barra (`038`). À parte do `status` porque a
+   * casca o consulta a cada 10 s, e esta lista custa uma leitura de banco por turno.
+   */
+  live: publicProcedure.query(({ ctx }) => liveSessions(ctx.db, ctx.acpManager)),
 
   settings: publicProcedure.query(({ ctx }) => settingsOf(ctx)),
 

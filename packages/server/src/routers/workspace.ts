@@ -24,6 +24,9 @@ const idSchema = z.object({ id: z.string().min(1) });
 export const workspaceRouter = router({
   list: publicProcedure.query(({ ctx }) => createWorkspaceRepository(ctx.db).list()),
 
+  /** Os três workspaces com a sessão mais recente, para o painel da barra (`038`). */
+  recent: publicProcedure.query(({ ctx }) => createWorkspaceRepository(ctx.db).recent(3)),
+
   get: publicProcedure
     .input(idSchema)
     .query(async ({ ctx, input }) =>

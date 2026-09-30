@@ -142,6 +142,8 @@ Só o que esta feature acrescenta ou cuja assinatura muda. tRPC responde pelo ma
 | `query system.settings` · `mutation system.setSettings` | `updateCheck`, `autoUpdate` | `updateCheck`, `autoUpdate`, `updateCheckForcedOff` | `200`, `400` |
 | `query usage.total` | `period` | `tokens`, `cost`, `currency`, `turns` | `200`, `400` |
 | `query agentAccount.rateLimits` | — | por conta: `accountId`, `adapterId`, `kind`, `utilization`, `resetsAt` | `200` |
+| `query system.live` (achada ao construir a Parte 3) | — | `turns` (`sessionId`, `label`, `startedAt`), `openTerminals` | `200` |
+| `query workspace.recent` (achada ao construir a Parte 3) | — | até 3: `id`, `name` | `200` |
 | `GET /menubar` | — | o shell da web | `200` |
 
 O CLI é consumido por gente e pelos arquivos de serviço, e o código de saída é o contrato dele:
@@ -323,6 +325,7 @@ Quem liga a opção recebe a versão nova sem clicar, e nunca no meio de um turn
 | o grupo *o próprio app* nos recursos | fica fora de `system.resources`; o painel o soma quando roda dentro do app | o daemon não enxerga o processo do Electron, que não é filho dele | n |
 | o número opcional ao lado do ícone | fica fora desta feature | a C2 o fez opt-in; ele não muda nenhuma decisão de estado, e cabe depois como preferência do app | n |
 | quem aparece em *workspaces recentes* | os três com sessão mais recente | não existe registro de *workspace aberto por último*; a sessão é o sinal que já existe | n |
+| de onde vêm a lista de turnos e os terminais abertos do painel | `system.live`, à parte do `system.status` | a casca consulta o `status` a cada 10 s, e a lista custa uma leitura de banco por turno em voo para nomear sessão e checkout; o painel a consulta só enquanto está aberto. A consulta nasceu ao construir a Parte 3: o AC 48 pede a lista e o AC 51 pede a contagem, e nenhuma rota do Surface as respondia | n |
 | a medição de processos no Linux | `/proc/<pid>/stat` e `/proc/<pid>/status`; no macOS, `ps -A -o pid=,ppid=,rss=,time=,comm=` | sem dependência nativa nova (ADR de 2026-08-30); o `%cpu` do `ps` no Linux é a média desde o início do processo | n |
 
 **Open questions:** none - Q1 e Q2 de [open-questions.md](open-questions.md) foram respondidas em 2026-09-29, as duas pela recomendação: `lumem` = `lumem start` = o serviço, e a preferência global mora numa tabela `daemon_settings` de uma linha.

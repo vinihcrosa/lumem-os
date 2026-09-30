@@ -1,9 +1,14 @@
-import { LUMEM_VERSION, PACKAGE_NAME, type InstallCommand } from "@lumem/shared";
+import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+
+import { ADAPTERS_DIR_NAME, CLAUDE_ADAPTER, LUMEM_VERSION, PACKAGE_NAME, type InstallCommand } from "@lumem/shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AcpManager } from "../acp/AcpManager.js";
 
 import { daemonSettings } from "../db/schema.js";
+import { createAgentConfigRepository } from "../repositories/agentConfig.js";
+import { cleanupGitFixtures, createRepo, tempDir } from "../testing/git-fixtures.js";
 import { fakeAgentProcess } from "../testing/acp-fake-agent.js";
 import {
   createTestCaller,
@@ -26,6 +31,7 @@ const callers: TestCaller[] = [];
 
 afterEach(async () => {
   for (const caller of callers.splice(0)) await caller.cleanup();
+  cleanupGitFixtures();
 });
 
 function fresh(
@@ -320,5 +326,70 @@ describe("system.status", () => {
     acpManager.cancel(info.id);
     await turn.catch(() => undefined);
     await expect(caller.api.system.status()).resolves.toMatchObject({ liveTurns: 0, attention: false });
+  });
+});
+
+describe("system.live", () => {
+  it("live names each turn by session and checkout, and counts open shells", async () => {
+    const acpManager = new AcpManager({
+      spawner: () =>
+        fakeAgentProcess({
+          prompt: async (_text, turn) => {
+            await turn.cancelled;
+            return "cancelled";
+          },
+        }).process,
+      isAvailable: () => true,
+    });
+    // A cópia gerenciada do adaptador: é a única que o daemon lança.
+    const state = tempDir("lumem-state-");
+    const bin = join(state, ADAPTERS_DIR_NAME, CLAUDE_ADAPTER.id, "node_modules", ".bin");
+    mkdirSync(bin, { recursive: true });
+    const managed = join(bin, CLAUDE_ADAPTER.command);
+    writeFileSync(managed, "#!/bin/sh\ncat\n");
+    chmodSync(managed, 0o755);
+    const caller = createTestCaller({ LUMEM_STATE_DIR: state, SHELL: "/bin/sh" }, { acpManager });
+    callers.push(caller);
+    const workspace = await caller.api.workspace.create({ name: "pessoal" });
+    const project = await caller.api.project.add({
+      workspaceId: workspace.id,
+      path: await createRepo({ branch: "main" }),
+      name: "lumem-os",
+    });
+    const tree = await caller.api.worktree.create({ projectId: project.id, name: "bandung" });
+    const config = await createAgentConfigRepository(caller.db).create({
+      name: "claude",
+      command: managed,
+      adapterVersion: CLAUDE_ADAPTER.pinnedVersion,
+    });
+
+    // Nada rodando: a lista é vazia e nenhum terminal está aberto.
+    await expect(caller.api.system.live()).resolves.toEqual({ turns: [], openTerminals: 0 });
+
+    const agent = await caller.api.session.createAgent({
+      scopeType: "worktree",
+      scopeId: tree.id,
+      agentConfigId: config.id,
+    });
+    // Uma sessão de agente ociosa **não** é um turno em voo.
+    await expect(caller.api.system.live()).resolves.toEqual({ turns: [], openTerminals: 0 });
+
+    const turn = acpManager.prompt(agent.id, "vai");
+    await vi.waitFor(async () => {
+      expect((await caller.api.system.live()).turns).toHaveLength(1);
+    });
+    await caller.api.session.createShell({ scopeType: "worktree", scopeId: tree.id });
+    await caller.api.session.createShell({ scopeType: "project", scopeId: project.id });
+
+    const live = await caller.api.system.live();
+    expect(live.turns).toEqual([
+      { sessionId: agent.id, label: "Claude · lumem-os/bandung", startedAt: expect.any(String) },
+    ]);
+    expect(new Date(live.turns[0]!.startedAt).toISOString()).toBe(live.turns[0]!.startedAt);
+    // Dois shells abertos; o agente não é terminal.
+    expect(live.openTerminals).toBe(2);
+
+    acpManager.cancel(agent.id);
+    await turn.catch(() => undefined);
   });
 });
