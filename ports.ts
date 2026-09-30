@@ -35,6 +35,22 @@ export const E2E_RESTART_PORT = required("e2eRestart");
 export const E2E_CONVEYOR_PORT = required("e2eConveyor");
 
 /**
+ * O daemon da `038` que o e2e de atualização sobe e supervisiona, e o registry de
+ * mentira que ele pergunta. Portas de processos que o spec dono delas controla:
+ * é o spec que mata o daemon e o sobe de novo, como o supervisor faria.
+ */
+export const E2E_UPDATE_PORT = required("e2eUpdate");
+export const E2E_UPDATE_REGISTRY_PORT = required("e2eUpdateRegistry");
+
+/**
+ * As do `pnpm smoke:service`: o daemon sob o launchd ou o systemd de verdade e o
+ * registry de mentira do passo `update-relaunches`. Nenhuma é a do dev, do e2e ou
+ * do `smoke:install` (4397): o smoke recusa rodar se algo já responde na dele.
+ */
+export const SMOKE_SERVICE_PORT = required("smokeService");
+export const SMOKE_REGISTRY_PORT = required("smokeRegistry");
+
+/**
  * The daemon serving the built web on its own, with no vite anywhere.
  *
  * A separate port because it is a separate daemon, with its own state: the

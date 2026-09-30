@@ -32,6 +32,8 @@ import { homedir, tmpdir } from "node:os";
 import { delimiter, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { SMOKE_REGISTRY_PORT, SMOKE_SERVICE_PORT } from "../ports.js";
+
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
 const packageRoot = join(repoRoot, "packages", "cli");
 
@@ -39,8 +41,8 @@ const packageRoot = join(repoRoot, "packages", "cli");
 const LABEL: string = "tech.cazimi.lumem-smoke";
 const UNIT = "lumem-smoke.service";
 const PRODUCTION_LABEL = "tech.cazimi.lumem";
-/** Uma porta que nem o dev (4317/4318) nem o `smoke:install` (4397) usam. */
-const PORT = 4_398;
+/** Uma porta que nem o dev (4317/4318) nem o `smoke:install` (4397) usam — a do `ports.json`. */
+const PORT = SMOKE_SERVICE_PORT;
 const ORIGIN = `http://127.0.0.1:${String(PORT)}`;
 
 const STEP_NAMES = [
@@ -187,7 +189,7 @@ async function stepSurvivesTheCaller(sandbox: Sandbox): Promise<void> {
 }
 
 /** A porta do registry de mentira, ao lado da do daemon do smoke. */
-const REGISTRY_PORT = 4_399;
+const REGISTRY_PORT = SMOKE_REGISTRY_PORT;
 /** As versões que o passo inventa: nenhuma existe no npm, e nenhuma se confunde com a do repositório. */
 const OLD_VERSION = "0.98.0";
 const NEW_VERSION = "0.99.0";
