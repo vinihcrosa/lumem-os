@@ -11,6 +11,7 @@ import {
   type PackageManager,
 } from "@lumem/shared";
 
+import { takeDesktopAlong } from "./menubar.js";
 import { probePort } from "./port.js";
 import {
   START_TIMEOUT_MS,
@@ -73,6 +74,11 @@ export interface UpgradeDeps {
    * sem serviço carregado — vale a frase de sempre.
    */
   service?: { host: ServiceHost; identity: ServiceIdentity };
+  /**
+   * O app de desktop (`038`, AC 56). Instalado, ele vai para a mesma versão do daemon e,
+   * no macOS, é copiado de novo; sem o pacote do app, o `upgrade` não o traz — é opt-in.
+   */
+  desktop?: { host: ServiceHost; arch: string; env: NodeJS.ProcessEnv };
 }
 
 export async function upgrade(deps: UpgradeDeps): Promise<number> {
@@ -87,6 +93,7 @@ export async function upgrade(deps: UpgradeDeps): Promise<number> {
     manager = detectPackageManager(fileURLToPath(import.meta.url)),
     probe = probePort,
     service,
+    desktop,
   } = deps;
 
   let latest: string;
@@ -133,6 +140,31 @@ export async function upgrade(deps: UpgradeDeps): Promise<number> {
 
   out(`pronto: v${latest} instalado.`);
 
+  // Antes de reiniciar o serviço, e sem interromper o que vem depois: o daemon novo é o
+  // que a pessoa pediu, e um app que não atualizou não o desfaz — só muda o código de saída.
+  const app =
+    desktop === undefined
+      ? 0
+      : await takeDesktopAlong({ out, err, ...desktop, version: latest, manager, install });
+  const daemon = await reachTheNewDaemon({ service, probe, origin, latest, out, err });
+  return daemon !== 0 ? daemon : app;
+}
+
+async function reachTheNewDaemon({
+  service,
+  probe,
+  origin,
+  latest,
+  out,
+  err,
+}: {
+  service: UpgradeDeps["service"];
+  probe: typeof probePort;
+  origin: string;
+  latest: string;
+  out: (line: string) => void;
+  err: (line: string) => void;
+}): Promise<number> {
   if (service !== undefined && (await isLoaded(service.host, service.identity))) {
     return await restartLoadedService({ service, probe, origin, latest, out, err });
   }
@@ -202,7 +234,7 @@ function message(error: unknown): string {
 }
 
 /** Inherits stdio: the installer's own progress is the progress of this command. */
-async function runInstall({ command, args }: InstallCommand): Promise<number> {
+export async function runInstall({ command, args }: InstallCommand): Promise<number> {
   return await new Promise((resolve, reject) => {
     const child = spawn(command, args, { stdio: "inherit" });
     child.on("error", reject);

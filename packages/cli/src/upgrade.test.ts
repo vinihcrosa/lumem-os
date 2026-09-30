@@ -214,6 +214,88 @@ describe("lumem upgrade com o serviço carregado", () => {
   });
 });
 
+describe("lumem upgrade com o app de desktop instalado", () => {
+  const SCOPE = "/opt/node/lib/node_modules/@vinihcrosa";
+
+  /** Só o que o app precisa do sistema: o disco que diz se o pacote existe, e os comandos. */
+  function desktopHost(platform: NodeJS.Platform, installed: boolean) {
+    const commands: string[] = [];
+    const host = {
+      ...fakeService({ platform, loaded: false }).host,
+      exec: async (command: string, args: readonly string[]): Promise<ExecResult> => {
+        commands.push([command, ...args].join(" "));
+        return { code: 0, stdout: "", stderr: "" };
+      },
+      exists: (path: string) => installed && path.startsWith(`${SCOPE}/lumem-desktop-`),
+    };
+    return { host, commands };
+  }
+
+  it("takes the desktop package along", async () => {
+    // macOS: o mesmo `latest` do daemon, e o app copiado de novo do pacote novo.
+    const mac = desktopHost("darwin", true);
+    const installs: InstallCommand[] = [];
+    const install = async (command: InstallCommand) => {
+      installs.push(command);
+      return 0;
+    };
+
+    expect(await upgrade(deps({ install, desktop: { host: mac.host, arch: "arm64", env: {} } }))).toBe(0);
+
+    expect(installs.map((c) => `${c.command} ${c.args.join(" ")}`)).toEqual([
+      `npm install --global ${PACKAGE_NAME}@0.2.0`,
+      "npm install --global @vinihcrosa/lumem-desktop-darwin-arm64@0.2.0",
+    ]);
+    expect(mac.commands).toEqual([
+      "rm -rf /Users/ana/Applications/Lumem.app",
+      `ditto -x -k ${SCOPE}/lumem-desktop-darwin-arm64/Lumem.zip /Users/ana/Applications`,
+    ]);
+
+    // Linux: o pacote vai para a versão nova e mais nada — o `.desktop` aponta para dentro
+    // dele, e não há o que copiar.
+    installs.length = 0;
+    const linux = desktopHost("linux", true);
+    expect(await upgrade(deps({ install, desktop: { host: linux.host, arch: "x64", env: {} } }))).toBe(0);
+
+    expect(installs.map((c) => c.args.at(-1))).toEqual([
+      `${PACKAGE_NAME}@0.2.0`,
+      "@vinihcrosa/lumem-desktop-linux-x64@0.2.0",
+    ]);
+    expect(linux.commands).toEqual([]);
+  });
+
+  it("leaves the app alone when it was never installed", async () => {
+    // Opt-in: quem nunca rodou `lumem menubar install` não ganha um app de 100 MB no upgrade.
+    const none = desktopHost("darwin", false);
+    const install = vi.fn(async () => 0);
+
+    expect(await upgrade(deps({ install, desktop: { host: none.host, arch: "arm64", env: {} } }))).toBe(0);
+
+    expect(install).toHaveBeenCalledTimes(1);
+    expect(none.commands).toEqual([]);
+  });
+
+  it("does not touch the app when the daemon install failed", async () => {
+    const mac = desktopHost("darwin", true);
+    const install = vi.fn(async () => 13);
+
+    expect(await upgrade(deps({ install, desktop: { host: mac.host, arch: "arm64", env: {} } }))).toBe(13);
+
+    expect(install).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports a failed app install without hiding that the daemon was updated", async () => {
+    const mac = desktopHost("darwin", true);
+    const install = async (command: InstallCommand) => (command.args.at(-1)?.includes("desktop") ? 9 : 0);
+
+    expect(await upgrade(deps({ install, desktop: { host: mac.host, arch: "arm64", env: {} } }))).toBe(9);
+
+    expect(out.join("\n")).toContain("v0.2.0 instalado");
+    expect(err.join("\n")).toContain("o app continua na versão de antes");
+    expect(mac.commands).toEqual([]);
+  });
+});
+
 describe("o gerenciador de pacotes", () => {
   it("sai do caminho de onde o Lumem está instalado", () => {
     // O ambiente do `npm i -g` não existe mais quando alguém digita `lumem

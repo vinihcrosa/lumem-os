@@ -97,9 +97,31 @@ describe("parseCommand", () => {
     expect(parseCommand(["upgrade", "--check"])).toEqual({ kind: "upgrade", check: true });
   });
 
+  it("lê menubar install, open e uninstall, com as opções que dizem onde o Lumem está", () => {
+    const where = { port: null, host: null, stateDir: null };
+    for (const action of ["install", "open", "uninstall"] as const) {
+      expect(parseCommand(["menubar", action])).toEqual({ kind: "menubar", action, ...where });
+    }
+    expect(parseCommand(["menubar", "install", "--port", "5000"])).toEqual({
+      kind: "menubar",
+      action: "install",
+      ...where,
+      port: 5_000,
+    });
+  });
+
+  it("recusa menubar sem ação ou com uma que não existe", () => {
+    expect(parseCommand(["menubar"])).toMatchObject({ kind: "invalid" });
+    expect(parseCommand(["menubar", "abrir"])).toMatchObject({
+      kind: "invalid",
+      message: expect.stringContaining("abrir"),
+    });
+    expect(parseCommand(["menubar", "install", "outra"]).kind).toBe("invalid");
+  });
+
   it("o help cita todo verbo, e o run como o primeiro plano", () => {
     // Comando que não está no help é comando que ninguém descobre.
-    for (const verb of ["upgrade", "start", "run", "stop", "status", "logs"]) {
+    for (const verb of ["upgrade", "start", "run", "stop", "status", "logs", "menubar install", "menubar open", "menubar uninstall"]) {
       expect(HELP, verb).toContain(`lumem ${verb}`);
     }
     expect(HELP).toMatch(/lumem run .*primeiro plano/);

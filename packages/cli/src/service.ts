@@ -114,7 +114,7 @@ export function serviceFilePath(host: ServiceHost, spec: ServiceIdentity): strin
  * versão nova, então é ele que fica gravado — quando existe. Sob o npm o caminho resolvido
  * já não muda de versão, e nada disto o alcança.
  */
-function recordedLumemPath(host: ServiceHost): string {
+export function recordedLumemPath(host: ServiceHost): string {
   const versioned = /^(.*)\/\.pnpm\/[^/]+\/node_modules\/(@vinihcrosa\/lumem-os\/bin\/lumem\.mjs)$/.exec(host.lumemPath);
   if (versioned === null) return host.lumemPath;
   const stable = `${versioned[1] ?? ""}/node_modules/${versioned[2] ?? ""}`;

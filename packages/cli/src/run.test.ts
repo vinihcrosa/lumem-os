@@ -74,6 +74,7 @@ function deps(overrides: Partial<RunDeps> = {}): RunDeps {
     interrupt: new AbortController().signal,
     open: vi.fn(() => true),
     upgrade: vi.fn(async () => 0),
+    menubar: vi.fn(async () => 0),
     ...overrides,
   };
 }
@@ -224,6 +225,48 @@ describe("lumem upgrade e o serviço (038)", () => {
     expect(upgrade).toHaveBeenCalledWith(
       expect.objectContaining({
         service: { host, identity: { label: "tech.cazimi.lumem-smoke", unit: "lumem.service" } },
+      }),
+    );
+  });
+});
+
+describe("lumem menubar (038)", () => {
+  it("entrega ao menubar a ação, o sistema e onde o daemon está", async () => {
+    // A fiação, como a do `upgrade`: o app grava o `stateDir` e a origem que **este**
+    // `run` resolveu — flag, ambiente, padrão — e nunca uns próprios.
+    const menubar = vi.fn(async () => 0);
+    const { host } = fakeHost();
+
+    expect(
+      await run(
+        ["menubar", "install", "--port", "5000", "--state-dir", "/tmp/lumem-x"],
+        deps({ menubar, service: host, version: "0.7.0" }),
+      ),
+    ).toBe(0);
+
+    expect(menubar).toHaveBeenCalledWith(
+      "install",
+      expect.objectContaining({
+        host,
+        version: "0.7.0",
+        where: { stateDir: "/tmp/lumem-x", origin: "http://127.0.0.1:5000" },
+      }),
+    );
+  });
+
+  it("o código do comando é o código do menubar", async () => {
+    expect(await run(["menubar", "open"], deps({ menubar: vi.fn(async () => 1) }))).toBe(1);
+  });
+
+  it("entrega ao upgrade o app de desktop", async () => {
+    const upgrade = vi.fn(async () => 0);
+    const { host } = fakeHost();
+
+    await run(["upgrade"], deps({ upgrade, service: host, env: { XDG_CONFIG_HOME: "/x" } }));
+
+    expect(upgrade).toHaveBeenCalledWith(
+      expect.objectContaining({
+        desktop: { host, arch: process.arch, env: expect.objectContaining({ XDG_CONFIG_HOME: "/x" }) },
       }),
     );
   });

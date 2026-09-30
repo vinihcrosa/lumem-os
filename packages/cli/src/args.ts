@@ -18,12 +18,17 @@ export interface Where {
   stateDir: string | null;
 }
 
+export const MENUBAR_ACTIONS = ["install", "open", "uninstall"] as const;
+export type MenubarAction = (typeof MENUBAR_ACTIONS)[number];
+
 export type Command =
   | ({ kind: "start"; open: boolean } & Where)
   | ({ kind: "run"; open: boolean } & Where)
   | ({ kind: "stop" } & Where)
   | ({ kind: "status" } & Where)
   | ({ kind: "logs"; follow: boolean } & Where)
+  /** O app de desktop (`038` Parte 4); `Where` diz a que daemon ele se liga. */
+  | ({ kind: "menubar"; action: MenubarAction } & Where)
   /** Reinstalls the package the daemon ships in. `check` only reports. */
   | { kind: "upgrade"; check: boolean }
   | { kind: "version" }
@@ -41,6 +46,9 @@ Uso:
   lumem status               diz se está rodando (saída 0) ou parado (saída 3)
   lumem logs [-f]            as últimas 200 linhas do log do daemon; -f segue
   lumem upgrade [--check]    atualiza o daemon para a última versão do npm
+  lumem menubar install      instala o app do Lumem na barra do sistema (macOS e Linux)
+  lumem menubar open         abre o painel do app como janela (GNOME sem AppIndicator)
+  lumem menubar uninstall    remove o app, o item de login e os arquivos dele
   lumem version              imprime a versão
   lumem help                 imprime esta ajuda
 
@@ -63,7 +71,7 @@ function toPort(raw: string): number | null {
   return port >= 0 && port <= 65535 ? port : null;
 }
 
-const VERBS_WITH_WHERE = new Set(["start", "run", "stop", "status", "logs"]);
+const VERBS_WITH_WHERE = new Set(["start", "run", "stop", "status", "logs", "menubar"]);
 
 export function parseCommand(argv: readonly string[]): Command {
   let parsed;
@@ -94,8 +102,9 @@ export function parseCommand(argv: readonly string[]): Command {
   if (values.version === true) return { kind: "version" };
 
   const verb = positionals[0] ?? "start";
-  if (positionals.length > 1) {
-    return { kind: "invalid", message: `comando desconhecido: ${positionals.slice(1).join(" ")}` };
+  // `menubar` é o único verbo com sub-comando.
+  if (positionals.length > (verb === "menubar" ? 2 : 1)) {
+    return { kind: "invalid", message: `comando desconhecido: ${positionals.slice(verb === "menubar" ? 2 : 1).join(" ")}` };
   }
   if (verb === "help") return { kind: "help" };
   if (verb === "version") return { kind: "version" };
@@ -111,6 +120,16 @@ export function parseCommand(argv: readonly string[]): Command {
   }
 
   const where: Where = { port, host: values.host ?? null, stateDir: values["state-dir"] ?? null };
+  if (verb === "menubar") {
+    const action = MENUBAR_ACTIONS.find((known) => known === positionals[1]);
+    if (action === undefined) {
+      return {
+        kind: "invalid",
+        message: `menubar pede ${MENUBAR_ACTIONS.join(", ")}${positionals[1] === undefined ? "" : `, e veio: ${positionals[1]}`}`,
+      };
+    }
+    return { kind: "menubar", action, ...where };
+  }
   if (verb === "stop" || verb === "status") return { kind: verb, ...where };
   if (verb === "logs") return { kind: "logs", ...where, follow: values.follow === true };
   return { kind: verb === "run" ? "run" : "start", ...where, open: values.open === true };

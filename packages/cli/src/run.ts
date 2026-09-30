@@ -19,7 +19,8 @@ import {
   type ServiceHost,
   type ServiceSpec,
 } from "./service.js";
-import { upgrade as runUpgrade } from "./upgrade.js";
+import { menubar as runMenubar } from "./menubar.js";
+import { runInstall, upgrade as runUpgrade } from "./upgrade.js";
 
 /** Mirrors `DEFAULT_SERVER_PORT` in @lumem/shared, which the bundle also carries. */
 const DEFAULT_PORT = 4317;
@@ -49,6 +50,8 @@ export interface RunDeps {
   interrupt?: AbortSignal;
   open?: typeof openInBrowser;
   upgrade?: typeof runUpgrade;
+  /** O app de desktop (`038` Parte 4). */
+  menubar?: typeof runMenubar;
 }
 
 /** Where the bundled daemon sits, relative to `bin/lumem.mjs`. */
@@ -90,6 +93,22 @@ export async function run(argv: readonly string[], deps: RunDeps): Promise<numbe
         host: deps.service ?? nodeServiceHost(env, ownPath()),
         identity: serviceIdentity(env),
       },
+      desktop: { host: deps.service ?? nodeServiceHost(env, ownPath()), arch: process.arch, env },
+    });
+  }
+
+  if (command.kind === "menubar") {
+    const host = deps.service ?? nodeServiceHost(env, ownPath());
+    const where = resolveWhere(command, env, host.home);
+    return await (deps.menubar ?? runMenubar)(command.action, {
+      out,
+      err,
+      host,
+      arch: process.arch,
+      env,
+      version,
+      where: { stateDir: where.stateDir, origin: where.origin },
+      install: runInstall,
     });
   }
 
