@@ -24,6 +24,17 @@ const packageRoot = join(repoRoot, "packages", "cli");
 const PORT = 4_397;
 const ORIGIN = `http://127.0.0.1:${String(PORT)}`;
 
+/**
+ * How the installed binary is started: in the foreground, with `run`.
+ *
+ * Bare `lumem` is `lumem start` since the `038`, which installs a launchd or
+ * systemd service and returns — a child this script could neither wait on nor
+ * kill, and one that would touch the service of whoever runs it.
+ */
+export function installedStartArgs(port: number): string[] {
+  return ["run", "--port", String(port)];
+}
+
 function step(message: string): void {
   console.log(`\n▸ ${message}`);
 }
@@ -86,7 +97,7 @@ async function main(): Promise<void> {
 
     step("subindo o binário instalado");
     const binary = join(prefix, "bin", "lumem");
-    daemon = spawn(binary, ["--port", String(PORT)], {
+    daemon = spawn(binary, installedStartArgs(PORT), {
       env: { ...process.env, LUMEM_STATE_DIR: stateDir },
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -122,4 +133,7 @@ async function main(): Promise<void> {
   }
 }
 
-await main();
+// Not on import: the test reads `installedStartArgs` and must not install anything.
+if (process.argv[1] !== undefined && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+  await main();
+}
