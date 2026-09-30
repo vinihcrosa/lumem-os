@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { type ProjectSummary } from "./features/workspace/index.js";
 import { useActiveWorkspace } from "./features/workspace/index.js";
 import { useHealth } from "./hooks/useHealth.js";
+import { useVersionReload } from "./hooks/useVersionReload.js";
 import { useLiveState } from "./hooks/useLiveState.js";
 import { AwaitingPermissionProvider } from "./hooks/useAwaitingPermission.js";
 import { OpenFilesProvider } from "./hooks/useOpenFiles.js";
@@ -11,9 +12,10 @@ import { useTreeExpansion } from "./features/workspace/index.js";
 import { useInvalidateWorkspaces, useWorkspaces } from "./features/workspace/index.js";
 import { Topbar } from "./layout/Topbar.js";
 import { SetupFlow } from "./features/setup/index.js";
+import { UpdateBanner } from "./features/update/index.js";
 import { WorkspaceShell } from "./WorkspaceShell.js";
 import { arrive, select as selectScope } from "./lib/navigation.js";
-import { Banner, Skeleton } from "./ui/index.js";
+import { Banner, Button, Skeleton } from "./ui/index.js";
 
 import "./layout/layout.css";
 
@@ -43,6 +45,8 @@ export function App() {
   const expansion = useTreeExpansion();
 
   const health = useHealth();
+  // O daemon atualizou debaixo desta aba: recarrega uma vez, e diz a que versão chegou.
+  const versionReload = useVersionReload({ served: health.data?.version });
   const workspaces = useWorkspaces();
 
   const { activeId, select } = useActiveWorkspace(workspaces.data ?? []);
@@ -73,7 +77,22 @@ export function App() {
             <Topbar
               version={health.data?.version ?? null}
               unreachable={health.isError}
+              update={<UpdateBanner />}
             />
+            {versionReload.updatedTo !== null && (
+              <div className="app__banner">
+                <Banner
+                  tone="info"
+                  actions={
+                    <Button size="sm" variant="ghost" onClick={versionReload.dismiss}>
+                      ok
+                    </Button>
+                  }
+                >
+                  Lumem atualizado para v{versionReload.updatedTo}
+                </Banner>
+              </div>
+            )}
             {/* The topbar dot says it quietly; this says what it means. Every action
             below is a call to a daemon that is not answering, and a sidebar that
             merely looks stale gives no reason for why nothing works. */}

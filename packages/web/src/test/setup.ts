@@ -1,8 +1,9 @@
 import "@testing-library/jest-dom/vitest";
 
 import { cleanup } from "@testing-library/react";
-import { afterEach } from "vitest";
+import { afterEach, beforeEach } from "vitest";
 
+import { RELOADED_FOR_KEY } from "../hooks/useVersionReload.js";
 import { clearErrors } from "../lib/errorLog.js";
 import { resetNavigationForTests } from "../lib/navigation.js";
 import { resetComposerDraftsForTests } from "../features/workspace/composer-drafts.js";
@@ -56,8 +57,23 @@ if (typeof Range.prototype.getClientRects !== "function") {
   Range.prototype.getClientRects = (() => []) as unknown as Range["getClientRects"];
 }
 
+/*
+ * Toda aba de teste já *"recarregou uma vez"* (`038`, Parte 2).
+ *
+ * Os testes de tela respondem ao `health` com a versão que quiserem (`0.0.0`,
+ * `1.2.3`), e nenhuma é a do bundle: sem isto, cada um deles faria o
+ * `useVersionReload` chamar o `location.reload` do jsdom — que não implementa
+ * navegação e escreve um erro no stderr a cada vez. Com a marca posta, a guarda do
+ * hook faz o que faria numa aba que já recarregou e não resolveu. O teste do
+ * próprio hook limpa o `sessionStorage` antes de cada caso.
+ */
+beforeEach(() => {
+  globalThis.window?.sessionStorage?.setItem(RELOADED_FOR_KEY, "teste");
+});
+
 afterEach(() => {
   cleanup();
+  globalThis.window?.sessionStorage?.clear();
   // The error log is a module-level store shared across a file's tests, and the
   // query cache feeds it every intentional failure. Reset it so one test's
   // errors never show up in the next one's topbar.

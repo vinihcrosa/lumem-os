@@ -3,7 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App.js";
 import { renderWithProviders } from "./test/render.js";
-import { trpcMock as trpc } from "./test/trpc-mock.js";
+import { NO_UPDATE, installTrpcDefaults, trpcMock as trpc } from "./test/trpc-mock.js";
+import { RELOADED_FOR_KEY } from "./hooks/useVersionReload.js";
+import { LUMEM_VERSION } from "@lumem/shared";
+import userEvent from "@testing-library/user-event";
 
 vi.mock("./lib/trpc.js", async () => ({
   trpc: (await import("./test/trpc-mock.js")).trpcMock,
@@ -12,6 +15,9 @@ vi.mock("./lib/trpc.js", async () => ({
 
 beforeEach(() => {
   vi.resetAllMocks();
+  // A topbar pergunta `system.updateStatus` no `mount` (`038`): sem o default, a
+  // pergunta volta `undefined` e vira um erro no registro que o teste não pediu.
+  installTrpcDefaults();
   window.localStorage.clear();
   trpc.workspace.list.query.mockResolvedValue([]);
   trpc.project.listByWorkspace.query.mockResolvedValue([]);
@@ -71,5 +77,38 @@ describe("App header", () => {
     renderWithProviders(<App />);
 
     expect(await screen.findByText("daemon inacessível")).toBeInTheDocument();
+  });
+});
+
+describe("App and the version of the daemon (038)", () => {
+  it("shows the update banner in the topbar", async () => {
+    trpc.health.query.mockResolvedValue({ ok: true, version: LUMEM_VERSION });
+    trpc.system.updateStatus.query.mockResolvedValue({
+      ...NO_UPDATE,
+      current: LUMEM_VERSION,
+      latest: "99.0.0",
+      updateAvailable: true,
+      supervised: true,
+    });
+
+    renderWithProviders(<App />);
+
+    const banner = await screen.findByText(`v${LUMEM_VERSION} → v99.0.0`);
+    expect(banner.closest("header")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Atualizar" })).toBeInTheDocument();
+  });
+
+  it("says what changed after the reload, and lets it go", async () => {
+    // A aba que acabou de recarregar por causa de uma atualização: a guarda está posta
+    // e as versões agora batem.
+    window.sessionStorage.setItem(RELOADED_FOR_KEY, LUMEM_VERSION);
+    trpc.health.query.mockResolvedValue({ ok: true, version: LUMEM_VERSION });
+    const user = userEvent.setup();
+
+    renderWithProviders(<App />);
+
+    expect(await screen.findByText(`Lumem atualizado para v${LUMEM_VERSION}`)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "ok" }));
+    expect(screen.queryByText(`Lumem atualizado para v${LUMEM_VERSION}`)).not.toBeInTheDocument();
   });
 });
