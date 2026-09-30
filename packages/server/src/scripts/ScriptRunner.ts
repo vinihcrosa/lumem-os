@@ -97,6 +97,13 @@ export interface ScriptRunner {
   trust(projectId: string): Promise<void>;
   /** Para tudo que este checkout deixou vivo. Usado antes de remover. */
   stopAll(scope: CheckoutScope): Promise<void>;
+  /**
+   * Quantos scripts de projeto estão rodando, em todos os checkouts (`038`).
+   *
+   * É o que decide *"ocioso"* para atualizar o daemon: reiniciar mata um `pnpm dev`
+   * ou um `test` no meio, e ninguém o reabre.
+   */
+  runningCount(): Promise<number>;
 }
 
 export interface ScriptRunnerOptions {
@@ -346,6 +353,16 @@ export function createScriptRunner({
 
       const scripts = await readProjectScripts(project.path);
       await projects.setScriptsTrustedHash(projectId, hashScripts(scripts));
+    },
+
+    async runningCount() {
+      const rows = await db
+        .select()
+        .from(session)
+        .where(and(eq(session.kind, "script"), eq(session.state, "running")));
+      // A linha diz `running` até o boot seguinte reconciliar; quem sabe se o processo
+      // ainda existe é o `PtyManager`, como em `liveSession`.
+      return rows.filter((row) => ptyManager.get(row.id)?.state === "running").length;
     },
 
     async stopAll(scope) {

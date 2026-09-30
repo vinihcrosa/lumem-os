@@ -89,6 +89,37 @@ afterEach(async () => {
   cleanupGitFixtures();
 });
 
+describe("runningCount", () => {
+  /*
+   * O que o `system.update` (`038`) conta para dizer *"ocioso"*: script de projeto
+   * rodando. Uma linha `running` que o processo já largou não conta — depois de um
+   * restart a linha sobrevive e o processo não —, e é o `PtyManager` que decide.
+   */
+  it("counts the scripts that are running, in every checkout", async () => {
+    const { ctx, worktreeId, worktreePath } = await setup();
+    declare(worktreePath, { run: "sleep 30", setup: "sleep 30", test: "true" });
+    const scope = { scopeType: "worktree", scopeId: worktreeId } as const;
+
+    expect(await ctx.scripts.runningCount()).toBe(0);
+
+    await ctx.api.scripts.start({ ...scope, phase: "run" });
+    await ctx.api.scripts.start({ ...scope, phase: "setup" });
+    expect(await ctx.scripts.runningCount()).toBe(2);
+
+    // Um que terminou sozinho não conta, ainda que sua linha exista.
+    await ctx.api.scripts.start({ ...scope, phase: "test" });
+    await waitExited(ctx, scope, "test");
+    expect(await ctx.scripts.runningCount()).toBe(2);
+
+    // Parar é assíncrono — o `close` mata e é o observador de saída que grava —, então
+    // o número cai quando o processo de fato saiu, e não quando o botão foi apertado.
+    await ctx.api.scripts.stop({ ...scope, phase: "run" });
+    await vi.waitFor(async () => {
+      expect(await ctx.scripts.runningCount()).toBe(1);
+    });
+  });
+});
+
 describe("scripts.status", () => {
   it("projeto sem o arquivo: as quatro fases vazias, e o caminho onde ele moraria", async () => {
     // O estado normal, não o excepcional: é assim que todo projeto entra.
