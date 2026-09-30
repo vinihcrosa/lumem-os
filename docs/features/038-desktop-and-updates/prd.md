@@ -30,7 +30,7 @@ O daemon nunca pergunta sozinho se há versão nova.
 E não há onde olhar o Lumem sem abrir o navegador. Uso, versão e *"tem atualização?"* só aparecem numa aba,
 e três números que importam nem existem como consulta: não há **total de todos os workspaces** (o `usage.*`
 é sempre por workspace ou projeto, `packages/server/src/routers/usage.ts`); a **cota da assinatura** fica só
-na memória do `AcpManager` (`rateLimits()`, `acp/AcpManager.ts:1750`); e **CPU e memória** do Lumem não são
+na memória do `AcpManager` (`rateLimits()`, `acp/AcpManager.ts:1833`); e **CPU e memória** do Lumem não são
 medidos em lugar nenhum.
 
 Quando isto sair: o Lumem sobe com a máquina e continua de pé com o terminal fechado. Um ícone na barra do
@@ -106,7 +106,7 @@ rodando, as consultas de `usage/query.ts`, o roteamento escrito à mão de `web/
 | domain | termo novo: **supervisionado** — o daemon roda sob launchd ou systemd (`LUMEM_SUPERVISOR` no ambiente); é o que libera o botão de atualizar |
 | domain | termo novo: **ocioso** — `AcpManager.liveTurns()` vazio e nenhum script de projeto rodando; mora em `update/`; ninguém ramifica nele hoje |
 | domain | termo existente: `health` respondia `{ ok, version }` e passa a responder também `supervised` e `protocolVersion`. Quem lê hoje: `probePort` no CLI (`packages/cli/src/port.ts`) e a topbar pelo `useHealth` — os dois leem só `ok` e `version`, e seguem funcionando |
-| domain | termo existente: `AcpManager.prompt` aceitava sempre; passa a recusar enquanto uma instalação roda. Quem chama: `acp/websocket.ts:139`, `sessions/pending-prompt.ts:169` e a esteira em `bootstrap.ts:386` — os três já tratam erro de `prompt` |
+| domain | termo existente: `AcpManager.prompt` aceitava sempre; passa a recusar enquanto uma instalação roda. Quem chama: `acp/websocket.ts:135`, `sessions/pending-prompt.ts:169` e a esteira em `bootstrap.ts:386`, que já tratam erro de `prompt`; e a destilação e a pesquisa da memória (`memory/capture.ts:187`, `memory/auto-learn.ts:254`), que o propagam para quem as chamou |
 | web | rota nova `/menubar` em `lib/route.ts`. A armadilha *"Uma tela nova derruba testes cujo mock não a conhece"* de `testing.md` se aplica |
 | stored data | tabela nova `daemon_settings` com uma linha, criada pela migração com os padrões; nada existente muda |
 | stored data | `<stateDir>/last-version` (arquivo novo) e `lumem.db.bak-<versão>` (até 3); na primeira subida com esta feature não há versão anterior registrada, então não há cópia |
