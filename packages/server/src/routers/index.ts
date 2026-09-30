@@ -1,4 +1,4 @@
-import { LUMEM_VERSION } from "@lumem/shared";
+import { LUMEM_VERSION, PROTOCOL_VERSION } from "@lumem/shared";
 
 import { publicProcedure, router } from "../trpc.js";
 import { adapterCatalogRouter } from "./adapterCatalog.js";
@@ -25,10 +25,7 @@ export const appRouter = router({
     ok: true as const,
     version: LUMEM_VERSION,
     supervised: ctx.config.supervised,
-    // O contrato da casca (`038`, porta 4): ela aceita só a versão que conhece, e
-    // comparar `version` por semver faria toda release parecer compatível ou
-    // incompatível por acaso.
-    protocolVersion: 1 as const,
+    protocolVersion: PROTOCOL_VERSION,
   })),
   adapterCatalog: adapterCatalogRouter,
   agentAccount: agentAccountRouter,

@@ -1,8 +1,16 @@
 import { LUMEM_VERSION, PACKAGE_NAME, type InstallCommand } from "@lumem/shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { AcpManager } from "../acp/AcpManager.js";
+
 import { daemonSettings } from "../db/schema.js";
-import { createTestCaller, type TestCaller, type TestUpdateOverrides } from "../testing/caller.js";
+import { fakeAgentProcess } from "../testing/acp-fake-agent.js";
+import {
+  createTestCaller,
+  type TestCaller,
+  type TestCallerOverrides,
+  type TestUpdateOverrides,
+} from "../testing/caller.js";
 
 /**
  * O `system` (`038`, Parte 2): o que a topbar e a tela de configurações perguntam ao
@@ -20,8 +28,12 @@ afterEach(async () => {
   for (const caller of callers.splice(0)) await caller.cleanup();
 });
 
-function fresh(env: Record<string, string> = {}, update: TestUpdateOverrides = {}): TestCaller {
-  const caller = createTestCaller(env, { update });
+function fresh(
+  env: Record<string, string> = {},
+  update: TestUpdateOverrides = {},
+  resources: TestCallerOverrides["resources"] = {},
+): TestCaller {
+  const caller = createTestCaller(env, { update, resources });
   callers.push(caller);
   return caller;
 }
@@ -223,5 +235,90 @@ describe("system.update", () => {
 
     code = 0;
     await expect(caller.api.system.update()).resolves.toEqual({ started: true });
+  });
+});
+
+describe("system.resources", () => {
+  it("resources answers the groups and the largest processes through the router", async () => {
+    const MB = 1024 * 1024;
+    const caller = fresh({}, {}, {
+      read: async () => [
+        { pid: process.pid, ppid: 1, rssBytes: 100 * MB, cpuSeconds: 4, command: "/opt/node/bin/node" },
+        // Fora da árvore do daemon: nunca entra.
+        { pid: 1, ppid: 0, rssBytes: 900 * MB, cpuSeconds: 4, command: "/sbin/launchd" },
+      ],
+    });
+
+    const resources = await caller.api.system.resources();
+
+    expect(resources.groups).toEqual({
+      // A primeira amostra do processo: sem taxa.
+      daemon: { cpuPercent: null, rssBytes: 100 * MB },
+      agents: { cpuPercent: null, rssBytes: 0 },
+      terminals: { cpuPercent: null, rssBytes: 0 },
+    });
+    expect(resources.top).toEqual([{ label: "node", pid: process.pid, cpuPercent: null, rssBytes: 100 * MB }]);
+    // ISO, porque o tRPC daqui não tem transformador.
+    expect(new Date(resources.sampledAt).toISOString()).toBe(resources.sampledAt);
+  });
+});
+
+describe("system.status", () => {
+  it("status summarises what the shell needs", async () => {
+    // Uma sessão cujo turno pede permissão e fica esperando: é o único estado em que
+    // um agente parado espera uma pessoa (AC 45).
+    const acpManager = new AcpManager({
+      spawner: () =>
+        fakeAgentProcess({
+          prompt: async (_text, turn) => {
+            void turn.requestPermission({
+              toolCall: { toolCallId: "tc-1", title: "Bash rm -rf" },
+              options: [{ optionId: "allow", name: "permitir uma vez", kind: "allow_once" }],
+            });
+            await turn.cancelled;
+            return "cancelled";
+          },
+        }).process,
+      isAvailable: () => true,
+    });
+    const caller = createTestCaller(
+      { LUMEM_SUPERVISOR: "launchd" },
+      { acpManager, update: { current: "0.6.1", request: registryAnswers("0.7.0") as typeof fetch } },
+    );
+    callers.push(caller);
+    await caller.update.check.checkNow();
+
+    // Ocioso: a versão e o que o serviço diz, e nenhum turno nem pedido.
+    await expect(caller.api.system.status()).resolves.toEqual({
+      version: "0.6.1",
+      protocolVersion: 1,
+      supervised: true,
+      updateAvailable: true,
+      liveTurns: 0,
+      attention: false,
+    });
+
+    const info = await acpManager.spawn({ command: "claude-agent-acp", cwd: "/repos/lorebase" });
+    const events: { type: string; requestId?: string }[] = [];
+    acpManager.onEvent(info.id, ({ event }) => events.push(event as { type: string; requestId?: string }));
+    const turn = acpManager.prompt(info.id, "vai");
+    await vi.waitFor(() => {
+      expect(events.some((event) => event.type === "permission_request")).toBe(true);
+    });
+
+    // Um turno em voo, e ele está esperando uma pessoa.
+    await expect(caller.api.system.status()).resolves.toMatchObject({ liveTurns: 1, attention: true });
+
+    // Respondido o pedido, o turno segue: em voo ainda, mas ninguém precisa dele.
+    const request = events.find((event) => event.type === "permission_request")!;
+    acpManager.respondToPermission(info.id, request.requestId!, "allow");
+    await vi.waitFor(() => {
+      expect(events.some((event) => event.type === "permission_resolved")).toBe(true);
+    });
+    await expect(caller.api.system.status()).resolves.toMatchObject({ attention: false });
+
+    acpManager.cancel(info.id);
+    await turn.catch(() => undefined);
+    await expect(caller.api.system.status()).resolves.toMatchObject({ liveTurns: 0, attention: false });
   });
 });

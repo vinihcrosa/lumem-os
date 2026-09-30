@@ -20,6 +20,9 @@ import { createScriptRunner, type ScriptRunner } from "../scripts/ScriptRunner.j
 import { createSecretStore } from "../secrets/SecretStore.js";
 import { createSessionStore, type SessionStore } from "../sessions/SessionStore.js";
 import { createDaemonSettingsRepository } from "../repositories/daemonSettings.js";
+import { createLiveResources } from "../resources/live.js";
+import type { ProcessTableReader } from "../resources/process-table.js";
+import type { ResourceSampler } from "../resources/sample.js";
 import { createUpdateService, type UpdateService, type UpdateServiceOptions } from "../update/service.js";
 import { adapterInvocationFor, catalogedAdapterOf } from "../setup/adapter-command.js";
 import { defaultAccountIdOf } from "../repositories/agentAccount.js";
@@ -91,6 +94,14 @@ export interface TestCallerOverrides {
    * trocaria o Lumem de quem roda a suíte.
    */
   update?: TestUpdateOverrides;
+  /**
+   * A tabela de processos de mentira e o relógio do painel de recursos (`038`).
+   *
+   * O padrão é uma máquina **vazia**: sem ele, um teste que perguntasse os recursos
+   * executaria o `ps` de quem roda a suíte, e a resposta dependeria do que estiver
+   * aberto no laptop.
+   */
+  resources?: { read?: ProcessTableReader; now?: () => number; every?: (fn: () => void, ms: number) => () => void };
 }
 
 export type TestUpdateOverrides = Partial<
@@ -202,6 +213,15 @@ export function createTestCaller(
     ...overrides.update,
   });
 
+  const resources: ResourceSampler = createLiveResources({
+    db: database.db,
+    ptyManager,
+    acpManager,
+    read: overrides.resources?.read ?? (async () => []),
+    ...(overrides.resources?.now === undefined ? {} : { now: overrides.resources.now }),
+    ...(overrides.resources?.every === undefined ? {} : { every: overrides.resources.every }),
+  });
+
   const ctx: Context = {
     config,
     db: database.db,
@@ -219,6 +239,7 @@ export function createTestCaller(
     prHost,
     agentAuth: createAgentAuthService({ acpManager }),
     update,
+    resources,
     events,
   };
 
@@ -237,6 +258,7 @@ export function createTestCaller(
     update,
     cleanup: async () => {
       stopTracking();
+      resources.stop();
       await acpManager.killAll();
       await ptyManager.killAll();
       database.cleanup();

@@ -14,6 +14,8 @@ import { DomainError } from "../errors.js";
  */
 
 export interface AcpProcess {
+  /** O pid do sistema, para o painel de recursos. Ausente num agente de mentira. */
+  readonly pid?: number | undefined;
   /** Where the client writes. The agent's stdin. */
   readonly stdin: WritableStream<Uint8Array>;
   /** Where the client reads. The agent's stdout. */
@@ -76,6 +78,7 @@ export function spawnAcpProcess({
   }
 
   return {
+    pid: child.pid,
     stdin: Writable.toWeb(child.stdin) as WritableStream<Uint8Array>,
     stdout: Readable.toWeb(child.stdout) as ReadableStream<Uint8Array>,
     exited,

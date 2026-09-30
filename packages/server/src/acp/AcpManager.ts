@@ -1876,6 +1876,34 @@ export class AcpManager {
       }));
   }
 
+  /**
+   * Os processos de adaptador vivos, pelo pid do sistema (`038`, Parte 3).
+   *
+   * É o que o painel de recursos precisa para dizer que um processo *desce de um
+   * adaptador*: os PIDs são do manager, que os criou, e não de quem os procura na
+   * tabela de processos. Sessão sem pid (um agente de mentira) não aparece.
+   */
+  liveProcesses(): { sessionId: string; pid: number; adapterId: string | null }[] {
+    return [...this.sessions.values()].flatMap((session) =>
+      session.info.state === "running" && session.process.pid !== undefined
+        ? [{ sessionId: session.info.id, pid: session.process.pid, adapterId: session.adapterId }]
+        : [],
+    );
+  }
+
+  /**
+   * Algum pedido de permissão está esperando uma pessoa (`038`, Parte 3).
+   *
+   * É a única leitura de *"o agente parou esperando alguém"*: um turno em voo trabalha,
+   * uma tarefa bloqueada tem o quadro, mas o pedido pendente só anda quando alguém
+   * responde.
+   */
+  hasPendingPermission(): boolean {
+    return [...this.sessions.values()].some(
+      (session) => session.info.state === "running" && session.pendingPermissions.size > 0,
+    );
+  }
+
   kill(id: string): void {
     const session = this.require(id);
     if (session.info.state === "exited") return;

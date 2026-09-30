@@ -58,6 +58,7 @@ import { createServer } from "./server.js";
 import { createShutdownHandler } from "./shutdown.js";
 import { installSignalHandlers, type SignalSource } from "./signals.js";
 import { createDaemonSettingsRepository } from "./repositories/daemonSettings.js";
+import { createLiveResources } from "./resources/live.js";
 import { createUpdateService, type UpdateServiceOptions } from "./update/service.js";
 
 export interface BootstrapOptions {
@@ -271,6 +272,12 @@ export async function bootstrap({
       },
     },
     ...updateOverrides,
+  });
+  // Os recursos do painel da barra (`038`): o relógio só anda enquanto alguém pergunta.
+  const resources = createLiveResources({
+    db: openedDatabase.db,
+    ptyManager,
+    acpManager: acp,
   });
   // O cofre, antes do store: a conta de chave (`034` T5) sai dele no `spawn`
   // e na retomada, e o tracker abaixo usa a mesma instância.
@@ -499,6 +506,7 @@ export async function bootstrap({
     events,
     agentAuth,
     update,
+    resources,
     logger: logger && config.logFile ? { stream: createLogSink({ file: config.logFile }) } : logger,
   });
   bootedApp = app;
@@ -533,6 +541,7 @@ export async function bootstrap({
     events,
     agentAuth,
     update,
+    resources,
   });
 
   const stopTracker = runTrackerLoop({
@@ -594,6 +603,7 @@ export async function bootstrap({
       stopWarmup();
       stopCatalogEvents();
       update.check.stop();
+      resources.stop();
       await ptyManager.killAll();
       // Conversations too: an adapter left running is a subprocess with nothing
       // pointing at it, exactly like an orphaned shell.

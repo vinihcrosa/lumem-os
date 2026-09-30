@@ -3305,3 +3305,20 @@ describe("o pedido de raciocínio da spec", () => {
     expect(loaded).not.toHaveProperty("_meta");
   });
 });
+
+describe("liveProcesses", () => {
+  it("names the system pid and the adapter of each live one, and skips one without a pid", async () => {
+    // O painel de recursos atribui um processo a um adaptador pelo pid que o manager
+    // guardou ao criá-lo (`038`, Parte 3): quem não tem pid — um agente de mentira —
+    // não tem como ser procurado na tabela de processos.
+    const withPid = fakeAgentProcess();
+    const without = fakeAgentProcess();
+    const processes = [{ ...withPid.process, pid: 4321 }, without.process];
+    const manager = new AcpManager({ spawner: () => processes.shift()!, isAvailable: () => true });
+
+    const first = await manager.spawn({ command: "claude-agent-acp", cwd: "/repos/lorebase", adapterId: "claude" });
+    await manager.spawn({ command: "claude-agent-acp", cwd: "/repos/lorebase", adapterId: "claude" });
+
+    expect(manager.liveProcesses()).toEqual([{ sessionId: first.id, pid: 4321, adapterId: "claude" }]);
+  });
+});

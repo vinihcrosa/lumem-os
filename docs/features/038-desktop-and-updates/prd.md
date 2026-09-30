@@ -83,8 +83,9 @@ rodando, as consultas de `usage/query.ts`, o roteamento escrito à mão de `web/
 2. `agentAccount.rateLimits` em `packages/server/src/routers/agentAccount.ts` (exists) — lê
    `AcpManager.rateLimits()` (exists) e agrupa por conta
 3. `system.resources` → `resources/sample.ts` do servidor (new, no door - placement per conventions) — lê a
-   tabela de processos (`ps` no macOS, `/proc` no Linux) só enquanto alguém olha, e atribui cada processo a
-   `daemon`, `agents` ou `terminals` pelos PIDs que o `AcpManager` (exists) e o `PtyManager` (exists) conhecem
+   tabela de processos (`ps` no macOS, `/proc` no Linux; `process-table.ts`) só enquanto alguém olha, e
+   atribui cada processo a `daemon`, `agents` ou `terminals` (`attribute.ts`) pelos PIDs que o `AcpManager`
+   (exists) e o `PtyManager` (exists) conhecem; `live.ts` liga isso aos dois managers e ao banco, para o rótulo
 4. `system.status` (new, no door - placement per conventions) — o resumo barato que a casca consulta
 5. out: `routeOf` em `packages/web/src/lib/route.ts` (exists) ganha `/menubar` (door 5), e a tela nasce em
    `packages/web/src/features/menubar/` (new, no door - placement per conventions)
@@ -112,6 +113,7 @@ rodando, as consultas de `usage/query.ts`, o roteamento escrito à mão de `web/
 | domain | termo novo: **ocioso** — `AcpManager.liveTurns()` vazio e nenhum script de projeto rodando; mora em `update/`; ninguém ramifica nele hoje |
 | domain | termo existente: `health` respondia `{ ok, version }` e passa a responder também `supervised` e `protocolVersion`. Quem lê hoje: `probePort` no CLI (`packages/cli/src/port.ts`) e a topbar pelo `useHealth` — os dois leem só `ok` e `version`, e seguem funcionando |
 | domain | termo existente: `AcpManager.prompt` aceitava sempre; passa a recusar enquanto uma instalação roda. Quem chama: `acp/websocket.ts:135`, `sessions/pending-prompt.ts:169` e a esteira em `bootstrap.ts:386`, que já tratam erro de `prompt`; e a destilação e a pesquisa da memória (`memory/capture.ts:187`, `memory/auto-learn.ts:254`), que o propagam para quem as chamou |
+| domain | termo existente: para o painel, `AcpProcess` ganha `pid`, o `AcpManager` ganha `liveProcesses()` e `hasPendingPermission()` (e `rateLimits()` passa a dizer `reportedAt`, `accountId` e `adapterId`), o `PtyManager` ganha `livePids()`, e o `Context` do tRPC ganha `resources`; `PROTOCOL_VERSION` sobe para `@lumem/shared`, porque `health` e `system.status` o respondem |
 | domain | termo existente: `ScriptRunner` ganha `runningCount()` (a metade de *ocioso* que ele responde); implementam a interface o `createScriptRunner` e o fake de `worktree.start.test.ts`. E `DomainErrorCode` ganha `PRECONDITION_FAILED`, que o tRPC mapeia a `PRECONDITION_FAILED` e os dois sockets (`acp/websocket.ts`, `pty/websocket.ts`) a `INTERNAL` |
 | web | `Topbar` ganha o slot `update`, que o `App` preenche com o `UpdateBanner`: `layout/` não conhece `features/`. E o `test/setup.ts` marca toda aba de teste como *já recarregou*, porque os testes de tela respondem `health` com versões que não são a do bundle |
 | web | rota nova `/menubar` em `lib/route.ts`. A armadilha *"Uma tela nova derruba testes cujo mock não a conhece"* de `testing.md` se aplica |

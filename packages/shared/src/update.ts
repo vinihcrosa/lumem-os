@@ -10,6 +10,13 @@
 export const PACKAGE_NAME = "@vinihcrosa/lumem-os";
 
 /**
+ * O contrato da casca (`038`, porta 4): `health` e `system.status` a respondem, e o app
+ * de desktop só fala com a que conhece. Comparar `version` por semver faria toda
+ * release parecer compatível ou incompatível por acaso.
+ */
+export const PROTOCOL_VERSION = 1 as const;
+
+/**
  * The `latest` dist-tag, and nothing else — a few hundred bytes, not the full packument.
  *
  * Only the slash of the scope is escaped, which is how npm itself writes the

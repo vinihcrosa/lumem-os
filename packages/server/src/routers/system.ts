@@ -1,3 +1,4 @@
+import { PROTOCOL_VERSION } from "@lumem/shared";
 import { z } from "zod";
 
 import { DomainError } from "../errors.js";
@@ -41,6 +42,22 @@ export const systemRouter = router({
   }),
 
   /**
+   * O resumo barato que a casca de desktop pergunta a cada 10 s (`038`, Parte 3): o que
+   * decide a imagem do ícone e o menu, e nada que custe uma consulta ao banco.
+   *
+   * `attention` é só o pedido de permissão pendente: é o único estado em que um agente
+   * parado espera uma pessoa, e uma tarefa bloqueada já tem o quadro.
+   */
+  status: publicProcedure.query(({ ctx }) => ({
+    version: ctx.update.current,
+    protocolVersion: PROTOCOL_VERSION,
+    supervised: ctx.config.supervised,
+    updateAvailable: ctx.update.updateAvailable(),
+    liveTurns: ctx.acpManager.liveTurns().length,
+    attention: ctx.acpManager.hasPendingPermission(),
+  })),
+
+  /**
    * Instala a versão nova e sai, para o supervisor subir a nova (`038`, door 8).
    *
    * Volta assim que a instalação **começa**: o npm leva minutos, e uma requisição
@@ -78,6 +95,13 @@ export const systemRouter = router({
       return { started: true as const };
     }),
   ),
+
+  /**
+   * Quanto o daemon, os agentes e os terminais gastam agora — o bloco de recursos do
+   * painel da barra (`038`). A pergunta é o que arma o relógio de leitura: quem não
+   * pergunta não paga o `ps`.
+   */
+  resources: publicProcedure.query(({ ctx }) => ctx.resources.resources()),
 
   settings: publicProcedure.query(({ ctx }) => settingsOf(ctx)),
 
