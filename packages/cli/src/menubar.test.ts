@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { DESKTOP_PLATFORMS, desktopPackageName, type DesktopPlatform, type InstallCommand } from "@lumem/shared";
 
-import { menubar, type DesktopDeps } from "./menubar.js";
+import { menubar, takeDesktopAlong, type DesktopDeps } from "./menubar.js";
 import type { ExecResult, ServiceHost } from "./service.js";
 
 /**
@@ -36,6 +36,15 @@ interface RunOptions {
   installCode?: number;
   /** Já há um pacote do app instalado (o caso de `uninstall` e `open`). */
   installed?: boolean;
+  /** Cada metade de `installed` sozinha: o pacote no disco, e o `.app` copiado (só no macOS). */
+  pkg?: boolean;
+  app?: boolean;
+  /** O gerenciador saiu 0 e não deixou o pacote no disco. */
+  leavesNothing?: boolean;
+  /** Comandos (`"ditto -x -k …"`) que saem com este resultado em vez de 0. */
+  exec?: Record<string, ExecResult>;
+  /** O `lumem` resolvido, quando não é o de sempre. */
+  lumem?: string;
   env?: NodeJS.ProcessEnv;
   /** O que `/proc/sys` diz; um caminho que não está aqui não existe na máquina. */
   sysctl?: Record<string, string>;
@@ -51,20 +60,22 @@ function setup(options: RunOptions = {}): Run {
   const err: string[] = [];
   const existing = new Set<string>();
   const key = `${platform}-${arch}` as DesktopPlatform;
-  const packageDir = `${SCOPE_DIR}/lumem-desktop-${key}`;
-  if (options.installed === true) existing.add(packageDir);
-  if (options.installed === true && platform === "darwin") existing.add("/Users/ana/Applications/Lumem.app");
+  const lumem = options.lumem ?? LUMEM;
+  const packageDir = `${lumem.replace(/\/lumem-os\/bin\/lumem\.mjs$/, "")}/lumem-desktop-${key}`;
+  if (options.pkg ?? options.installed === true) existing.add(packageDir);
+  if (options.app ?? (options.installed === true && platform === "darwin")) existing.add("/Users/ana/Applications/Lumem.app");
 
   const host: ServiceHost = {
     platform: platform as NodeJS.Platform,
     uid: 501,
     home: "/Users/ana",
     nodePath: "/opt/node/bin/node",
-    lumemPath: LUMEM,
+    lumemPath: lumem,
     path: "/usr/bin",
     exec: async (command, args): Promise<ExecResult> => {
-      events.push([command, ...args].join(" "));
-      return { code: 0, stdout: "", stderr: "" };
+      const line = [command, ...args].join(" ");
+      events.push(line);
+      return options.exec?.[line] ?? { code: 0, stdout: "", stderr: "" };
     },
     read: (path) => files.get(path) ?? options.sysctl?.[path] ?? null,
     exists: (path) => existing.has(path) || files.has(path),
@@ -94,7 +105,11 @@ function setup(options: RunOptions = {}): Run {
     where: { stateDir: "/Users/ana/.lumem", origin: ORIGIN },
     install: async (command: InstallCommand) => {
       events.push(`install ${command.command} ${command.args.join(" ")}`);
-      if ((options.installCode ?? 0) === 0 && command.args.some((arg) => arg.includes("lumem-desktop"))) {
+      if (
+        (options.installCode ?? 0) === 0 &&
+        options.leavesNothing !== true &&
+        command.args.some((arg) => arg.includes("lumem-desktop"))
+      ) {
         existing.add(packageDir);
       }
       return options.installCode ?? 0;
@@ -193,6 +208,32 @@ describe("lumem menubar install", () => {
     expect(autostart).toContain(`Exec="${executable}"\n`);
     expect(autostart).not.toContain("--panel");
     expect(linux.events.some((line) => line.startsWith("ditto"))).toBe(false);
+
+    // Os dois arquivos, inteiros: o do menu não leva a chave do autostart (ela o ligaria no
+    // login), e ambos apontam o ícone para dentro do pacote.
+    const icon = `${SCOPE_DIR}/lumem-desktop-linux-x64/icon.png`;
+    const entry = (exec: string) =>
+      `[Desktop Entry]\nType=Application\nName=Lumem\nComment=O painel do Lumem\nExec=${exec}\nIcon=${icon}\nTerminal=false\nCategories=Development;\nStartupWMClass=Lumem\n`;
+    expect(launcher).toBe(entry(`"${executable}" --panel`));
+    expect(autostart).toBe(`${entry(`"${executable}"`)}X-GNOME-Autostart-enabled=true\n`);
+
+    // macOS: a pasta `~/Applications` existe antes do `ditto` — numa conta nova ela não existe.
+    expect(mac.events.indexOf("mkdir /Users/ana/Applications")).toBeGreaterThanOrEqual(0);
+    expect(mac.events.indexOf("mkdir /Users/ana/Applications")).toBeLessThan(
+      mac.events.indexOf("rm -rf /Users/ana/Applications/Lumem.app"),
+    );
+  });
+
+  it("quotes an executable path that the .desktop would read as syntax", async () => {
+    // `Exec=` lê `"`, `` ` ``, `$` e `\` como sintaxe; o caminho do pacote é de quem instalou.
+    const lumem = '/opt/we"ird $x `y` z\\w/node_modules/@vinihcrosa/lumem-os/bin/lumem.mjs';
+    const run = setup({ platform: "linux", arch: "x64", lumem });
+
+    expect(await menubar("install", run.deps)).toBe(0);
+
+    const launcher = run.files.get("/Users/ana/.local/share/applications/lumem.desktop") ?? "";
+    const scope = '/opt/we\\"ird \\$x \\`y\\` z\\\\w/node_modules/@vinihcrosa';
+    expect(launcher).toContain(`Exec="${scope}/lumem-desktop-linux-x64/app/lumem-desktop" --panel\n`);
   });
 
   it("adds no-sandbox only where the kernel refuses the sandbox", async () => {
@@ -239,6 +280,40 @@ describe("lumem menubar install", () => {
     }
   });
 
+  it("says where the app is, per platform", async () => {
+    const mac = setup({ platform: "darwin" });
+    await menubar("install", mac.deps);
+    expect(mac.out.at(-1)).toBe("app em /Users/ana/Applications/Lumem.app; o ícone está na barra de menus.");
+
+    const linux = setup({ platform: "linux", arch: "x64" });
+    await menubar("install", linux.deps);
+    expect(linux.out.at(-1)).toBe("app instalado; o ícone está na bandeja e o autostart está ligado.");
+  });
+
+  it("fails and opens nothing when the manager leaves no package behind", async () => {
+    const run = setup({ leavesNothing: true });
+
+    expect(await menubar("install", run.deps)).toBe(1);
+
+    expect(run.err.join("\n")).toContain(`instalou, mas o pacote não está em ${SCOPE_DIR}/lumem-desktop-darwin-arm64`);
+    expect(run.events.some((line) => line.startsWith("write "))).toBe(false);
+    expect(run.launched).toEqual([]);
+  });
+
+  it("fails and opens nothing when the app cannot be copied, and says why", async () => {
+    const ditto = `ditto -x -k ${SCOPE_DIR}/lumem-desktop-darwin-arm64/Lumem.zip /Users/ana/Applications`;
+
+    const withReason = setup({ exec: { [ditto]: { code: 1, stdout: "", stderr: " sem espaço no disco \n" } } });
+    expect(await menubar("install", withReason.deps)).toBe(1);
+    expect(withReason.err).toContain("não consegui copiar o app para /Users/ana/Applications/Lumem.app: sem espaço no disco");
+    expect(withReason.launched).toEqual([]);
+    expect(withReason.out.join("\n")).not.toContain("app em ");
+
+    const withCode = setup({ exec: { [ditto]: { code: 9, stdout: "", stderr: "" } } });
+    expect(await menubar("install", withCode.deps)).toBe(1);
+    expect(withCode.err).toContain("não consegui copiar o app para /Users/ana/Applications/Lumem.app: ditto saiu com 9");
+  });
+
   it("starts the app after installing it", async () => {
     const mac = setup({ platform: "darwin" });
     await menubar("install", mac.deps);
@@ -263,6 +338,19 @@ describe("lumem menubar install", () => {
       expect(run.err.join("\n")).toContain(`${platform}-${arch}`);
       for (const key of DESKTOP_PLATFORMS) expect(run.err.join("\n")).toContain(key);
     }
+  });
+
+  it("says so, and exits 1, when the manager cannot even start", async () => {
+    const run = setup();
+    run.deps.install = async () => {
+      throw new Error("spawn npm ENOENT");
+    };
+
+    expect(await menubar("install", run.deps)).toBe(1);
+
+    expect(run.err).toContain("não consegui rodar o npm: spawn npm ENOENT");
+    expect(run.events.some((line) => line.startsWith("write "))).toBe(false);
+    expect(run.launched).toEqual([]);
   });
 
   it("returns the manager's code and writes nothing when the install fails", async () => {
@@ -295,6 +383,26 @@ describe("lumem menubar open", () => {
 
     expect(run.err.join("\n")).toContain("lumem menubar install");
     expect(run.launched).toEqual([]);
+
+    // "Sem o pacote **ou** sem o `.app`" é uma disjunção: cada metade sozinha recusa, e só as duas
+    // presentes abrem. No Linux só há o pacote.
+    const cells = [
+      { platform: "darwin", arch: "arm64", pkg: true, app: true, opens: true },
+      { platform: "darwin", arch: "arm64", pkg: true, app: false, opens: false },
+      { platform: "darwin", arch: "arm64", pkg: false, app: true, opens: false },
+      { platform: "darwin", arch: "arm64", pkg: false, app: false, opens: false },
+      { platform: "linux", arch: "x64", pkg: true, app: false, opens: true },
+      { platform: "linux", arch: "x64", pkg: false, app: false, opens: false },
+    ];
+    for (const { platform, arch, pkg, app, opens } of cells) {
+      const name = `${platform} pacote=${String(pkg)} app=${String(app)}`;
+      const cell = setup({ platform, arch, pkg, app });
+
+      expect(await menubar("open", cell.deps), name).toBe(opens ? 0 : 1);
+
+      expect(cell.launched.length, name).toBe(opens ? 1 : 0);
+      expect(cell.err.join("\n").includes("lumem menubar install"), name).toBe(!opens);
+    }
   });
 });
 
@@ -326,6 +434,18 @@ describe("lumem menubar uninstall", () => {
     expect(linux.files.size).toBe(0);
   });
 
+  it("does not ask an app that is not there to remove its own login item", async () => {
+    // O pacote está e o `.app` nunca foi copiado: não há quem tirar o item de login, e rodar o
+    // binário que não existe seria um erro a mais. O resto da limpeza segue.
+    const run = setup({ platform: "darwin", pkg: true, app: false });
+
+    expect(await menubar("uninstall", run.deps)).toBe(0);
+
+    expect(run.events.some((line) => line.endsWith("--uninstall"))).toBe(false);
+    expect(run.events).toContain("rm -rf /Users/ana/Applications/Lumem.app");
+    expect(run.events).toContain("rm -rf /Users/ana/Library/Application Support/Lumem");
+  });
+
   it("uses the manager that owns the copy", async () => {
     const run = setup({ platform: "linux", arch: "x64", installed: true, manager: "pnpm" });
 
@@ -338,8 +458,26 @@ describe("lumem menubar uninstall", () => {
     const run = setup({ platform: "darwin", installed: true, installCode: 7 });
 
     expect(await menubar("uninstall", run.deps)).toBe(7);
+    expect(run.err).toContain("o npm saiu com 7; o app continua instalado.");
 
     // Nada mais foi tocado: o pacote continua, então o app continua com o que precisa.
     expect(run.events.filter((line) => !line.startsWith("install "))).toEqual([]);
+  });
+});
+
+describe("lumem upgrade taking the app along", () => {
+  it("fails and says why when the app cannot be copied again", async () => {
+    const ditto = `ditto -x -k ${SCOPE_DIR}/lumem-desktop-darwin-arm64/Lumem.zip /Users/ana/Applications`;
+    const run = setup({ installed: true, exec: { [ditto]: { code: 1, stdout: "", stderr: "sem espaço" } } });
+
+    expect(await takeDesktopAlong(run.deps)).toBe(1);
+
+    expect(run.err).toContain("não consegui copiar o app para /Users/ana/Applications/Lumem.app: sem espaço");
+    expect(run.out).not.toContain("app atualizado.");
+
+    // Copiou: diz que atualizou.
+    const fine = setup({ installed: true });
+    expect(await takeDesktopAlong(fine.deps)).toBe(0);
+    expect(fine.out.at(-1)).toBe("app atualizado.");
   });
 });

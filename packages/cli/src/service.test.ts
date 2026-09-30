@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   installService,
+  restartService,
   serviceIdentity,
   stopService,
   type ExecResult,
@@ -190,6 +191,17 @@ describe("installService", () => {
       "run",
     ]);
 
+    // O symlink existe, mas o caminho **não é** o do pacote do Lumem na loja: outro pacote, ou
+    // um arquivo com sufixo (`lumem.mjs.bak`), não é reapontado para o symlink do Lumem.
+    for (const lumemPath of [
+      `${versioned}.bak`,
+      `${global}/.pnpm/outro@1.0.0/node_modules/outro/bin/lumem.mjs`,
+    ]) {
+      const other = fake({ lumemPath, existing: [stable] });
+      await installService(other.host, spec());
+      expect(programArguments(other.files.get(PLIST)!), lumemPath).toEqual(["/opt/node/bin/node", lumemPath, "run"]);
+    }
+
     // npm: o `bin/lumem.mjs` resolvido já não muda de versão, e fica como está.
     const npm = fake({ existing: [stable] });
     await installService(npm.host, spec());
@@ -342,21 +354,28 @@ describe("installService", () => {
 
 describe("installService without a supervisor", () => {
   it("refuses without a supervisor and names lumem run", async () => {
-    const cases: { name: string; options: FakeOptions }[] = [
-      { name: "launchctl sem sessão de usuário", options: { failing: ["launchctl print gui/501"] } },
+    // O motivo diz **qual** supervisor falta: cada plataforma tem o seu, e "não responde" sem
+    // dizer qual manda a pessoa procurar o que não existe na máquina dela.
+    const cases: { name: string; options: FakeOptions; why: string }[] = [
+      { name: "launchctl sem sessão de usuário", options: { failing: ["launchctl print gui/501"] }, why: "o launchd não responde" },
       {
         name: "systemctl --user falhando",
         options: { platform: "linux", failing: ["systemctl --user show-environment"] },
+        why: "o `systemctl --user` não responde",
       },
-      { name: "plataforma sem supervisor", options: { platform: "win32" } },
+      { name: "plataforma sem supervisor", options: { platform: "win32" }, why: "não há supervisor para win32" },
     ];
 
-    for (const { name, options } of cases) {
+    for (const { name, options, why } of cases) {
       const { host, events, files } = fake(options);
 
       const result = await installService(host, spec());
 
-      expect(result, name).toEqual({ ok: false, reason: expect.stringContaining("lumem run") });
+      expect(result, name).toEqual({
+        ok: false,
+        reason: expect.stringContaining("lumem run"),
+      });
+      expect(result.ok ? "" : result.reason, name).toContain(why);
       // Nada escrito, nada carregado: recusar não deixa rastro.
       expect(files.size, name).toBe(0);
       expect(
@@ -422,5 +441,148 @@ describe("stopService", () => {
     expect(await stopService(host, spec(), up)).toEqual({ ok: true });
 
     expect(host.now()).toBeLessThan(10_000);
+  });
+});
+
+describe("installService, step by step", () => {
+  it("stops at the first systemd step that fails, and says which one", async () => {
+    // A unit está ativa (o padrão do dublê), então os três passos existem. Cada um falhando,
+    // sozinho, recusa e não deixa o seguinte rodar.
+    const steps = [
+      { failing: "systemctl --user daemon-reload", names: "daemon-reload", after: ["enable --now", "restart"] },
+      { failing: "systemctl --user enable --now lumem.service", names: "enable --now", after: ["restart"] },
+      { failing: "systemctl --user restart lumem.service", names: "restart", after: [] as string[] },
+    ];
+
+    for (const { failing, names, after } of steps) {
+      const { host, events } = fake({ platform: "linux", failing: [failing] });
+
+      const result = await installService(host, spec());
+
+      // O passo vem **antes** do que o sistema disse (o dublê repete o comando na saída de erro, e
+      // um `toContain` sobre o motivo inteiro passaria mesmo sem o rótulo do passo).
+      expect(result, names).toEqual({ ok: false, reason: expect.stringContaining(names) });
+      expect(result.ok ? "" : result.reason, names).toBe(`\`${failing.replace(" lumem.service", "")}\` falhou: falhou: ${failing}`);
+      for (const later of after) {
+        expect(events.some((event) => event.includes(later)), `${names}: ${later} não roda`).toBe(false);
+      }
+    }
+
+    // E com os três passando, os três rodam, nessa ordem.
+    const all = fake({ platform: "linux" });
+    expect(await installService(all.host, spec())).toEqual({ ok: true, file: UNIT });
+    expect(all.events.filter((event) => event.startsWith("systemctl --user") && !/is-active|show-environment/.test(event))).toEqual([
+      "systemctl --user daemon-reload",
+      "systemctl --user enable --now lumem.service",
+      "systemctl --user restart lumem.service",
+    ]);
+  });
+
+  it("explains a failure with stderr first, then stdout, then the exit code", async () => {
+    const cases = [
+      { name: "stderr", stdout: "saída", stderr: "  erro do launchctl \n", says: "falhou: erro do launchctl" },
+      { name: "stdout", stdout: " só a saída \n", stderr: "   ", says: "falhou: só a saída" },
+      { name: "neither", stdout: "", stderr: "", says: "falhou: saiu com 5" },
+    ];
+
+    for (const { name, stdout, stderr, says } of cases) {
+      const { host } = fake();
+      const exec = host.exec;
+      host.exec = async (command, args) => {
+        const result = await exec(command, args);
+        return command === "launchctl" && args[0] === "bootstrap" ? { code: 5, stdout, stderr } : result;
+      };
+
+      const result = await installService(host, spec());
+
+      expect(result, name).toEqual({ ok: false, reason: expect.stringContaining(says) });
+      // Aparado, e sem o que vem depois: o motivo termina no detalhe.
+      expect(result.ok ? "" : result.reason, name).toMatch(new RegExp(`${says}$`));
+      expect(result.ok ? "" : result.reason, name).toMatch(/^`launchctl bootstrap` falhou: /);
+    }
+  });
+
+  it("writes what XML and systemd read as syntax, and reads it back the same", async () => {
+    // Um PATH de quem tem apóstrofo no nome de usuário, e aspas, perderia essas letras se o
+    // escape as trocasse por nada.
+    const mac = fake({ path: `/Users/o'brien/bin:/a"b&c<d>` });
+    await installService(mac.host, spec());
+    const plist = parsePlist(mac.files.get(PLIST)!) as { EnvironmentVariables: { PATH: string } };
+    expect(plist.EnvironmentVariables.PATH).toBe(`/Users/o'brien/bin:/a"b&c<d>`);
+
+    // systemd: `%` e `$` dobram; aspas e barra invertida pedem aspas e escape; espaço pede aspas.
+    const lumem = "/opt/lumem/bin/lumem.mjs";
+    const words = [
+      { node: "/opt/100%/node", word: "/opt/100%%/node" },
+      { node: "/opt/$HOME/node", word: "/opt/$$HOME/node" },
+      { node: "/opt/my node/node", word: '"/opt/my node/node"' },
+      { node: '/opt/a"b\\c/node', word: '"/opt/a\\"b\\\\c/node"' },
+    ];
+    for (const { node, word } of words) {
+      const linux = fake({ platform: "linux", nodePath: node, lumemPath: lumem });
+      await installService(linux.host, spec());
+      expect(linux.files.get(UNIT), node).toContain(`ExecStart=${word} ${lumem} run\n`);
+    }
+
+    // `Environment=`: a atribuição inteira entre aspas quando o valor as pede.
+    const envs = [
+      { path: "/Users/John Doe/bin:/usr/bin", line: 'Environment="PATH=/Users/John Doe/bin:/usr/bin"' },
+      { path: '/a"b', line: 'Environment="PATH=/a\\"b"' },
+      { path: "/a\\b", line: 'Environment="PATH=/a\\\\b"' },
+      { path: "/100% sure", line: 'Environment="PATH=/100%% sure"' },
+      { path: "/plain/bin", line: "Environment=PATH=/plain/bin" },
+    ];
+    for (const { path, line } of envs) {
+      const linux = fake({ platform: "linux", path });
+      await installService(linux.host, spec());
+      expect(linux.files.get(UNIT), path).toContain(`\n${line}\n`);
+    }
+  });
+});
+
+describe("restartService", () => {
+  it("names the command that failed, per supervisor", async () => {
+    const mac = fake({ failing: ["launchctl kickstart -k gui/501/tech.cazimi.lumem"] });
+    expect(await restartService(mac.host, IDENTITY)).toEqual({
+      ok: false,
+      reason: expect.stringContaining("`launchctl kickstart -k gui/501/tech.cazimi.lumem` falhou"),
+    });
+
+    const linux = fake({ platform: "linux", failing: ["systemctl --user restart lumem.service"] });
+    expect(await restartService(linux.host, IDENTITY)).toEqual({
+      ok: false,
+      reason: expect.stringContaining("`systemctl --user restart lumem.service` falhou"),
+    });
+
+    // E o que dá certo é só `ok`.
+    expect(await restartService(fake().host, IDENTITY)).toEqual({ ok: true });
+  });
+
+  it("runs nothing where there is no supervisor", async () => {
+    const { host, events } = fake({ platform: "win32" });
+
+    expect(await restartService(host, IDENTITY)).toEqual({
+      ok: false,
+      reason: "não há supervisor para win32",
+    });
+    expect(events).toEqual([]);
+  });
+});
+
+describe("stopService where there is no supervisor", () => {
+  it("runs neither launchctl nor systemctl, and touches no file", async () => {
+    const { host, events, files } = fake({ platform: "win32" });
+
+    // Nada carregado, e nada respondendo: parar é o que já está.
+    expect(await stopService(host, spec(), async () => false)).toEqual({ ok: true });
+    expect(events).toEqual([]);
+    expect(files.size).toBe(0);
+
+    // Respondendo, o que responde não é serviço (não há serviço aqui).
+    expect(await stopService(host, spec(), async () => true)).toEqual({
+      ok: false,
+      reason: expect.stringContaining("não roda como serviço"),
+    });
+    expect(events).toEqual([]);
   });
 });

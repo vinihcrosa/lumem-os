@@ -206,6 +206,10 @@ describe("lumem upgrade", () => {
     await run(["upgrade"], deps({ upgrade, env: { LUMEM_PORT: "5000" } }));
 
     expect(upgrade).toHaveBeenCalledWith(expect.objectContaining({ origin: "http://127.0.0.1:5000" }));
+
+    // E no host que o ambiente diz.
+    await run(["upgrade"], deps({ upgrade, env: { LUMEM_HOST: "127.0.0.2" } }));
+    expect(upgrade).toHaveBeenLastCalledWith(expect.objectContaining({ origin: "http://127.0.0.2:4317" }));
   });
 });
 
@@ -351,6 +355,7 @@ describe("lumem start", () => {
     expect(await run(["start"], deps({ service: host, probe }))).toBe(1);
 
     expect(err.join("\n")).toContain("fora do serviço");
+    expect(err.join("\n")).toContain("`lumem run`");
     expect(err.join("\n")).toContain("http://127.0.0.1:4317");
     // Recusou antes de mexer em qualquer coisa: dois daemons no mesmo estado são
     // dois escritores no mesmo SQLite.
@@ -402,6 +407,8 @@ describe("lumem start", () => {
 
     expect(fake.events).toContain("launchctl bootout gui/501/tech.cazimi.lumem");
     expect(fake.events.some((event) => event.startsWith("launchctl bootstrap"))).toBe(true);
+    // E diz por que reiniciou: quem digitou `lumem` para abrir o Lumem precisa saber.
+    expect(out.join("\n")).toContain("o arquivo do serviço mudou");
   });
 
   it("hands --port to the service through its environment, and opens the browser only with --open", async () => {
@@ -487,6 +494,8 @@ describe("lumem status", () => {
 
     expect(out.join("\n")).toContain("parado");
     expect(out.join("\n")).not.toContain("rodando");
+    // E diz **por que** não é um Lumem: a porta responde, e é de outro.
+    expect(out).toEqual(["parado · http://127.0.0.1:4317 · a porta responde, mas não é um Lumem"]);
   });
 });
 
@@ -540,5 +549,211 @@ describe("lumem logs", () => {
     expect(await run(["logs"], deps())).toBe(1);
 
     expect(err.join("\n")).toContain(LOG);
+  });
+});
+
+describe("lumem start, decision by decision", () => {
+  const PLIST = "/Users/ana/Library/LaunchAgents/tech.cazimi.lumem.plist";
+
+  /** Livre até o serviço ser carregado, e um Lumem depois disso. */
+  const upAfterLoad = (fake: FakeHost) => async () =>
+    fake.events.some((event) => event.startsWith("launchctl bootstrap"))
+      ? { kind: "lumem" as const, version: "0.7.0" }
+      : { kind: "free" as const };
+
+  /** O que o plist gravado carrega no ambiente, por nome e com o valor. */
+  function carried(fake: FakeHost): Record<string, string> {
+    const plist = fake.files.get(PLIST) ?? "";
+    const found: Record<string, string> = {};
+    for (const key of ["LUMEM_PORT", "LUMEM_HOST", "LUMEM_STATE_DIR"]) {
+      const value = new RegExp(`<key>${key}</key>\\s*<string>([^<]*)</string>`).exec(plist)?.[1];
+      if (value !== undefined) found[key] = value;
+    }
+    return found;
+  }
+
+  it("carries into the service only what the person asked, from the flag or from the environment", async () => {
+    // "Flag **ou** ambiente" é uma disjunção por variável: cada lado sozinho leva, e nenhum dos dois
+    // não leva. O padrão gravado no arquivo seria um padrão que o próximo `lumem start` não muda.
+    const cells: { name: string; argv: string[]; env: NodeJS.ProcessEnv; carries: Record<string, string> }[] = [
+      { name: "nada", argv: ["start"], env: {}, carries: {} },
+      { name: "--port", argv: ["start", "--port", "5000"], env: {}, carries: { LUMEM_PORT: "5000" } },
+      { name: "LUMEM_PORT", argv: ["start"], env: { LUMEM_PORT: "5001" }, carries: { LUMEM_PORT: "5001" } },
+      { name: "--port e LUMEM_PORT", argv: ["start", "--port", "5000"], env: { LUMEM_PORT: "5001" }, carries: { LUMEM_PORT: "5000" } },
+      { name: "--host", argv: ["start", "--host", "127.0.0.2"], env: {}, carries: { LUMEM_HOST: "127.0.0.2" } },
+      { name: "LUMEM_HOST", argv: ["start"], env: { LUMEM_HOST: "127.0.0.3" }, carries: { LUMEM_HOST: "127.0.0.3" } },
+      { name: "--host e LUMEM_HOST", argv: ["start", "--host", "127.0.0.2"], env: { LUMEM_HOST: "127.0.0.3" }, carries: { LUMEM_HOST: "127.0.0.2" } },
+      { name: "--state-dir", argv: ["start", "--state-dir", "/tmp/estado"], env: {}, carries: { LUMEM_STATE_DIR: "/tmp/estado" } },
+      { name: "LUMEM_STATE_DIR", argv: ["start"], env: { LUMEM_STATE_DIR: "/tmp/outro" }, carries: { LUMEM_STATE_DIR: "/tmp/outro" } },
+      {
+        name: "os três",
+        argv: ["start", "--port", "5000", "--host", "127.0.0.2", "--state-dir", "/tmp/estado"],
+        env: {},
+        carries: { LUMEM_PORT: "5000", LUMEM_HOST: "127.0.0.2", LUMEM_STATE_DIR: "/tmp/estado" },
+      },
+    ];
+
+    for (const { name, argv, env, carries } of cells) {
+      const fake = fakeHost();
+      const probe = async () =>
+        fake.events.some((event) => event.startsWith("launchctl bootstrap"))
+          ? { kind: "lumem" as const, version: "0.7.0" }
+          : { kind: "free" as const };
+
+      expect(await run(argv, deps({ service: fake.host, probe, env })), name).toBe(0);
+
+      expect(carried(fake), name).toEqual(carries);
+    }
+  });
+
+  it("resolves the state dir the way the daemon does: ~ and ~/ are home, anything else is a path", async () => {
+    const cells = [
+      { raw: "~", dir: "/Users/ana" },
+      { raw: "~/dados", dir: "/Users/ana/dados" },
+      { raw: "/var/lumem", dir: "/var/lumem" },
+    ];
+
+    for (const { raw, dir } of cells) {
+      const fake = fakeHost();
+      const probe = async () =>
+        fake.events.some((event) => event.startsWith("launchctl bootstrap"))
+          ? { kind: "lumem" as const, version: "0.7.0" }
+          : { kind: "free" as const };
+
+      await run(["start", "--state-dir", raw], deps({ service: fake.host, probe }));
+
+      expect(fake.files.get(PLIST) ?? "", raw).toContain(`<key>LUMEM_STATE_DIR</key>\n    <string>${dir}</string>`);
+    }
+
+    // `~outro` não é a casa de ninguém daqui: é um nome de pasta, relativo ao diretório de agora.
+    const odd = fakeHost();
+    const probe = async () =>
+      odd.events.some((event) => event.startsWith("launchctl bootstrap"))
+        ? { kind: "lumem" as const, version: "0.7.0" }
+        : { kind: "free" as const };
+    await run(["start", "--state-dir", "~outro"], deps({ service: odd.host, probe }));
+    const written = odd.files.get(PLIST) ?? "";
+    expect(written).not.toContain("<string>/Users/ana/outro</string>");
+    expect(written).toContain("<string>" + join(process.cwd(), "~outro") + "</string>");
+  });
+
+  it("probes 127.0.0.1 for a daemon that listens on every interface, and the host itself otherwise", async () => {
+    const asked: string[] = [];
+    const probe = async ({ origin }: { origin: string }) => {
+      asked.push(origin);
+      return { kind: "other" as const };
+    };
+
+    await run(["start", "--host", "0.0.0.0"], deps({ probe }));
+    await run(["start", "--host", "10.0.0.5", "--port", "5000"], deps({ probe }));
+    await run(["run", "--host", "0.0.0.0"], deps({ probe }));
+
+    expect(asked).toEqual(["http://127.0.0.1:4317", "http://10.0.0.5:5000", "http://127.0.0.1:4317"]);
+  });
+
+  it("does not trust a service that is loaded and current when nothing answers", async () => {
+    // O serviço está carregado e o arquivo é o de agora, mas o daemon não responde (caiu, ou
+    // está em laço de reinício): `start` não diz que está de pé, carrega de novo e espera o health.
+    const first = fakeHost();
+    await run(["start"], deps({ service: first.host, probe: upAfterLoad(first) }));
+    const before = first.events.length;
+    out = [];
+
+    const silent = async () => ({ kind: "free" as const });
+    expect(await run(["start"], deps({ service: first.host, probe: silent }))).toBe(1);
+
+    expect(out.join("\n")).not.toContain("já roda como serviço");
+    expect(out.join("\n")).not.toContain("o arquivo do serviço mudou");
+    expect(first.events.slice(before).some((event) => event.startsWith("launchctl bootstrap"))).toBe(true);
+    expect(err.join("\n")).toContain("não respondeu");
+  });
+
+  it("hands the daemon only what was asked, and nothing for the state dir when none was", async () => {
+    // `lumem run` escreve no ambiente antes do `import`: porta e host sempre (o padrão vale), e o
+    // state dir só se veio — `null` virando `"null"` mandaria o daemon gravar numa pasta chamada assim.
+    const bare: NodeJS.ProcessEnv = {};
+    await run(["run"], deps({ env: bare }));
+    expect(bare).toEqual({ LUMEM_PORT: "4317", LUMEM_HOST: "127.0.0.1" });
+
+    // O ambiente vale quando não há flag, para o host e para a porta: a flag ganha, e o padrão é o último.
+    await run(["run"], deps({ env: { LUMEM_HOST: "127.0.0.2", LUMEM_PORT: "5000" } }));
+    expect(out.at(-1)).toBe("Lumem v0.1.0 — http://127.0.0.2:5000");
+    await run(["run", "--host", "127.0.0.3", "--port", "6000"], deps({ env: { LUMEM_HOST: "127.0.0.2", LUMEM_PORT: "5000" } }));
+    expect(out.at(-1)).toBe("Lumem v0.1.0 — http://127.0.0.3:6000");
+  });
+
+  it("asks every question about the origin the flags and the environment resolved", async () => {
+    const asked: unknown[] = [];
+    const probe = async (query: unknown) => {
+      asked.push(query);
+      return { kind: "free" as const };
+    };
+    const health = async (query: unknown): Promise<Health> => {
+      asked.push(query);
+      return { kind: "free" };
+    };
+    const where = { origin: "http://127.0.0.2:5000" };
+
+    await run(["run", "--host", "127.0.0.2", "--port", "5000"], deps({ probe }));
+    await run(["start", "--host", "127.0.0.2", "--port", "5000"], deps({ probe }));
+    await run(["stop", "--host", "127.0.0.2", "--port", "5000"], deps({ probe }));
+    await run(["status", "--host", "127.0.0.2", "--port", "5000"], deps({ health }));
+
+    // `start` pergunta ao sondar e ao esperar o `health`; `stop`, ao decidir e ao esperar calar.
+    expect(asked.length).toBeGreaterThanOrEqual(4);
+    for (const query of asked) expect(query).toEqual(where);
+  });
+
+  it("opens the browser only with --open, wherever start ends", async () => {
+    // Três finais: o Lumem já de pé e com o arquivo de agora, o que acabou de subir, e o primeiro plano.
+    for (const open of [false, true]) {
+      const flag = open ? ["--open"] : [];
+      const name = open ? "com --open" : "sem --open";
+
+      const current = fakeHost();
+      await run(["start"], deps({ service: current.host, probe: upAfterLoad(current) }));
+      const opened = vi.fn(() => true);
+      const running = async () => ({ kind: "lumem" as const, version: "0.7.0" });
+      await run(["start", ...flag], deps({ service: current.host, probe: running, open: opened }));
+      expect(opened.mock.calls.length, `já de pé ${name}`).toBe(open ? 1 : 0);
+      if (open) expect(opened).toHaveBeenCalledWith({ url: "http://127.0.0.1:4317" });
+
+      const fresh = fakeHost();
+      const freshOpen = vi.fn(() => true);
+      await run(["start", ...flag], deps({ service: fresh.host, probe: upAfterLoad(fresh), open: freshOpen }));
+      expect(freshOpen.mock.calls.length, `recém-subido ${name}`).toBe(open ? 1 : 0);
+
+      const foreground = vi.fn(() => true);
+      await run(["run", ...flag], deps({ open: foreground }));
+      expect(foreground.mock.calls.length, `primeiro plano ${name}`).toBe(open ? 1 : 0);
+
+      // E o primeiro plano que encontra um Lumem já na porta: aponta para ele, e só abre se pedido.
+      const occupied = vi.fn(() => true);
+      await run(["run", ...flag], deps({ open: occupied, probe: async () => ({ kind: "lumem", version: "0.1.0" }) }));
+      expect(occupied.mock.calls.length, `primeiro plano já de pé ${name}`).toBe(open ? 1 : 0);
+    }
+  });
+
+  it("says which version came up, and where", async () => {
+    const fake = fakeHost();
+
+    expect(await run(["start"], deps({ service: fake.host, probe: upAfterLoad(fake) }))).toBe(0);
+
+    expect(out).toEqual([
+      "Lumem v0.7.0 rodando como serviço — http://127.0.0.1:4317",
+      "`lumem logs` mostra o log; `lumem stop` para o serviço.",
+    ]);
+  });
+
+  it("fails naming the wait, and the log, when the daemon never answers", async () => {
+    const fake = fakeHost({ files: { [LOG]: "uma linha\n" } });
+
+    expect(await run(["start"], deps({ service: fake.host, probe: async () => ({ kind: "free" }) }))).toBe(1);
+
+    expect(err).toEqual([
+      "o Lumem não respondeu em http://127.0.0.1:4317 em 15 s.",
+      `últimas linhas de ${LOG}:`,
+      "uma linha",
+    ]);
   });
 });

@@ -189,6 +189,35 @@ describe("lumem upgrade com o serviço carregado", () => {
     expect(out.at(-1)).toContain("pare e suba de novo");
   });
 
+  it("says so, and exits 1, when the package manager cannot even start", async () => {
+    const loaded = fakeService({ platform: "darwin", loaded: true });
+    const install = async () => {
+      throw Object.assign(new Error("spawn npm ENOENT"), { code: "ENOENT" });
+    };
+
+    expect(await upgrade(deps({ install, service: loaded.service }))).toBe(1);
+
+    expect(err).toEqual(["não consegui rodar o npm: spawn npm ENOENT"]);
+    // Nada foi instalado, e o serviço não é tocado.
+    expect(loaded.commands).toEqual([]);
+  });
+
+  it("asks the daemon at the origin it was given, both when there is a service and when there is not", async () => {
+    const origin = "http://127.0.0.1:5000";
+    const asked: unknown[] = [];
+    const probe = async (query: unknown) => {
+      asked.push(query);
+      return { kind: "lumem" as const, version: "0.2.0" };
+    };
+
+    await upgrade(deps({ origin, probe }));
+    const loaded = fakeService({ platform: "darwin", loaded: true });
+    await upgrade(deps({ origin, probe, service: loaded.service }));
+
+    expect(asked.length).toBeGreaterThanOrEqual(2);
+    for (const query of asked) expect(query).toEqual({ origin });
+  });
+
   it("does not touch the service when the install failed", async () => {
     const loaded = fakeService({ platform: "darwin", loaded: true });
 
@@ -211,6 +240,25 @@ describe("lumem upgrade com o serviço carregado", () => {
     expect(await upgrade(deps({ service: stuck.service, probe: answering("0.1.0") }))).toBe(1);
     // A versão que ainda responde está na frase: é o que a pessoa precisa para decidir.
     expect(err.join("\n")).toContain("v0.1.0");
+
+    // Entre o processo velho sair e o novo nascer a porta está livre (ou é de outro): isso não é
+    // uma versão, e a última que o Lumem disse continua sendo a da frase.
+    err = [];
+    const gone = fakeService({ platform: "darwin", loaded: true });
+    const replies = [
+      { kind: "lumem" as const, version: "0.1.0" },
+      { kind: "free" as const },
+      { kind: "other" as const },
+    ];
+    const probe = async () => replies.length > 1 ? replies.shift()! : replies[0]!;
+    expect(await upgrade(deps({ service: gone.service, probe }))).toBe(1);
+    expect(err.join("\n")).toContain("ainda responde v0.1.0 e não v0.2.0");
+
+    // E se nunca respondeu, a frase diz isso em vez de inventar uma versão.
+    err = [];
+    const never = fakeService({ platform: "darwin", loaded: true });
+    expect(await upgrade(deps({ service: never.service, probe: async () => ({ kind: "free" }) }))).toBe(1);
+    expect(err.join("\n")).toContain("ainda responde nenhuma e não v0.2.0");
   });
 });
 
@@ -273,6 +321,22 @@ describe("lumem upgrade com o app de desktop instalado", () => {
 
     expect(install).toHaveBeenCalledTimes(1);
     expect(none.commands).toEqual([]);
+  });
+
+  it("leaves the app alone on a machine that has none", async () => {
+    // Não há pacote do app para `win32` nem para `linux-ia32`: o `upgrade` segue sem tropeçar.
+    for (const [platform, arch] of [
+      ["win32", "x64"],
+      ["linux", "ia32"],
+    ] as const) {
+      const none = desktopHost(platform, true);
+      const install = vi.fn(async () => 0);
+
+      expect(await upgrade(deps({ install, desktop: { host: none.host, arch, env: {} } })), `${platform}-${arch}`).toBe(0);
+
+      expect(install, `${platform}-${arch}`).toHaveBeenCalledTimes(1);
+      expect(none.commands, `${platform}-${arch}`).toEqual([]);
+    }
   });
 
   it("does not touch the app when the daemon install failed", async () => {
