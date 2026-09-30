@@ -206,6 +206,9 @@ describe("lumem menubar install", () => {
       { name: "userns_clone 0", sysctl: { [USERNS]: "0\n" }, refused: true, says: "unprivileged_userns_clone=0" },
       { name: "apparmor 1", sysctl: { [APPARMOR]: "1\n" }, refused: true, says: "apparmor_restrict_unprivileged_userns=1" },
       { name: "both refusing", sysctl: { [USERNS]: "0\n", [APPARMOR]: "1\n" }, refused: true, says: "unprivileged_userns_clone=0" },
+      // O kernel do Ubuntu 23.10 em diante, o único medido de verdade (o runner do `release.yml`):
+      // user namespaces liberados, e o AppArmor os restringindo.
+      { name: "userns_clone 1 and apparmor 1 (Ubuntu 23.10+)", sysctl: { [USERNS]: "1\n", [APPARMOR]: "1\n" }, refused: true, says: "apparmor_restrict_unprivileged_userns=1" },
     ];
     const executable = `${SCOPE_DIR}/lumem-desktop-linux-x64/app/lumem-desktop`;
 

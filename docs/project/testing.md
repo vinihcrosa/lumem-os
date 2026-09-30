@@ -1955,3 +1955,9 @@ precisa dele o carrega onde já há `node_modules`.
 - Cada teste de banco recebe um SQLite em arquivo temporário próprio — é o que sustenta o "parallel-safe" da matriz.
 - E2E de agente usa **configuração de fixture**, nunca o `claude` de verdade: senão o teste depende de autenticação, quota e rede.
 - Asserção fraca conta como teste faltando. Se dá pra mutar o código e o teste continua verde, o teste não existe.
+
+### Tabela de casos que testa cada botão sozinho deixa passar a combinação da máquina de verdade
+
+O C93 da [038](../features/038-desktop-and-updates/checks.md) testava `unprivileged_userns_clone=0` e `apparmor_restrict_unprivileged_userns=1` cada um com o outro **ausente**, e o Ubuntu 23.10 em diante tem os dois, com `userns_clone=1`. Uma detecção que deixava o botão do Debian decidir sozinho passava na tabela inteira, e o `release.yml`, que rodou num kernel desses, só **imprimia** o valor. A rodada 3 da verificação achou pelo mutante.
+
+**A regra:** uma tabela sobre botões independentes precisa da combinação que a plataforma-alvo entrega, **medida**, e o run real afirma o que mede em vez de só imprimir.
