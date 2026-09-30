@@ -23,6 +23,10 @@ import "../src/features/settings/settings.css";
 import "../src/features/agent/agent-login.css";
 // O consumo do workspace, aberto por agente e por conta (`034` T16).
 import "../src/features/workspace/workspace.css";
+// O aviso de versão nova da topbar (`038`).
+import "../src/features/update/update.css";
+// O painel do ícone da barra (`038`, Parte 3).
+import "../src/features/menubar/menubar.css";
 import "../src/ui/stories.css";
 
 import { mountAgentation } from "../src/lib/agentation.js";

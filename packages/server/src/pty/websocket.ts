@@ -47,6 +47,8 @@ const DOMAIN_TO_PTY_ERROR: Record<DomainErrorCode, PtyErrorCode> = {
   DUPLICATE: "INTERNAL",
   IN_USE: "INTERNAL",
   BLOCKED: "INTERNAL",
+  // Só o `system.update` a lança, e nenhum quadro deste socket chega lá.
+  PRECONDITION_FAILED: "INTERNAL",
   CONSTRAINT_VIOLATION: "INTERNAL",
   GIT_FAILED: "INTERNAL",
   QUOTA_REFUSED: "INTERNAL",

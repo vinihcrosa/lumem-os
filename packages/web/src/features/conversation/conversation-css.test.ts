@@ -31,6 +31,8 @@ const components = read(
   "ComposerBox.tsx",
   "Transcript.tsx",
   "Message.tsx",
+  // A linha de estado do turno (`037` S3).
+  "TurnStatus.tsx",
   // O primeiro prompt pendente (`033` T21) — faltavam aqui desde a T14, que
   // é quando `PendingPrompt.tsx` nasceu: a mesma lacuna que este arquivo
   // existe para fechar, achada ao tocar o vizinho em vez de por ele mesmo.
@@ -101,6 +103,8 @@ const INTERPOLATED = [
   "mode-option--free",
   "slash__row--on",
   "slash__row--danger",
+  // O silêncio da linha do turno (`037` S4), ligado por condição no `TurnStatus`.
+  "turn-status--warning",
 ];
 
 function requested(source: string): Set<string> {
@@ -187,6 +191,22 @@ describe("every class the conversation asks for exists", () => {
   });
 });
 
+describe("o pensamento em curso", () => {
+  it("animates the live thought and stops under reduced motion", () => {
+    // `036` C16. Lido como texto porque o jsdom não aplica folha de estilo: um
+    // teste de componente não veria a animação faltando, nem o movimento que
+    // continua para quem pediu que parasse.
+    const bodyOnly = stylesheet.replace(/\/\*[\s\S]*?\*\//g, "");
+    const live = [...bodyOnly.matchAll(/\.thought--live\s*\{([^}]*)\}/g)].map((match) => match[1] ?? "");
+    expect(live.some((body) => /\banimation\s*:\s*(?!none\b)[^;]+/.test(body))).toBe(true);
+
+    const reduced = [...bodyOnly.matchAll(/@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{([\s\S]*?)\}\s*\}/g)]
+      .map((match) => match[1] ?? "")
+      .join("\n");
+    expect(reduced).toMatch(/\.thought--live\s*\{[^}]*\banimation\s*:\s*none\b/);
+  });
+});
+
 describe("the stylesheet stays inside the token system", () => {
   it("uses no literal colour", () => {
     // Every colour is a decision that belongs in the generator, where contrast is
@@ -215,6 +235,56 @@ describe("the stylesheet stays inside the token system", () => {
     );
 
     expect(authored.map(([, name]) => name)).toEqual([]);
+  });
+});
+
+describe("o movimento do turno vivo (`037` S3)", () => {
+  const body = stylesheet.replace(/\/\*[\s\S]*?\*\//g, "");
+
+  /** O corpo de cada `@media (prefers-reduced-motion: reduce)`, com as chaves aninhadas. */
+  function reducedMotionBlocks(css: string): string[] {
+    const blocks: string[] = [];
+    for (const match of css.matchAll(/@media\s*\(\s*prefers-reduced-motion:\s*reduce\s*\)\s*\{/g)) {
+      let depth = 1;
+      let index = match.index + match[0].length;
+      const start = index;
+      while (depth > 0 && index < css.length) {
+        if (css[index] === "{") depth += 1;
+        if (css[index] === "}") depth -= 1;
+        index += 1;
+      }
+      blocks.push(css.slice(start, index - 1));
+    }
+    return blocks;
+  }
+
+  /** As declarações das regras cujo seletor, numa lista, nomeia `selector` sozinho. */
+  function declarationsFor(css: string, selector: string): string[] {
+    const found: string[] = [];
+    for (const rule of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      const selectors = rule[1]!.split(",").map((part) => part.trim());
+      if (selectors.includes(selector)) found.push(rule[2]!);
+    }
+    return found;
+  }
+
+  it("o caret pisca", () => {
+    const outside = body.replace(/@media[^{]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g, "");
+    const name = declarationsFor(outside, ".mcaret")
+      .map((declarations) => /animation:\s*([a-zA-Z0-9_-]+)/.exec(declarations)?.[1])
+      .find((value) => value !== undefined && value !== "none");
+
+    expect(name).toBeDefined();
+    expect(body).toMatch(new RegExp(`@keyframes\\s+${name ?? "<nenhum>"}\\s*\\{`));
+  });
+
+  it("movimento reduzido para caret e indicador", () => {
+    const reduced = reducedMotionBlocks(body).join("\n");
+
+    for (const selector of [".mcaret", ".turn-status__pulse"]) {
+      const declarations = declarationsFor(reduced, selector).join(";");
+      expect(declarations, selector).toMatch(/animation:\s*none/);
+    }
   });
 });
 

@@ -86,15 +86,82 @@ export const NO_SCRIPTS_STATUS = {
   teardown: { command: null, last: null },
 };
 
+/**
+ * Nenhuma versão nova e o Lumem em primeiro plano — o estado de quem acabou de
+ * instalar (`038`).
+ *
+ * Default do mock pelo mesmo motivo dos outros: a topbar pergunta isto no `mount`
+ * de **toda** tela, e `useQuery` estoura quando a `queryFn` devolve `undefined`.
+ */
+export const NO_UPDATE = {
+  current: "0.6.1",
+  latest: null as string | null,
+  checkedAt: null as string | null,
+  updateAvailable: false,
+  supervised: false,
+  checkEnabled: true,
+  autoUpdate: "off" as const,
+  lastError: null as string | null,
+};
+
+/**
+ * O daemon sem nada rodando — o estado de quem acabou de abrir o painel (`038`).
+ *
+ * Defaults do mock pelo mesmo motivo dos outros: a tela nova consulta cinco coisas no
+ * `mount`, e um teste que não fala de painel não pode quebrar por causa disso. Vazio,
+ * nunca dado inventado.
+ */
+export const NO_RESOURCES = {
+  groups: {
+    daemon: { cpuPercent: null as number | null, rssBytes: 0 },
+    agents: { cpuPercent: null as number | null, rssBytes: 0 },
+    terminals: { cpuPercent: null as number | null, rssBytes: 0 },
+  },
+  top: [] as { label: string; pid: number; cpuPercent: number | null; rssBytes: number }[],
+  sampledAt: "2026-09-29T12:00:00.000Z",
+};
+
+export const NOTHING_LIVE = {
+  turns: [] as { sessionId: string; label: string; startedAt: string }[],
+  openTerminals: 0,
+};
+
+export const NO_USAGE_TOTAL = {
+  tokens: 0,
+  cost: null as number | null,
+  currency: null as string | null,
+  turns: 0,
+};
+
+/** As preferências que a migração cria: verificação ligada, atualizar sozinho desligado. */
+export const DEFAULT_DAEMON_SETTINGS = {
+  updateCheck: true,
+  autoUpdate: "off" as const,
+  updateCheckForcedOff: false,
+};
+
 function createTrpcMock() {
   return {
     health: { query: vi.fn() },
+    // O que o Lumem diz de si (`038`). As duas leituras têm default, como as outras
+    // que a tela consulta no `mount`: a topbar e `/settings` perguntam sempre.
+    system: {
+      updateStatus: { query: vi.fn().mockResolvedValue(NO_UPDATE) },
+      update: { mutate: vi.fn() },
+      settings: { query: vi.fn().mockResolvedValue(DEFAULT_DAEMON_SETTINGS) },
+      setSettings: { mutate: vi.fn() },
+      // O painel da barra (`038`, Parte 3).
+      resources: { query: vi.fn().mockResolvedValue(NO_RESOURCES) },
+      live: { query: vi.fn().mockResolvedValue(NOTHING_LIVE) },
+    },
     events: { onChange: { subscribe: vi.fn(() => ({ unsubscribe: vi.fn() })) } },
     secrets: {
       list: { query: vi.fn() },
       set: { mutate: vi.fn() },
     },
     workspace: {
+      // Os três com a sessão mais recente, para o painel da barra (`038`).
+      recent: { query: vi.fn().mockResolvedValue([]) },
       setAutonomy: { mutate: vi.fn() },
       setCleanup: { mutate: vi.fn() },
       /*
@@ -195,6 +262,8 @@ function createTrpcMock() {
      */
     agentAccount: {
       list: { query: vi.fn() },
+      // A cota que cada conta relatou (`038`). Vazia por default: ninguém relatou.
+      rateLimits: { query: vi.fn().mockResolvedValue([]) },
       connect: { mutate: vi.fn() },
       disconnect: { mutate: vi.fn() },
       purge: { mutate: vi.fn() },
@@ -252,6 +321,8 @@ function createTrpcMock() {
       reindex: { mutate: vi.fn() },
     },
     usage: {
+      // O total do daemon numa janela, para o painel da barra (`038`).
+      total: { query: vi.fn().mockResolvedValue(NO_USAGE_TOTAL) },
       byProject: { query: vi.fn().mockResolvedValue([]) },
       // A quebra por agente (`second-agent`, F5). Default vazio, como os outros:
       // quem quer asserir sobre a divisão diz qual é a divisão.
@@ -334,6 +405,13 @@ export const trpcMock: TrpcMock = createTrpcMock();
  */
 export function installTrpcDefaults(mock: TrpcMock = trpcMock): void {
   mock.session.getDetail.query.mockResolvedValue(NO_PENDING_PROMPT);
+  mock.system.updateStatus.query.mockResolvedValue(NO_UPDATE);
+  mock.system.settings.query.mockResolvedValue(DEFAULT_DAEMON_SETTINGS);
+  mock.system.resources.query.mockResolvedValue(NO_RESOURCES);
+  mock.system.live.query.mockResolvedValue(NOTHING_LIVE);
+  mock.workspace.recent.query.mockResolvedValue([]);
+  mock.agentAccount.rateLimits.query.mockResolvedValue([]);
+  mock.usage.total.query.mockResolvedValue(NO_USAGE_TOTAL);
   mock.usage.byProject.query.mockResolvedValue([]);
   mock.usage.byWorktree.query.mockResolvedValue({
     worktrees: [],

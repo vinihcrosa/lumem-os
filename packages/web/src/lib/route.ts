@@ -25,8 +25,8 @@ import { useSyncExternalStore } from "react";
  * `localStorage` discordam.
  */
 
-/** As três telas que têm endereço. O checkout não é uma delas — ver `navigate`. */
-export type Route = "home" | "tasks" | "settings";
+/** As telas que têm endereço. O checkout não é uma delas — ver `navigate`. */
+export type Route = "home" | "tasks" | "settings" | "menubar";
 
 /**
  * O caminho de cada uma, em inglês.
@@ -39,12 +39,14 @@ export const ROUTE_PATH: Record<Route, string> = {
   home: "/",
   tasks: "/tasks",
   settings: "/settings",
+  // O painel do ícone da barra (`038`, door 5): não é uma tela do shell do workspace.
+  menubar: "/menubar",
 };
 
 /**
  * Que tela um caminho pede.
  *
- * Qualquer coisa que não seja `/tasks` ou `/settings` é `home`, inclusive um
+ * Qualquer coisa que não seja `/tasks`, `/settings` ou `/menubar` é `home`, inclusive um
  * caminho que ninguém escreveu. É a mesma escolha que o daemon já fez ao servir
  * o shell para qualquer rota: um endereço desconhecido abre o aplicativo, e não
  * uma página de erro que o produto não tem.
@@ -53,6 +55,7 @@ export function routeOf(pathname: string): Route {
   const path = normalize(pathname);
   if (path === ROUTE_PATH.tasks) return "tasks";
   if (path === ROUTE_PATH.settings) return "settings";
+  if (path === ROUTE_PATH.menubar) return "menubar";
   return "home";
 }
 

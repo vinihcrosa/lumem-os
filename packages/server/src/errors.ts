@@ -19,6 +19,11 @@ export type DomainErrorCode =
   | "BLOCKED"
   /** A database constraint nobody mapped. Always a defect in the mapping. */
   | "CONSTRAINT_VIOLATION"
+  /**
+   * The request is fine and the daemon is in a state where it cannot be done at all —
+   * no supervisor to restart it, no newer version to install (`038`).
+   */
+  | "PRECONDITION_FAILED"
   /** A git command failed; the message is git's own, untranslated. */
   | "GIT_FAILED"
   /**

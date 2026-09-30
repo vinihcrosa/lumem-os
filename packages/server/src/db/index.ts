@@ -6,6 +6,7 @@ import Database from "better-sqlite3";
 import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 
+import { prepareUpgrade, type ReleaseOptions } from "./backup.js";
 import { schema } from "./schema.js";
 
 export type Db = BetterSQLite3Database<typeof schema>;
@@ -29,10 +30,20 @@ export interface OpenDatabaseOptions {
   path: string;
   /** Off in tests that want to inspect a half-migrated file. */
   migrateOnOpen?: boolean;
+  /**
+   * A versão que está subindo (`038`, door 7). Só o daemon a passa: com ela, o
+   * banco é copiado **antes** de migrar quando a versão mudou, e a versão só é
+   * gravada depois de a migração passar.
+   */
+  release?: ReleaseOptions;
 }
 
-export function openDatabase({ path, migrateOnOpen = true }: OpenDatabaseOptions): Database_ {
+export function openDatabase({ path, migrateOnOpen = true, release }: OpenDatabaseOptions): Database_ {
   if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
+
+  // Antes de o banco ser aberto para valer: a cópia é do banco **como estava**, e
+  // qualquer coisa depois daqui pode mudá-lo.
+  const upgrade = release === undefined || path === ":memory:" ? null : prepareUpgrade(path, release);
 
   const sqlite = new Database(path);
 
@@ -41,7 +52,12 @@ export function openDatabase({ path, migrateOnOpen = true }: OpenDatabaseOptions
   if (path !== ":memory:") sqlite.pragma("journal_mode = WAL");
 
   const db = drizzle(sqlite, { schema });
-  if (migrateOnOpen) migrateWithRebuildsAllowed(sqlite, db);
+  if (migrateOnOpen) {
+    migrateWithRebuildsAllowed(sqlite, db);
+    // Só aqui: uma migração que lançou não chega a esta linha, e a próxima subida
+    // ainda sabe que precisa copiar.
+    upgrade?.commit();
+  }
 
   // SQLite ships with foreign keys OFF. Every ON DELETE RESTRICT in the schema
   // is inert without this line — the PRD's "no cascading deletes" would be

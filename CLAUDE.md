@@ -50,6 +50,9 @@ feature fecha, ela ganha a linha aqui e o parágrafo lá.
 | [033 acp-only-agents](docs/features/033-acp-only-agents/prd.md) | completa | agente é sempre ACP; abrir agente é compor um prompt |
 | [034 agent-accounts](docs/features/034-agent-accounts/prd.md) | completa | mais de uma conta por agente, e a recusa por cota reconhecida por `data.errorKind` |
 | [035 plan-mode](docs/features/035-plan-mode/prd.md) | completa | a faixa do plan mode, e aprovar ou recusar o plano com ele inteiro na tela |
+| [036 reasoning](docs/features/036-reasoning/prd.md) | completa | o pensamento volta a chegar (`reasoningMeta` na spec), e diz quanto durou |
+| [037 conversation-liveness](docs/features/037-conversation-liveness/prd.md) | completa | sinal de vida: o tempo e o fazer do turno, o âmbar do silêncio, o turno que fecha quando o adaptador morre |
+| [038 desktop-and-updates](docs/features/038-desktop-and-updates/prd.md) | completa | o daemon sob launchd/systemd, o update num gesto (e sozinho quando ocioso), e o app Electron na barra |
 
 Comece pelo [índice da documentação](docs/README.md). Construção é incremental: uma parte por vez,
 bem feita, antes da próxima.
@@ -79,6 +82,7 @@ Monorepo pnpm + Turborepo: `packages/shared` (contratos), `packages/server` (dae
 | `pnpm feature:check <plan\|checks\|verification> <dir>` | os validadores do fluxo de feature |
 | `pnpm gate:mutation` | Stryker no núcleo do `server`; piso por arquivo em `scripts/mutation-floors.ts`. Semanal no CI — minutos, não segundos |
 | `pnpm adapters:check` · `smoke:install` | o pino dos adaptadores envelheceu? · o pacote publicado instala e sobe |
+| `pnpm smoke:service` | o serviço de verdade (launchd ou `systemd --user`) sobe, sobrevive ao chamador, para e volta depois de atualizar — local, não no CI |
 | `pnpm version:set <x.y.z>` | a versão nos três lugares; a release passa **por PR** e publica pela tag (runbook no Outline) |
 
 **Antes de dizer que está pronto, rode o gate que a task declara** — o `Stop` cobra, uma vez por turno.
@@ -148,5 +152,7 @@ Nada solta na raiz além de `README.md` e `CLAUDE.md`; atualize o [índice](docs
 - Documentação e comunicação em **português**; código, commit, nome de arquivo e **caminho da aplicação**
   (`/tasks`) em **inglês**. Nome de arquivo em kebab-case.
 - **Escreva por extenso.** Numeração diferente pede substantivo diferente — *Parte 3* e *Fase 3*, não `F3`.
+- **Feature que vem de uma issue do Linear (`LUM-NN`):** a branch tem o nome que o Linear sugere para a
+  issue (`…/lum-NN-…`), e o corpo da PR traz `Closes LUM-NN` — o Linear liga a PR à issue e a fecha no merge.
 - Pergunta de design não vira suposição: vai para o `open-questions.md` da feature, ou para o
   `questions.md`. Discussão grande vira estudo em `docs/project/`; se decidir, o estudo sustenta um ADR.

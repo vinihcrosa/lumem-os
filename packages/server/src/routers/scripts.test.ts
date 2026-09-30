@@ -54,6 +54,9 @@ async function setup(): Promise<Fixture> {
     name: "lorebase",
   });
   const worktree = await context.api.worktree.create({ projectId: project.id, name: "teste" });
+  // O `create` dispara o `setup` sem esperar; ele tem de falhar (nada declarado ainda)
+  // *antes* de o teste escrever o arquivo, senão roda o comando do teste uma vez a mais.
+  await context.settled();
   return {
     ctx: context,
     projectId: project.id,
@@ -87,6 +90,37 @@ async function waitExited(
 afterEach(async () => {
   await context?.cleanup();
   cleanupGitFixtures();
+});
+
+describe("runningCount", () => {
+  /*
+   * O que o `system.update` (`038`) conta para dizer *"ocioso"*: script de projeto
+   * rodando. Uma linha `running` que o processo já largou não conta — depois de um
+   * restart a linha sobrevive e o processo não —, e é o `PtyManager` que decide.
+   */
+  it("counts the scripts that are running, in every checkout", async () => {
+    const { ctx, worktreeId, worktreePath } = await setup();
+    declare(worktreePath, { run: "sleep 30", setup: "sleep 30", test: "true" });
+    const scope = { scopeType: "worktree", scopeId: worktreeId } as const;
+
+    expect(await ctx.scripts.runningCount()).toBe(0);
+
+    await ctx.api.scripts.start({ ...scope, phase: "run" });
+    await ctx.api.scripts.start({ ...scope, phase: "setup" });
+    expect(await ctx.scripts.runningCount()).toBe(2);
+
+    // Um que terminou sozinho não conta, ainda que sua linha exista.
+    await ctx.api.scripts.start({ ...scope, phase: "test" });
+    await waitExited(ctx, scope, "test");
+    expect(await ctx.scripts.runningCount()).toBe(2);
+
+    // Parar é assíncrono — o `close` mata e é o observador de saída que grava —, então
+    // o número cai quando o processo de fato saiu, e não quando o botão foi apertado.
+    await ctx.api.scripts.stop({ ...scope, phase: "run" });
+    await vi.waitFor(async () => {
+      expect(await ctx.scripts.runningCount()).toBe(1);
+    });
+  });
 });
 
 describe("scripts.status", () => {

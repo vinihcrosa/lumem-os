@@ -18,6 +18,14 @@ describe("routeOf", () => {
     expect(routeOf("/settings")).toBe("settings");
   });
 
+  it("routes /menubar to the menubar screen", () => {
+    // O painel do ícone da barra (`038`, AC 52): tela com endereço próprio, que o
+    // daemon serve como qualquer outra e que o app de desktop carrega numa janela.
+    expect(routeOf("/menubar")).toBe("menubar");
+    expect(routeOf("/menubar/")).toBe("menubar");
+    expect(routeOf("/menubar?from=tray")).toBe("menubar");
+  });
+
   it("trata a barra final como o mesmo lugar", () => {
     expect(routeOf("/tasks/")).toBe("tasks");
     expect(routeOf("/settings/")).toBe("settings");

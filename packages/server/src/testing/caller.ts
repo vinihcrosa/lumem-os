@@ -19,6 +19,11 @@ import { PtyManager } from "../pty/PtyManager.js";
 import { createScriptRunner, type ScriptRunner } from "../scripts/ScriptRunner.js";
 import { createSecretStore } from "../secrets/SecretStore.js";
 import { createSessionStore, type SessionStore } from "../sessions/SessionStore.js";
+import { createDaemonSettingsRepository } from "../repositories/daemonSettings.js";
+import { createLiveResources } from "../resources/live.js";
+import type { ProcessTableReader } from "../resources/process-table.js";
+import type { ResourceSampler } from "../resources/sample.js";
+import { createUpdateService, type UpdateService, type UpdateServiceOptions } from "../update/service.js";
 import { adapterInvocationFor, catalogedAdapterOf } from "../setup/adapter-command.js";
 import { defaultAccountIdOf } from "../repositories/agentAccount.js";
 import { appRouter } from "../routers/index.js";
@@ -35,10 +40,18 @@ export interface TestCaller {
   acpManager: AcpManager;
   sessionStore: SessionStore;
   scripts: ScriptRunner;
+  /**
+   * Espera o que a API deixou rodando em segundo plano: o `setup` que o
+   * `worktree.create` dispara sem `await`. Sem isso, um teste que declara o
+   * `[scripts]` logo depois de criar a worktree disputa o arquivo com o gancho.
+   */
+  settled(): Promise<void>;
   git: GitService;
   pr: PrCache;
   events: EventBus;
   config: ServerConfig;
+  /** A verificação e o instalador do daemon, para o teste avançar a verificação à mão. */
+  update: UpdateService;
   /** Kills every session and deletes the database. Always call it. */
   cleanup(): Promise<void>;
 }
@@ -77,7 +90,29 @@ export interface TestCallerOverrides {
    * um falso responde com o exit que o teste escolher, na hora que ele quiser.
    */
   scripts?: ScriptRunner;
+  /**
+   * A atualização do daemon (`038`), com tudo o que ela toca de fora trocado.
+   *
+   * Sem `request`, o registry é o de verdade — e a verificação **não roda sozinha**
+   * aqui (o relógio nunca é armado), então um teste que esquecer de dublar só
+   * chegaria à rede se chamasse `check.checkNow()` de propósito. Sem `install` e sem
+   * `shutdown` o padrão **recusa**: um teste que chegasse a instalar de verdade
+   * trocaria o Lumem de quem roda a suíte.
+   */
+  update?: TestUpdateOverrides;
+  /**
+   * A tabela de processos de mentira e o relógio do painel de recursos (`038`).
+   *
+   * O padrão é uma máquina **vazia**: sem ele, um teste que perguntasse os recursos
+   * executaria o `ps` de quem roda a suíte, e a resposta dependeria do que estiver
+   * aberto no laptop.
+   */
+  resources?: { read?: ProcessTableReader; now?: () => number; every?: (fn: () => void, ms: number) => () => void };
 }
+
+export type TestUpdateOverrides = Partial<
+  Pick<UpdateServiceOptions, "current" | "request" | "install" | "shutdown" | "manager">
+>;
 
 export function createTestCaller(
   env: ConfigEnv = {},
@@ -149,16 +184,27 @@ export function createTestCaller(
   // Same wiring the daemon uses: without it a session that ends on its own
   // stays `running` and the removal rules read stale state.
   const stopTracking = sessionStore.trackExits();
+  /*
+   * Os `start` em voo do runner de verdade. O `worktree.create` dispara o `setup` com
+   * `void`, e o gancho lê o `[scripts]` *depois* de a chamada ter voltado: sob carga,
+   * depois de o teste ter escrito o arquivo — e então roda o `setup` do teste uma
+   * segunda vez, com uma linha de execução que o teste não iniciou. Deixar o teste
+   * esperar o gancho fechar é o que o torna determinístico; um `sleep` só o adiaria.
+   */
+  const inFlight = new Set<Promise<unknown>>();
   const scripts =
     overrides.scripts ??
-    createScriptRunner({
-      db: database.db,
-      sessionStore,
-      ptyManager,
-      shell: config.shell,
-      portRange: config.runPortRange,
-      events,
-    });
+    trackStarts(
+      createScriptRunner({
+        db: database.db,
+        sessionStore,
+        ptyManager,
+        shell: config.shell,
+        portRange: config.runPortRange,
+        events,
+      }),
+      inFlight,
+    );
 
   /*
    * O adaptador padrão é o de verdade, e ele **não** é exercitado por acidente:
@@ -171,6 +217,26 @@ export function createTestCaller(
   const prCache: PrCache = createPrCache({
     host: prHost,
     onChange: (projectId) => events.emit({ type: "pr.changed", projectId }),
+  });
+
+  const update = createUpdateService({
+    config,
+    settings: createDaemonSettingsRepository(database.db),
+    manager: "npm",
+    install: () => Promise.reject(new Error("o teste não injetou o instalador")),
+    // Nunca resolve: o daemon do teste não sai, e o teste vê o que ficou de pé.
+    shutdown: () => new Promise<void>(() => {}),
+    holdPrompts: (held) => acpManager.setUpdating(held),
+    ...overrides.update,
+  });
+
+  const resources: ResourceSampler = createLiveResources({
+    db: database.db,
+    ptyManager,
+    acpManager,
+    read: overrides.resources?.read ?? (async () => []),
+    ...(overrides.resources?.now === undefined ? {} : { now: overrides.resources.now }),
+    ...(overrides.resources?.every === undefined ? {} : { every: overrides.resources.every }),
   });
 
   const ctx: Context = {
@@ -189,6 +255,8 @@ export function createTestCaller(
     issues: createIssueCache({ host: prHost }),
     prHost,
     agentAuth: createAgentAuthService({ acpManager }),
+    update,
+    resources,
     events,
   };
 
@@ -200,17 +268,44 @@ export function createTestCaller(
     acpManager,
     sessionStore,
     scripts,
+    async settled() {
+      while (inFlight.size > 0) await Promise.allSettled(inFlight);
+    },
     git,
     pr: prCache,
     events,
     config,
+    update,
     cleanup: async () => {
       stopTracking();
+      resources.stop();
       await acpManager.killAll();
       await ptyManager.killAll();
       database.cleanup();
       // Só o que este caller criou: um `LUMEM_STATE_DIR` vindo do teste é do teste.
       if (ownedStateDir) rmSync(stateDir, { recursive: true, force: true });
+    },
+  };
+}
+
+/**
+ * O runner com os `start` anotados enquanto não terminam.
+ *
+ * Espalhar o objeto mantém o `this` certo: `runToCompletion` chama `this.start`, e
+ * com o espalhamento isso cai no `start` anotado — o que é o desejado.
+ */
+function trackStarts(runner: ScriptRunner, inFlight: Set<Promise<unknown>>): ScriptRunner {
+  return {
+    ...runner,
+    start(scope, phase) {
+      const started = runner.start(scope, phase);
+      const tracked = started.then(
+        () => {},
+        () => {},
+      );
+      inFlight.add(tracked);
+      void tracked.then(() => inFlight.delete(tracked));
+      return started;
     },
   };
 }

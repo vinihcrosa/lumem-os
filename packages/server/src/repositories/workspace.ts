@@ -1,8 +1,8 @@
 import { newId } from "@lumem/shared";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 
 import type { Db } from "../db/index.js";
-import { workspace, type WorkspaceRow } from "../db/schema.js";
+import { project, session, workspace, worktree, type WorkspaceRow } from "../db/schema.js";
 import { DomainError } from "../errors.js";
 import { withConstraints, type ConstraintMap } from "./base.js";
 
@@ -16,6 +16,14 @@ import { withConstraints, type ConstraintMap } from "./base.js";
 export interface WorkspaceRepository {
   create(input: { name: string }): Promise<WorkspaceRow>;
   list(): Promise<WorkspaceRow[]>;
+  /**
+   * Os workspaces em que uma sessão foi aberta por último, do mais novo ao mais velho.
+   *
+   * Não existe registro de *workspace aberto por último*, e a sessão é o sinal que já
+   * existe (`038`, Parte 3): a de uma worktree conta para o workspace do projeto dela.
+   * Quem nunca abriu sessão não aparece.
+   */
+  recent(limit: number): Promise<{ id: string; name: string }[]>;
   findById(id: string): Promise<WorkspaceRow | undefined>;
   rename(id: string, name: string): Promise<WorkspaceRow>;
   /**
@@ -67,6 +75,29 @@ export function createWorkspaceRepository(db: Db): WorkspaceRepository {
   }
 
   return {
+    async recent(limit) {
+      const lastOpened = sql<number>`max(${session.createdAt})`;
+      return db
+        .select({ id: workspace.id, name: workspace.name })
+        .from(session)
+        .leftJoin(
+          worktree,
+          and(eq(session.scopeType, "worktree"), eq(worktree.id, session.scopeId)),
+        )
+        .innerJoin(
+          project,
+          eq(
+            project.id,
+            sql`case when ${session.scopeType} = 'project' then ${session.scopeId} else ${worktree.projectId} end`,
+          ),
+        )
+        .innerJoin(workspace, eq(workspace.id, project.workspaceId))
+        .groupBy(workspace.id)
+        .orderBy(desc(lastOpened), asc(workspace.name))
+        .limit(limit)
+        .all();
+    },
+
     async create({ name }) {
       const [row] = await withConstraints(
         () =>

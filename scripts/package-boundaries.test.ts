@@ -17,7 +17,7 @@ import { dirname, join, relative, resolve, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const repoRoot = join(import.meta.dirname, "..");
-const PACKAGES = ["shared", "server", "web", "cli"] as const;
+const PACKAGES = ["shared", "server", "web", "cli", "desktop"] as const;
 type Pkg = (typeof PACKAGES)[number];
 
 interface Source {
@@ -75,6 +75,7 @@ const NAME_OF: Record<Pkg, string> = {
   server: "@lumem/server",
   web: "@lumem/web",
   cli: "@vinihcrosa/lumem-os",
+  desktop: "@lumem/desktop",
 };
 
 describe("a direção de dependência entre pacotes", () => {
@@ -125,6 +126,44 @@ describe("a direção de dependência entre pacotes", () => {
             (i) =>
               `${s.path}:${i.line} importa \`${i.specifier}\`${i.typeOnly ? "" : " como valor"}: a tela só enxerga o ` +
               "daemon por `import type { AppRouter } from \"@lumem/server/router-types\"` — o resto passa pelo `shared`",
+          ),
+      );
+    expect(problems.join("\n")).toBe("");
+  });
+
+  it("desktop imports only from shared", () => {
+    // O app é uma casca sobre a web do daemon (`038`, porta 6): o que ele sabe do resto do
+    // repositório é o contrato que o `shared` publica, e nada do que o daemon executa.
+    const desktop = sources.filter((s) => s.pkg === "desktop");
+    // Sem isto a regra passaria com o pacote vazio — ou com o pacote fora do mapa.
+    expect(desktop.length).toBeGreaterThan(0);
+    const problems = desktop.flatMap((s) =>
+      importsOf(s.text)
+        .filter((i) => {
+          const pkg = lumemPackage(i.specifier);
+          return pkg !== null && pkg !== "@lumem/shared";
+        })
+        .map(
+          (i) =>
+            `${s.path}:${i.line} importa \`${i.specifier}\`: o app de desktop só conhece o \`shared\` — ` +
+            "o que ele precisa do daemon chega pelo `/trpc`, e o que ele divide com o CLI mora no `shared`",
+        ),
+    );
+    expect(problems.join("\n")).toBe("");
+  });
+
+  it("nobody imports desktop", () => {
+    // O app é um artefato à parte, empacotado pelo `electron-builder`: o daemon, a web e o CLI
+    // não o carregam nem dependem dele (ADR de 2026-09-29-2003).
+    const problems = sources
+      .filter((s) => s.pkg !== "desktop")
+      .flatMap((s) =>
+        importsOf(s.text)
+          .filter((i) => lumemPackage(i.specifier) === "@lumem/desktop")
+          .map(
+            (i) =>
+              `${s.path}:${i.line} importa \`${i.specifier}\`: ninguém importa o app de desktop — ` +
+              "o que dois pacotes dividem com ele mora no `shared`",
           ),
       );
     expect(problems.join("\n")).toBe("");
@@ -198,23 +237,48 @@ export const LINE_CEILING = 700;
 
 export const OVER_THE_CEILING: Readonly<Record<string, { lines: number; reason: string }>> = {
   "packages/server/src/acp/AcpManager.ts": {
-    lines: 2833,
+    lines: 3069,
     reason:
       "linha de base 2026-09-28 (2813) mais 5 exceções de lint na linha da T9; quebrar é feature própria (backlog); " +
-      "2818 → 2833 na `035`: o `cancelPending`, que emite o `permission_resolved` cancelado no cancel e na saída",
+      "2818 → 2833 na `035`: o `cancelPending`, que emite o `permission_resolved` cancelado no cancel e na saída; " +
+      "2833 → 2842 na `036`: o `reasoningMeta` da spec pelo caminho da `quotaRefusalKind`, que só existe aqui; " +
+      "mais 158 da `037` — o fecho do turno na saída do processo e a espera pela saída quando o cano fecha " +
+      "primeiro (S1), a pergunta que a saída grava antes do `session/prompt` (Q4) e um gatilho por `prompt` em " +
+      "voo (Q5), que moram onde moram `promptInFlight` e o `turn_failed` da recusa; " +
+      "3000 → 3021 na `038`: o `setUpdating` e a recusa de `prompt` enquanto o daemon se atualiza, que só " +
+      "existem onde `prompt` marca o turno; " +
+      "3021 → 3069 na `038`, o painel da barra: `liveProcesses`, `hasPendingPermission`, e o `rateLimits` que passa a " +
+      "dizer quando e de qual conta veio — o que só quem guarda `lastRateLimit` e `pendingPermissions` sabe responder",
   },
-  "packages/server/src/db/schema.ts": { lines: 1709, reason: "linha de base 2026-09-28; um schema do drizzle cresce por tabela" },
+  "packages/server/src/db/schema.ts": {
+    lines: 1740,
+    reason:
+      "linha de base 2026-09-28; um schema do drizzle cresce por tabela; " +
+      "1709 → 1740 na `038`: `daemon_settings`, a tabela de uma linha com as três `CHECK` (door 3)",
+  },
   "packages/server/src/git/GitService.ts": { lines: 1099, reason: "linha de base 2026-09-28" },
   "packages/server/src/files/FileService.ts": { lines: 971, reason: "linha de base 2026-09-28" },
   "packages/server/src/memory/MemoryService.ts": { lines: 961, reason: "linha de base 2026-09-28" },
   "packages/server/src/sessions/SessionStore.ts": { lines: 951, reason: "linha de base 2026-09-28" },
   "packages/server/src/routers/worktree.ts": { lines: 897, reason: "linha de base 2026-09-28, mais uma exceção de lint na linha da T9" },
   "packages/server/src/tasks/conveyor.ts": { lines: 784, reason: "linha de base 2026-09-28" },
-  "packages/server/src/bootstrap.ts": { lines: 781, reason: "linha de base 2026-09-28 (780), mais o import do log em arquivo da T11" },
+  "packages/server/src/bootstrap.ts": {
+    lines: 876,
+    reason:
+      "linha de base 2026-09-28 (780), mais o import do log em arquivo da T11; " +
+      "781 → 833 na `038`: a versão que sobe para o `openDatabase` copiar o banco, e a atualização do daemon — o serviço, " +
+      "o desligamento por referência, o relógio e o `stop` —, que só o `bootstrap` alcança por ligar o `AcpManager`, o banco e o `createShutdownHandler`; " +
+      "833 → 843 na `038`: o amostrador de recursos do painel, ligado aos dois managers e ao banco, e desarmado no desligamento; " +
+      "843 → 868 na `038`, atualizar sozinho: o tique de 60 s ligado ao serviço de atualização, ao `AcpManager` e ao `ScriptRunner`, " +
+      "armado depois do `listen` e desarmado no desligamento, e o `paused` que a esteira lê de `installer.installing()`; " +
+      "868 → 876 na `038`: o `conveyorSetInterval`, o gancho que deixa a prova do `paused` alcançar a esteira que o `bootstrap` monta",
+  },
   "packages/server/src/repositories/task.ts": { lines: 756, reason: "linha de base 2026-09-28" },
   "packages/shared/src/acp-protocol.ts": {
-    lines: 751,
-    reason: "linha de base 2026-09-28 (749); um tipo por mensagem do protocolo, e o `content` do `tool_call` da `035`",
+    lines: 760,
+    reason:
+      "linha de base 2026-09-28 (749); um tipo por mensagem do protocolo, e o `content` do `tool_call` da `035`; " +
+      "mais 9 da `037` S2 — o limite do frame do `/acp`, que o `maxPayload` do servidor e a recusa do web leem de um lugar só",
   },
   "packages/server/src/tasks/conveyor-ports.ts": { lines: 727, reason: "linha de base 2026-09-28" },
 };

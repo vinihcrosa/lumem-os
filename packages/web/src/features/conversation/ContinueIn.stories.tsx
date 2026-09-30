@@ -59,7 +59,7 @@ function attached(transcript: AcpTranscriptEntry[]): AcpServerMessage {
 function fakeConnect(transcript: AcpTranscriptEntry[]): AcpConnect {
   return (_sessionId, handlers) => {
     handlers.onMessage(attached(transcript));
-    const socket: AcpSocket = { send: (_message: AcpClientMessage) => undefined, close: () => undefined };
+    const socket: AcpSocket = { send: (_message: AcpClientMessage) => true, close: () => undefined };
     return socket;
   };
 }

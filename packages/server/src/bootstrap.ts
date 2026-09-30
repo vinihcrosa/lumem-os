@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 
-import { ADAPTERS, ADAPTERS_DIR_NAME, type AdapterSpec } from "@lumem/shared";
+import { ADAPTERS, ADAPTERS_DIR_NAME, LUMEM_VERSION, type AdapterSpec } from "@lumem/shared";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import type { FastifyBaseLogger, FastifyInstance } from "fastify";
 
@@ -57,6 +57,10 @@ import { createSessionStore } from "./sessions/SessionStore.js";
 import { createServer } from "./server.js";
 import { createShutdownHandler } from "./shutdown.js";
 import { installSignalHandlers, type SignalSource } from "./signals.js";
+import { createDaemonSettingsRepository } from "./repositories/daemonSettings.js";
+import { createLiveResources } from "./resources/live.js";
+import { createAutoUpdate } from "./update/auto.js";
+import { createUpdateService, type UpdateServiceOptions } from "./update/service.js";
 
 export interface BootstrapOptions {
   config: ServerConfig;
@@ -90,6 +94,22 @@ export interface BootstrapOptions {
   database?: Database_;
   /** Extra shutdown work, run after the children die and before the server closes. */
   beforeClose?: () => Promise<void>;
+  /**
+   * O que a atualização toca de fora (`038`): o registry, o instalador, a versão que
+   * roda. Só um teste passa; o daemon usa os de verdade.
+   */
+  update?: Partial<
+    Pick<UpdateServiceOptions, "request" | "install" | "current" | "manager" | "bootDelayMs">
+  > & {
+    /** De quanto em quanto o tique de atualizar sozinho pergunta. Só um teste muda. */
+    autoIntervalMs?: number;
+  };
+  /**
+   * O relógio da esteira do daemon (o intervalo fixo é de 15 s). Só um teste passa: é o
+   * gancho que deixa a prova de `paused` alcançar a esteira que o daemon monta, e não
+   * uma que o teste monta por conta própria.
+   */
+  conveyorSetInterval?: typeof globalThis.setInterval;
 }
 
 /**
@@ -110,6 +130,8 @@ export async function bootstrap({
   transcripts,
   database,
   beforeClose,
+  update: { autoIntervalMs, ...updateOverrides } = {},
+  conveyorSetInterval,
 }: BootstrapOptions): Promise<FastifyInstance> {
   // Antes do banco, porque o banco mora dentro do state dir e porque o
   // `.gitignore` que exclui o próprio banco do histórico é escrito aqui: abrir
@@ -137,7 +159,14 @@ export async function bootstrap({
    * `listen`.
    */
   const owned = database === undefined;
-  const openedDatabase = database ?? openDatabase({ path: config.databasePath });
+  // A versão que sobe entra aqui, e é só este `openDatabase` que a recebe: é ele
+  // que copia o banco antes de migrar quando a versão mudou (`038`, door 7).
+  const openedDatabase =
+    database ??
+    openDatabase({
+      path: config.databasePath,
+      release: { stateDir: config.stateDir, version: LUMEM_VERSION },
+    });
   // Depois do banco (`034` T9): o catálogo é por conta, e é a conta padrão de
   // cada agente que decide a ordem da leitura e para onde vai o arquivo antigo.
   const adapterCatalog = new AdapterCatalog({
@@ -227,6 +256,40 @@ export async function bootstrap({
    * que ninguém desliga.
    */
   const agentAuth = createAgentAuthService({ acpManager: acp });
+  /*
+   * A atualização do daemon (`038`, Parte 2). O desligamento que ela chama é o
+   * **mesmo** que o SIGTERM chama — `createShutdownHandler` mais adiante —, e por
+   * isso chega por uma referência: ele precisa do `app`, que precisa do contexto,
+   * que precisa disto. Sair por um `process.exit` direto deixaria as sessões, o
+   * banco e os filhos sem fechar.
+   */
+  let shutdownHandler: ((signal: string) => Promise<void>) | undefined;
+  const update = createUpdateService({
+    config,
+    settings: createDaemonSettingsRepository(openedDatabase.db),
+    shutdown: (signal) => {
+      if (shutdownHandler === undefined) throw new Error("o desligamento ainda não foi ligado");
+      return shutdownHandler(signal);
+    },
+    holdPrompts: (held) => {
+      acp.setUpdating(held);
+    },
+    log: {
+      warn: (...args: Parameters<FastifyBaseLogger["warn"]>) => {
+        bootedApp?.log.warn(...args);
+      },
+      info: (...args: Parameters<FastifyBaseLogger["info"]>) => {
+        bootedApp?.log.info(...args);
+      },
+    },
+    ...updateOverrides,
+  });
+  // Os recursos do painel da barra (`038`): o relógio só anda enquanto alguém pergunta.
+  const resources = createLiveResources({
+    db: openedDatabase.db,
+    ptyManager,
+    acpManager: acp,
+  });
   // O cofre, antes do store: a conta de chave (`034` T5) sai dele no `spawn`
   // e na retomada, e o tracker abaixo usa a mesma instância.
   const secrets = createSecretStore({ stateDir: config.stateDir });
@@ -453,6 +516,8 @@ export async function bootstrap({
     issues,
     events,
     agentAuth,
+    update,
+    resources,
     logger: logger && config.logFile ? { stream: createLogSink({ file: config.logFile }) } : logger,
   });
   bootedApp = app;
@@ -486,6 +551,8 @@ export async function bootstrap({
     issues,
     events,
     agentAuth,
+    update,
+    resources,
   });
 
   const stopTracker = runTrackerLoop({
@@ -501,11 +568,31 @@ export async function bootstrap({
   const stopConveyor = runConveyorLoop({
     db: openedDatabase.db,
     conveyor,
+    // Uma instalação em curso (a do botão ou a automática) fechou a porta de prompt.
+    paused: () => update.installer.installing(),
+    ...(conveyorSetInterval === undefined ? {} : { setInterval: conveyorSetInterval }),
     log: {
       warn: (...args: Parameters<FastifyBaseLogger["warn"]>) => {
         bootedApp?.log.warn(...args);
       },
     },
+  });
+
+  // Atualizar sozinho quando ocioso (`038`, Parte 5): o relógio só arma depois do `listen`.
+  const autoUpdate = createAutoUpdate({
+    supervised: config.supervised,
+    update,
+    settings: createDaemonSettingsRepository(openedDatabase.db),
+    busy: { acpManager: acp, scripts },
+    log: {
+      warn: (...args: Parameters<FastifyBaseLogger["warn"]>) => {
+        bootedApp?.log.warn(...args);
+      },
+      info: (...args: Parameters<FastifyBaseLogger["info"]>) => {
+        bootedApp?.log.info(...args);
+      },
+    },
+    ...(autoIntervalMs === undefined ? {} : { intervalMs: autoIntervalMs }),
   });
 
 
@@ -546,6 +633,9 @@ export async function bootstrap({
       // o adaptador seguinte num daemon que está desligando.
       stopWarmup();
       stopCatalogEvents();
+      update.check.stop();
+      autoUpdate.stop();
+      resources.stop();
       await ptyManager.killAll();
       // Conversations too: an adapter left running is a subprocess with nothing
       // pointing at it, exactly like an orphaned shell.
@@ -568,7 +658,8 @@ export async function bootstrap({
     },
   };
 
-  installSignalHandlers(signalSource, createShutdownHandler({ target, exit }));
+  shutdownHandler = createShutdownHandler({ target, exit });
+  installSignalHandlers(signalSource, shutdownHandler);
 
   // Records follow processes from here on: a shell that dies on its own has to
   // stop being `running` without anyone polling for it.
@@ -609,6 +700,10 @@ export async function bootstrap({
   }
 
   app.log.info({ port: config.port, host: config.host }, "lumem daemon listening");
+  // Depois do `listen`: a primeira pergunta ao registry é assunto de um daemon que já
+  // atende, e o relógio não segura o processo (`unref`).
+  update.check.start();
+  autoUpdate.start();
 
   /*
    * A terceira fonte do catálogo, e a única que não espera ninguém abrir nada.

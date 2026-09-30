@@ -151,6 +151,9 @@ isso para o PTY e a lógica é a mesma.
 
 **F2.1** Renderizador de mensagem, com `agent_message_chunk` em streaming.
 **F2.2** Raciocínio (`agent_thought_chunk`) colapsado por padrão.
+
+> **Nota, 2026-09-29 —** enquanto o raciocínio está sendo escrito, ele nasce **aberto**, e fecha sozinho quando termina se ninguém clicou ([`036`](../036-reasoning/prd.md), AC 10–12). O resto de F2.2 continua: um pensamento que acabou, e toda conversa relida, ficam colapsados.
+
 **F2.3** **Cartão de chamada de ferramenta**, com estado (pendente, rodando, ok, falhou, e
 **interrompido** — o quinto estado que o protótipo obrigou a existir, [A14](open-questions.md)), alvo e
 resultado. É o elemento que substitui o "texto rolando" do terminal.

@@ -15,7 +15,8 @@ import { createTrpcProxy } from "./trpc-proxy.js";
 describe("createTrpcProxy", () => {
   it("mockResolvedValue num caminho alcança quem chama o mesmo caminho", async () => {
     const trpcProxy = createTrpcProxy();
-    vi.mocked(trpcProxy.health.query).mockResolvedValue({ ok: true, version: "teste" });
+    const health = { ok: true as const, version: "teste", supervised: false, protocolVersion: 1 as const };
+    vi.mocked(trpcProxy.health.query).mockResolvedValue(health);
 
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     function wrapper({ children }: { children: ReactNode }) {
@@ -27,7 +28,7 @@ describe("createTrpcProxy", () => {
       { wrapper },
     );
 
-    await waitFor(() => expect(result.current.data).toEqual({ ok: true, version: "teste" }));
+    await waitFor(() => expect(result.current.data).toEqual(health));
   });
 
   it("dois acessos ao mesmo caminho devolvem o mesmo mock", () => {

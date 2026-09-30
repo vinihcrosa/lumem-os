@@ -1,0 +1,29 @@
+/* Cores do sistema, e nenhuma cor escrita: a página é clara ou escura como o resto do Mac. */
+:root {
+  color-scheme: light dark;
+  font: 14px/1.4 system-ui, sans-serif;
+}
+body {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  margin: 0;
+  background: Canvas;
+  color: CanvasText;
+}
+main {
+  padding: 24px;
+  text-align: center;
+}
+h1 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+p {
+  margin: 0 0 16px;
+  opacity: 0.7;
+}
+button {
+  padding: 6px 18px;
+  font: inherit;
+}

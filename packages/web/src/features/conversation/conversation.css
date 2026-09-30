@@ -191,7 +191,11 @@
   border-radius: var(--radius-md);
   color: var(--color-turn-user);
 }
-/* Streaming (F2.1): o caret é o único sinal de que o turno não acabou. */
+/*
+ * Streaming (F2.1): o caret diz que o texto ainda cresce. Pisca (`037` S3) —
+ * parado, ele era o mesmo pixel num agente escrevendo e num agente morto.
+ * Degrau, e não esmaecer: é um cursor, e cursor liga e desliga.
+ */
 .mcaret {
   display: inline-block;
   width: var(--space-2);
@@ -199,7 +203,10 @@
   margin-left: var(--space-2);
   background: var(--color-turn-caret);
   vertical-align: text-bottom;
+  animation: mcaret-blink 1s step-end infinite;
 }
+@keyframes mcaret-blink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .mcaret { animation: none; } }
 
 /* ------------------------------------------------------- o raciocínio */
 /*
@@ -213,6 +220,37 @@
   gap: var(--space-6);
   font: var(--text-body-sm);
   color: var(--color-turn-thought);
+  /*
+   * Do tamanho do texto, e não da coluna (`036`). Item de grid do `.turn__b`
+   * estica por padrão: o brilho de `.thought--live`, dimensionado pelo botão,
+   * passava a maior parte do tempo longe das letras. O `nowrap` segura o rótulo
+   * numa linha — quem encolhe é a espiada, que já tem reticências.
+   */
+  justify-self: start;
+  max-width: 100%;
+  white-space: nowrap;
+}
+/*
+ * O brilho enquanto ele pensa (`036`): uma faixa mais clara passando pelo texto,
+ * sem mudar a cor de nada parado. É o sinal de vida de um silêncio longo; sem
+ * ele, *"pensando…"* e um turno pendurado se leem igual.
+ */
+.thought--live {
+  background: linear-gradient(
+    90deg,
+    var(--color-turn-thought) 40%,
+    var(--color-text-primary) 50%,
+    var(--color-turn-thought) 60%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: thought-shimmer 2s linear infinite;
+}
+@keyframes thought-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .thought--live { animation: none; background: none; color: var(--color-turn-thought); }
 }
 .thought__twist { font-size: var(--size-icon-xs); }
 .thought__peek { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-style: italic; }
@@ -512,6 +550,53 @@
   color: var(--color-usage-over);
 }
 
+/* ------------------------------------------- a linha de estado do turno */
+/*
+ * Acima do composer, enquanto há turno (`037` S3): há quanto tempo, e fazendo o
+ * quê. O ponto é da família do agente, como o `.draft__pulse` — é o agente que
+ * está trabalhando, e a marca nunca diz estado. Parado para quem pediu menos
+ * movimento: o tempo andando ao lado já diz que está vivo.
+ */
+.turn-status {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  min-width: 0;
+  padding: var(--space-8) var(--space-20) 0;
+  font: var(--text-body-sm);
+  color: var(--color-text-secondary);
+}
+.turn-status__pulse {
+  flex: none;
+  width: var(--space-6);
+  height: var(--space-6);
+  border-radius: var(--radius-full);
+  background: var(--color-turn-agent);
+  animation: turn-status-pulse 1.6s ease-in-out infinite;
+}
+@keyframes turn-status-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+/* Os números mudam a cada segundo; largura fixa por dígito para o resto da linha não tremer. */
+.turn-status__elapsed { flex: none; font-variant-numeric: tabular-nums; }
+.turn-status__doing { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text-tertiary); }
+.turn-status__doing::before { content: "· "; }
+@media (prefers-reduced-motion: reduce) { .turn-status__pulse { animation: none; } }
+/* Silêncio (`037` S4): tom de estado, `warning` — a marca nunca é estado. O ponto
+   para, porque pulsar é dizer "vivo", e é justamente o que não se sabe. */
+.turn-status--warning .turn-status__elapsed,
+.turn-status--warning .turn-status__doing { color: var(--color-text-warning); }
+.turn-status--warning .turn-status__pulse { background: var(--color-text-warning); animation: none; }
+.turn-status__hint {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: 0 var(--space-6);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-warning-subtle);
+  color: var(--color-text-warning);
+}
+
 /* ------------------------------------------------------------ o composer */
 /*
  * O composer estabelece contexto de empilhamento, e fica ACIMA da conversa.
@@ -586,6 +671,8 @@
 .composer__in:focus { outline: none; }
 .composer__in--empty { color: var(--color-text-tertiary); }
 .composer__bar { display: flex; align-items: center; gap: var(--space-6); padding: var(--space-6) var(--space-8); border-top: 1px solid var(--color-border-subtle); }
+/* O motivo de um envio que o socket recusou, abaixo da caixa que guardou o rascunho. */
+.composer__refused { margin-top: var(--space-6); }
 
 /*
  * Pílula sem preenchimento: o modo pinta a cor DELE, e um fundo próprio

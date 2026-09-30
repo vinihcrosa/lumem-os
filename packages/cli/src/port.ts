@@ -18,11 +18,24 @@ export interface ProbeOptions {
   timeoutMs?: number;
 }
 
-export async function probePort({
+/** O que o `/trpc/health` de um Lumem diz de si (`038`, porta 4). */
+export type Health =
+  | { kind: "free" }
+  | { kind: "lumem"; version: string; supervised: boolean }
+  | { kind: "other" };
+
+/**
+ * Pergunta ao `/trpc/health`, e devolve tudo que ele responde de útil.
+ *
+ * `probePort` é a mesma pergunta com a resposta encolhida para o que o `start` e
+ * o `upgrade` sempre leram (`ok` e `version`); quem precisa de `supervised` — o
+ * `lumem status` — pergunta por aqui.
+ */
+export async function readHealth({
   origin,
   request = fetch,
   timeoutMs = 1_500,
-}: ProbeOptions): Promise<Occupant> {
+}: ProbeOptions): Promise<Health> {
   const signal = AbortSignal.timeout(timeoutMs);
   let response: Response;
   try {
@@ -37,11 +50,18 @@ export async function probePort({
   if (!response.ok) return { kind: "other" };
 
   try {
-    const body = (await response.json()) as { result?: { data?: { ok?: boolean; version?: string } } };
+    const body = (await response.json()) as {
+      result?: { data?: { ok?: boolean; version?: string; supervised?: boolean } };
+    };
     const data = body.result?.data;
     if (data?.ok !== true) return { kind: "other" };
-    return { kind: "lumem", version: data.version ?? "?" };
+    return { kind: "lumem", version: data.version ?? "?", supervised: data.supervised === true };
   } catch {
     return { kind: "other" };
   }
+}
+
+export async function probePort(options: ProbeOptions): Promise<Occupant> {
+  const health = await readHealth(options);
+  return health.kind === "lumem" ? { kind: "lumem", version: health.version } : health;
 }

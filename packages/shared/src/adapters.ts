@@ -166,6 +166,19 @@ export interface AdapterSpec {
    * qualquer falha de turno.
    */
   quotaRefusalKind: string | null;
+  /**
+   * O `_meta` que faz este adaptador mandar o raciocínio — vai inteiro no
+   * `session/new` e no `session/load` (`036`).
+   *
+   * Opaco de propósito: é vocabulário do adaptador (`adaptive`, `summarized`), e
+   * o [ADR de 2026-09-13](../../../docs/adr/2026-09-13-0038-our-model-is-king-outsiders-adapt.md)
+   * o quer parado aqui, e não num `if` do `AcpManager` nem num campo tipado que
+   * ensinaria a palavra do Claude ao modelo do Lumem.
+   *
+   * `null` quer dizer *não precisa pedir*: o adaptador já manda o raciocínio, ou
+   * não tem como.
+   */
+  reasoningMeta: Readonly<Record<string, unknown>> | null;
 }
 
 /** O comando que instala um adaptador globalmente — a sugestão de um erro de spawn. */
@@ -244,6 +257,18 @@ export const CLAUDE_ADAPTER: AdapterSpec = {
    * com o mesmo texto e de um `usage_update` zerado, e sem `turn_end`.
    */
   quotaRefusalKind: "rate_limit",
+  /*
+   * Medido em 2026-09-29 contra o `0.75.1` (`036`): o SDK de dentro
+   * (`0.3.257`) nasce com `thinking.display: "omitted"`, e o adaptador só emite
+   * `agent_thought_chunk` quando o bloco tem texto (`acp-agent.js:7742`) — então,
+   * desde 2026-09-08, nenhum pensamento chegava. `_meta.claudeCode.options` é
+   * espalhado direto nas opções do SDK (`:5963`), no `session/new` e no
+   * `session/load`. A cobrança é a mesma com `summarized` e `omitted`.
+   *
+   * Não `MAX_THINKING_TOKENS`: o adaptador a traduz em `enabled` com orçamento e
+   * sem `display`, e o texto continua vazio.
+   */
+  reasoningMeta: { claudeCode: { options: { thinking: { type: "adaptive", display: "summarized" } } } },
 };
 
 export const CODEX_ADAPTER: AdapterSpec = {
@@ -290,6 +315,9 @@ export const CODEX_ADAPTER: AdapterSpec = {
   // a recusa dele é uma falha de turno comum — o palpite `rate_limit` seria
   // vocabulário de outro adaptador escrito no dele.
   quotaRefusalKind: null,
+  // Não precisa pedir: o `codex-acp@1.10.0` manda `summary: "auto"` em todo
+  // turno (`sendPrompt`), exceto em conta de API key e em modelo sem raciocínio.
+  reasoningMeta: null,
 };
 
 export const ADAPTERS: readonly AdapterSpec[] = [CLAUDE_ADAPTER, CODEX_ADAPTER];

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer, useRef } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 
 import type { AcpServerMessage, LumemMode } from "@lumem/shared";
 
@@ -19,8 +19,11 @@ import { connectAcpSocket, type AcpConnect } from "./acp-socket.js";
  * teclado, os dois menus e o portão do liberado.
  */
 
-/** O que o reducer recebe: um frame do socket, ou um reset. */
-type Action = { kind: "message"; message: AcpServerMessage } | { kind: "reset" };
+/** O que o reducer recebe: um frame do socket, um aviso do transporte, ou um reset. */
+type Action =
+  | { kind: "message"; message: AcpServerMessage }
+  | { kind: "failure"; failure: NonNullable<ConversationSessionState["failure"]> }
+  | { kind: "reset" };
 
 export interface ConversationSessionState {
   conversation: ConversationState;
@@ -48,6 +51,9 @@ function reduce(
   action: Action,
 ): ConversationSessionState {
   if (action.kind === "reset") return initial;
+  // What the socket itself says, rather than a frame: it keeps the conversation
+  // on screen, and the next `attached` clears it like any other failure.
+  if (action.kind === "failure") return { ...state, failure: action.failure };
 
   const message = action.message;
   switch (message.type) {
@@ -99,6 +105,18 @@ function reduce(
   }
 }
 
+/*
+ * The waits between reopens (door 3). No last attempt: while the tab is mounted it
+ * keeps trying every 10 s (Q2), because a daemon being restarted comes back, and a
+ * tab that gave up would need a reload nobody knows to do.
+ */
+const RECONNECT_DELAYS_MS = [500, 1_000, 2_000, 4_000, 8_000];
+const RECONNECT_CEILING_MS = 10_000;
+
+const CONNECTION_DROPPED = "conexão com o daemon caiu — reconectando";
+const SESSION_GONE = "esta sessão não existe mais no daemon";
+const UNREADABLE_FRAME = "o daemon mandou algo que esta tela não entende — recarregue a página";
+
 /** How a finished conversation is fetched. Module level, so the effect is stable. */
 const loadStored = (sessionId: string): Promise<AcpServerMessage> =>
   trpc.session.transcript.query({ id: sessionId });
@@ -135,6 +153,11 @@ export interface ConversationSession {
   readOnly: boolean;
   /** Sends a prompt. Returns false, and sends nothing, when the session cannot take it. */
   send(text: string): boolean;
+  /**
+   * Why the socket refused the last send, in its own words, until the next one.
+   * Null when nothing was refused, or the refusal was the hook's own guard.
+   */
+  sendRefusal: string | null;
   /** Interrupts the turn in flight. */
   cancel(): void;
   /** Answers a pending permission request. */
@@ -154,12 +177,14 @@ export function useConversationSession(
   }: UseConversationSessionOptions = {},
 ): ConversationSession {
   const [state, dispatch] = useReducer(reduce, initial);
+  const [sendRefusal, setSendRefusal] = useState<string | null>(null);
   const socketRef = useRef<ReturnType<AcpConnect> | null>(null);
   const awaiting = useAwaitingPermission();
   const pending = state.conversation.pendingPermission;
 
   useEffect(() => {
     dispatch({ kind: "reset" });
+    setSendRefusal(null);
 
     if (!live) {
       /*
@@ -191,15 +216,58 @@ export function useConversationSession(
       };
     }
 
-    const socket = connect(sessionId, {
-      onMessage: (message) => dispatch({ kind: "message", message }),
-    });
-    socketRef.current = socket;
+    /*
+     * One socket per life, and the reopen lives here (door 3).
+     *
+     * The `acp-socket` stays *one socket, one life*: a socket that reopened itself
+     * would resend at a moment nobody chose. Here a drop keeps the conversation on
+     * screen and schedules a fresh `connect`; its `attached` replaces the state, so
+     * nothing stacks, and the turn that kept running in the daemon shows up where
+     * it is. `disposed` is what stops a close arriving after the tab left — or
+     * switched sessions — from reopening a socket nobody is looking at.
+     */
+    let disposed = false;
+    let attempt = 0;
+    let retry: ReturnType<typeof setTimeout> | undefined;
+
+    const open = (): void => {
+      socketRef.current = connect(sessionId, {
+        onMessage: (message) => {
+          // A replay means the connection is back; the next drop waits from the start,
+          // and a refusal from the dead socket is no longer true.
+          if (message.type === "attached") {
+            attempt = 0;
+            setSendRefusal(null);
+          }
+          dispatch({ kind: "message", message });
+        },
+        onClose: ({ refused }) => {
+          if (disposed) return;
+          if (refused) {
+            // 4404: the daemon has no such session, and asking again changes nothing.
+            dispatch({ kind: "failure", failure: { message: SESSION_GONE, remedy: null, fatal: true } });
+            return;
+          }
+          dispatch({ kind: "failure", failure: { message: CONNECTION_DROPPED, remedy: null, fatal: false } });
+          const delay = RECONNECT_DELAYS_MS[attempt] ?? RECONNECT_CEILING_MS;
+          attempt += 1;
+          retry = setTimeout(open, delay);
+        },
+        // One frame this bundle cannot read, not a dead session: the socket stays open.
+        onDecodeError: () =>
+          dispatch({ kind: "failure", failure: { message: UNREADABLE_FRAME, remedy: null, fatal: false } }),
+        onSendRejected: setSendRefusal,
+      });
+    };
+    open();
 
     return () => {
+      disposed = true;
+      clearTimeout(retry);
+      const socket = socketRef.current;
       socketRef.current = null;
       // Detach only. The daemon keeps the conversation.
-      socket.close();
+      socket?.close();
     };
   }, [sessionId, live, connect, load]);
 
@@ -242,8 +310,11 @@ export function useConversationSession(
     (text: string): boolean => {
       const trimmed = text.trim();
       if (trimmed === "" || pending !== null || readOnly || !attached) return false;
-      socketRef.current?.send({ type: "prompt", text: trimmed });
-      return true;
+      // Cleared first: a refusal lands through `onSendRejected` during the send.
+      setSendRefusal(null);
+      // The socket's answer, not an assumption: with the connection down the draft
+      // must stay, which is what `false` tells the composer.
+      return socketRef.current?.send({ type: "prompt", text: trimmed }) ?? false;
     },
     [attached, pending, readOnly],
   );
@@ -264,5 +335,5 @@ export function useConversationSession(
     socketRef.current?.send({ type: "set_config", optionId, value });
   }, []);
 
-  return { state, attached, readOnly, send, cancel, answer, setMode, setConfig };
+  return { state, attached, readOnly, send, sendRefusal, cancel, answer, setMode, setConfig };
 }

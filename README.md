@@ -20,13 +20,24 @@ npm i -g @vinihcrosa/lumem-os
 lumem
 ```
 
-The daemon starts on `http://127.0.0.1:4317` and serves the interface from the
-same port. `lumem --open` opens a browser too.
+`lumem` installs the daemon as a service of your login session (launchd on macOS,
+`systemd --user` on Linux) and starts it, so closing the terminal does not stop it.
+It serves the interface on `http://127.0.0.1:4317`. `lumem --open` opens a browser
+too. `lumem status` says whether it is running, `lumem logs [-f]` shows its log and
+`lumem stop` stops it and takes it out of your login. Where there is no supervisor,
+or you would rather keep it in a terminal, `lumem run` is the foreground process.
 
 `lumem upgrade` updates it: it asks npm for the latest version, reinstalls with
-the package manager that owns the installed copy, and — if a daemon is running —
-says it keeps the old code until it is restarted. `lumem upgrade --check` only
-reports.
+the package manager that owns the installed copy and, when the daemon runs as a
+service, restarts it and says which version answers afterwards; a daemon in a
+terminal (`lumem run`) is told it keeps the old code until it is restarted.
+`lumem upgrade --check` only reports.
+
+The daemon also looks for a new version by itself, at boot and every six hours,
+with one `GET` to the npm registry and nothing else in it. Under the service the
+top bar then shows `Atualizar`, which installs and restarts in one gesture and
+brings the page back on the new version. Set `LUMEM_NO_UPDATE_CHECK=1`, or turn the
+check off in `/settings`, to make no request at all.
 
 The name is neither short nor pretty for a reason: npm refuses the bare `lumem`
 as too similar to `mem`, and `@vinihcrosa/lumem` is already a different project.

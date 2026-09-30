@@ -732,19 +732,99 @@ painel ganhar um segundo consumidor, ou aparecer a primeira reclamação de leit
 Os dois vieram das respostas da [distribution](../features/014-distribution/open-questions.md), em 2026-08-30,
 e os dois foram adiados **na mesma frase que os prometeu**.
 
-### O daemon em background — `M`
+### ~~O daemon em background~~ — **virou PRD em 2026-09-29**
 
-`lumem start` volta ao prompt, e aí precisam existir `stop`, `status` e `logs`, um pidfile no state
-dir, e uma resposta para "o processo morreu e o pidfile ficou". A v1 é foreground, como `vite`, e o
-CLI já nasce com forma de subcomando para que isto seja acréscimo e não reescrita.
+Saiu do backlog: [desktop-and-updates](../features/038-desktop-and-updates/prd.md), Parte 1. O gatilho
+era *"você deixar o Lumem ligado o dia inteiro e o terminal ocupado incomodar"*, e o que o disparou foi o
+pedido de um app na barra do sistema e de auto-update: os dois dependem de um daemon que roda sem
+terminal, sob algo que o reinicie. O pidfile caseiro não entrou — o supervisor é o launchd ou o
+`systemd --user`, e sem eles `lumem start` recusa.
 
-Junto com ele, **subir com a máquina**: launchd no macOS, com o `PATH` capturado na hora do install —
-o do launchd é mínimo e não acha `git` nem o adaptador. É o que faz três semanas de uso contínuo
-([memory-dogfooding](../features/020-memory-dogfooding/prd.md)) não dependerem de lembrar de abrir um terminal.
+### Baixar a versão nova agora, aplicar no próximo boot — `M`
 
-**De onde veio:** [D2](../features/014-distribution/open-questions.md) — *"pode ser foreground, mas no futuro
-deve ser background"* · **Volta quando:** você deixar o Lumem ligado o dia inteiro e o terminal
-ocupado incomodar.
+Cópias versionadas em `~/.lumem/versions/<v>/` atrás de um lançador, como o daemon já faz com o
+adaptador: a versão nova chega em segundo plano e só vale quando o daemon reiniciar por outro motivo.
+É o modelo do instalador nativo do Claude Code. Custa um lançador, a coleta de cópias velhas e um
+segundo caminho de instalação ao lado do `npm i -g`.
+
+**De onde veio:** a B3 da discovery *Menu bar app and auto-update* (2026-09-29) e o
+[ADR de 2026-09-29](../adr/2026-09-29-2004-the-daemon-updates-itself-under-a-supervisor.md) · **Volta
+quando:** alguém quiser a versão nova sem nenhum reinício que não tenha pedido.
+
+### Homebrew, cask, apt e o download avulso do app — `M`
+
+Quatro canais além do npm, com custos diferentes:
+
+- **formula do Homebrew** para o CLI e o daemon, num tap próprio (`vinihcrosa/homebrew-tap`): `P`, com um
+  segredo novo (o token do tap) e o `upgrade.ts` ganhando um quinto dono (`/opt/homebrew/Cellar`);
+- **cask** para o app: desde 2026-09-01 o Homebrew não deixa mais contornar o Gatekeeper, então exige
+  Developer ID e notarização (US$ 99 por ano);
+- **repositório apt**: o `.deb` é fácil, o índice assinado com GPG e a hospedagem não;
+- **`.dmg`/`.AppImage` avulsos** para quem só usa um daemon remoto e não tem o CLI — traz a Developer ID
+  e um segundo canal de atualização do app.
+
+A [038](../features/038-desktop-and-updates/prd.md) já anexa `.zip`, `.AppImage` e `.deb` ao GitHub
+release, que são as URLs de que esses canais precisam.
+
+**De onde veio:** a D1b da discovery de 2026-09-29 e o
+[ADR de 2026-09-29](../adr/2026-09-29-2003-lumem-ships-an-electron-client-next-to-the-daemon.md) ·
+**Volta quando:** alguém quiser instalar sem Node.
+
+### O app de desktop conectado a um daemon remoto — `M`
+
+O [ADR de 2026-09-29](../adr/2026-09-29-2002-the-daemon-is-the-product-clients-are-shells.md) quer o daemon
+num servidor e o app no laptop. Falta o app escolher a origem, parear com o daemon e guardar a
+credencial — o que depende da [daemon-auth](../features/019-daemon-auth/prd.md).
+
+**De onde veio:** a A1c da discovery de 2026-09-29 · **Volta quando:** a `019` estiver completa.
+
+### O app de celular — `G`
+
+Um cliente que fala com as mesmas rotas do daemon, com interface própria — o Orca põe só o terminal numa
+WebView. Não é casca da web.
+
+**De onde veio:** a A1c da discovery de 2026-09-29 · **Volta quando:** o daemon remoto existir.
+
+### O app de desktop no Windows — `M`
+
+O mesmo Electron da [038](../features/038-desktop-and-updates/prd.md), com um quinto pacote, o supervisor
+do Windows e a decisão de assinatura de lá.
+
+**De onde veio:** a A3 da discovery de 2026-09-29 · **Volta quando:** a
+[distribuição no Windows](../features/014-distribution/prd.md) deixar de estar fora.
+
+### Os testes a reforçar da 038 — `P`
+
+A [038](../features/038-desktop-and-updates/prd.md) fechou pela regra de parada de 2026-09-30: nenhum defeito de
+comportamento, e uma lista de **testes fracos sobre código que se comporta certo**, que não bloqueou. Estão no
+[relatório da rodada 6](../features/038-desktop-and-updates/verification.md), seção *Não bloqueia*, cada um com o
+arquivo, a linha e o teste de uma linha que o fecha. Os que mais valem:
+
+- as guardas de `stat` malformado do Linux (`packages/server/src/resources/process-table.ts`) ficaram
+  inalcançáveis nos testes depois da leitura em duas passadas — a asserção passa por outro motivo;
+- o *`status` só da árvore* no Linux e as raízes que o amostrador passa ao leitor não têm prova nomeada;
+- os 5 s do C61 não são afirmados por nenhum teste;
+- a leitura em duas passadas nunca rodou num kernel Linux de verdade;
+- um `runningCount` instável sob carga (`scripts.test.ts`), e o relógio da verificação de versão disparando
+  depois de fechar o banco nos testes do `bootstrap`.
+
+**De onde veio:** a rodada 6 da verificação da 038 · **Volta quando:** a próxima feature que mexer em
+`resources/`, `update/` ou nos scripts de smoke — ou antes da próxima tag, junto com o `systemd --user`.
+
+### O `systemd --user` de verdade no `smoke:service` — `P`
+
+O `pnpm smoke:service` só rodou contra o launchd. No Linux, o que existe é apoio: um systemd 252 num
+contêiner Docker, com linger ligado, onde o `daemon-reload`, o `enable --now` e o relançamento depois de
+um `exit 0` funcionaram — mas não é o pacote instalado nem o script, e não há sessão de login. Os
+runners do GitHub também não têm sessão de usuário, então o job de CI não o substitui (o script roda na
+máquina de quem verifica, por isso). O que fica sem prova: o `lumem start` de verdade sob `systemd
+--user`, o daemon sobrevivendo ao chamador numa sessão real, e o relançamento do daemon depois do
+`system.update`.
+
+**De onde veio:** a verificação da rodada 2 da [038](../features/038-desktop-and-updates/verification.md) ·
+**Volta quando:** **antes da próxima tag** — ela é a primeira release que publica os pacotes do app para
+Linux, e o dono manteve esse gatilho em 2026-09-30 —, ou antes, se houver uma máquina Linux com sessão de
+login à mão.
 
 ### O projeto todo em inglês — `M`
 

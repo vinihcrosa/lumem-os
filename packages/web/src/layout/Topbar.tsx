@@ -1,9 +1,16 @@
+import type { ReactNode } from "react";
+
 import { ErrorLog } from "./ErrorLog.js";
 
 export interface TopbarProps {
   /** Null while the first health check is still in flight. */
   version: string | null;
   unreachable: boolean;
+  /**
+   * O aviso de versão nova (`038`). Entra por aqui e não é importado: `layout/` não
+   * conhece `features/`, e quem monta a tela é o `App`.
+   */
+  update?: ReactNode;
 }
 
 /**
@@ -16,7 +23,7 @@ export interface TopbarProps {
  * And it is why nothing scoped lives here: a control for something that only
  * exists inside a checkout says, by being here, that it belongs to the product.
  */
-export function Topbar({ version, unreachable }: TopbarProps) {
+export function Topbar({ version, unreachable, update }: TopbarProps) {
   return (
     <header className="topbar">
       {/* The `h1` is the product, not the current selection: the selection has
@@ -31,6 +38,7 @@ export function Topbar({ version, unreachable }: TopbarProps) {
           strip that survives every failure, and shows only when there is
           something to show. */}
       <ErrorLog />
+      {update}
       {/* The files toggle used to live here, and it was the one control in this
           strip that did not apply to the whole screen: the column belongs to a
           checkout, and the button vanished when no checkout was selected, which

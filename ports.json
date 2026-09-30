@@ -5,5 +5,10 @@
   "e2eWeb": 4418,
   "e2eRestart": 4419,
   "e2eProduction": 4420,
-  "e2eConveyor": 4421
+  "e2eConveyor": 4421,
+  "e2eUpdate": 4422,
+  "e2eUpdateRegistry": 4423,
+  "smokeService": 4398,
+  "smokeRegistry": 4399,
+  "e2eDesktop": 4424
 }

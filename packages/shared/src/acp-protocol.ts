@@ -37,6 +37,15 @@ export const ACP_SESSION_PARAM = "session";
  */
 export const ACP_CLOSE_SESSION_NOT_FOUND = 4404;
 
+/**
+ * Largest frame a client may send, in bytes of the encoded frame.
+ *
+ * One number on both ends: the daemon hands it to `ws` as `maxPayload`, and the
+ * browser refuses a prompt above it before the wire. With a copy on each side
+ * the two drift, and a prompt the tab thinks is fine closes the socket with 1009.
+ */
+export const ACP_MAX_FRAME_BYTES = 1024 * 1024;
+
 export const acpSessionStateSchema = z.enum(["running", "exited"]);
 export type AcpSessionState = z.infer<typeof acpSessionStateSchema>;
 

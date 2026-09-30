@@ -10,6 +10,7 @@ import {
   type InstallCommand,
   type UpgradeDeps,
 } from "./upgrade.js";
+import { serviceIdentity, type ExecResult, type ServiceHost } from "./service.js";
 
 let out: string[];
 let err: string[];
@@ -111,6 +112,254 @@ describe("lumem upgrade", () => {
   });
 });
 
+/**
+ * Um `ServiceHost` que só grava os comandos e diz quais estão carregados (`038`, AC 36).
+ *
+ * O relógio é falso e anda com o `sleep`, então esperar o daemon voltar não custa
+ * tempo de parede — e o que o teste olha é **quais comandos** o `upgrade` mandou.
+ */
+function fakeService(options: { platform: NodeJS.Platform; loaded: boolean; failing?: readonly string[] }) {
+  const commands: string[] = [];
+  let clock = 0;
+  const host: ServiceHost = {
+    platform: options.platform,
+    uid: 501,
+    home: "/Users/ana",
+    nodePath: "/opt/node/bin/node",
+    lumemPath: "/opt/node/lib/node_modules/@vinihcrosa/lumem-os/bin/lumem.mjs",
+    path: "/usr/bin",
+    exec: async (command, args): Promise<ExecResult> => {
+      const line = [command, ...args].join(" ");
+      commands.push(line);
+      const isLoadedProbe =
+        line === "launchctl print gui/501/tech.cazimi.lumem" ||
+        line === "systemctl --user is-active lumem.service";
+      const ok = isLoadedProbe ? options.loaded : !(options.failing ?? []).includes(line);
+      return { code: ok ? 0 : 1, stdout: "", stderr: ok ? "" : `falhou: ${line}` };
+    },
+    read: () => null,
+    exists: () => false,
+    write: () => {},
+    mkdir: () => {},
+    remove: () => {},
+    now: () => clock,
+    sleep: async (ms) => {
+      clock += ms;
+    },
+  };
+  return { host, commands, service: { host, identity: serviceIdentity({}) } };
+}
+
+describe("lumem upgrade com o serviço carregado", () => {
+  /** O daemon velho ainda responde por um instante, e depois o novo. */
+  const answering = (...versions: string[]) => {
+    const queue = [...versions];
+    return async () => ({ kind: "lumem" as const, version: queue.length > 1 ? queue.shift()! : queue[0]! });
+  };
+
+  it("restarts the service after a good install", async () => {
+    // macOS: `kickstart -k` mata o processo velho e sobe o de agora.
+    const mac = fakeService({ platform: "darwin", loaded: true });
+    expect(await upgrade(deps({ service: mac.service, probe: answering("0.1.0", "0.1.0", "0.2.0") }))).toBe(0);
+
+    expect(mac.commands).toContain("launchctl kickstart -k gui/501/tech.cazimi.lumem");
+    // O que sai é a versão que o `/trpc/health` responde **depois** do reinício —
+    // não a que o `upgrade` acabou de instalar: o velho ainda respondeu duas vezes.
+    expect(out.at(-1)).toContain("v0.2.0");
+    expect(out.join("\n")).not.toContain("pare e suba de novo");
+    expect(err).toEqual([]);
+
+    // Linux: o mesmo gesto, pelo systemd.
+    out = [];
+    const linux = fakeService({ platform: "linux", loaded: true });
+    expect(await upgrade(deps({ service: linux.service, probe: answering("0.1.0", "0.2.0") }))).toBe(0);
+
+    expect(linux.commands).toContain("systemctl --user restart lumem.service");
+    expect(out.at(-1)).toContain("v0.2.0");
+  });
+
+  it("keeps today's sentence when there is no service", async () => {
+    // Um daemon em primeiro plano (`lumem run`): não há supervisor a chamar, e a frase
+    // de sempre continua sendo a verdade.
+    const none = fakeService({ platform: "darwin", loaded: false });
+
+    await upgrade(deps({ service: none.service, probe: async () => ({ kind: "lumem", version: "0.1.0" }) }));
+
+    expect(none.commands.some((line) => line.includes("kickstart"))).toBe(false);
+    expect(out.at(-1)).toContain("pare e suba de novo");
+  });
+
+  it("says so, and exits 1, when the package manager cannot even start", async () => {
+    const loaded = fakeService({ platform: "darwin", loaded: true });
+    const install = async () => {
+      throw Object.assign(new Error("spawn npm ENOENT"), { code: "ENOENT" });
+    };
+
+    expect(await upgrade(deps({ install, service: loaded.service }))).toBe(1);
+
+    expect(err).toEqual(["não consegui rodar o npm: spawn npm ENOENT"]);
+    // Nada foi instalado, e o serviço não é tocado.
+    expect(loaded.commands).toEqual([]);
+  });
+
+  it("asks the daemon at the origin it was given, both when there is a service and when there is not", async () => {
+    const origin = "http://127.0.0.1:5000";
+    const asked: unknown[] = [];
+    const probe = async (query: unknown) => {
+      asked.push(query);
+      return { kind: "lumem" as const, version: "0.2.0" };
+    };
+
+    await upgrade(deps({ origin, probe }));
+    const loaded = fakeService({ platform: "darwin", loaded: true });
+    await upgrade(deps({ origin, probe, service: loaded.service }));
+
+    expect(asked.length).toBeGreaterThanOrEqual(2);
+    for (const query of asked) expect(query).toEqual({ origin });
+  });
+
+  it("does not touch the service when the install failed", async () => {
+    const loaded = fakeService({ platform: "darwin", loaded: true });
+
+    expect(await upgrade(deps({ service: loaded.service, install: async () => 13 }))).toBe(13);
+
+    expect(loaded.commands).toEqual([]);
+  });
+
+  it("says so when the supervisor refuses to restart, and when the old version never leaves", async () => {
+    const refused = fakeService({
+      platform: "darwin",
+      loaded: true,
+      failing: ["launchctl kickstart -k gui/501/tech.cazimi.lumem"],
+    });
+    expect(await upgrade(deps({ service: refused.service }))).toBe(1);
+    expect(err.join("\n")).toContain("kickstart");
+
+    err = [];
+    const stuck = fakeService({ platform: "darwin", loaded: true });
+    expect(await upgrade(deps({ service: stuck.service, probe: answering("0.1.0") }))).toBe(1);
+    // A versão que ainda responde está na frase: é o que a pessoa precisa para decidir.
+    expect(err.join("\n")).toContain("v0.1.0");
+
+    // Entre o processo velho sair e o novo nascer a porta está livre (ou é de outro): isso não é
+    // uma versão, e a última que o Lumem disse continua sendo a da frase.
+    err = [];
+    const gone = fakeService({ platform: "darwin", loaded: true });
+    const replies = [
+      { kind: "lumem" as const, version: "0.1.0" },
+      { kind: "free" as const },
+      { kind: "other" as const },
+    ];
+    const probe = async () => replies.length > 1 ? replies.shift()! : replies[0]!;
+    expect(await upgrade(deps({ service: gone.service, probe }))).toBe(1);
+    expect(err.join("\n")).toContain("ainda responde v0.1.0 e não v0.2.0");
+
+    // E se nunca respondeu, a frase diz isso em vez de inventar uma versão.
+    err = [];
+    const never = fakeService({ platform: "darwin", loaded: true });
+    expect(await upgrade(deps({ service: never.service, probe: async () => ({ kind: "free" }) }))).toBe(1);
+    expect(err.join("\n")).toContain("ainda responde nenhuma e não v0.2.0");
+  });
+});
+
+describe("lumem upgrade com o app de desktop instalado", () => {
+  const SCOPE = "/opt/node/lib/node_modules/@vinihcrosa";
+
+  /** Só o que o app precisa do sistema: o disco que diz se o pacote existe, e os comandos. */
+  function desktopHost(platform: NodeJS.Platform, installed: boolean) {
+    const commands: string[] = [];
+    const host = {
+      ...fakeService({ platform, loaded: false }).host,
+      exec: async (command: string, args: readonly string[]): Promise<ExecResult> => {
+        commands.push([command, ...args].join(" "));
+        return { code: 0, stdout: "", stderr: "" };
+      },
+      exists: (path: string) => installed && path.startsWith(`${SCOPE}/lumem-desktop-`),
+    };
+    return { host, commands };
+  }
+
+  it("takes the desktop package along", async () => {
+    // macOS: o mesmo `latest` do daemon, e o app copiado de novo do pacote novo.
+    const mac = desktopHost("darwin", true);
+    const installs: InstallCommand[] = [];
+    const install = async (command: InstallCommand) => {
+      installs.push(command);
+      return 0;
+    };
+
+    expect(await upgrade(deps({ install, desktop: { host: mac.host, arch: "arm64", env: {} } }))).toBe(0);
+
+    expect(installs.map((c) => `${c.command} ${c.args.join(" ")}`)).toEqual([
+      `npm install --global ${PACKAGE_NAME}@0.2.0`,
+      "npm install --global @vinihcrosa/lumem-desktop-darwin-arm64@0.2.0",
+    ]);
+    expect(mac.commands).toEqual([
+      "rm -rf /Users/ana/Applications/Lumem.app",
+      `ditto -x -k ${SCOPE}/lumem-desktop-darwin-arm64/Lumem.zip /Users/ana/Applications`,
+    ]);
+
+    // Linux: o pacote vai para a versão nova e mais nada — o `.desktop` aponta para dentro
+    // dele, e não há o que copiar.
+    installs.length = 0;
+    const linux = desktopHost("linux", true);
+    expect(await upgrade(deps({ install, desktop: { host: linux.host, arch: "x64", env: {} } }))).toBe(0);
+
+    expect(installs.map((c) => c.args.at(-1))).toEqual([
+      `${PACKAGE_NAME}@0.2.0`,
+      "@vinihcrosa/lumem-desktop-linux-x64@0.2.0",
+    ]);
+    expect(linux.commands).toEqual([]);
+  });
+
+  it("leaves the app alone when it was never installed", async () => {
+    // Opt-in: quem nunca rodou `lumem menubar install` não ganha um app de 100 MB no upgrade.
+    const none = desktopHost("darwin", false);
+    const install = vi.fn(async () => 0);
+
+    expect(await upgrade(deps({ install, desktop: { host: none.host, arch: "arm64", env: {} } }))).toBe(0);
+
+    expect(install).toHaveBeenCalledTimes(1);
+    expect(none.commands).toEqual([]);
+  });
+
+  it("leaves the app alone on a machine that has none", async () => {
+    // Não há pacote do app para `win32` nem para `linux-ia32`: o `upgrade` segue sem tropeçar.
+    for (const [platform, arch] of [
+      ["win32", "x64"],
+      ["linux", "ia32"],
+    ] as const) {
+      const none = desktopHost(platform, true);
+      const install = vi.fn(async () => 0);
+
+      expect(await upgrade(deps({ install, desktop: { host: none.host, arch, env: {} } })), `${platform}-${arch}`).toBe(0);
+
+      expect(install, `${platform}-${arch}`).toHaveBeenCalledTimes(1);
+      expect(none.commands, `${platform}-${arch}`).toEqual([]);
+    }
+  });
+
+  it("does not touch the app when the daemon install failed", async () => {
+    const mac = desktopHost("darwin", true);
+    const install = vi.fn(async () => 13);
+
+    expect(await upgrade(deps({ install, desktop: { host: mac.host, arch: "arm64", env: {} } }))).toBe(13);
+
+    expect(install).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports a failed app install without hiding that the daemon was updated", async () => {
+    const mac = desktopHost("darwin", true);
+    const install = async (command: InstallCommand) => (command.args.at(-1)?.includes("desktop") ? 9 : 0);
+
+    expect(await upgrade(deps({ install, desktop: { host: mac.host, arch: "arm64", env: {} } }))).toBe(9);
+
+    expect(out.join("\n")).toContain("v0.2.0 instalado");
+    expect(err.join("\n")).toContain("o app continua na versão de antes");
+    expect(mac.commands).toEqual([]);
+  });
+});
+
 describe("o gerenciador de pacotes", () => {
   it("sai do caminho de onde o Lumem está instalado", () => {
     // O ambiente do `npm i -g` não existe mais quando alguém digita `lumem
@@ -152,8 +401,9 @@ describe("a consulta ao registry", () => {
     const request = vi.fn(
       async (url: string | URL | Request) => {
         const href = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
-        expect(href).toContain("/latest");
-        expect(href).toContain(encodeURIComponent(PACKAGE_NAME));
+        // A URL inteira, e não pedaços dela: é a que o AC 15 da `038` escreve, e a que
+        // o daemon pede — o `%40` de antes era a mesma rota escrita de outro jeito.
+        expect(href).toBe("https://registry.npmjs.org/@vinihcrosa%2Flumem-os/latest");
         return new Response(JSON.stringify({ version: "9.9.9" }), { status: 200 });
       },
     ) as unknown as typeof fetch;

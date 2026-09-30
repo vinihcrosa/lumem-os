@@ -35,6 +35,16 @@ export interface ConveyorLoopOptions {
   conveyor: Conveyor;
   intervalMs?: number;
   log?: Pick<FastifyBaseLogger, "warn">;
+  /**
+   * Pergunta, a cada passada, se ela deve pular (`038`, Parte 5; AC 75).
+   *
+   * É a única ponta que a atualização automática precisa da esteira: com a porta de
+   * prompt fechada para a instalação, uma tarefa despachada nesse tempo gastaria uma
+   * tentativa (contada **antes** do prompt), criaria uma worktree e abriria uma
+   * sessão para um prompt que ela sabe que será recusado. Pular a passada inteira é
+   * mais barato que consertar isso depois, e a próxima lê a fila como ela estiver.
+   */
+  paused?: () => boolean;
   /** Injetável para o teste não depender do relógio real. */
   setInterval?: typeof globalThis.setInterval;
   clearInterval?: typeof globalThis.clearInterval;
@@ -46,6 +56,7 @@ export function runConveyorLoop({
   conveyor,
   intervalMs = CONVEYOR_INTERVAL_MS,
   log,
+  paused = () => false,
   setInterval: schedule = globalThis.setInterval,
   clearInterval: cancel = globalThis.clearInterval,
 }: ConveyorLoopOptions): () => void {
@@ -68,6 +79,7 @@ export function runConveyorLoop({
   const running = new Set<string>();
 
   const timer = schedule(() => {
+    if (paused()) return;
     void (async () => {
       try {
         /*

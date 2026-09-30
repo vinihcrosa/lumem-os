@@ -17,6 +17,8 @@ import type { ScriptRunner } from "./scripts/ScriptRunner.js";
 import type { Conveyor } from "./tasks/conveyor.js";
 import type { SecretStore } from "./secrets/SecretStore.js";
 import type { SessionStore } from "./sessions/SessionStore.js";
+import type { ResourceSampler } from "./resources/sample.js";
+import type { UpdateService } from "./update/service.js";
 
 /**
  * Everything a procedure is allowed to reach. Repositories and services are
@@ -121,6 +123,18 @@ export interface Context {
    * estado dele é uma requisição diferente da que o começou.
    */
   agentAuth: AgentAuthService;
+  /**
+   * A atualização do próprio daemon (`038`, Parte 2): a última resposta do registry
+   * e o instalador. No contexto, e não por procedure, pelo motivo do `scripts`: o
+   * que ele guarda — a versão lida e a instalação em curso — é estado de processo.
+   */
+  update: UpdateService;
+  /**
+   * Quanto os grupos de processo gastam (`038`, Parte 3). No contexto pelo motivo do
+   * `update`: o que ele guarda — a amostra anterior, de onde sai a taxa de CPU, e o
+   * relógio que só anda enquanto alguém pergunta — é estado de processo.
+   */
+  resources: ResourceSampler;
   events: EventBus;
 }
 
@@ -139,6 +153,7 @@ const DOMAIN_TO_TRPC: Record<DomainErrorCode, TRPCError["code"]> = {
   IN_USE: "CONFLICT",
   BLOCKED: "CONFLICT",
   INVALID_ARGUMENT: "BAD_REQUEST",
+  PRECONDITION_FAILED: "PRECONDITION_FAILED",
   GIT_FAILED: "BAD_REQUEST",
   QUOTA_REFUSED: "TOO_MANY_REQUESTS",
   SPAWN_FAILED: "INTERNAL_SERVER_ERROR",

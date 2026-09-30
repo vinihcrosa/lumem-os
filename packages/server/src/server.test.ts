@@ -29,7 +29,7 @@ describe("health", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
-      result: { data: { ok: true, version: LUMEM_VERSION } },
+      result: { data: { ok: true, version: LUMEM_VERSION, supervised: false, protocolVersion: 1 } },
     });
   });
 

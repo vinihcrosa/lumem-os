@@ -10,6 +10,7 @@ import {
   usageByWorktreeAndAccount,
   usageByWorktreeAndAgent,
   usageOutsideWorktrees,
+  usageTotal,
   USAGE_WINDOWS,
 } from "../usage/query.js";
 
@@ -25,6 +26,15 @@ import {
 const period = z.enum(USAGE_WINDOWS).default("7d");
 
 export const usageRouter = router({
+  /**
+   * O daemon inteiro numa janela, para o painel da barra (`038`). Sem escopo de
+   * entrada: quem olha de fora do workspace quer o que o dia custou, e não uma
+   * lista de workspaces para somar do lado de lá.
+   */
+  total: publicProcedure
+    .input(z.object({ period }))
+    .query(({ ctx, input }) => usageTotal(ctx.db, { period: input.period })),
+
   /** O que cada projeto do workspace gastou. Projeto sem consumo vem com zero. */
   byProject: publicProcedure
     .input(z.object({ workspaceId: z.string().min(1), period }))

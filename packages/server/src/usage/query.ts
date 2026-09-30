@@ -362,6 +362,26 @@ export function usageOutsideWorktrees(
   return row ?? { tokens: 0, cost: null, currency: null, turns: 0 };
 }
 
+/**
+ * O consumo de **todo** o daemon numa janela (`038` Parte 3).
+ *
+ * Uma instrução só, sobre `session_usage` sem junção nenhuma: a linha já carrega o
+ * que a soma precisa, e um laço por workspace faria N consultas para responder uma
+ * pergunta que não tem workspace dentro. Consumo de projeto apagado continua
+ * contando — é histórico, e a tabela não tem estrangeira de propósito.
+ */
+export function usageTotal(db: Db, { period, now }: { period: UsageWindow; now?: Date }): UsageTotals {
+  const since = windowStart(period, now);
+
+  const [row] = db
+    .select({ tokens: SUM.tokens, cost: SUM.cost, currency: SUM.currency, turns: SUM.turns })
+    .from(sessionUsage)
+    .where(gte(sessionUsage.createdAt, since))
+    .all();
+
+  return row ?? { tokens: 0, cost: null, currency: null, turns: 0 };
+}
+
 export interface TaskUsage {
   taskId: string;
   tokens: number;

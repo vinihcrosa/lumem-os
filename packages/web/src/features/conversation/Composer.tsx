@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { LumemMode } from "@lumem/shared";
 
-import { Button } from "../../ui/index.js";
+import { Banner, Button } from "../../ui/index.js";
 import { type ConversationState } from "./conversation-model.js";
 import { ComposerBox } from "./ComposerBox.js";
 import { ConfigPills } from "./ConfigPills.js";
@@ -36,6 +36,8 @@ export interface ComposerProps {
   active: boolean;
   /** Sends a prompt. Returns false, and sends nothing, when the session cannot take it. */
   send(text: string): boolean;
+  /** Why the socket refused the last send, until the next one — the draft stayed. */
+  sendRefusal: string | null;
   /** Interrupts the turn in flight. */
   cancel(): void;
   setMode(mode: LumemMode): void;
@@ -50,6 +52,7 @@ export function Composer({
   readOnly,
   active,
   send: sendPrompt,
+  sendRefusal,
   cancel: interrupt,
   setMode,
   setConfig,
@@ -278,6 +281,13 @@ export function Composer({
             onSwitch={(optionId, value) => setConfig(optionId, value)}
           />
         </ComposerBox>
+        {/* Right under the box that kept the draft, so the reason reads as the
+            answer to the send that did not leave (`037` C13). */}
+        {sendRefusal !== null && (
+          <div className="composer__refused">
+            <Banner tone="danger">{sendRefusal}</Banner>
+          </div>
+        )}
       </div>
     </>
   );

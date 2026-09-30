@@ -55,3 +55,6 @@ storybook-static/
 # Stryker (T14 da 024-dev-harness)
 .stryker-tmp/
 reports/mutation/
+
+# Saída do `pack.ts` do app de desktop: o app empacotado e o tarball de cada plataforma.
+packages/desktop/release/

@@ -91,7 +91,7 @@ export interface PendingPermission {
 
 export type Block =
   | { kind: "message"; messageId: string; text: string }
-  | { kind: "thought"; messageId: string; text: string }
+  | { kind: "thought"; messageId: string; text: string; startedAt: number; endedAt: number }
   | { kind: "tool"; call: ToolCallView }
   | { kind: "permission"; request: PendingPermission }
   /** Something the client received and could not name. Grey, in place. */
@@ -155,6 +155,13 @@ export interface ConversationState {
   pendingPermission: PendingPermission | null;
   /** A turn is in flight. Derived from events alone, so replay agrees. */
   streaming: boolean;
+  /**
+   * The daemon's stamp on the message that opened the turn, and on its newest
+   * event (`037` S3). Null outside a turn. Stamps, not a clock read: the line
+   * above the composer subtracts them from its own clock, and the fold stays pure.
+   */
+  turnStartedAt: number | null;
+  lastEventAt: number | null;
   lastStopReason: AcpStopReason | null;
   /**
    * Updates about things this client never saw.
@@ -209,6 +216,8 @@ export function emptyConversation(): ConversationState {
     turns: [],
     pendingPermission: null,
     streaming: false,
+    turnStartedAt: null,
+    lastEventAt: null,
     lastStopReason: null,
     orphanUpdates: 0,
     plan: null,
@@ -235,10 +244,18 @@ export function replayConversation(entries: readonly AcpTranscriptEntry[]): Conv
   return entries.reduce(reduceConversation, emptyConversation());
 }
 
-export function reduceConversation(
-  state: ConversationState,
-  { at, event }: AcpTranscriptEntry,
-): ConversationState {
+export function reduceConversation(state: ConversationState, entry: AcpTranscriptEntry): ConversationState {
+  return withTurnClock(foldEvent(state, entry), entry);
+}
+
+/** Every entry of a turn in flight is a sign of life; the one that opens it is also its start. */
+function withTurnClock(next: ConversationState, { at, event }: AcpTranscriptEntry): ConversationState {
+  if (!next.streaming) return { ...next, turnStartedAt: null, lastEventAt: null };
+  if (event.type === "message" && event.role === "user") return { ...next, turnStartedAt: at, lastEventAt: at };
+  return { ...next, lastEventAt: at };
+}
+
+function foldEvent(state: ConversationState, { at, event }: AcpTranscriptEntry): ConversationState {
   switch (event.type) {
     case "message":
       return appendText(
@@ -254,12 +271,11 @@ export function reduceConversation(
         { kind: "message", messageId: event.messageId, text: event.text },
       );
 
-    case "thought":
-      return appendText(state, "agent", {
-        kind: "thought",
-        messageId: event.messageId,
-        text: event.text,
-      });
+    case "thought": {
+      // `startedAt` e `endedAt`: o `at` do primeiro e do último chunk (`036`).
+      const { messageId, text } = event;
+      return appendText(state, "agent", { kind: "thought", messageId, text, startedAt: at, endedAt: at });
+    }
 
     case "tool_call":
       return appendBlock(state, "agent", {
@@ -583,7 +599,8 @@ function appendText(
     const blocks = [...last.blocks];
     const open = blocks.at(-1);
     if (open?.kind === incoming.kind && open.messageId === incoming.messageId) {
-      blocks[blocks.length - 1] = { ...open, text: open.text + incoming.text };
+      const endedAt = "endedAt" in incoming ? { endedAt: incoming.endedAt } : {};
+      blocks[blocks.length - 1] = { ...open, text: open.text + incoming.text, ...endedAt };
     } else {
       blocks.push(incoming);
     }

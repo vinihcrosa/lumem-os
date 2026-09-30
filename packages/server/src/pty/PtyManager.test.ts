@@ -319,15 +319,19 @@ describe("scrollback", () => {
     const manager = makeManager(20);
     const session = manager.spawn({
       command: "sh",
-      args: ["-c", "for i in $(seq 1 200); do echo line$i; done"],
+      // The `sleep` is the point: the process must still be alive while its output is
+      // read. On Linux the kernel can drop what the child wrote but the master had not
+      // yet been handed when the slave closes, so a shell that prints 200 lines and
+      // *exits* may never deliver the last of them — not late, never (measured: the
+      // snapshot stopped at line3 and stayed there for the whole 10 s wait). Waiting
+      // for the output, or for the exit, cannot help when the evidence is gone; only a
+      // producer that outlives its own reading can. `afterEach` kills the sleeper.
+      args: ["-c", "for i in $(seq 1 200); do echo line$i; done; sleep 30"],
       cwd: tmpdir(),
     });
-    // The **output**, not the exit. `onData` and `onExit` are two callbacks, and
-    // on Linux the exit arrives with the last chunk still queued — so waiting
-    // for the process to die proves nothing about the buffer having its last
-    // line. Measured on CI: the snapshot stopped at line181 while the assertion
-    // asked for line200, on a runner under load. Every other test in this file
-    // already waits for the output it asserts on; this one did not.
+    // The **output**, not the exit: `onData` and `onExit` are two callbacks, and
+    // waiting for the process to die proves nothing about the buffer having its last
+    // line. Every other test in this file waits for the output it asserts on.
     await waitForOutput(manager, session.id, "line200");
 
     const lines = manager.snapshot(session.id).split("\n");
