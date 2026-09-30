@@ -42,6 +42,9 @@ export const E2E_CONVEYOR_PORT = required("e2eConveyor");
 export const E2E_UPDATE_PORT = required("e2eUpdate");
 export const E2E_UPDATE_REGISTRY_PORT = required("e2eUpdateRegistry");
 
+/** O daemon que o e2e do app de desktop (`packages/desktop/e2e`) sobe, e que o app de teste consulta. */
+export const E2E_DESKTOP_PORT = required("e2eDesktop");
+
 /**
  * As do `pnpm smoke:service`: o daemon sob o launchd ou o systemd de verdade e o
  * registry de mentira do passo `update-relaunches`. Nenhuma é a do dev, do e2e ou

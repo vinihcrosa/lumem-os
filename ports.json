@@ -9,5 +9,6 @@
   "e2eUpdate": 4422,
   "e2eUpdateRegistry": 4423,
   "smokeService": 4398,
-  "smokeRegistry": 4399
+  "smokeRegistry": 4399,
+  "e2eDesktop": 4424
 }
