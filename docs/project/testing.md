@@ -1823,6 +1823,25 @@ nova cobre o cenário do teste de uma antiga, cada uma precisa de um cenário em
 acrescentar uma condição a uma expressão já provada, releia as provas da expressão e pergunte qual delas
 ainda cai por causa da condição antiga.
 
+### Um e2e de "a página volta inteira" sem o controle que sabe quebrá-la
+
+**Sintoma:** nenhum na corrida, e é o problema: o C41 da [`038`](../features/038-desktop-and-updates/checks.md)
+afirma que, depois de instalar por cima com o daemon de pé, a página recarregada carrega os assets novos.
+Escrito só como *"o caminho feliz passa"*, ele fica verde em qualquer mundo em que a página nunca soube
+quebrar — por exemplo, uma instalação simulada que reescreve o texto de um arquivo sem mudar o **nome** do
+asset.
+
+**Causa provável:** o defeito que a feature existe para evitar só existe numa forma: `index.html` novo
+apontando para um asset de **outro hash**, que o daemon velho não registrou (o `@fastify/static` com
+`wildcard: false` cria uma rota por arquivo no boot), e o asset velho apagado. Sem essa troca de nome, não
+há 404 para o teste ver.
+
+**O que passou a avisar antes:** o `e2e/update.spec.ts` tem uma segunda metade, o **controle** — a mesma
+instalação **sem** o daemon sair: `/` responde 200 com o asset novo, o asset novo e o velho respondem 404 e o
+`#root` fica vazio. Se a fixture deixar de reproduzir a página em branco, é o controle que fica vermelho, e
+não o teste principal que passa em silêncio. A regra: **um e2e que afirma que um defeito não acontece prova o
+defeito acontecendo no mesmo mundo, sem a correção**.
+
 ## Convenções
 
 - Teste de git usa **repositório temporário real**, nunca mock. `git worktree` tem caso de borda em nome com barra e branch existente que mock nenhum reproduz.
