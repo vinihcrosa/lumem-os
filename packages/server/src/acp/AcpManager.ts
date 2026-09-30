@@ -485,6 +485,8 @@ interface Session {
    * sendo calculado dele na leitura.
    */
   lastRateLimit: AcpRateLimit | null;
+  /** Quando o `lastRateLimit` chegou (ms, do relógio do manager) — o painel escolhe o mais recente por conta. */
+  lastRateLimitAt: number;
   /**
    * This is a probe, not a session (onboarding D4).
    *
@@ -546,6 +548,8 @@ interface Session {
   reasoningMeta: Readonly<Record<string, unknown>> | null;
   /** O rótulo do agente, para a frase da recusa. */
   agentLabel: string;
+  /** Qual adaptador do catálogo é este (`AdapterSpec.id`), ou `null` fora dele. */
+  adapterId: string | null;
   /** A conta da sessão, quando quem a abriu disse. */
   account: { id: string; label: string } | null;
 }
@@ -1265,6 +1269,7 @@ export class AcpManager {
       promptInFlight: false,
       turnStartedAt: null,
       lastRateLimit: null,
+      lastRateLimitAt: 0,
       probe,
       // One bridge per session, rooted at its own cwd. A shared one would need
       // the root passed on every call, and the call that forgot would read
@@ -1285,6 +1290,7 @@ export class AcpManager {
       // "agente" quando o catálogo não conhece: a frase continua sendo uma frase,
       // e o nome do binário não é o que alguém chama de agente.
       agentLabel: spec?.label ?? "agente",
+      adapterId: spec?.id ?? null,
       account: options.account ?? null,
     };
 
@@ -1851,10 +1857,23 @@ export class AcpManager {
    * trabalhando"* e esta é *"quem está esperando"*, e a Q32 diz que quem espera
    * cota **liberou a vaga** — não é um caso do primeiro.
    */
-  rateLimits(): { sessionId: string; rateLimit: AcpRateLimit }[] {
+  rateLimits(): {
+    sessionId: string;
+    rateLimit: AcpRateLimit;
+    /** Quando chegou, no relógio do manager: com duas sessões na conta, vale a mais recente. */
+    reportedAt: number;
+    accountId: string | null;
+    adapterId: string | null;
+  }[] {
     return [...this.sessions.values()]
       .filter((session) => session.lastRateLimit !== null)
-      .map((session) => ({ sessionId: session.info.id, rateLimit: session.lastRateLimit! }));
+      .map((session) => ({
+        sessionId: session.info.id,
+        rateLimit: session.lastRateLimit!,
+        reportedAt: session.lastRateLimitAt,
+        accountId: session.account?.id ?? null,
+        adapterId: session.adapterId,
+      }));
   }
 
   kill(id: string): void {
@@ -2535,6 +2554,7 @@ export class AcpManager {
       // pergunta *"quem está esperando?"*. Guardar o último relato é o que liga
       // os dois (`028` Parte 3, T17).
       session.lastRateLimit = event.rateLimit;
+      session.lastRateLimitAt = this.now();
     }
 
     const entry: AcpTranscriptEntry = { at: this.now(), event };

@@ -56,6 +56,32 @@ async function andTell<T>(ctx: Context, accountId: string, gesture: () => Promis
 }
 
 export const agentAccountRouter = router({
+  /**
+   * A cota que cada conta relatou por último, para o painel da barra (`038`).
+   *
+   * Da memória do `AcpManager` e de mais nenhum lugar: a cota se renova a cada turno,
+   * e gravá-la seria uma migração por um número que o próximo turno troca. Com duas
+   * sessões na mesma conta vale o relato **mais recente**, e não o maior — a janela é
+   * da conta, e quem falou por último sabe dela agora. Conta sem relato nem aparece.
+   */
+  rateLimits: publicProcedure.query(({ ctx }) => {
+    const latest = new Map<string, ReturnType<typeof ctx.acpManager.rateLimits>[number]>();
+    for (const report of ctx.acpManager.rateLimits()) {
+      if (report.accountId === null || report.adapterId === null) continue;
+      const known = latest.get(report.accountId);
+      if (known === undefined || report.reportedAt >= known.reportedAt) {
+        latest.set(report.accountId, report);
+      }
+    }
+    return [...latest.values()].map((report) => ({
+      accountId: report.accountId!,
+      adapterId: report.adapterId!,
+      kind: report.rateLimit.kind ?? null,
+      utilization: report.rateLimit.utilization,
+      resetsAt: report.rateLimit.resetsAt ?? null,
+    }));
+  }),
+
   /** As contas por agente, com o que a tela de configuração desenha. */
   list: publicProcedure
     .input(z.object({ adapterId: z.string().trim().min(1).optional() }).optional())

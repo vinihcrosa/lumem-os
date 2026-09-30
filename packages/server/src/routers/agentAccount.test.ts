@@ -44,7 +44,7 @@ function cli(loggedIn: boolean): AcpCliRunner {
   }));
 }
 
-function harness({ loggedIn = true }: { loggedIn?: boolean } = {}) {
+function harness({ loggedIn = true, now }: { loggedIn?: boolean; now?: () => number } = {}) {
   const stateDir = tempDir("lumem-state-");
   const home = tempDir("lumem-home-");
   stageManagedAdapter(stateDir);
@@ -53,6 +53,7 @@ function harness({ loggedIn = true }: { loggedIn?: boolean } = {}) {
     spawner: () => fakeAgentProcess().process,
     isAvailable: () => true,
     runCli: cli(loggedIn),
+    ...(now === undefined ? {} : { now }),
   });
   context = createTestCaller({ LUMEM_STATE_DIR: stateDir, HOME: home }, { acpManager });
   return { ctx: context, stateDir, home };
@@ -372,5 +373,65 @@ describe("agentAccount.rename", () => {
 
     await expect(ctx.api.agentAccount.rename({ accountId: bare.id, label: "   " })).rejects.toThrow();
     expect((await createAgentAccountRepository(ctx.db).get(bare.id))?.label).toBe("principal");
+  });
+});
+
+describe("agentAccount.rateLimits", () => {
+  it("rateLimits keeps the latest report per account", async () => {
+    let clock = 1_000;
+    const { ctx } = harness({ now: () => clock });
+    const { account: work } = await ctx.api.agentAccount.connect({
+      adapterId: "claude",
+      label: "trabalho",
+      kind: "subscription",
+    });
+    const { account: silent } = await ctx.api.agentAccount.connect({
+      adapterId: "claude",
+      label: "pessoal",
+      kind: "subscription",
+    });
+
+    const open = (account: { id: string; label: string }) =>
+      ctx.acpManager.spawn({
+        command: "claude-agent-acp",
+        cwd: tempDir("lumem-cwd-"),
+        adapterId: "claude",
+        account: { id: account.id, label: account.label },
+      });
+    const report = (sessionId: string, utilization: number, resetsAt: number) =>
+      ctx.acpManager.recordEvent(sessionId, {
+        type: "usage",
+        used: 10,
+        size: 200_000,
+        cost: null,
+        rateLimit: { utilization, isUsingOverage: false, resetsAt, kind: "five_hour" },
+      });
+
+    const first = await open(work);
+    const second = await open(work);
+    await open(silent);
+
+    // A primeira relata o número maior, e a segunda o mais recente: "o mais
+    // recente" não é "o maior", e é a diferença que a asserção precisa enxergar.
+    report(first.id, 0.9, 1_900_000_000);
+    clock = 2_000;
+    report(second.id, 0.4, 1_900_003_600);
+
+    await expect(ctx.api.agentAccount.rateLimits()).resolves.toEqual([
+      {
+        accountId: work.id,
+        adapterId: "claude",
+        kind: "five_hour",
+        utilization: 0.4,
+        resetsAt: 1_900_003_600,
+      },
+    ]);
+
+    // A primeira volta a relatar depois da segunda: agora o dela é o mais recente.
+    clock = 3_000;
+    report(first.id, 0.95, 1_900_007_200);
+    await expect(ctx.api.agentAccount.rateLimits()).resolves.toMatchObject([
+      { accountId: work.id, utilization: 0.95, resetsAt: 1_900_007_200 },
+    ]);
   });
 });
