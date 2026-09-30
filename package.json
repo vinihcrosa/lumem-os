@@ -29,6 +29,7 @@
     "feature:check": "tsx scripts/feature-flow/run.ts",
     "adapters:check": "tsx scripts/run-check-adapters.ts",
     "smoke:install": "tsx scripts/smoke-install.ts",
+    "smoke:service": "tsx scripts/smoke-service.ts",
     "measure:thinking": "tsx scripts/measure-thinking.ts"
   },
   "devDependencies": {
