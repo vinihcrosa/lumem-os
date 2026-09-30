@@ -60,6 +60,20 @@ export function installCommand(manager: PackageManager, spec: string): InstallCo
   }
 }
 
+/** O inverso de `installCommand`, para `lumem menubar uninstall` tirar o pacote do app. */
+export function uninstallCommand(manager: PackageManager, name: string): InstallCommand {
+  switch (manager) {
+    case "pnpm":
+      return { command: "pnpm", args: ["remove", "--global", name] };
+    case "yarn":
+      return { command: "yarn", args: ["global", "remove", name] };
+    case "bun":
+      return { command: "bun", args: ["remove", "--global", name] };
+    case "npm":
+      return { command: "npm", args: ["uninstall", "--global", name] };
+  }
+}
+
 /**
  * Orders two versions, with a prerelease sorting **before** its release.
  *
