@@ -60,7 +60,9 @@ jobs:
         run: |
           version="$(node -p "require('./packages/cli/package.json').version")"
           echo "value=$version" >> "$GITHUB_OUTPUT"
-          if [ "${{ github.ref_type }}" = "tag" ] && [ "${{ github.ref_name }}" != "v$version" ]; then
+          expected_tag="v$version"
+          recovery_tag="v${version}-recovery"
+          if [ "${{ github.ref_type }}" = "tag" ] && [ "${{ github.ref_name }}" != "$expected_tag" ] && [ "${{ github.ref_name }}" != "$recovery_tag" ]; then
             echo "::error::a tag ${{ github.ref_name }} não bate com a versão do pacote ($version)"
             exit 1
           fi
@@ -80,7 +82,7 @@ jobs:
           echo "name=$name" >> "$GITHUB_OUTPUT"
           cp "$RUNNER_TEMP/$name" "$GITHUB_WORKSPACE/$name"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: tarball
           path: ${{ steps.pack.outputs.name }}
@@ -168,7 +170,7 @@ jobs:
         run: pnpm smoke:install --only desktop packages/desktop/release/${{ matrix.platform }}-${{ matrix.arch }}/vinihcrosa-lumem-desktop-${{ matrix.platform }}-${{ matrix.arch }}-${{ needs.package.outputs.version }}.tgz
 
       # O tarball vai para o `npm publish`, e os `.zip`, `.AppImage` e `.deb` para a release.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: desktop-${{ matrix.platform }}-${{ matrix.arch }}
           path: |
@@ -243,7 +245,9 @@ jobs:
         run: npm publish "${{ needs.package.outputs.tarball }}" --access public
 
       - name: a Release, com o tarball anexado
-        if: github.ref_type == 'tag'
+        # Recovery tags repeat a publish after an immutable release tag failed.
+        # Keep the package version fixed, without creating a second GitHub Release.
+        if: github.ref_type == 'tag' && !endsWith(github.ref_name, '-recovery')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
