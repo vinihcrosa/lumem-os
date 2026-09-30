@@ -491,6 +491,43 @@ describe("a turn", () => {
   });
 });
 
+describe("an update in progress", () => {
+  it("refuses a prompt while the daemon updates", async () => {
+    /*
+     * `038`, Parte 2: instalar por cima termina com o daemon saindo, e um turno
+     * aberto nesse intervalo é um turno que o desligamento mata no meio. A porta
+     * fecha **antes** de o instalador rodar, e reabre se ele falhar.
+     */
+    const { manager, sessionId, promptBlocks } = await start();
+
+    manager.setUpdating(true);
+    await expect(manager.prompt(sessionId, "faz o deploy")).rejects.toThrow(
+      /o Lumem est[aá] se atualizando/,
+    );
+
+    // A recusa vem antes de qualquer trabalho: nada foi mandado ao agente, e a
+    // sessão não ficou dizendo que tem turno em voo (o `update` esperaria por ele).
+    expect(promptBlocks).toEqual([]);
+    expect(manager.liveTurns()).toEqual([]);
+
+    // Falhou a instalação, a porta reabre: é o mesmo `prompt`, e agora ele corre.
+    manager.setUpdating(false);
+    await manager.prompt(sessionId, "faz o deploy");
+    expect(promptBlocks).toHaveLength(1);
+  });
+
+  it("still says the session is missing before it says the Lumem is updating", async () => {
+    // Uma recusa não pode esconder a outra: um id que não existe é um defeito de
+    // quem chamou, e ele precisa vê-lo mesmo no meio de uma atualização.
+    const { manager } = await start();
+    manager.setUpdating(true);
+
+    await expect(manager.prompt("nao-existe", "oi")).rejects.toMatchObject({
+      code: "SESSION_NOT_FOUND",
+    });
+  });
+});
+
 describe("permission", () => {
   it("emits the request, waits, and lets the agent finish once answered", async () => {
     let outcome: unknown;

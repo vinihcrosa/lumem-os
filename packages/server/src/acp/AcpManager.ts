@@ -712,6 +712,12 @@ export class AcpManager {
   private readonly budget: AcpBudgetSource | undefined;
   private readonly turnFailures: TurnFailureSink | undefined;
   private readonly runCli: AcpCliRunner;
+  /**
+   * O daemon está instalando uma versão nova e vai sair (`038`, Parte 2). Enquanto
+   * for `true`, `prompt` recusa: um turno aberto agora é um turno que o desligamento
+   * mata no meio.
+   */
+  private updating = false;
 
   constructor({
     spawner = spawnAcpProcess,
@@ -1316,6 +1322,11 @@ export class AcpManager {
     if (session.info.state === "exited") {
       throw new DomainError("SESSION_EXITED", `session ${id} has exited`);
     }
+    // Antes de qualquer marca de turno: recusar aqui não deixa nada para desfazer, e
+    // é a única saída de `prompt` que não passa pelo teto nem pela memória.
+    if (this.updating) {
+      throw new DomainError("BLOCKED", "o Lumem está se atualizando; tente de novo em instantes");
+    }
     if (text.trim() === "") {
       throw new DomainError("INVALID_ARGUMENT", "prompt must not be empty");
     }
@@ -1807,6 +1818,16 @@ export class AcpManager {
 
   list(): AcpSessionInfo[] {
     return [...this.sessions.values()].map((session) => ({ ...session.info }));
+  }
+
+  /**
+   * Fecha (`true`) ou reabre (`false`) a porta de prompt para o tempo de uma
+   * atualização. Quem fecha é o instalador do daemon, e é ele que reabre se a
+   * instalação falhar; o que já está em voo não é tocado — o `update` só fecha a
+   * porta com nenhum turno em voo.
+   */
+  setUpdating(updating: boolean): void {
+    this.updating = updating;
   }
 
   /**
