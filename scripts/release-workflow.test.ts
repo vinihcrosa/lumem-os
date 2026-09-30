@@ -103,3 +103,24 @@ describe("o release do app de desktop", () => {
     expect(runs(desktop)).not.toContain("npm publish");
   });
 });
+
+describe("o .deb do app de desktop", () => {
+  // O `electron-builder` só descobre que falta metadado no `fpm`, que só roda no Linux: o primeiro
+  // release de verdade (o dry run de 2026-09-30) construiu o AppImage e caiu no `.deb` com
+  // "Please specify project homepage". Um Mac não constrói `.deb`, então o que se prova aqui é o
+  // que o `FpmTarget` exige — `homepage` (ou `repository`) e um mantenedor com e-mail.
+  const desktopRoot = join(import.meta.dirname, "..", "packages", "desktop");
+  const manifest = JSON.parse(readFileSync(join(desktopRoot, "package.json"), "utf8")) as { homepage?: string };
+  const builder = parse(readFileSync(join(desktopRoot, "electron-builder.yml"), "utf8")) as {
+    linux?: { maintainer?: string; target?: string[] };
+  };
+
+  it("names a project homepage, which the deb target refuses to build without", () => {
+    expect(builder.linux?.target).toContain("deb");
+    expect(manifest.homepage).toBe("https://github.com/vinihcrosa/lumem-os");
+  });
+
+  it("names a maintainer with an email, which the deb target refuses to build without", () => {
+    expect(builder.linux?.maintainer).toMatch(/^.+ <[^<>@\s]+@[^<>@\s]+>$/);
+  });
+});

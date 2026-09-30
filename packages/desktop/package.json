@@ -7,6 +7,7 @@
   "description": "O ícone do Lumem na barra do sistema: uma casca sobre a web do daemon",
   "author": "Vinicius Rosa",
   "license": "MIT",
+  "homepage": "https://github.com/vinihcrosa/lumem-os",
   "main": "dist/index.cjs",
   "scripts": {
     "build": "tsx build.ts",
