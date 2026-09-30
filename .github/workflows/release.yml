@@ -1,6 +1,6 @@
 name: Release
 
-# Publica o `lumem` no npm. Roda por tag, e a tag é o único gatilho automático:
+# Publica o `lumem` no npm, e o app de desktop dele (`038`). Roda por tag, e a tag é o único gatilho automático:
 # a decisão de publicar é o `git push --tags`, e não um merge que alguém fez sem
 # pensar em versão (D6).
 #
@@ -64,6 +64,13 @@ jobs:
             echo "::error::a tag ${{ github.ref_name }} não bate com a versão do pacote ($version)"
             exit 1
           fi
+          # Os quatro pacotes do app saem na versão do `package.json` dele, e o `lumem menubar
+          # install` pede `<pacote>@<versão do daemon>`: os dois têm que ser o mesmo número.
+          desktop="$(node -p "require('./packages/desktop/package.json').version")"
+          if [ "$desktop" != "$version" ]; then
+            echo "::error::o app de desktop está na versão $desktop e o daemon na $version — rode pnpm version:set"
+            exit 1
+          fi
 
       - name: o tarball
         id: pack
@@ -112,6 +119,63 @@ jobs:
       # existe justamente para provar que o pacote não precisa delas.
       - run: npx --yes tsx@4 scripts/smoke-install.ts "${{ needs.package.outputs.tarball }}"
 
+  # O app de desktop (`038` Parte 4): um pacote npm por plataforma e arquitetura.
+  #
+  # O macOS empacota as duas arquiteturas no runner arm64, e o Linux as duas no runner x64 —
+  # o cross-arch que a documentação do electron-builder descreve para `--arm64` num host x64,
+  # o que poupa depender de um runner arm64 de Linux só para montar uma pasta.
+  #
+  # O smoke daqui é o do app que o runner **consegue abrir**: `darwin-arm64` no macOS (a
+  # assinatura ad-hoc confere) e `linux-x64` sob `xvfb` (a janela carrega `/menubar`). As
+  # outras duas arquiteturas viajam sem esse passo, e o `pnpm smoke:install --only desktop`
+  # roda na máquina de quem verifica.
+  desktop:
+    name: app (${{ matrix.platform }}-${{ matrix.arch }})
+    needs: package
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-latest, platform: darwin, arch: arm64 }
+          - { os: macos-latest, platform: darwin, arch: x64 }
+          - { os: ubuntu-latest, platform: linux, arch: x64 }
+          - { os: ubuntu-latest, platform: linux, arch: arm64 }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # O Electron (~100 MB por plataforma) baixa aqui, na primeira vez que alguém o pede, e
+      # não no `pnpm install`: é este job que precisa dele.
+      - name: o app empacotado, e o pacote npm dele
+        run: pnpm --filter @lumem/desktop run pack --platform ${{ matrix.platform }} --arch ${{ matrix.arch }}
+
+      - name: as libs que o Electron pede no Linux
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2t64 libgbm1
+
+      - name: instalar de verdade (o app)
+        if: (matrix.platform == 'darwin' && matrix.arch == 'arm64') || (matrix.platform == 'linux' && matrix.arch == 'x64')
+        run: pnpm smoke:install --only desktop packages/desktop/release/${{ matrix.platform }}-${{ matrix.arch }}/vinihcrosa-lumem-desktop-${{ matrix.platform }}-${{ matrix.arch }}-${{ needs.package.outputs.version }}.tgz
+
+      # O tarball vai para o `npm publish`, e os `.zip`, `.AppImage` e `.deb` para a release.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.platform }}-${{ matrix.arch }}
+          path: |
+            packages/desktop/release/${{ matrix.platform }}-${{ matrix.arch }}/*.tgz
+            packages/desktop/release/assets/*
+          retention-days: 7
+
   # Não existe mais um job que confere o token, porque não existe mais token.
   #
   # A autenticação é **OIDC (trusted publisher)** desde 2026-09-07: o npm confia
@@ -123,7 +187,7 @@ jobs:
   # aconteceu na v0.2.0.
   publish:
     name: npm
-    needs: [package, smoke]
+    needs: [package, smoke, desktop]
     if: github.ref_type == 'tag' || inputs.dry_run == false
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -150,6 +214,27 @@ jobs:
         with:
           name: tarball
 
+      # Os quatro pacotes do app, com o que a release anexa. `merge-multiple` junta os quatro
+      # artefatos numa pasta só: `desktop/<plataforma>-<arch>/*.tgz` e `desktop/assets/*`.
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: desktop-*
+          path: desktop
+          merge-multiple: true
+
+      # Os do app **antes** do daemon: quem instala o `lumem` novo e roda `lumem menubar
+      # install` na sequência já encontra o pacote do app na versão dele. `--provenance`
+      # explícita porque cada pacote do app é uma origem à parte a atestar.
+      #
+      # Cada pacote precisa existir no npm com o trusted publisher configurado para este
+      # workflow antes da primeira tag que o publica — a configuração é da página do pacote,
+      # e o primeiro `npm publish` de um nome novo é o que o cria.
+      - name: publicar o app (os quatro pacotes)
+        run: |
+          for tarball in desktop/*/*.tgz; do
+            npm publish "$tarball" --access public --provenance
+          done
+
       # Sem `NODE_AUTH_TOKEN`: com trusted publisher, um token no ambiente é o
       # que o npm tenta *primeiro*, e um token velho aí faz o registry responder
       # `404` no `PUT` — que é o 403 dele disfarçado. Também sem `--provenance`:
@@ -164,5 +249,6 @@ jobs:
         run: |
           gh release create "${{ github.ref_name }}" \
             "${{ needs.package.outputs.tarball }}" \
+            desktop/assets/*.zip desktop/assets/*.AppImage desktop/assets/*.deb \
             --title "${{ github.ref_name }}" \
             --generate-notes
