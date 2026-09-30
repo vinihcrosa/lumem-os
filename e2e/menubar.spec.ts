@@ -27,6 +27,10 @@ import { E2E_FAKE_ACP_AGENT, E2E_FIXTURE_REPO_ACP } from "./support/fixtures.js"
 const DAEMON = `http://127.0.0.1:${E2E_SERVER_PORT}`;
 const AGENT = "acp-falso";
 const WORKTREE = "painel-barra";
+// A memória como o painel a escreve: `180 MB`, ou `1,2 GB` passando de um giga. O
+// tamanho da máquina decide qual dos dois aparece — um agente num runner chega a 1,2 GB —,
+// e a prova é que há um número com unidade, não qual unidade.
+const MEMORY = /\d+(?:,\d)? (?:MB|GB)/;
 
 test.beforeEach(async ({ request }) => {
   await createAgentConfig(request, DAEMON, {
@@ -53,6 +57,10 @@ async function startTurn(page: Page): Promise<void> {
 }
 
 test("o painel abre numa aba e mostra os três blocos", async ({ page, context }) => {
+  // A CPU só existe da segunda amostra, e o daemon amostra de 5 em 5 s: o teste gasta ~19 s
+  // numa máquina parada, e os 30 s do padrão não sobram quando a suíte inteira carrega o
+  // daemon. Cada espera abaixo já tem o seu prazo; o que falta é o total caber neles.
+  test.setTimeout(120_000);
   await startTurn(page);
   const conv = page.locator("[role=tabpanel]:not([hidden]) .conv");
   // O turno pede permissão e fica esperando: está em voo até alguém responder.
@@ -82,10 +90,10 @@ test("o painel abre numa aba e mostra os três blocos", async ({ page, context }
   const resources = panel.getByRole("region", { name: "Recursos" });
   await expect(resources.getByText("Daemon")).toBeVisible();
   const agents = resources.locator(".menubar__group", { hasText: "Agentes" });
-  await expect(agents).toContainText(/\d+ MB/, { timeout: 20_000 });
-  await expect(resources.locator(".menubar__group", { hasText: "Daemon" })).toContainText(/\d+ MB/);
+  await expect(agents).toContainText(MEMORY, { timeout: 20_000 });
+  await expect(resources.locator(".menubar__group", { hasText: "Daemon" })).toContainText(MEMORY);
   // A CPU só existe da segunda amostra em diante: o painel pergunta a cada 3 s, e o
-  // daemon amostra enquanto alguém pergunta.
+  // daemon amostra (de 5 em 5 s) enquanto alguém pergunta.
   await expect(resources.locator(".menubar__group", { hasText: "Daemon" })).toContainText(/\d+,\d%/, {
     timeout: 20_000,
   });
