@@ -410,4 +410,20 @@ describe("resource sampler", () => {
       vi.useRealTimers();
     }
   });
+
+  it("asks the reader only for the pids the daemon tracks, and attributes with the same answer", async () => {
+    const asked: (readonly number[])[] = [];
+    const { sampler } = harness(() => TREE(() => 0), {
+      read: async (roots) => {
+        asked.push(roots);
+        return TREE(() => 0);
+      },
+    });
+
+    const { groups } = await sampler.resources();
+
+    // O daemon, os dois adaptadores e o PTY: os quatro que os managers sabem, e nada da máquina.
+    expect(asked).toEqual([[100, 200, 300, 400]]);
+    expect(groups.agents.rssBytes).toBe((50 + 400 + 10 + 60) * MB);
+  });
 });

@@ -2,12 +2,18 @@ import { execFile } from "node:child_process";
 import { readFile, readdir } from "node:fs/promises";
 
 /**
- * A tabela de processos da máquina (`038`, Parte 3).
+ * A tabela de processos **da árvore do Lumem** (`038`, Parte 3).
  *
- * Sem dependência nativa nova (ADR de 2026-08-30): no macOS é uma chamada ao `ps`, e
- * no Linux são dois arquivos por processo em `/proc`. Cada um vira a mesma linha, e é
- * o que o resto de `resources/` conhece — quem atribui e quem amostra não sabem de
- * qual sistema ela veio.
+ * Sem dependência nativa nova (ADR de 2026-08-30): no macOS é o `ps`, e no Linux são
+ * arquivos de `/proc`. Cada um vira a mesma linha, e é o que o resto de `resources/`
+ * conhece — quem atribui e quem amostra não sabem de qual sistema ela veio.
+ *
+ * **Duas passadas**, porque o custo de uma amostra (C61) é o do `ps`, e ele cresce com o
+ * que pede: a primeira lê **só os elos pai–filho** da máquina inteira (um `pid` e um
+ * `ppid` por processo), daí se monta a árvore dos PIDs que o daemon rastreia, e a
+ * segunda pede memória, CPU acumulada e comando **só dos processos da árvore** — dezenas,
+ * e não as centenas da máquina. Um processo que some entre as duas passadas não volta:
+ * a segunda só devolve quem ainda existe.
  */
 export interface ProcessRow {
   pid: number;
@@ -19,7 +25,18 @@ export interface ProcessRow {
   command: string;
 }
 
-export type ProcessTableReader = () => Promise<readonly ProcessRow[]>;
+/**
+ * Lê a árvore de quem desce de `roots` (os PIDs rastreados, eles inclusive). Uma raiz que
+ * já morreu não aparece; o que a leitura devolve pode ter mais linhas do que o necessário,
+ * mas nunca uma de fora da árvore que ela conhece.
+ */
+export type ProcessTableReader = (roots: readonly number[]) => Promise<readonly ProcessRow[]>;
+
+/** Um elo da primeira passada: de quem o processo é filho. */
+interface ParentLink {
+  pid: number;
+  ppid: number;
+}
 
 /** O que a leitura pede ao sistema: separado para a suíte gravar as saídas em vez de rodá-las. */
 export interface ProcessTableHost {
@@ -50,8 +67,39 @@ function parseCpuTime(text: string): number | null {
   return Math.round((days * 86_400 + seconds) * 100) / 100;
 }
 
+/** A saída de `ps -A -o pid=,ppid=` (a primeira passada no macOS): dois números por linha. */
+function parsePsLinks(output: string): ParentLink[] {
+  const links: ParentLink[] = [];
+  for (const line of output.split("\n")) {
+    const match = /^\s*(\d+)\s+(\d+)\s*$/.exec(line);
+    if (match !== null) links.push({ pid: Number(match[1]), ppid: Number(match[2]) });
+  }
+  return links;
+}
+
+/** Os PIDs de `roots` e de todos que descem deles, dentre os `links` que existem agora. */
+function treeOf(links: readonly ParentLink[], roots: readonly number[]): number[] {
+  const alive = new Set<number>();
+  const childrenOf = new Map<number, number[]>();
+  for (const { pid, ppid } of links) {
+    alive.add(pid);
+    const siblings = childrenOf.get(ppid);
+    if (siblings === undefined) childrenOf.set(ppid, [pid]);
+    else siblings.push(pid);
+  }
+  // Com `seen`, o `ppid` que volta (o pid 0 é pai de si mesmo no macOS) não vira um laço.
+  const seen = new Set<number>();
+  const queue = roots.filter((pid) => alive.has(pid));
+  for (let pid = queue.shift(); pid !== undefined; pid = queue.shift()) {
+    if (seen.has(pid)) continue;
+    seen.add(pid);
+    queue.push(...(childrenOf.get(pid) ?? []));
+  }
+  return [...seen];
+}
+
 /**
- * A saída de `ps -A -o pid=,ppid=,rss=,time=,comm=`.
+ * A saída de `ps -o pid=,ppid=,rss=,time=,comm= -p <pids>` (a segunda passada no macOS).
  *
  * `comm` é a **última** coluna de propósito: no macOS ele é o caminho do executável, e
  * `/Applications/Google Drive.app/…/Google Drive` tem espaço. Tudo depois dos quatro
@@ -104,26 +152,50 @@ function parseProcRss(status: string): number {
   return match === null ? 0 : Number(match[1]) * 1024;
 }
 
-async function readProc(host: ProcessTableHost): Promise<ProcessRow[]> {
-  const rows: ProcessRow[] = [];
+/**
+ * No Linux o `stat` já traz o elo, a CPU e o comando: a primeira passada lê só ele, de
+ * todos; o `status` (só para a memória) é da segunda, e só de quem está na árvore.
+ */
+async function readProc(host: ProcessTableHost, roots: readonly number[]): Promise<ProcessRow[]> {
+  const everyone: (ParentLink & { cpuSeconds: number; command: string })[] = [];
   for (const entry of await host.readdir("/proc")) {
     if (!/^\d+$/.test(entry)) continue;
     const stat = await host.read(`/proc/${entry}/stat`);
     if (stat === null) continue;
     const parsed = parseProcStat(stat);
-    if (parsed === null) continue;
-    const status = (await host.read(`/proc/${entry}/status`)) ?? "";
-    rows.push({ pid: Number(entry), rssBytes: parseProcRss(status), ...parsed });
+    if (parsed !== null) everyone.push({ pid: Number(entry), ...parsed });
+  }
+
+  const inTree = new Set(treeOf(everyone, roots));
+  const rows: ProcessRow[] = [];
+  for (const entry of everyone) {
+    if (!inTree.has(entry.pid)) continue;
+    const status = await host.read(`/proc/${entry.pid}/status`);
+    // Sem `status` o processo morreu entre as duas passadas. Thread do kernel **tem** o
+    // arquivo, só não tem a linha de memória.
+    if (status !== null) rows.push({ ...entry, rssBytes: parseProcRss(status) });
   }
   return rows;
 }
 
+/**
+ * O `-x` na segunda passada **não muda quem volta** — o `-p` com ou sem ele devolve os mesmos
+ * pids, de qualquer usuário e com ou sem terminal (medido com 103 pids) — e muda o custo: no
+ * macOS, `ps -p a,b` (dois pids ou mais) sem `-x` gasta ~28 ms de CPU de sistema mesmo para 13
+ * processos, e com ele ~2 ms. Um pid só não sofre disso, mas a árvore nunca é um só (o daemon e
+ * a sessão já são dois). A razão é a medida, e não a página do `ps`: se um `ps` futuro mudar, quem cobra é a C61.
+ */
+async function readPs(host: ProcessTableHost, roots: readonly number[]): Promise<ProcessRow[]> {
+  const tree = treeOf(parsePsLinks(await host.exec("ps", ["-A", "-o", "pid=,ppid="])), roots);
+  // `ps -p` sem nenhum pid é erro, e uma árvore vazia não tem o que pedir.
+  if (tree.length === 0) return [];
+  return parsePs(await host.exec("ps", ["-x", "-o", "pid=,ppid=,rss=,time=,comm=", "-p", tree.join(",")]));
+}
+
 export function createProcessTableReader(host: ProcessTableHost = nodeProcessTableHost()): ProcessTableReader {
-  return async () => {
-    if (host.platform === "darwin") {
-      return parsePs(await host.exec("ps", ["-A", "-o", "pid=,ppid=,rss=,time=,comm="]));
-    }
-    if (host.platform === "linux") return await readProc(host);
+  return async (roots) => {
+    if (host.platform === "darwin") return await readPs(host, roots);
+    if (host.platform === "linux") return await readProc(host, roots);
     throw new Error(`não sei ler a tabela de processos em ${host.platform}`);
   };
 }

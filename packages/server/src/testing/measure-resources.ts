@@ -16,13 +16,17 @@
  * um `node` de verdade por sessão, sem gastar um token) e cinco shells —, e o amostrador
  * de recursos de produção lendo a tabela **de verdade** (`ps` no macOS, `/proc` no
  * Linux). Uma amostra por vez, a cada 3 s, exatamente o caminho que o relógio do
- * amostrador percorre.
+ * amostrador percorre — no macOS, as **duas** passadas do `ps`: os elos da máquina inteira
+ * e depois só a árvore (ver `process-table.ts`).
  *
  * **O que conta como custo** são as duas CPUs que a leitura gasta: a deste processo
  * (`process.cpuUsage` em volta de cada amostra, que já inclui lançar o `ps` e ler a
- * saída) e a do `ps`, que roda **fora** dele — o Node não enxerga a CPU de um filho, e
+ * saída) e a dos `ps`, que rodam **fora** dele — o Node não enxerga a CPU de um filho, e
  * o macOS não a dá de outro jeito, então ela é medida à parte com o `time -p` do sistema — em
- * lote de 50 execuções, porque o `time` trunca cada leitura para 10 ms (ver `cpuOfTimeOutput`).
+ * lote de 50 amostras, porque o `time` trunca cada leitura para 10 ms (ver `cpuOfTimeOutput`).
+ * O que se repete no lote são **os comandos que a última leitura de fato lançou** (gravados no
+ * `exec` do leitor, com os PIDs da árvore de verdade), e não uma cópia escrita aqui: se a
+ * leitura mudar, a medida muda junto.
  * No Linux a leitura é do próprio processo, e não há filho.
  *
  * **Por que amostra a amostra, e não o processo inteiro numa janela.** Um processo
@@ -46,7 +50,11 @@ import { AcpManager } from "../acp/AcpManager.js";
 import { openTestDb } from "../db/testing.js";
 import { PtyManager } from "../pty/PtyManager.js";
 import { createLiveResources } from "../resources/live.js";
-import { createProcessTableReader, type ProcessTableReader } from "../resources/process-table.js";
+import {
+  createProcessTableReader,
+  nodeProcessTableHost,
+  type ProcessTableReader,
+} from "../resources/process-table.js";
 import { SAMPLE_INTERVAL_MS } from "../resources/sample.js";
 
 /** O limite da meta: 1% de um núcleo. */
@@ -68,7 +76,7 @@ export interface Measurement {
   childCpuMs: number | null;
   /** Só para ler: o tempo de parede de cada amostra, o que o `ps` demora numa máquina ocupada. */
   wallMs: number;
-  /** Linhas da tabela na última leitura: o tamanho da máquina medida. */
+  /** Linhas que a última leitura devolveu: a árvore do Lumem, e não a máquina inteira. */
   processes: number;
 }
 
@@ -93,7 +101,7 @@ export function verdictOf(measurement: Measurement, sawSessions: boolean): "ok" 
   return percent < LIMIT_PERCENT ? "ok" : "over";
 }
 
-/** Quantas vezes o `ps` roda dentro de **uma** medição do `time -p`. */
+/** Quantas amostras (todas as passadas do `ps` de uma leitura) rodam dentro de **uma** medição do `time -p`. */
 const PS_RUNS = 50;
 
 /**
@@ -111,16 +119,23 @@ export function cpuOfTimeOutput(stderr: string): number | null {
   return (Number(user) + Number(system)) * 1000;
 }
 
+/** Um argumento entre aspas simples, para o `sh` que repete o comando. */
+const quoted = (argument: string): string => `'${argument.replaceAll("'", "'\\''")}'`;
+
 /**
- * Quanto de CPU **um** `ps` gasta, em ms, medido pelo `time -p` do sistema sobre `PS_RUNS`
- * execuções seguidas dentro de um `sh`: a truncagem do `time` (10 ms) cai uma vez sobre o lote, e
- * dividida por 50 some — cada `ps` sozinho perderia ~10 ms dos ~25 que gasta. A saída do `ps`
- * vai para o pipe deste processo, como no daemon, e não para `/dev/null`.
+ * Quanto de CPU os `ps` **de uma amostra** gastam, em ms, medido pelo `time -p` do sistema
+ * sobre `PS_RUNS` repetições seguidas de **todos** os `commands` dentro de um `sh`: a truncagem
+ * do `time` (10 ms) cai uma vez sobre o lote, e dividida por 50 some — cada `ps` sozinho
+ * perderia ~10 ms do que gasta. A saída dos `ps` vai para o pipe deste processo, como no
+ * daemon, e não para `/dev/null`.
  *
- * `null` quando a saída do `time` não é a que se espera (não há `/usr/bin/time` na máquina).
+ * `null` quando não há comando a repetir, ou a saída do `time` não é a que se espera (não há
+ * `/usr/bin/time` na máquina).
  */
-async function childCpuOfPsMs(): Promise<number | null> {
-  const loop = `i=0; while [ "$i" -lt ${String(PS_RUNS)} ]; do ps -A -o pid=,ppid=,rss=,time=,comm=; i=$((i+1)); done`;
+async function childCpuOfPsMs(commands: readonly (readonly string[])[]): Promise<number | null> {
+  if (commands.length === 0) return null;
+  const once = commands.map((command) => command.map(quoted).join(" ")).join("; ");
+  const loop = `i=0; while [ "$i" -lt ${String(PS_RUNS)} ]; do ${once}; i=$((i+1)); done`;
   const stderr = await new Promise<string | null>((done) => {
     execFile(
       "/usr/bin/time",
@@ -135,7 +150,7 @@ async function childCpuOfPsMs(): Promise<number | null> {
   return total === null ? null : total / PS_RUNS;
 }
 
-/** O `ps` de uma amostra, multiplicado pelas `samples` amostras: o que `Measurement.childCpuMs` guarda. */
+/** O custo de uma amostra, multiplicado pelas `samples` amostras: o que `Measurement.childCpuMs` guarda. */
 const perSampleOrNull = (psMs: number | null, samples: number): number | null =>
   psMs === null ? null : psMs * samples;
 
@@ -153,10 +168,23 @@ async function tenSessions(): Promise<{ measurement: Measurement; sawSessions: b
       ptyManager.spawn({ command: "/bin/sh", args: ["-c", "sleep 3600"], cwd });
     }
 
-    const reader = createProcessTableReader();
+    // O `exec` do leitor grava o que lança: o que o lote do `time` repete é isso, com os PIDs
+    // da árvore de verdade, e não um `ps` que este arquivo escreveu por conta própria.
+    const host = nodeProcessTableHost();
+    let launched: string[][] = [];
+    const reader = createProcessTableReader({
+      ...host,
+      exec: (command, args) => {
+        launched.push([command, ...args]);
+        return host.exec(command, args);
+      },
+    });
     let processes = 0;
-    const read: ProcessTableReader = async () => {
-      const table = await reader();
+    let lastRead: string[][] = [];
+    const read: ProcessTableReader = async (roots) => {
+      launched = [];
+      const table = await reader(roots);
+      lastRead = launched;
       processes = table.length;
       return table;
     };
@@ -191,7 +219,7 @@ async function tenSessions(): Promise<{ measurement: Measurement; sawSessions: b
         intervalMs: SAMPLE_INTERVAL_MS,
         nodeCpuMs,
         // No Linux a leitura é `/proc`, dentro deste processo: não há filho para somar.
-        childCpuMs: process.platform === "darwin" ? perSampleOrNull(await childCpuOfPsMs(), SAMPLES) : 0,
+        childCpuMs: process.platform === "darwin" ? perSampleOrNull(await childCpuOfPsMs(lastRead), SAMPLES) : 0,
         wallMs,
         processes,
       },
@@ -219,7 +247,7 @@ async function run(name: StepName): Promise<number> {
   const { measurement, sawSessions } = await tenSessions();
   const percent = costPercent(measurement);
 
-  console.log(`  ${String(measurement.samples)} amostras, numa tabela de ${String(measurement.processes)} processos`);
+  console.log(`  ${String(measurement.samples)} amostras, numa árvore de ${String(measurement.processes)} processos`);
   console.log(
     `  CPU por amostra: ${format(measurement.nodeCpuMs / measurement.samples, 2)} ms do daemon` +
       (measurement.childCpuMs === null

@@ -342,7 +342,7 @@ Quem liga a opção recebe a versão nova sem clicar, e nunca no meio de um turn
 | o número opcional ao lado do ícone | fica fora desta feature | a C2 o fez opt-in; ele não muda nenhuma decisão de estado, e cabe depois como preferência do app | n |
 | quem aparece em *workspaces recentes* | os três com sessão mais recente | não existe registro de *workspace aberto por último*; a sessão é o sinal que já existe | n |
 | de onde vêm a lista de turnos e os terminais abertos do painel | `system.live`, à parte do `system.status` | a casca consulta o `status` a cada 10 s, e a lista custa uma leitura de banco por turno em voo para nomear sessão e checkout; o painel a consulta só enquanto está aberto. A consulta nasceu ao construir a Parte 3: o AC 48 pede a lista e o AC 51 pede a contagem, e nenhuma rota do Surface as respondia | n |
-| a medição de processos no Linux | `/proc/<pid>/stat` e `/proc/<pid>/status`; no macOS, `ps -A -o pid=,ppid=,rss=,time=,comm=` | sem dependência nativa nova (ADR de 2026-08-30); o `%cpu` do `ps` no Linux é a média desde o início do processo | n |
+| a medição de processos | em duas passadas (primeiro os elos pai–filho da máquina, depois só a árvore do daemon): no Linux `/proc/<pid>/stat` de todos e `/proc/<pid>/status` só da árvore; no macOS `ps -A -o pid=,ppid=` e `ps -x -o pid=,ppid=,rss=,time=,comm= -p <pids da árvore>` | sem dependência nativa nova (ADR de 2026-08-30); o `%cpu` do `ps` no Linux é a média desde o início do processo | n |
 
 **Open questions:** none - Q1 a Q4 de [open-questions.md](open-questions.md) estão respondidas: Q1 e Q2 em 2026-09-29, pela recomendação; a Q3 medida sob pnpm (critério 77); a Q4 em 2026-09-30, pela opção (c) (critério 78).
 

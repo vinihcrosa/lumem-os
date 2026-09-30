@@ -70,6 +70,12 @@ function realEvery(fn: () => void, ms: number): () => void {
   };
 }
 
+const rootPidsOf = ({ daemonPid, agents, terminals }: TrackedPids): number[] => [
+  daemonPid,
+  ...agents.map(({ pid }) => pid),
+  ...terminals.map(({ pid }) => pid),
+];
+
 const round1 = (value: number): number => Math.round(value * 10) / 10;
 
 export function createResourceSampler({
@@ -111,9 +117,11 @@ export function createResourceSampler({
   }
 
   async function sampleOnce(): Promise<void> {
-    const table = await read();
+    // O que o daemon rastreia vale para a leitura e para a atribuição: a mesma resposta nas duas.
+    const roots = tracked();
+    const table = await read(rootPidsOf(roots));
     const at = now();
-    const owners = attribute(table, tracked());
+    const owners = attribute(table, roots);
 
     const groups: Record<ResourceGroup, { cpu: number | null; rssBytes: number }> = {
       daemon: { cpu: null, rssBytes: 0 },
