@@ -19,6 +19,8 @@ import { PtyManager } from "../pty/PtyManager.js";
 import { createScriptRunner, type ScriptRunner } from "../scripts/ScriptRunner.js";
 import { createSecretStore } from "../secrets/SecretStore.js";
 import { createSessionStore, type SessionStore } from "../sessions/SessionStore.js";
+import { createDaemonSettingsRepository } from "../repositories/daemonSettings.js";
+import { createUpdateService, type UpdateService, type UpdateServiceOptions } from "../update/service.js";
 import { adapterInvocationFor, catalogedAdapterOf } from "../setup/adapter-command.js";
 import { defaultAccountIdOf } from "../repositories/agentAccount.js";
 import { appRouter } from "../routers/index.js";
@@ -39,6 +41,8 @@ export interface TestCaller {
   pr: PrCache;
   events: EventBus;
   config: ServerConfig;
+  /** A verificação e o instalador do daemon, para o teste avançar a verificação à mão. */
+  update: UpdateService;
   /** Kills every session and deletes the database. Always call it. */
   cleanup(): Promise<void>;
 }
@@ -77,7 +81,21 @@ export interface TestCallerOverrides {
    * um falso responde com o exit que o teste escolher, na hora que ele quiser.
    */
   scripts?: ScriptRunner;
+  /**
+   * A atualização do daemon (`038`), com tudo o que ela toca de fora trocado.
+   *
+   * Sem `request`, o registry é o de verdade — e a verificação **não roda sozinha**
+   * aqui (o relógio nunca é armado), então um teste que esquecer de dublar só
+   * chegaria à rede se chamasse `check.checkNow()` de propósito. Sem `install` e sem
+   * `shutdown` o padrão **recusa**: um teste que chegasse a instalar de verdade
+   * trocaria o Lumem de quem roda a suíte.
+   */
+  update?: TestUpdateOverrides;
 }
+
+export type TestUpdateOverrides = Partial<
+  Pick<UpdateServiceOptions, "current" | "request" | "install" | "shutdown" | "manager">
+>;
 
 export function createTestCaller(
   env: ConfigEnv = {},
@@ -173,6 +191,17 @@ export function createTestCaller(
     onChange: (projectId) => events.emit({ type: "pr.changed", projectId }),
   });
 
+  const update = createUpdateService({
+    config,
+    settings: createDaemonSettingsRepository(database.db),
+    manager: "npm",
+    install: () => Promise.reject(new Error("o teste não injetou o instalador")),
+    // Nunca resolve: o daemon do teste não sai, e o teste vê o que ficou de pé.
+    shutdown: () => new Promise<void>(() => {}),
+    holdPrompts: (held) => acpManager.setUpdating(held),
+    ...overrides.update,
+  });
+
   const ctx: Context = {
     config,
     db: database.db,
@@ -189,6 +218,7 @@ export function createTestCaller(
     issues: createIssueCache({ host: prHost }),
     prHost,
     agentAuth: createAgentAuthService({ acpManager }),
+    update,
     events,
   };
 
@@ -204,6 +234,7 @@ export function createTestCaller(
     pr: prCache,
     events,
     config,
+    update,
     cleanup: async () => {
       stopTracking();
       await acpManager.killAll();

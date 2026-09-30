@@ -30,6 +30,8 @@ import { createSessionStore, type SessionStore } from "./sessions/SessionStore.j
 import { registerWeb, resolveWebRoot } from "./web/static.js";
 import { appRouter, type AppRouter } from "./routers/index.js";
 import type { Context } from "./trpc.js";
+import { createDaemonSettingsRepository } from "./repositories/daemonSettings.js";
+import { createUpdateService, type UpdateService } from "./update/service.js";
 
 /**
  * httpBatchLink packs every procedure name of a batch into the URL path, and
@@ -132,6 +134,12 @@ export interface CreateServerOptions {
   /** As tentativas de login vivas — em memória, e mortas com o daemon. */
   agentAuth?: AgentAuthService;
   /**
+   * A atualização do daemon. O `bootstrap` passa a dele — o desligamento que ele
+   * carrega é o que sai com 0 —; o default é para um servidor de teste que não
+   * atualiza nada, e o desligamento dele nunca resolve.
+   */
+  update?: UpdateService;
+  /**
    * Fastify's own request logging. Off in tests, on for the daemon — and, with
    * a `stream`, written to `LUMEM_LOG_FILE` as well (T11 of the `024`).
    */
@@ -167,6 +175,12 @@ export async function createServer({
   }),
   issues = createIssueCache({ host: prHost }),
   agentAuth = createAgentAuthService({ acpManager }),
+  update = createUpdateService({
+    config,
+    settings: createDaemonSettingsRepository(db),
+    shutdown: () => new Promise<void>(() => {}),
+    holdPrompts: (held) => acpManager.setUpdating(held),
+  }),
   logger = false,
 }: CreateServerOptions): Promise<FastifyInstance> {
   const app = Fastify({
@@ -193,6 +207,7 @@ export async function createServer({
     issues,
     prHost,
     agentAuth,
+    update,
     events,
   });
 

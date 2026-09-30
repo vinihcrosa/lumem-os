@@ -14,6 +14,7 @@ import { projectRouter } from "./project.js";
 import { scriptsRouter } from "./scripts.js";
 import { sessionRouter } from "./session.js";
 import { setupRouter } from "./setup.js";
+import { systemRouter } from "./system.js";
 import { taskRouter } from "./task.js";
 import { usageRouter } from "./usage.js";
 import { workspaceRouter } from "./workspace.js";
@@ -42,6 +43,7 @@ export const appRouter = router({
   scripts: scriptsRouter,
   session: sessionRouter,
   setup: setupRouter,
+  system: systemRouter,
   task: taskRouter,
   usage: usageRouter,
   workspace: workspaceRouter,

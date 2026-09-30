@@ -46,6 +46,8 @@ async function boot(
     acpManager?: AcpManager;
     database?: TestDb;
     stateDir?: string;
+    env?: Record<string, string>;
+    update?: NonNullable<Parameters<typeof bootstrap>[0]["update"]>;
   } = {},
 ) {
   const signalSource = new EventEmitter();
@@ -57,7 +59,11 @@ async function boot(
   const stateDir = overrides.stateDir ?? join(mkdtempSync(join(tmpdir(), "lumem-boot-")), ".lumem");
   if (!overrides.stateDir) stateDirs.push(stateDir);
   // Port 0 lets the OS pick a free one — no fixed port to collide with.
-  const config = loadConfig({ LUMEM_PORT: overrides.port ?? "0", LUMEM_STATE_DIR: stateDir });
+  const config = loadConfig({
+    LUMEM_PORT: overrides.port ?? "0",
+    LUMEM_STATE_DIR: stateDir,
+    ...overrides.env,
+  });
   // Never the real ~/.lumem/lumem.db: a test suite must not write to the
   // developer's own state.
   const database = overrides.database ?? openTestDb();
@@ -72,6 +78,7 @@ async function boot(
     ...(overrides.ptyManager ? { ptyManager: overrides.ptyManager } : {}),
     ...(overrides.acpManager ? { acpManager: overrides.acpManager } : {}),
     ...(overrides.beforeClose ? { beforeClose: overrides.beforeClose } : {}),
+    ...(overrides.update ? { update: overrides.update } : {}),
   });
   started.push(app);
 
@@ -143,6 +150,77 @@ describe("bootstrap", () => {
     // O banco é do bootstrap, então é ele quem o fecha: sem isto o arquivo -wal fica.
     signalSource.emit("SIGTERM");
     await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0));
+  });
+
+  it("updates through the daemon's own shutdown, and exits 0", async () => {
+    /*
+     * A fiação do `system.update` (`038`, Parte 2), pela rede como a tela a usa: o
+     * instalador de mentira sai 0, e o que o teste espera é o `exit(0)` do
+     * `createShutdownHandler` do **daemon** — o mesmo que o SIGTERM chama. O
+     * instalador e o desligamento têm unidade própria; esta é a linha que os liga, e
+     * apagá-la deixaria as duas verdes com uma atualização que instala e não sai.
+     */
+    const install = vi.fn(async () => 0);
+    const { app, exit } = await boot({
+      env: { LUMEM_SUPERVISOR: "launchd" },
+      update: {
+        current: "0.6.1",
+        request: (async () => Response.json({ version: "0.7.0" })) as typeof fetch,
+        install,
+        manager: "npm",
+        bootDelayMs: 0,
+      },
+    });
+
+    // O relógio do boot é quem lê o registry: a versão nova aparece sozinha.
+    await vi.waitFor(async () => {
+      const status = await app.inject({ method: "GET", url: "/trpc/system.updateStatus" });
+      expect(status.json().result.data.updateAvailable).toBe(true);
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/trpc/system.update",
+      headers: { "content-type": "application/json" },
+      payload: "{}",
+    });
+    expect(response.json().result.data).toEqual({ started: true });
+
+    await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0));
+    expect(install).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes the prompt door of the daemon's own AcpManager while it installs", async () => {
+    // A outra linha que o `bootstrap` liga na atualização: a porta de prompt é a do
+    // `AcpManager` **do daemon**. Com a instalação parada no meio, a porta tem de
+    // estar fechada — e o `exit` não pode ter sido chamado.
+    const acpManager = new AcpManager();
+    const closing = vi.spyOn(acpManager, "setUpdating");
+    const { app, exit } = await boot({
+      acpManager,
+      env: { LUMEM_SUPERVISOR: "systemd" },
+      update: {
+        current: "0.6.1",
+        request: (async () => Response.json({ version: "0.7.0" })) as typeof fetch,
+        install: () => new Promise<number>(() => {}),
+        manager: "npm",
+        bootDelayMs: 0,
+      },
+    });
+    await vi.waitFor(async () => {
+      const status = await app.inject({ method: "GET", url: "/trpc/system.updateStatus" });
+      expect(status.json().result.data.updateAvailable).toBe(true);
+    });
+
+    await app.inject({
+      method: "POST",
+      url: "/trpc/system.update",
+      headers: { "content-type": "application/json" },
+      payload: "{}",
+    });
+
+    expect(closing).toHaveBeenCalledWith(true);
+    expect(exit).not.toHaveBeenCalled();
   });
 
   it("rebuilds a stale memory index before serving", async () => {

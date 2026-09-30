@@ -57,6 +57,8 @@ import { createSessionStore } from "./sessions/SessionStore.js";
 import { createServer } from "./server.js";
 import { createShutdownHandler } from "./shutdown.js";
 import { installSignalHandlers, type SignalSource } from "./signals.js";
+import { createDaemonSettingsRepository } from "./repositories/daemonSettings.js";
+import { createUpdateService, type UpdateServiceOptions } from "./update/service.js";
 
 export interface BootstrapOptions {
   config: ServerConfig;
@@ -90,6 +92,13 @@ export interface BootstrapOptions {
   database?: Database_;
   /** Extra shutdown work, run after the children die and before the server closes. */
   beforeClose?: () => Promise<void>;
+  /**
+   * O que a atualização toca de fora (`038`): o registry, o instalador, a versão que
+   * roda. Só um teste passa; o daemon usa os de verdade.
+   */
+  update?: Partial<
+    Pick<UpdateServiceOptions, "request" | "install" | "current" | "manager" | "bootDelayMs">
+  >;
 }
 
 /**
@@ -110,6 +119,7 @@ export async function bootstrap({
   transcripts,
   database,
   beforeClose,
+  update: updateOverrides = {},
 }: BootstrapOptions): Promise<FastifyInstance> {
   // Antes do banco, porque o banco mora dentro do state dir e porque o
   // `.gitignore` que exclui o próprio banco do histórico é escrito aqui: abrir
@@ -234,6 +244,34 @@ export async function bootstrap({
    * que ninguém desliga.
    */
   const agentAuth = createAgentAuthService({ acpManager: acp });
+  /*
+   * A atualização do daemon (`038`, Parte 2). O desligamento que ela chama é o
+   * **mesmo** que o SIGTERM chama — `createShutdownHandler` mais adiante —, e por
+   * isso chega por uma referência: ele precisa do `app`, que precisa do contexto,
+   * que precisa disto. Sair por um `process.exit` direto deixaria as sessões, o
+   * banco e os filhos sem fechar.
+   */
+  let shutdownHandler: ((signal: string) => Promise<void>) | undefined;
+  const update = createUpdateService({
+    config,
+    settings: createDaemonSettingsRepository(openedDatabase.db),
+    shutdown: (signal) => {
+      if (shutdownHandler === undefined) throw new Error("o desligamento ainda não foi ligado");
+      return shutdownHandler(signal);
+    },
+    holdPrompts: (held) => {
+      acp.setUpdating(held);
+    },
+    log: {
+      warn: (...args: Parameters<FastifyBaseLogger["warn"]>) => {
+        bootedApp?.log.warn(...args);
+      },
+      info: (...args: Parameters<FastifyBaseLogger["info"]>) => {
+        bootedApp?.log.info(...args);
+      },
+    },
+    ...updateOverrides,
+  });
   // O cofre, antes do store: a conta de chave (`034` T5) sai dele no `spawn`
   // e na retomada, e o tracker abaixo usa a mesma instância.
   const secrets = createSecretStore({ stateDir: config.stateDir });
@@ -460,6 +498,7 @@ export async function bootstrap({
     issues,
     events,
     agentAuth,
+    update,
     logger: logger && config.logFile ? { stream: createLogSink({ file: config.logFile }) } : logger,
   });
   bootedApp = app;
@@ -493,6 +532,7 @@ export async function bootstrap({
     issues,
     events,
     agentAuth,
+    update,
   });
 
   const stopTracker = runTrackerLoop({
@@ -553,6 +593,7 @@ export async function bootstrap({
       // o adaptador seguinte num daemon que está desligando.
       stopWarmup();
       stopCatalogEvents();
+      update.check.stop();
       await ptyManager.killAll();
       // Conversations too: an adapter left running is a subprocess with nothing
       // pointing at it, exactly like an orphaned shell.
@@ -575,7 +616,8 @@ export async function bootstrap({
     },
   };
 
-  installSignalHandlers(signalSource, createShutdownHandler({ target, exit }));
+  shutdownHandler = createShutdownHandler({ target, exit });
+  installSignalHandlers(signalSource, shutdownHandler);
 
   // Records follow processes from here on: a shell that dies on its own has to
   // stop being `running` without anyone polling for it.
@@ -616,6 +658,9 @@ export async function bootstrap({
   }
 
   app.log.info({ port: config.port, host: config.host }, "lumem daemon listening");
+  // Depois do `listen`: a primeira pergunta ao registry é assunto de um daemon que já
+  // atende, e o relógio não segura o processo (`unref`).
+  update.check.start();
 
   /*
    * A terceira fonte do catálogo, e a única que não espera ninguém abrir nada.

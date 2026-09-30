@@ -130,6 +130,13 @@ export interface ServerConfig {
    * faz o daemon voltar quando alguém o relança.
    */
   supervised: boolean;
+  /**
+   * `LUMEM_NO_UPDATE_CHECK=1`: o daemon não pergunta ao registry (`038`, AC 18).
+   *
+   * Vale acima do interruptor de `/settings` — quem o pôs no ambiente não quer que
+   * uma tela o desfaça —, e é por isso que `system.settings` diz `updateCheckForcedOff`.
+   */
+  noUpdateCheck: boolean;
 }
 
 /** Only the variables this module reads. Keeps tests from touching process.env. */
@@ -149,6 +156,7 @@ export type ConfigEnv = Partial<
   | "LUMEM_CONVEYOR_AGENT"
     | "LUMEM_RUN_PORT_RANGE"
     | "LUMEM_SUPERVISOR"
+    | "LUMEM_NO_UPDATE_CHECK"
     | "HOME"
     | "SHELL",
     string
@@ -232,5 +240,6 @@ export function loadConfig(env: ConfigEnv = process.env): ServerConfig {
     conveyorAgent: env.LUMEM_CONVEYOR_AGENT ?? null,
     homeDir: env.HOME === undefined || env.HOME === "" ? homedir() : env.HOME,
     supervised: env.LUMEM_SUPERVISOR === "launchd" || env.LUMEM_SUPERVISOR === "systemd",
+    noUpdateCheck: env.LUMEM_NO_UPDATE_CHECK === "1",
   };
 }
