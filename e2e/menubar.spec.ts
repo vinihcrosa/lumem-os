@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 
 import { E2E_SERVER_PORT } from "../ports.js";
 import {
@@ -26,7 +26,7 @@ import { E2E_FAKE_ACP_AGENT, E2E_FIXTURE_REPO_ACP } from "./support/fixtures.js"
 
 const DAEMON = `http://127.0.0.1:${E2E_SERVER_PORT}`;
 const AGENT = "acp-falso";
-const WORKTREE = "painel-barra";
+const WORKTREE_PREFIX = "painel-barra";
 // A memória como o painel a escreve: `180 MB`, ou `1,2 GB` passando de um giga. O
 // tamanho da máquina decide qual dos dois aparece — um agente num runner chega a 1,2 GB —,
 // e a prova é que há um número com unidade, não qual unidade.
@@ -41,13 +41,22 @@ test.beforeEach(async ({ request }) => {
   });
 });
 
-async function startTurn(page: Page): Promise<void> {
+/**
+ * Um nome por tentativa. O daemon é um só para a suíte inteira, e o que a tentativa que
+ * falhou criou fica nele: sem o sufixo, o reteste pede uma worktree que já existe e
+ * morre em `createWorktree`, muito antes de chegar à asserção que de fato falhou.
+ */
+function worktreeName(): string {
+  return `${WORKTREE_PREFIX}-${Date.now().toString(36)}`;
+}
+
+async function startTurn(page: Page, worktree: string): Promise<void> {
   await page.goto("/");
   await ensureWorkspace(page);
   await ensureProject(page, E2E_FIXTURE_REPO_ACP, "repo-acp");
   await openProject(page, "repo-acp");
-  await createWorktree(page, WORKTREE, "repo-acp");
-  await expect(page.getByRole("heading", { name: WORKTREE })).toBeVisible({ timeout: 30_000 });
+  await createWorktree(page, worktree, "repo-acp");
+  await expect(page.getByRole("heading", { name: worktree })).toBeVisible({ timeout: 30_000 });
 
   await openConfiguredAgent(page, DAEMON, AGENT);
   const conv = page.locator("[role=tabpanel]:not([hidden]) .conv");
@@ -56,12 +65,31 @@ async function startTurn(page: Page): Promise<void> {
   await page.keyboard.press("ControlOrMeta+Enter");
 }
 
-test("o painel abre numa aba e mostra os três blocos", async ({ page, context }) => {
+/**
+ * Encerra a sessão pelo daemon, o mesmo gesto do `Fechar` da aba (`session.close`, que
+ * mata o adaptador). Achar a sessão é perguntar ao daemon o que ele mesmo lista: o
+ * painel lê `system.live`, então é a mesma resposta que ele vai mostrar.
+ */
+async function closeTurnOf(request: APIRequestContext, label: string): Promise<void> {
+  const live = await request.get(`${DAEMON}/trpc/system.live`);
+  const { result } = (await live.json()) as {
+    result: { data: { turns: { sessionId: string; label: string }[] } };
+  };
+  const turn = result.data.turns.find((candidate) => candidate.label === label);
+  if (turn === undefined) throw new Error(`o daemon não lista o turno "${label}"`);
+
+  const closed = await request.post(`${DAEMON}/trpc/session.close`, { data: { id: turn.sessionId } });
+  if (!closed.ok()) throw new Error(`não deu para fechar a sessão: ${await closed.text()}`);
+}
+
+test("o painel abre numa aba e mostra os três blocos", async ({ page, context, request }) => {
   // A CPU só existe da segunda amostra, e o daemon amostra de 5 em 5 s: o teste gasta ~19 s
   // numa máquina parada, e os 30 s do padrão não sobram quando a suíte inteira carrega o
   // daemon. Cada espera abaixo já tem o seu prazo; o que falta é o total caber neles.
   test.setTimeout(120_000);
-  await startTurn(page);
+  const worktree = worktreeName();
+  const label = `Acp-falso · repo-acp/${worktree}`;
+  await startTurn(page, worktree);
   const conv = page.locator("[role=tabpanel]:not([hidden]) .conv");
   // O turno pede permissão e fica esperando: está em voo até alguém responder.
   const permission = conv.getByRole("group", { name: "pedido de permissão" });
@@ -82,7 +110,7 @@ test("o painel abre numa aba e mostra os três blocos", async ({ page, context }
 
   // A lista de sessões: o turno em voo, com o agente e o checkout dele.
   const turns = panel.getByRole("region", { name: "Turnos em voo" });
-  await expect(turns.getByText(`Acp-falso · repo-acp/${WORKTREE}`)).toBeVisible({ timeout: 20_000 });
+  await expect(turns.getByText(label)).toBeVisible({ timeout: 20_000 });
 
   // Os recursos, com número: a memória do daemon e a dos agentes — o adaptador
   // falso é um `node` filho do daemon, e o painel o atribui pelo pid — vêm do
@@ -99,7 +127,11 @@ test("o painel abre numa aba e mostra os três blocos", async ({ page, context }
   });
   expect(failures).toEqual([]);
 
-  // Deixa o daemon como achou: o turno termina, e a próxima leitura já não o lista.
-  await permission.getByRole("button", { name: /permitir uma vez/ }).click();
-  await expect(turns.getByText("nenhuma sessão rodando")).toBeVisible({ timeout: 30_000 });
+  // Deixa o daemon como achou, e diz o que o painel tem que mostrar: **este** turno sumiu.
+  // Não "nenhuma sessão rodando" — o daemon é o da suíte inteira, e os specs que vieram
+  // antes deixam turnos em voo nele (medido: nove, na hora em que este começa), então a
+  // lista nunca esvazia. E o fim do turno não fica a cargo do fake: fecha-se a sessão
+  // pelo daemon, como o `Fechar` da aba.
+  await closeTurnOf(request, label);
+  await expect(turns.getByText(label)).toHaveCount(0, { timeout: 20_000 });
 });
