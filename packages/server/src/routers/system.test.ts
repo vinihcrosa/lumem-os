@@ -267,6 +267,35 @@ describe("system.resources", () => {
     // ISO, porque o tRPC daqui não tem transformador.
     expect(new Date(resources.sampledAt).toISOString()).toBe(resources.sampledAt);
   });
+
+  it("resources rounds cpuPercent to one decimal through the router", async () => {
+    // O C46 diz "uma casa decimal", e a primeira amostra não tem taxa: a segunda, cinco
+    // segundos depois, gasta 0,0777 s -> 1,554%, que só é 1,6 se arredondar em décimos.
+    const MB = 1024 * 1024;
+    let clock = 0;
+    let reads = 0;
+    let tick: () => void = () => undefined;
+    const caller = fresh({}, {}, {
+      read: async () => [
+        { pid: process.pid, ppid: 1, rssBytes: 100 * MB, cpuSeconds: 1 + reads++ * 0.0777, command: "/opt/node/bin/node" },
+      ],
+      now: () => clock,
+      every: (fn) => {
+        tick = fn;
+        return () => undefined;
+      },
+    });
+
+    await caller.api.system.resources();
+    clock = 5_000;
+    tick();
+
+    await vi.waitFor(async () => {
+      const resources = await caller.api.system.resources();
+      expect(resources.groups.daemon.cpuPercent).toBe(1.6);
+      expect(resources.top.map((entry) => entry.cpuPercent)).toEqual([1.6]);
+    });
+  });
 });
 
 describe("system.status", () => {

@@ -131,6 +131,40 @@ describe("resource sampler", () => {
       [300, 60],
       [200, 50],
     ]);
+
+    // "Em uma casa decimal" (AC 40): os valores acima são inteiros, e `Math.round` os
+    // acerta todos. Aqui cada taxa cai entre dois inteiros, e a soma do grupo também.
+    const fractional: Record<number, number> = {
+      100: 0.0777, // 1,554% -> 1,6
+      200: 0.0123, // 0,246%
+      201: 0.0234, // 0,468% -> 0,5
+      202: 0.01, // 0,2%
+      300: 0.0195, // 0,39%; o grupo soma 1,304% -> 1,3
+      400: 0.0311, // 0,622%
+      401: 0.0407, // 0,814%
+      402: 0.02, // 0,4%; o grupo soma 1,836% -> 1,8
+    };
+    const rounded = harness(
+      (read) => TREE((pid) => 100 + read * (fractional[pid] ?? 0)),
+      { intervalMs: 5_000 },
+    );
+
+    await rounded.sampler.resources();
+    await rounded.advance(5_000);
+    const decimals = await rounded.sampler.resources();
+
+    expect(decimals.groups).toEqual({
+      daemon: { cpuPercent: 1.6, rssBytes: 200 * MB },
+      agents: { cpuPercent: 1.3, rssBytes: (50 + 400 + 10 + 60) * MB },
+      terminals: { cpuPercent: 1.8, rssBytes: (8 + 30 + 120) * MB },
+    });
+    expect(decimals.top.map((entry) => [entry.pid, entry.cpuPercent])).toEqual([
+      [201, 0.5],
+      [100, 1.6],
+      [402, 0.4],
+      [300, 0.4],
+      [200, 0.2],
+    ]);
   });
 
   it("computes cpu from the delta between samples", async () => {
