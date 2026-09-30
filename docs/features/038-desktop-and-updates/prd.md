@@ -170,7 +170,7 @@ O CLI é consumido por gente e pelos arquivos de serviço, e o código de saída
 | `lumem status` | uma linha: estado, versão, origem, supervisionado | `0` rodando · `3` parado |
 | `lumem logs [-f]` | as últimas 200 linhas de `<stateDir>/daemon.log`, e segue com `-f` | `0` · `1` sem arquivo |
 | `lumem upgrade` (muda) | instala e, com serviço, o reinicia; com app, leva o app | `0` · `1` · o código do gerenciador |
-| `lumem menubar install` · `open` · `uninstall` | o app de desktop | `0` · `1` plataforma fora das quatro, ou instalação falhou |
+| `lumem menubar install` · `open` · `uninstall` | o app de desktop | `0` · `1` plataforma fora das quatro · o código do gerenciador quando a instalação falha, como o `lumem upgrade` |
 
 ## Landing
 
