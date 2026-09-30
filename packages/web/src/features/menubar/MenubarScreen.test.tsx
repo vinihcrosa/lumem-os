@@ -1,8 +1,10 @@
+import { LUMEM_VERSION } from "@lumem/shared";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MenubarScreen } from "./MenubarScreen.js";
+import { RELOADED_FOR_KEY } from "../../hooks/useVersionReload.js";
 import { renderWithProviders } from "../../test/render.js";
 import {
   NO_RESOURCES,
@@ -296,5 +298,35 @@ describe("o painel da barra", () => {
     const resources = await screen.findByRole("region", { name: "Recursos" });
     await waitFor(() => expect(within(resources).getByText("Agentes")).toBeInTheDocument());
     expect(within(resources).getByText("Terminais")).toBeInTheDocument();
+  });
+
+  it("reloads once when the daemon changes version under an open panel", async () => {
+    // AC 34, no painel: uma janela que ficou aberta durante uma atualização é o bundle
+    // velho na memória, falando com um daemon novo. Sem isto ela só se conserta quando
+    // alguém a fecha e abre — e o app esconde o painel, não o fecha.
+    window.sessionStorage.removeItem(RELOADED_FOR_KEY);
+    trpc.system.updateStatus.query.mockResolvedValue({ ...NO_UPDATE, current: "99.0.0" });
+    const reload = vi.fn();
+
+    const first = renderWithProviders(<MenubarScreen now={NOW} reload={reload} />);
+    await waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
+    first.unmount();
+
+    // Depois do recarregamento as versões ainda diferem (um cache): não é laço.
+    renderWithProviders(<MenubarScreen now={NOW} reload={reload} />);
+    await screen.findByRole("region", { name: "Consumo" });
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not reload a panel that is already on the daemon's version", async () => {
+    window.sessionStorage.removeItem(RELOADED_FOR_KEY);
+    trpc.system.updateStatus.query.mockResolvedValue({ ...NO_UPDATE, current: LUMEM_VERSION });
+    const reload = vi.fn();
+
+    renderWithProviders(<MenubarScreen now={NOW} reload={reload} />);
+
+    await screen.findByRole("region", { name: "Consumo" });
+    await waitFor(() => expect(trpc.system.updateStatus.query).toHaveBeenCalled());
+    expect(reload).not.toHaveBeenCalled();
   });
 });
