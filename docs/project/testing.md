@@ -80,6 +80,7 @@ Fonte de verdade da estratégia de teste. O campo `Tests`/`Gate` de toda task sa
 | `lint` | `pnpm lint` | `oxlint --type-aware`: a categoria `correctness` mais `no-floating-promises`, `no-misused-promises` e `await-thenable`, com `--max-warnings 0`. 2,7 s. Não vê estilo, e é de propósito. `unbound-method` desligado: 162 achados, todos `const { f } = useHook()` sobre interface com sintaxe de método, sem `this` em jogo. Exceção na linha, sempre com `-- motivo` |
 | `docs` | `pnpm docs:check` | Link, âncora, `**Status:**`, **caminho de código em crase que não existe** (fora de ADR, de `references/` e de feature não `completa`) e **linha duplicada numa tabela do índice**. Já roda dentro do `gate:full` pelo `check-docs.test.ts`, e o `gate:quick` o roda sozinho sempre que uma doc mudou — o `--changed` do vitest nunca selecionaria um teste que lê arquivo por caminho |
 | `smoke` | `pnpm smoke:install` | O pacote publicado instala num prefixo limpo e sobe. Não faz parte dos três gates de todo dia: roda no release, e à mão antes de publicar |
+| `smoke` (app de desktop) | `pnpm smoke:install --only desktop [tarball]` | O pacote do app da [`038`](../features/038-desktop-and-updates/checks.md), empacotado (ou o tarball dado), instalado num prefixo descartável e posto onde o `lumem menubar install` o poria — chamando **o código dele**, com a casa trocada por uma pasta. No macOS confere o `codesign --verify` e que **não há `com.apple.quarantine`** (o gatilho que reabre a decisão de assinar com Developer ID); no Linux sobe o binário sob `xvfb` contra um daemon de mentira e espera a janela pedir `/menubar`. Empacotar baixa o Electron (~100 MB) na primeira vez. O `e2e` do app é à parte: `pnpm --filter @lumem/desktop exec playwright test`, que sobe o daemon de teste na 4424 e o Electron de verdade |
 | `smoke` (serviço) | `pnpm smoke:service [--only <passo>]` | O serviço de verdade, da [`038`](../features/038-desktop-and-updates/checks.md): instala o tarball num prefixo descartável, roda `lumem start` contra o launchd ou o `systemd --user` **desta máquina** e desfaz tudo no fim. Usa rótulo, unit, porta (4398) e state dir próprios — `LUMEM_SERVICE_LABEL` e `LUMEM_SERVICE_UNIT` — e nunca toca um `tech.cazimi.lumem` de verdade. O passo `update-relaunches` é o único que prova o supervisor subindo o daemon depois de um `exit(0)`: troca por falsos o registry (um servidor HTTP na 4399, com a URL trocada no bundle instalado), a versão que roda e o `npm` (um executável na frente do `PATH` de quem chamou `lumem start`, que o arquivo de serviço copia) — e deixa de verdade o supervisor, o daemon e o `system.update`. Local, e só: os runners não têm sessão de usuário do launchd nem do systemd |
 | `measure` | `pnpm measure:resources [--only <passo>]` | O custo de medir a árvore de processos, da [`038`](../features/038-desktop-and-updates/checks.md): **10 sessões de verdade** (5 ACP falsos do e2e, um `node` cada, e 5 shells) e o amostrador de produção lendo o `ps` (macOS) ou o `/proc` (Linux), uma amostra a cada 3 s. Sai 0 só abaixo de 1% de um núcleo; sem ver as dez sessões, ou sem conseguir medir o `ps`, recusa (o `pnpm` mostra 1, e o script diz por quê na saída). **Mede amostra a amostra, e não o processo numa janela:** um `tsx` parado gasta 0,6% a 0,9% de CPU sozinho, ruído maior que o sinal — e a CPU do `ps`, que o Node não enxerga, sai do `time -p` do sistema. Medido em 2026-09-29 (macOS, ~650 processos): ~3 ms do daemon e ~11 ms do `ps` por amostra, **0,47%**. Local: o número é da máquina que mede |
 
@@ -1842,6 +1843,59 @@ instalação **sem** o daemon sair: `/` responde 200 com o asset novo, o asset n
 `#root` fica vazio. Se a fixture deixar de reproduzir a página em branco, é o controle que fica vermelho, e
 não o teste principal que passa em silêncio. A regra: **um e2e que afirma que um defeito não acontece prova o
 defeito acontecendo no mesmo mundo, sem a correção**.
+
+### O npm descarta symlink, e um `.app` vive deles
+
+**Sintoma:** nenhum, até alguém instalar: o pacote do app publicado com o `.app` solto instala, e o app não
+abre — e o `codesign --verify` acusa `a sealed resource is missing or invalid`.
+
+**Causa:** o `npm pack` e o `npm publish` não guardam symlink (medido: uma árvore com `Versions/Current -> A`
+sai do tarball sem o link), e o Electron Framework é feito deles (`Electron Framework`, `Versions/Current`,
+`Resources`). O `.app` de 14 symlinks chega ao usuário com zero.
+
+**O que passou a avisar antes:** o pacote do macOS leva o **zip** do `.app` (`Lumem.zip`), que o CLI abre com
+`ditto`, e o `pnpm smoke:install --only desktop` roda o `codesign --verify` no que instalou. A regra:
+**artefato com symlink viaja dentro de um arquivo, e a prova é a assinatura do que foi instalado, não a
+listagem do tarball**.
+
+### `setContextMenu` no macOS engole o clique do ícone
+
+**Sintoma:** o menu de contexto abre com o botão esquerdo e o painel nunca abre; ou o painel abre e o menu
+some.
+
+**Causa:** com `tray.setContextMenu`, o macOS trata **qualquer** clique no ícone como pedido do menu e não
+emite `click` (nem `mouse-up`). O `click` do StatusNotifierItem do Linux, ao contrário, não é confiável, e ali
+o menu é o caminho.
+
+**O que passou a avisar antes:** o `main.ts` usa `setContextMenu` só fora do macOS; no macOS o menu sai do
+`right-click` por `popUpContextMenu`, e o `main.test.ts` afirma as duas formas. Um segundo detalhe do mesmo gesto, **não medido aqui** (o Playwright não clica na barra de menus): o clique que tira o foco do
+painel chega **depois** do `blur`, como nos outros apps de barra, e a janela de 300 ms do `windows.ts` existe para o painel não
+esconder e reabrir no mesmo clique — o `windows.test.ts` prova a guarda, e só o uso diz se o tempo basta.
+
+### O `--uninstall` de um segundo processo tem de chegar ao que está rodando
+
+**Sintoma:** `lumem menubar uninstall` remove o app e o item de login, e o ícone continua na barra até o
+próximo logout.
+
+**Causa:** tratar a flag **antes** de pedir o `requestSingleInstanceLock` faz o segundo processo executar a
+remoção e sair sozinho — o primeiro nunca ouve. Medido com o `.app` de verdade: os três processos do Electron
+seguiam de pé.
+
+**O que passou a avisar antes:** o `startApp` pede a trava primeiro; quem a perde só encerra, e a instância viva
+trata o `--uninstall` no `second-instance`. O `main.test.ts` tem os dois lados. A regra: **um comando entregue a
+um app de instância única é do processo que está de pé, não do que foi lançado**.
+
+### Um app aberto pelo Finder não tem o `PATH` do terminal
+
+**Sintoma:** o daemon subido pelo `Iniciar` do ícone não acha `claude`, `git` nem `node`, e as sessões falham
+com *comando não encontrado* — enquanto o mesmo daemon subido por `lumem start` no terminal funciona.
+
+**Causa:** o `lumem start` grava no arquivo de serviço o `PATH` **de quem o chamou**, e o de um app aberto pelo
+launchd ou pelo autostart é `/usr/bin:/bin`.
+
+**O que passou a avisar antes:** o `lumem-desktop.json` guarda o `PATH` do terminal que rodou `lumem menubar
+install`, e o `commands.ts` o entrega ao `lumem start` (`commands.test.ts`). O teste que decide isso é o que
+olha o `env` da chamada, e não o argv.
 
 ## Convenções
 
