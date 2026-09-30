@@ -5,8 +5,8 @@
  *     pnpm smoke:service                     os passos, um depois do outro
  *     pnpm smoke:service --only <passo>      um só
  *
- * Passos: `start-waits-for-health`, `stop-leaves-nothing`, `survives-the-caller`.
- * (`update-relaunches` é da fatia S2 da `038` e ainda não existe.)
+ * Passos: `start-waits-for-health`, `stop-leaves-nothing`, `survives-the-caller`,
+ * `update-relaunches`.
  *
  * **Não roda no CI, e de propósito.** Os runners não têm sessão de usuário do
  * launchd nem do systemd, então `lumem start` recusaria lá — que é o
@@ -26,9 +26,10 @@
  * se ele não bastou, o desmonte à mão do serviço, do arquivo e dos diretórios.
  */
 import { execFile, execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { createServer, type Server } from "node:http";
 import { homedir, tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { delimiter, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -42,7 +43,12 @@ const PRODUCTION_LABEL = "tech.cazimi.lumem";
 const PORT = 4_398;
 const ORIGIN = `http://127.0.0.1:${String(PORT)}`;
 
-const STEP_NAMES = ["start-waits-for-health", "stop-leaves-nothing", "survives-the-caller"] as const;
+const STEP_NAMES = [
+  "start-waits-for-health",
+  "stop-leaves-nothing",
+  "survives-the-caller",
+  "update-relaunches",
+] as const;
 type StepName = (typeof STEP_NAMES)[number];
 
 function step(message: string): void {
@@ -180,26 +186,187 @@ async function stepSurvivesTheCaller(sandbox: Sandbox): Promise<void> {
   await reset(sandbox);
 }
 
+/** A porta do registry de mentira, ao lado da do daemon do smoke. */
+const REGISTRY_PORT = 4_399;
+/** As versões que o passo inventa: nenhuma existe no npm, e nenhuma se confunde com a do repositório. */
+const OLD_VERSION = "0.98.0";
+const NEW_VERSION = "0.99.0";
+
+const VERSION_LINE = /var LUMEM_VERSION = "[^"]*";/;
+
+/** Chama até `check` devolver o que se quer, ou estoura `timeoutMs` e devolve `null`. */
+async function poll<T>(check: () => Promise<T | null>, timeoutMs: number, everyMs = 500): Promise<T | null> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const found = await check();
+    if (found !== null) return found;
+    if (Date.now() >= deadline) return null;
+    await new Promise((done) => setTimeout(done, everyMs));
+  }
+}
+
+async function readUpdateStatus(): Promise<{ updateAvailable?: boolean; latest?: string | null; lastError?: string | null } | null> {
+  try {
+    const response = await fetch(`${ORIGIN}/trpc/system.updateStatus`, { signal: AbortSignal.timeout(1_500) });
+    if (!response.ok) return null;
+    const body = (await response.json()) as { result?: { data?: { updateAvailable?: boolean; latest?: string | null; lastError?: string | null } } };
+    return body.result?.data ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Um daemon **de verdade**, sob o supervisor de verdade, que se atualiza e volta
+ * respondendo a versão nova sem ninguém rodar `lumem start` (`038`, C40).
+ *
+ * Três coisas são de mentira, e as três moram do lado de **fora** do daemon:
+ *
+ *  - o **registry**: um servidor HTTP nesta máquina, e o daemon o pergunta porque o
+ *    bundle instalado tem a URL dele trocada — o `system.update` só instala o que o
+ *    `latest` diz ser mais novo que a versão que roda;
+ *  - a **versão que roda**: o `LUMEM_VERSION` do bundle instalado é trocado por uma
+ *    velha, e o registry de mentira responde uma mais nova;
+ *  - o **instalador**: um `npm` na frente do PATH de quem chamou `lumem start` — o
+ *    arquivo de serviço copia o PATH, e o daemon roda o gerenciador dono da cópia. O
+ *    falso troca a versão dentro do bundle e sai 0, que é o que o `npm i -g` de
+ *    verdade faria ao substituir os arquivos.
+ *
+ * O que é de verdade: o launchd ou o systemd, o daemon, o `system.update`, o
+ * `createShutdownHandler` saindo com 0 e o supervisor subindo o processo de novo.
+ * É esta a única prova de que **o supervisor reinicia depois de um `exit(0)`** — o
+ * `bootstrap.test.ts` prova o `exit`, e ninguém mais prova o que vem depois.
+ */
+async function stepUpdateRelaunches(sandbox: Sandbox): Promise<void> {
+  step("update-relaunches");
+  const bundle = join(sandbox.prefix, "lib", "node_modules", "@vinihcrosa", "lumem-os", "dist", "server", "main.mjs");
+  const original = readFileSync(bundle, "utf8");
+  assert(VERSION_LINE.test(original), "não achei `var LUMEM_VERSION = …;` no bundle instalado");
+  assert(original.includes("https://registry.npmjs.org/"), "não achei a URL do registry no bundle instalado");
+
+  const shimDir = join(sandbox.prefix, "shim");
+  const callsFile = join(sandbox.prefix, "npm-calls.txt");
+  mkdirSync(shimDir, { recursive: true });
+  // O `#!` é o `node` que roda este script: o falso não depende do PATH que sobrar.
+  writeFileSync(
+    join(shimDir, "npm"),
+    `#!${process.execPath}
+const fs = require("node:fs");
+fs.appendFileSync(${JSON.stringify(callsFile)}, process.argv.slice(2).join(" ") + "\\n");
+const spec = process.argv[process.argv.length - 1];
+const version = spec.slice(spec.lastIndexOf("@") + 1);
+const text = fs.readFileSync(${JSON.stringify(bundle)}, "utf8");
+fs.writeFileSync(${JSON.stringify(bundle)}, text.replace(${VERSION_LINE.toString()}, 'var LUMEM_VERSION = "' + version + '";'));
+`,
+  );
+  chmodSync(join(shimDir, "npm"), 0o755);
+
+  const asked: string[] = [];
+  const registry: Server = createServer((request, response) => {
+    asked.push(request.url ?? "");
+    response.setHeader("content-type", "application/json");
+    response.end(JSON.stringify({ version: NEW_VERSION }));
+  });
+  await new Promise<void>((done, refuse) => {
+    registry.once("error", refuse);
+    registry.listen(REGISTRY_PORT, "127.0.0.1", done);
+  });
+
+  const env = { ...sandbox.env, PATH: `${shimDir}${delimiter}${process.env["PATH"] ?? ""}` };
+  const updating: Sandbox = { ...sandbox, env };
+  try {
+    writeFileSync(
+      bundle,
+      original
+        .replace(VERSION_LINE, `var LUMEM_VERSION = "${OLD_VERSION}";`)
+        .replaceAll("https://registry.npmjs.org/", `http://127.0.0.1:${String(REGISTRY_PORT)}/`),
+    );
+
+    const started = await lumem(updating, ["start"]);
+    assert(started.code === 0, `lumem start saiu ${String(started.code)}:\n${started.output}`);
+    const before = await readHealth();
+    assert(before?.version === OLD_VERSION, `o daemon devia responder v${OLD_VERSION}, respondeu ${before?.version ?? "nada"}`);
+    assert(before.supervised === true, "o daemon não subiu supervisionado");
+    console.log(`  subiu na v${OLD_VERSION}, supervisionado`);
+
+    // O relógio de verificação do daemon lê o registry uns segundos depois do boot.
+    const seen = await poll(async () => {
+      const status = await readUpdateStatus();
+      return status?.updateAvailable === true ? status : null;
+    }, 60_000);
+    assert(seen !== null, `o daemon não viu a v${NEW_VERSION} em 60 s (registry pedido: ${asked.join(", ") || "nunca"})`);
+    assert(
+      asked[0] === "/@vinihcrosa%2Flumem-os/latest",
+      `o daemon pediu ${asked[0] ?? "nada"} ao registry, e não o dist-tag latest`,
+    );
+    console.log(`  viu a v${NEW_VERSION} pedindo ${asked[0]}`);
+
+    const response = await fetch(`${ORIGIN}/trpc/system.update`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+    });
+    const answer = (await response.json()) as { result?: { data?: { started?: boolean } } };
+    assert(response.ok && answer.result?.data?.started === true, `system.update não começou: ${JSON.stringify(answer)}`);
+
+    // **Ninguém** roda `lumem start` daqui até o fim: quem sobe o daemon de novo é o
+    // supervisor, depois de o daemon sair com 0.
+    const back = await poll(async () => {
+      const health = await readHealth();
+      return health?.version === NEW_VERSION ? health : null;
+    }, 90_000);
+    if (back === null) {
+      const status = await readUpdateStatus();
+      const now = await readHealth();
+      fail(
+        `o daemon não voltou na v${NEW_VERSION} em 90 s (health: ${now?.version ?? "sem resposta"}, ` +
+          `lastError: ${status?.lastError ?? "nenhum"})`,
+      );
+    }
+    assert(back.supervised === true, "o daemon voltou, mas sem `supervised: true`");
+
+    const calls = readFileSync(callsFile, "utf8").trim().split("\n");
+    assert(
+      calls.length === 1 && calls[0] === `install --global @vinihcrosa/lumem-os@${NEW_VERSION}`,
+      `o instalador devia ter recebido uma vez \`install --global @vinihcrosa/lumem-os@${NEW_VERSION}\`: ${calls.join(" | ")}`,
+    );
+    const status = await lumem(updating, ["status"]);
+    assert(status.output.includes(`v${NEW_VERSION}`), `lumem status não diz v${NEW_VERSION}: ${status.output}`);
+    console.log(`  o supervisor subiu o daemon de novo, na v${NEW_VERSION}, sem ninguém rodar \`lumem start\``);
+  } finally {
+    writeFileSync(bundle, original);
+    await new Promise<void>((done) => registry.close(() => done()));
+    await reset(updating);
+  }
+}
+
 const STEPS: Record<StepName, (sandbox: Sandbox) => Promise<void>> = {
   "start-waits-for-health": stepStartWaitsForHealth,
   "stop-leaves-nothing": stepStopLeavesNothing,
   "survives-the-caller": stepSurvivesTheCaller,
+  "update-relaunches": stepUpdateRelaunches,
 };
 
 function chosenSteps(argv: readonly string[]): StepName[] {
   const at = argv.indexOf("--only");
   if (at === -1) return [...STEP_NAMES];
   const wanted = argv[at + 1];
-  if (wanted === "update-relaunches") {
-    console.error("update-relaunches é da fatia S2 da 038 e ainda não foi construído.");
-    process.exit(2);
-  }
   const known = STEP_NAMES.find((name) => name === wanted);
   if (known === undefined) {
     console.error(`passo desconhecido: ${wanted ?? "(nenhum)"}. Os passos: ${STEP_NAMES.join(", ")}.`);
     process.exit(2);
   }
   return [known];
+}
+
+async function portIsTaken(port: number): Promise<boolean> {
+  return await new Promise((done) => {
+    const probe = createServer();
+    probe.once("error", () => done(true));
+    probe.listen(port, "127.0.0.1", () => {
+      probe.close(() => done(false));
+    });
+  });
 }
 
 async function main(): Promise<void> {
@@ -210,6 +377,9 @@ async function main(): Promise<void> {
   // O guarda que o cabeçalho promete: o smoke nunca é o serviço de verdade.
   if (LABEL === PRODUCTION_LABEL) fail("o rótulo do smoke é o de produção");
   if ((await readHealth()) !== null) fail(`já tem um Lumem respondendo em ${ORIGIN}; o smoke não o toca.`);
+  if (steps.includes("update-relaunches") && (await portIsTaken(REGISTRY_PORT))) {
+    fail(`a porta ${String(REGISTRY_PORT)} (registry de mentira) já está em uso.`);
+  }
 
   const prefix = mkdtempSync(join(tmpdir(), "lumem-svc-prefix-"));
   const stateDir = mkdtempSync(join(tmpdir(), "lumem-svc-state-"));
@@ -227,6 +397,12 @@ async function main(): Promise<void> {
   };
 
   try {
+    step("construindo");
+    // O `prepack` só monta o que já foi construído: sem isto o tarball leva o daemon
+    // da última vez que alguém rodou `pnpm build`. O turbo cacheia, e sem mudança é
+    // uma consulta.
+    execFileSync("pnpm", ["build"], { cwd: repoRoot, stdio: ["ignore", "inherit", "inherit"] });
+
     step("empacotando");
     // `npm pack` roda o `prepack`, que constrói: o tarball é o que o release publicaria.
     execFileSync("npm", ["pack", "--pack-destination", prefix], {
