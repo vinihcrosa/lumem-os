@@ -5,7 +5,7 @@
 Profile: standard
 Plan: `docs/features/038-desktop-and-updates/prd.md`
 
-85 checks in 5 slices · 8 one-way doors · 0 open
+92 checks in 5 slices · 9 one-way doors · 0 open
 
 ## Checks
 
@@ -167,6 +167,7 @@ Proof: `pnpm --filter @lumem/server exec vitest run src/routers/agentAccount.tes
 
 **C46** - `system.resources` devolve os grupos `daemon`, `agents` e `terminals`, cada um com `cpuPercent` em uma casa decimal e `rssBytes`, e um `top` de no máximo 5, em `rssBytes` decrescente, a partir de uma tabela de processos de 9 linhas (AC 40)
 Proof: `pnpm --filter @lumem/server exec vitest run src/resources/sample.test.ts -t "groups the tree and keeps the five largest"`
+Proof: `pnpm --filter @lumem/server exec vitest run src/routers/system.test.ts -t "resources rounds cpuPercent to one decimal through the router"`
 
 **C47** - Um neto de um adaptador ACP entra em `agents`, um neto de um PTY entra em `terminals`, e o próprio daemon entra em `daemon` (AC 41)
 Proof: `pnpm --filter @lumem/server exec vitest run src/resources/attribute.test.ts -t "attributes a process to its nearest tracked ancestor"`
@@ -213,6 +214,16 @@ Proof: `pnpm exec playwright test e2e/menubar.spec.ts -g "o painel abre numa aba
 
 **C61** - Medir a árvore de processos a cada 3 s com 10 sessões abertas custa menos de 1% de CPU do daemon (a meta da C1b da discovery, experimento 3 da fase 0) (AC 43)
 Proof: `pnpm measure:resources --only ten-sessions`
+
+**C86** - Com `usage.total`, `system.live` ou `system.updateStatus` falhando, só o bloco correspondente diz `não consegui ler <o bloco>` (`o consumo`, `as sessões`, `a versão`), e os outros aparecem (AC 50)
+Proof: `pnpm --filter @lumem/web exec vitest run src/features/menubar/MenubarScreen.test.tsx -t "fails alone when"`
+
+**C87** - `system.live` devolve em `turns` só os turnos em voo, cada um com `sessionId`, `label` (`Claude · lumem-os/bandung`) e `startedAt` em ISO — uma sessão de agente ociosa não é turno —, e `openTerminals` = o número de shells abertos (AC 48, AC 51)
+Proof: `pnpm --filter @lumem/server exec vitest run src/routers/system.test.ts -t "live names each turn by session and checkout, and counts open shells"`
+
+**C88** - `workspace.recent` devolve, de cinco workspaces em que quatro têm sessão, os três com a sessão mais nova, do mais novo ao mais velho, cada um com `id` e `name`; a sessão de uma worktree conta para o workspace do projeto dela, um workspace sem sessão nenhuma não entra, e sem nenhuma sessão a lista é vazia (AC 48)
+Proof: `pnpm --filter @lumem/server exec vitest run src/routers/workspace.test.ts -t "lists the three workspaces with the most recent session, newest first"`
+Proof: `pnpm --filter @lumem/server exec vitest run src/routers/workspace.test.ts -t "is empty when no session was ever opened"`
 
 ### S4 - o ícone na barra · 20 files · 240 KB · ~90k
 
@@ -272,6 +283,24 @@ Proof: `pnpm smoke:install --only desktop`
 Proof: `pnpm exec vitest run scripts/set-version.test.ts -t "writes the desktop manifest too"`
 Proof: `pnpm exec vitest run scripts/package-boundaries.test.ts -t "desktop imports only from shared"`
 
+**C89** - `lumem menubar open` roda o app instalado com `--panel` (`~/Applications/Lumem.app/Contents/MacOS/Lumem --panel` no macOS, `<pacote>/app/lumem-desktop --panel` no Linux) e sai 0; sem o app instalado, sai 1 dizendo `lumem menubar install` e não roda nada (AC 54, o ícone no Linux sem extensão)
+Proof: `pnpm --filter @vinihcrosa/lumem-os exec vitest run src/menubar.test.ts -t "opens the panel as a window through the installed app"`
+Proof: `pnpm --filter @vinihcrosa/lumem-os exec vitest run src/menubar.test.ts -t "says how to install when the app is not there"`
+
+**C90** - O `lumem-desktop.json` (porta 9) fica em `<dados do app>` — `~/Library/Application Support/Lumem` no macOS, `${XDG_CONFIG_HOME:-~/.config}/Lumem` no Linux — com `{ node, lumem, stateDir, origin, path }`; cada `lumem menubar install` o reescreve; e o app o lê nessa mesma pasta e, sem ele, diz `lumem menubar install` e sai (AC 53, AC 64)
+Proof: `pnpm --filter @vinihcrosa/lumem-os exec vitest run src/menubar.test.ts -t "installs the package of each supported platform"`
+Proof: `pnpm --filter @vinihcrosa/lumem-os exec vitest run src/menubar.test.ts -t "rewrites lumem-desktop.json on every install"`
+Proof: `pnpm --filter @lumem/shared exec vitest run src/desktop.test.ts -t "desktopDataDir"`
+Proof: `pnpm --filter @lumem/desktop exec vitest run src/main.test.ts -t "reads lumem-desktop.json from the folder the CLI writes it to"`
+Proof: `pnpm --filter @lumem/desktop exec vitest run src/main.test.ts -t "says how to fix a missing config, and quits"`
+
+**C91** - Com o `current` do `system.updateStatus` diferente do `LUMEM_VERSION` do bundle, o painel `/menubar` aberto recarrega uma vez, e não de novo depois de recarregar (as versões ainda diferem); com a versão igual, não recarrega (AC 34, AC 35)
+Proof: `pnpm --filter @lumem/web exec vitest run src/features/menubar/MenubarScreen.test.tsx -t "reloads once when the daemon changes version under an open panel"`
+Proof: `pnpm --filter @lumem/web exec vitest run src/features/menubar/MenubarScreen.test.tsx -t "does not reload a panel that is already on the daemon's version"`
+
+**C92** - `lumem menubar install` com o gerenciador saindo diferente de zero devolve esse código, não grava arquivo nenhum e não abre o app (AC 53)
+Proof: `pnpm --filter @vinihcrosa/lumem-os exec vitest run src/menubar.test.ts -t "returns the manager's code and writes nothing when the install fails"`
+
 ### S5 - atualizar sozinho quando ocioso · 5 files · 70 KB · ~25k
 
 **C80** - Com `auto_update` em `idle`, um tick de 60 s supervisionado, com versão nova, sem turno em voo e sem script rodando, dispara o mesmo instalador do `system.update`; com `auto_update` em `off` (o padrão), o mesmo tick não dispara nada (AC 71, AC 72)
@@ -285,6 +314,7 @@ Proof: `pnpm --filter @lumem/server exec vitest run src/update/auto.test.ts -t "
 
 **C83** - Durante a instalação automática, a esteira não despacha tarefa nova (AC 75)
 Proof: `pnpm --filter @lumem/server exec vitest run src/update/auto.test.ts -t "the conveyor dispatches nothing while it installs"`
+Proof: `pnpm --filter @lumem/server exec vitest run src/bootstrap.test.ts -t "does not dispatch from the daemon's own conveyor while it installs by itself"`
 
 **C84** - `/settings` mostra `Atualizar sozinho quando ocioso` ligado ao `auto_update`, e desabilitado com `precisa do Lumem rodando como serviço` quando `supervised` é falso (AC 76)
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/settings/UpdateSettings.test.tsx -t "binds the auto-update toggle and needs a supervisor"`
@@ -297,13 +327,15 @@ Proof: `pnpm --filter @lumem/web exec vitest run src/features/settings/UpdateSet
 | `query system.updateStatus` statuses (1) | 200 C18 | - |
 | `mutation system.update` statuses (3) | 200 C27 · 409 C30 · 412 C32 | - |
 | `query system.status` statuses (1) | 200 C52 | - |
-| `query system.resources` statuses (1) | 200 C46 | - |
+| `query system.resources` statuses (1) | 200 C46 (o amostrador e o router) | - |
 | `system.settings` / `system.setSettings` statuses (2) | 200 C22 · 400 C23 | - |
 | `query usage.total` statuses (2) | 200 C42 · 400 C44 | - |
 | `query agentAccount.rateLimits` statuses (1) | 200 C45 | - |
+| `query system.live` statuses (1) | 200 C87 | - |
+| `query workspace.recent` statuses (1) | 200 C88 | - |
 | `GET /menubar` statuses (1) | 200 C59 | - |
-| verbos do CLI (9) | `start` C4 · `run` C8 · sem verbo C7 · `stop` C9 · `status` C10 · `logs` C11 · `upgrade` C39 · `menubar install` C62 · `menubar uninstall` C66 | - |
-| saídas do CLI que não são 0 (7) | `start` 1 sem supervisor C5 · `start` 1 outro Lumem C6 · `start` 1 sem health C4 · `stop` 1 C9 · `status` 3 C10 · `logs` 1 C12 · `menubar install` 1 C64 | - |
+| verbos do CLI (10) | `start` C4 · `run` C8 · sem verbo C7 · `stop` C9 · `status` C10 · `logs` C11 · `upgrade` C39 · `menubar install` C62 · `menubar open` C89 · `menubar uninstall` C66 | - |
+| saídas do CLI que não são 0 (9) | `start` 1 sem supervisor C5 · `start` 1 outro Lumem C6 · `start` 1 sem health C4 · `stop` 1 C9 · `status` 3 C10 · `logs` 1 C12 · `menubar install` 1 C64 · `menubar install` com o código do gerenciador C92 · `menubar open` 1 sem app C89 | - |
 | supervisores (2) | launchd C1 · systemd C2 | - |
 | layout do gerenciador global (3) | npm C85 · pnpm com symlink estável C85 · sem symlink C85 | - |
 | plataformas do app (4) | `darwin-arm64` C62 · `darwin-x64` C62 · `linux-x64` C62 · `linux-arm64` C62 | - |
@@ -313,11 +345,13 @@ Proof: `pnpm --filter @lumem/web exec vitest run src/features/settings/UpdateSet
 | desfechos da instalação (3) | saída 0 C28 · saída não zero C29 · falha ao nascer C29 | - |
 | grupos de recursos (3) | `daemon` C47 · `agents` C47 · `terminals` C47 | - |
 | manchete do painel (3) | cota C53 · custo C54 · tokens sem custo C54 | - |
+| blocos do painel que falham sozinhos (4) | `Consumo` C86 · `Turnos em voo` C86 · `Recursos` C57 · `Versão` C86 | - |
 | valores de `auto_update` (3) | `off` C80 · `idle` C80 · inválido C23 | - |
-| portas de mão única (8) | 1 verbos C7 · 2 identidade do serviço C1 · 3 `daemon_settings` C24 · 4 contrato da casca C14 · 5 nomes publicados C62 · 6 dependências e fronteira C79 · 7 cópia do banco C34 · 8 o daemon se instala C27 | - |
+| portas de mão única (9) | 1 verbos C7 · 2 identidade do serviço C1 · 3 `daemon_settings` C24 · 4 contrato da casca C14 · 5 nomes publicados C62 · 6 dependências e fronteira C79 · 7 cópia do banco C34 · 8 o daemon se instala C27 · 9 o que o CLI deixa para o app C90 | - |
 | startup config: `LUMEM_SUPERVISOR` (2 assemblies) | o serviço de verdade C15 · o harness de teste do router C13 | - |
+| `paused` da esteira durante a instalação (2 montagens) | a do teste, `runConveyorLoop` direto C83 · a do daemon, montada pelo `bootstrap` C83 | - |
 
-- Rotas que nomeiam status ou forma de resposta: C13, C14, C18, C22, C23, C27, C30, C32, C42, C44, C45, C46, C52, C59 — cada uma com prova que atravessa o router
+- Rotas que nomeiam status ou forma de resposta: C13, C14, C18, C22, C23, C27, C30, C32, C42, C44, C45, C46, C52, C59, C87, C88 — cada uma com prova que atravessa o router
 - Nenhum outro check afirma mais do que o caso único que a prova dele exercita
 
 ## Test policy
@@ -381,3 +415,4 @@ Tamanho, com a conta, escrito depois dos checks e antes de qualquer código:
 - **Boundary (S5):** C80–C84 closed at 24afcdd7 (C80–C83 em 13f65155, C84 em 24afcdd7). Provas: as cinco rodadas uma a uma, verdes; `gate:quick` desde `c494f7b`, `lint`, `typecheck` e `docs:check` saíram 0; `e2e/settings.spec.ts`, `e2e/conveyor.spec.ts` e `e2e/update.spec.ts` passaram (16 casos).
 - **Settled mid-build (S5):** o tique mora em `update/auto.ts` e chama o **mesmo** `installer.start` do `system.update`, com o mesmo `busyNow`; o que decide é relido no instante do `start`, porque a contagem de scripts é assíncrona e um turno pode abrir nesse meio tempo. A única ponta que ele pediu da esteira é `runConveyorLoop({ paused })`, ligada no `bootstrap` a `installer.installing()`: a passada inteira é pulada, e por isso vale também para a instalação do botão (a porta de prompt já está fechada, e uma tarefa despachada nela gastaria uma tentativa antes de o prompt ser recusado). Antes da instalação a esteira anda e o daemon aceita prompt — o C81 prova as duas coisas com a esteira de verdade (`runConveyorLoop`) e um `AcpManager` real. Cruzar o major é `major(current) >= 1 && major(latest) > major(current)`: `0.9.2 → 1.0.0` instala (sob `0.x` qualquer aumento vale), `1.4.0 → 1.5.0` também, e o botão manual continua atravessando o major. `bootstrap` ganhou `update.autoIntervalMs` (só um teste passa) para o teste de fiação provar que o tique é armado depois do `listen` e sai pelo desligamento do daemon. O teto de linhas do `bootstrap.ts` subiu de 843 para 868, com motivo. Em `/settings` o interruptor lê `supervised` do `updateStatus`; enquanto ele não chegou fica desabilitado **sem** o texto, porque ainda não se sabe.
 - **Abandoned (S5):** nada foi cortado dos checks. Não provado por teste: a fiação `paused: () => update.installer.installing()` do `bootstrap` (a esteira do daemon tem intervalo fixo de 15 s, sem gancho de teste; o `auto.test.ts` prova o `paused` do `runConveyorLoop`, e trocar a linha do `bootstrap` por `() => false` deixa tudo verde). Janela conhecida e não fechada: uma passada da esteira já em `prepareCheckout` (antes do prompt) não é turno em voo nem script rodando, então o `busyNow` a vê ociosa; o prompt dela será recusado pela porta fechada e a tentativa gasta.
+- **Fix round 1 (verificação de 2026-09-30):** o `paused` do `bootstrap` ganhou prova na esteira que o daemon monta (C83, segunda prova; o gancho é `conveyorSetInterval`, e trocar a linha por `() => false` deixa o teste vermelho); o `cpuPercent` em uma casa decimal ganhou valores fracionários no amostrador e no router (C46, segunda prova; `Math.round(value)` no `round1` deixa os dois vermelhos); C86–C92 dão check ao que a construção acrescentou sem nome — falha isolada dos blocos, `system.live`, `workspace.recent`, `menubar open`, a porta 9, o recarregamento do painel e o código do gerenciador no `menubar install`. A amostra de Linux do C51 agora é gravada (kernel Linux aarch64). Continuam sem prova, por dependerem de máquina que esta sessão não tem: a metade de Linux do C78 e o `systemd --user` de verdade; e a Q4, aberta.

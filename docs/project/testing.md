@@ -1897,6 +1897,38 @@ launchd ou pelo autostart é `/usr/bin:/bin`.
 install`, e o `commands.ts` o entrega ao `lumem start` (`commands.test.ts`). O teste que decide isso é o que
 olha o `env` da chamada, e não o argv.
 
+### Uma prova que monta a própria instância de uma opção ligada não vê a ligação de produção ser apagada
+
+**Sintoma:** a atualização automática pausa a esteira durante a instalação (`038`, C83), o teste dizia que sim, e
+trocar `paused: () => update.installer.installing()` por `paused: () => false` no `bootstrap.ts` deixava 276 de
+276 testes verdes. O daemon voltava a despachar tarefa contra a porta de prompt fechada, e ninguém veria.
+
+**Causa:** o teste montava o próprio `runConveyorLoop({ paused })`. O que ele provava era que **a opção funciona
+quando alguém a passa**; quem a passa em produção é o `bootstrap`, numa esteira de intervalo fixo de 15 s que
+nenhum teste alcançava. O mesmo desenho já tinha custado outras linhas do `bootstrap` (o `ptyManager`, a versão
+do `openDatabase`), e cada uma ganhou um teste de fiação depois.
+
+**O que passou a avisar antes:** opção ligada só por uma linha do `bootstrap` precisa de **um teste que suba o
+`bootstrap`** e observe o efeito na peça que ele montou — aqui, o `conveyorSetInterval` deixa o teste disparar a
+esteira do daemon, e um `tick` espionado diz se ela despachou. A verificação é a mutação: apague a linha e o teste
+tem de ficar vermelho. A regra: **a prova de uma opção tem de passar pela montagem que a liga**, e a de uma
+unidade sozinha só vale para a unidade.
+
+### "Em uma casa decimal", provado só com valores inteiros, não prova arredondamento
+
+**Sintoma:** o C46 dizia `cpuPercent` em uma casa decimal, e trocar `Math.round(value * 10) / 10` por
+`Math.round(value)` no `sample.ts` deixava a prova dele verde: todo valor esperado era `10`, `28` ou `10`, que
+os dois cálculos acertam.
+
+**Causa:** uma afirmação de **precisão** só é testada por um valor que cai entre dois valores da precisão
+anterior. Com taxas escolhidas para dar números redondos (o que é o natural ao escrever uma tabela de exemplo),
+o arredondamento nunca é exercitado, e a prova fica no nível do amostrador, abaixo do router que o check nomeia.
+
+**O que passou a avisar antes:** a prova ganhou taxas que dão `1,554%`, `0,468%` e `1,304%` (de soma de grupo), com
+`1.6`, `0.5` e `1.3` esperados, no amostrador e por `system.resources`. A regra: **todo check que nomeia uma
+casa decimal, um teto ou um mínimo precisa de um valor esperado que só o cálculo certo produz**, e a mutação
+que o remove (`Math.round(value)`, `<=` por `<`) tem de matar a prova.
+
 ## Convenções
 
 - Teste de git usa **repositório temporário real**, nunca mock. `git worktree` tem caso de borda em nome com barra e branch existente que mock nenhum reproduz.

@@ -811,7 +811,8 @@ decisões desceram para os três ADRs de 2026-09-29.
 |---|---|
 | [prd.md](features/038-desktop-and-updates/prd.md) | o plano: 76 critérios em cinco fatias — o serviço, o update manual, os dados e a página `/menubar`, o app Electron, e o update quando ocioso — e oito portas de mão única |
 | [open-questions.md](features/038-desktop-and-updates/open-questions.md) | 3 perguntas, **3 respondidas** em 2026-09-29 pela recomendação: `lumem` sobe o serviço, a preferência global mora numa tabela de uma linha, e o serviço grava o caminho estável do pacote — a Q3, medida sob pnpm |
-| [checks.md](features/038-desktop-and-updates/checks.md) | **85 checks em cinco fatias**, perfil `standard`, com `Test policy` para as duas camadas novas — o processo principal do Electron e o escritor de serviço do CLI. Três provas rodam só na máquina de quem verifica: `pnpm smoke:service`, `pnpm measure:resources` e o passo `desktop` do `smoke:install` |
+| [checks.md](features/038-desktop-and-updates/checks.md) | **92 checks em cinco fatias**, perfil `standard`, com `Test policy` para as duas camadas novas — o processo principal do Electron e o escritor de serviço do CLI. Três provas rodam só na máquina de quem verifica: `pnpm smoke:service`, `pnpm measure:resources` e o passo `desktop` do `smoke:install` |
+| [verification.md](features/038-desktop-and-updates/verification.md) | o relatório do verificador independente: **FAIL na primeira rodada**, com quatro lacunas — a fiação do `paused` da esteira do daemon sem prova (um mutante sobreviveu), o `cpuPercent` em uma casa decimal provado só por valores inteiros, três dos quatro blocos do painel sem prova de falha isolada, e o que só uma máquina Linux prova (o `systemd --user` e o `.AppImage`/`.deb`). As duas primeiras viraram armadilha em `testing.md` |
 
 ## Convenções
 
