@@ -21,7 +21,8 @@
  * **O que conta como custo** são as duas CPUs que a leitura gasta: a deste processo
  * (`process.cpuUsage` em volta de cada amostra, que já inclui lançar o `ps` e ler a
  * saída) e a do `ps`, que roda **fora** dele — o Node não enxerga a CPU de um filho, e
- * o macOS não a dá de outro jeito, então ela é medida à parte com o `time -p` do sistema.
+ * o macOS não a dá de outro jeito, então ela é medida à parte com o `time -p` do sistema — em
+ * lote de 50 execuções, porque o `time` trunca cada leitura para 10 ms (ver `cpuOfTimeOutput`).
  * No Linux a leitura é do próprio processo, e não há filho.
  *
  * **Por que amostra a amostra, e não o processo inteiro numa janela.** Um processo
@@ -92,32 +93,51 @@ export function verdictOf(measurement: Measurement, sawSessions: boolean): "ok" 
   return percent < LIMIT_PERCENT ? "ok" : "over";
 }
 
+/** Quantas vezes o `ps` roda dentro de **uma** medição do `time -p`. */
+const PS_RUNS = 50;
+
 /**
- * Quanto de CPU um `ps` gasta, medido pelo `time -p` do sistema.
+ * `user` mais `sys` do que o `time -p` imprime, em ms, ou `null` se a saída não é essa.
  *
- * A resolução é de 10 ms, e a média de várias corridas é o que a torna útil; `null`
- * quando a saída do `time` não é a que se espera (não há `/usr/bin/time` na máquina).
+ * O `time` do sistema **trunca** cada um dos dois para centésimos de segundo (`tv_usec / 10000`):
+ * um `ps` de 5 ms de usuário e 20 de sistema sai `0.00` e `0.02`. Medido sozinho, cada `ps` perde
+ * em média ~10 ms — a metade do custo dele — e o número sai bom demais (0,4–0,6% onde o custo real
+ * é ~0,9%, com a mesma tabela). Por isso o `ps` é medido **em lote** (ver `childCpuOfPsMs`).
  */
-async function childCpuOfPsMs(runs: number): Promise<number | null> {
-  let total = 0;
-  for (let index = 0; index < runs; index += 1) {
-    const stderr = await new Promise<string | null>((done) => {
-      execFile(
-        "/usr/bin/time",
-        ["-p", "ps", "-A", "-o", "pid=,ppid=,rss=,time=,comm="],
-        { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 },
-        (error, _stdout, output) => {
-          done(error === null ? output : null);
-        },
-      );
-    });
-    const user = stderr === null ? null : /^user\s+([\d.]+)/m.exec(stderr)?.[1];
-    const system = stderr === null ? null : /^sys\s+([\d.]+)/m.exec(stderr)?.[1];
-    if (user === undefined || user === null || system === undefined || system === null) return null;
-    total += (Number(user) + Number(system)) * 1000;
-  }
-  return total;
+export function cpuOfTimeOutput(stderr: string): number | null {
+  const user = /^user\s+([\d.]+)/m.exec(stderr)?.[1];
+  const system = /^sys\s+([\d.]+)/m.exec(stderr)?.[1];
+  if (user === undefined || system === undefined) return null;
+  return (Number(user) + Number(system)) * 1000;
 }
+
+/**
+ * Quanto de CPU **um** `ps` gasta, em ms, medido pelo `time -p` do sistema sobre `PS_RUNS`
+ * execuções seguidas dentro de um `sh`: a truncagem do `time` (10 ms) cai uma vez sobre o lote, e
+ * dividida por 50 some — cada `ps` sozinho perderia ~10 ms dos ~25 que gasta. A saída do `ps`
+ * vai para o pipe deste processo, como no daemon, e não para `/dev/null`.
+ *
+ * `null` quando a saída do `time` não é a que se espera (não há `/usr/bin/time` na máquina).
+ */
+async function childCpuOfPsMs(): Promise<number | null> {
+  const loop = `i=0; while [ "$i" -lt ${String(PS_RUNS)} ]; do ps -A -o pid=,ppid=,rss=,time=,comm=; i=$((i+1)); done`;
+  const stderr = await new Promise<string | null>((done) => {
+    execFile(
+      "/usr/bin/time",
+      ["-p", "/bin/sh", "-c", loop],
+      { encoding: "utf8", maxBuffer: 512 * 1024 * 1024 },
+      (error, _stdout, output) => {
+        done(error === null ? output : null);
+      },
+    );
+  });
+  const total = stderr === null ? null : cpuOfTimeOutput(stderr);
+  return total === null ? null : total / PS_RUNS;
+}
+
+/** O `ps` de uma amostra, multiplicado pelas `samples` amostras: o que `Measurement.childCpuMs` guarda. */
+const perSampleOrNull = (psMs: number | null, samples: number): number | null =>
+  psMs === null ? null : psMs * samples;
 
 async function tenSessions(): Promise<{ measurement: Measurement; sawSessions: boolean }> {
   const cwd = mkdtempSync(join(tmpdir(), "lumem-measure-"));
@@ -171,7 +191,7 @@ async function tenSessions(): Promise<{ measurement: Measurement; sawSessions: b
         intervalMs: SAMPLE_INTERVAL_MS,
         nodeCpuMs,
         // No Linux a leitura é `/proc`, dentro deste processo: não há filho para somar.
-        childCpuMs: process.platform === "darwin" ? await childCpuOfPsMs(SAMPLES) : 0,
+        childCpuMs: process.platform === "darwin" ? perSampleOrNull(await childCpuOfPsMs(), SAMPLES) : 0,
         wallMs,
         processes,
       },
