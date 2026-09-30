@@ -263,6 +263,37 @@ describe("o app sobe", () => {
     expect(fake.paths["userData"]).toBe("/Users/ana/Library/Application Support/Lumem");
   });
 
+  it("reads lumem-desktop.json from the folder the CLI writes it to", async () => {
+    // A porta 9: o CLI grava e o app lê o mesmo caminho, por macOS e por Linux. Um `readFile`
+    // que aceita qualquer `lumem-desktop.json` deixaria o app ler de outra pasta e falhar
+    // só na máquina de quem instalou.
+    for (const [platform, expected] of [
+      ["darwin", "/Users/ana/Library/Application Support/Lumem/lumem-desktop.json"],
+      ["linux", "/Users/ana/.config/Lumem/lumem-desktop.json"],
+    ] as const) {
+      const read: string[] = [];
+      await startApp({
+        electron: fakeElectron().electron,
+        platform,
+        argv: ["Lumem"],
+        home: "/Users/ana",
+        env: {},
+        readFile: (path) => {
+          read.push(path);
+          return JSON.stringify(CONFIG);
+        },
+        request: (async (input: string | URL | Request) => {
+          const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+          return trpc(url.endsWith("/trpc/health") ? HEALTH : STATUS);
+        }) as unknown as typeof fetch,
+        exec: vi.fn(async () => 0),
+        now: () => 0,
+      });
+
+      expect(read, platform).toEqual([expected]);
+    }
+  });
+
   it("does not start a second copy", async () => {
     // Dois ícones na barra são a falha visível de um app aberto duas vezes.
     const fake = fakeElectron();

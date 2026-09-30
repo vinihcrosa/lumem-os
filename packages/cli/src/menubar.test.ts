@@ -132,6 +132,28 @@ describe("lumem menubar install", () => {
     }
   });
 
+  it("rewrites lumem-desktop.json on every install", async () => {
+    // A porta 9: o arquivo é do CLI, e cada `install` o refaz com o `node`, o `lumem`, o `PATH`
+    // e a origem de agora. Um app que segue lendo o de uma instalação velha roda o `lumem`
+    // que já não existe.
+    const run = setup({ platform: "darwin" });
+    const file = "/Users/ana/Library/Application Support/Lumem/lumem-desktop.json";
+    run.files.set(
+      file,
+      JSON.stringify({ node: "/velho/node", lumem: "/velho/lumem.mjs", stateDir: "/velho", origin: "http://127.0.0.1:1", path: "/bin" }),
+    );
+
+    expect(await menubar("install", run.deps)).toBe(0);
+
+    expect(JSON.parse(run.files.get(file) ?? "null")).toEqual({
+      node: "/opt/node/bin/node",
+      lumem: LUMEM,
+      stateDir: "/Users/ana/.lumem",
+      origin: ORIGIN,
+      path: "/usr/bin",
+    });
+  });
+
   it("installs with the manager that owns the running copy", async () => {
     const run = setup({ manager: "pnpm" });
 
