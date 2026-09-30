@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 
-import { ADAPTERS, ADAPTERS_DIR_NAME, type AdapterSpec } from "@lumem/shared";
+import { ADAPTERS, ADAPTERS_DIR_NAME, LUMEM_VERSION, type AdapterSpec } from "@lumem/shared";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import type { FastifyBaseLogger, FastifyInstance } from "fastify";
 
@@ -137,7 +137,14 @@ export async function bootstrap({
    * `listen`.
    */
   const owned = database === undefined;
-  const openedDatabase = database ?? openDatabase({ path: config.databasePath });
+  // A versão que sobe entra aqui, e é só este `openDatabase` que a recebe: é ele
+  // que copia o banco antes de migrar quando a versão mudou (`038`, door 7).
+  const openedDatabase =
+    database ??
+    openDatabase({
+      path: config.databasePath,
+      release: { stateDir: config.stateDir, version: LUMEM_VERSION },
+    });
   // Depois do banco (`034` T9): o catálogo é por conta, e é a conta padrão de
   // cada agente que decide a ordem da leitura e para onde vai o arquivo antigo.
   const adapterCatalog = new AdapterCatalog({

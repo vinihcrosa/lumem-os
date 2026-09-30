@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { CLAUDE_ADAPTER } from "@lumem/shared";
+import { CLAUDE_ADAPTER, LUMEM_VERSION } from "@lumem/shared";
 import { sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -13,6 +13,7 @@ import type { AcpSpawnRequest } from "./acp/process.js";
 import { ADAPTER_CATALOG_FILE } from "./acp/adapter-catalog.js";
 import { bootstrap } from "./bootstrap.js";
 import { loadConfig } from "./config.js";
+import { openDatabase } from "./db/index.js";
 import { openTestDb, type TestDb } from "./db/testing.js";
 import * as eventsModule from "./events.js";
 import { MemoryService } from "./memory/MemoryService.js";
@@ -116,6 +117,32 @@ describe("bootstrap", () => {
     expect(existsSync(join(stateDir, "memory"))).toBe(true);
     expect(existsSync(join(stateDir, ".git"))).toBe(true);
     expect(existsSync(join(stateDir, ".gitignore"))).toBe(true);
+  });
+
+  it("opens its own database with the running version, so it is copied before migrating", async () => {
+    /*
+     * A fiação, e não a cópia (`038`, door 7; a cópia tem prova em `db/backup.test.ts`).
+     *
+     * Todos os outros casos deste arquivo injetam o banco, e o `bootstrap` só passa a
+     * versão para o `openDatabase` que ele mesmo abre. Sem este caso, apagar a linha
+     * `release` deixaria a suíte verde e o daemon sem cópia nenhuma.
+     */
+    const stateDir = join(mkdtempSync(join(tmpdir(), "lumem-boot-")), ".lumem");
+    stateDirs.push(stateDir);
+    const config = loadConfig({ LUMEM_PORT: "0", LUMEM_STATE_DIR: stateDir });
+    openDatabase({ path: config.databasePath }).close();
+    writeFileSync(join(stateDir, "last-version"), "0.0.1\n");
+    const signalSource = new EventEmitter();
+    const exit = vi.fn();
+
+    const app = await bootstrap({ config, signalSource, exit, logger: false });
+    started.push(app);
+
+    expect(existsSync(`${config.databasePath}.bak-0.0.1`)).toBe(true);
+    expect(readFileSync(join(stateDir, "last-version"), "utf8").trim()).toBe(LUMEM_VERSION);
+    // O banco é do bootstrap, então é ele quem o fecha: sem isto o arquivo -wal fica.
+    signalSource.emit("SIGTERM");
+    await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0));
   });
 
   it("rebuilds a stale memory index before serving", async () => {
