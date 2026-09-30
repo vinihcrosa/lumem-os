@@ -217,6 +217,57 @@ describe("o painel da barra", () => {
     expect(screen.getAllByText(/não consegui ler/)).toHaveLength(1);
   });
 
+  it.each([
+    {
+      failing: "usage.total",
+      region: "Consumo",
+      says: "não consegui ler o consumo",
+      fail: () => trpc.usage.total.query.mockRejectedValue(new Error("banco")),
+    },
+    {
+      failing: "system.live",
+      region: "Turnos em voo",
+      says: "não consegui ler as sessões",
+      fail: () => trpc.system.live.query.mockRejectedValue(new Error("manager")),
+    },
+    {
+      failing: "system.updateStatus",
+      region: "Versão",
+      says: "não consegui ler a versão",
+      fail: () => trpc.system.updateStatus.query.mockRejectedValue(new Error("registry")),
+    },
+  ])("fails alone when $failing fails: only $region says what it could not read", async (block) => {
+    // O AC 50 vale para cada bloco, e o de recursos tem o caso dele (C57). Aqui o mundo
+    // está saudável e uma só chamada falha: o bloco dela diz qual foi, e os outros três
+    // seguem com o que já tinham — nenhum herda a falha.
+    trpc.usage.total.query.mockResolvedValue({ tokens: 1_000, cost: 0.5, currency: "USD", turns: 2 });
+    trpc.system.live.query.mockResolvedValue({
+      turns: [{ sessionId: "s1", label: "Claude · lumem-os/bandung", startedAt: "2026-09-29T11:55:00.000Z" }],
+      openTerminals: 0,
+    });
+    trpc.system.resources.query.mockResolvedValue(RESOURCES);
+    trpc.system.updateStatus.query.mockResolvedValue(NEWER);
+    block.fail();
+    renderWithProviders(<MenubarScreen now={NOW} reload={vi.fn()} />);
+
+    const healthy = [
+      { region: "Consumo", shows: "US$ 0,50" },
+      { region: "Turnos em voo", shows: "Claude · lumem-os/bandung" },
+      { region: "Recursos", shows: "Daemon" },
+      { region: "Versão", shows: "v0.6.1" },
+    ];
+    for (const { region, shows } of healthy) {
+      const found = await screen.findByRole("region", { name: region });
+      if (region === block.region) {
+        expect(await within(found).findByText(block.says)).toBeInTheDocument();
+        continue;
+      }
+      await waitFor(() => expect(within(found).getByText(shows)).toBeInTheDocument());
+      expect(within(found).queryByText(/não consegui ler/)).not.toBeInTheDocument();
+    }
+    expect(screen.getAllByText(/não consegui ler/)).toHaveLength(1);
+  });
+
   it("warns which terminals an update closes", async () => {
     trpc.system.updateStatus.query.mockResolvedValue(NEWER);
     trpc.system.live.query.mockResolvedValue({ turns: [], openTerminals: 2 });
