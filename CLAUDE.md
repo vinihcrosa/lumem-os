@@ -82,6 +82,7 @@ Monorepo pnpm + Turborepo: `packages/shared` (contratos), `packages/server` (dae
 | `pnpm feature:check <plan\|checks\|verification> <dir>` | os validadores do fluxo de feature |
 | `pnpm gate:mutation` | Stryker no núcleo do `server`; piso por arquivo em `scripts/mutation-floors.ts`. Semanal no CI — minutos, não segundos |
 | `pnpm adapters:check` · `smoke:install` | o pino dos adaptadores envelheceu? · o pacote publicado instala e sobe |
+| `pnpm smoke:service` | o serviço de verdade (launchd ou `systemd --user`) sobe, sobrevive ao chamador, para e volta depois de atualizar — local, não no CI |
 | `pnpm version:set <x.y.z>` | a versão nos três lugares; a release passa **por PR** e publica pela tag (runbook no Outline) |
 
 **Antes de dizer que está pronto, rode o gate que a task declara** — o `Stop` cobra, uma vez por turno.

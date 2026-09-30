@@ -191,6 +191,7 @@ O CLI é consumido por gente e pelos arquivos de serviço, e o código de saída
 12. IF `<stateDir>/daemon.log` does not exist THEN `lumem logs` SHALL exit 1 naming the path it looked for
 13. WHILE the daemon runs with `LUMEM_SUPERVISOR` set to `launchd` or `systemd` the `health` query SHALL answer `supervised: true`, and SHALL answer `supervised: false` otherwise
 14. The `health` query SHALL answer `protocolVersion: 1`
+77. WHEN the running `lumem` resolves inside a package manager's versioned store (for example `<global>/.pnpm/<entry>/node_modules/@vinihcrosa/lumem-os/`) THEN the service file SHALL record the path through the stable `<global>/node_modules/@vinihcrosa/lumem-os/bin/lumem.mjs` symlink when it exists, so that an upgrade by that manager changes the code the supervisor starts ([Q3](open-questions.md))
 
 **Independent test:** `lumem start`, fechar o terminal, abrir o navegador em `127.0.0.1:4317`; `lumem status` diz `rodando · supervisionado`; `lumem stop`, e ele para.
 

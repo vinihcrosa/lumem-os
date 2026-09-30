@@ -5,7 +5,7 @@
 Profile: standard
 Plan: `docs/features/038-desktop-and-updates/prd.md`
 
-84 checks in 5 slices · 8 one-way doors · 0 open
+85 checks in 5 slices · 8 one-way doors · 0 open
 
 ## Checks
 
@@ -69,6 +69,9 @@ Proof: `pnpm smoke:service --only survives-the-caller`
 
 **C16** - O `scripts/smoke-install.ts` sobe o binário instalado com `lumem run`, e não com `lumem` sem verbo (AC 8)
 Proof: `pnpm exec vitest run scripts/smoke-install.test.ts -t "starts the installed binary with lumem run"`
+
+**C85** - Com o `lumem` resolvido em `<g>/.pnpm/@vinihcrosa+lumem-os@0.6.1/node_modules/@vinihcrosa/lumem-os/bin/lumem.mjs` e o symlink `<g>/node_modules/@vinihcrosa/lumem-os` existindo, o plist e a unit gravam `<g>/node_modules/@vinihcrosa/lumem-os/bin/lumem.mjs`; sem o symlink, gravam o caminho resolvido; sob npm, o caminho não muda (AC 77)
+Proof: `pnpm --filter @vinihcrosa/lumem-os exec vitest run src/service.test.ts -t "records the stable package path under a versioned store"`
 
 ### S2 - atualizar é um clique, e a tela não quebra · 15 files · 210 KB · ~75k
 
@@ -302,6 +305,7 @@ Proof: `pnpm --filter @lumem/web exec vitest run src/features/settings/UpdateSet
 | verbos do CLI (9) | `start` C4 · `run` C8 · sem verbo C7 · `stop` C9 · `status` C10 · `logs` C11 · `upgrade` C39 · `menubar install` C62 · `menubar uninstall` C66 | - |
 | saídas do CLI que não são 0 (7) | `start` 1 sem supervisor C5 · `start` 1 outro Lumem C6 · `start` 1 sem health C4 · `stop` 1 C9 · `status` 3 C10 · `logs` 1 C12 · `menubar install` 1 C64 | - |
 | supervisores (2) | launchd C1 · systemd C2 | - |
+| layout do gerenciador global (3) | npm C85 · pnpm com symlink estável C85 · sem symlink C85 | - |
 | plataformas do app (4) | `darwin-arm64` C62 · `darwin-x64` C62 · `linux-x64` C62 · `linux-arm64` C62 | - |
 | estados do ícone (4) | `stopped` C69 · `attention` C69 · `update` C69 · `running` C69 | - |
 | bloqueios do `system.update` (5) | turno em voo C30 · script rodando C30 · instalação já em curso C31 · sem supervisor C32 · sem versão nova C32 | - |

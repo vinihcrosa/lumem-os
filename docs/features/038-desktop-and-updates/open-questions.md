@@ -61,7 +61,7 @@ atualizar sozinho, mas não o que acontece com o `lumem` de hoje nem onde a pref
 
   **R:** (a) (2026-09-29). Uma tabela `daemon_settings` com uma linha só e colunas com `CHECK`.
 
-- [ ] **Q3 — O caminho do `lumem` gravado no arquivo de serviço sobrevive a uma atualização feita pelo pnpm ou pelo bun?**
+- [x] **Q3 — O caminho do `lumem` gravado no arquivo de serviço sobrevive a uma atualização feita pelo pnpm ou pelo bun?**
 
   Achada na Parte 2, lendo o diff da Parte 1. `lumem start` grava no plist e na unit o `lumem` **absoluto**,
   e `ownPath()` (`packages/cli/src/run.ts`) o resolve com `realpathSync` — o que é certo para o npm, onde
@@ -88,4 +88,11 @@ atualizar sozinho, mas não o que acontece com o `lumem` de hoje nem onde a pref
   **O que a resposta muda:** `ownPath()` e o C1 (o conteúdo do plist), e o `smoke:service`, que hoje só roda
   sob o npm.
 
-  **R:**
+  **R:** (a) (2026-09-29), medido. Com `pnpm add -g` de um tarball num `PNPM_HOME` descartável, o shim
+  `$PNPM_HOME/lumem` executa `node <global>/.pnpm/@vinihcrosa+lumem-os@<spec>/node_modules/@vinihcrosa/lumem-os/bin/lumem.mjs`,
+  então `process.argv[1]` já chega com a versão no caminho. Depois de `pnpm add -g` de outro tarball, o
+  diretório velho **continua existindo** e o symlink `<global>/node_modules/@vinihcrosa/lumem-os` passa a
+  apontar para o novo. O defeito, então, não é laço de reinício: é o supervisor subir o **código velho** e a
+  atualização não valer. A regra: o arquivo de serviço grava o caminho pelo symlink estável do pacote
+  (`<global>/node_modules/@vinihcrosa/lumem-os/bin/lumem.mjs`) sempre que ele existe, e o resolvido só
+  quando não há outro — virou o critério 77 e o C85. O `bun` não foi medido.
