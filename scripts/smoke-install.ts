@@ -20,7 +20,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
 import { desktopPlatformOf } from "../packages/shared/src/desktop.js";
-import { menubar } from "../packages/cli/src/menubar.js";
+import { menubar, probeSandbox } from "../packages/cli/src/menubar.js";
 import { nodeServiceHost } from "../packages/cli/src/service.js";
 import { tarballName } from "../packages/desktop/src/packaging.js";
 
@@ -169,6 +169,55 @@ async function main(): Promise<void> {
   }
 }
 
+async function stopGroup(child: ChildProcess): Promise<void> {
+  if (child.pid === undefined || child.exitCode !== null) return;
+  const exited = new Promise<void>((done) => child.once("exit", () => done()));
+  try {
+    process.kill(-child.pid, "SIGTERM");
+  } catch {
+    return;
+  }
+  await Promise.race([exited, new Promise((wait) => setTimeout(wait, 5_000))]);
+  if (child.exitCode !== null) return;
+  try {
+    process.kill(-child.pid, "SIGKILL");
+  } catch {
+    // Já saiu.
+  }
+}
+
+/**
+ * A Q4 da `038`, medida: o app abre **sem** `--no-sandbox` nesta máquina? É uma medição e não
+ * uma prova, então nada aqui derruba o passo. A linha `phase0-q4:` é a que se procura no log
+ * do job — e o primeiro processo tem de morrer antes do seguinte, porque o Electron guarda a
+ * trava de instância única na pasta de dados, e um segundo com ela tomada sai sozinho.
+ */
+async function measureSandbox(
+  executable: string,
+  env: NodeJS.ProcessEnv,
+  asked: string[],
+  sysctl: ReturnType<typeof probeSandbox>,
+): Promise<void> {
+  let outcome = "unknown";
+  try {
+    asked.length = 0;
+    const attempt = spawn("xvfb-run", ["-a", executable, "--panel"], { env, stdio: "ignore", detached: true });
+    attempt.on("error", () => {});
+    const deadline = Date.now() + 30_000;
+    while (!asked.includes("/menubar") && attempt.exitCode === null && Date.now() < deadline) {
+      await new Promise((wait) => setTimeout(wait, 250));
+    }
+    outcome = asked.includes("/menubar") ? "ok" : "refused";
+    await stopGroup(attempt);
+  } catch {
+    // Medir não é provar: o que não deu para medir fica `unknown`.
+  }
+  asked.length = 0;
+  console.log(
+    `phase0-q4: sandbox=${outcome} userns_clone=${sysctl.usernsClone ?? "absent"} apparmor_restrict=${sysctl.apparmorRestrict ?? "absent"}`,
+  );
+}
+
 /**
  * O app de desktop (`038`, AC 69), instalado do tarball e posto onde o CLI o poria.
  *
@@ -233,10 +282,11 @@ async function smokeDesktop(tarballArg: string | undefined): Promise<void> {
     const env = { ...process.env, HOME: home, XDG_CONFIG_HOME: join(home, ".config") };
     const lumem = join(prefix, "lib", "node_modules", "@vinihcrosa", "lumem-os", "bin", "lumem.mjs");
     const lines: string[] = [];
+    const host = { ...nodeServiceHost(env, lumem), home };
     const code = await menubar("install", {
       out: (line) => lines.push(line),
       err: (line) => lines.push(line),
-      host: { ...nodeServiceHost(env, lumem), home },
+      host,
       arch: process.arch,
       env,
       version: "smoke",
@@ -266,8 +316,15 @@ async function smokeDesktop(tarballArg: string | undefined): Promise<void> {
       }
       console.log("  nenhum com.apple.quarantine");
     } else {
-      step("o app sob xvfb");
+      step("o que `lumem menubar install` escreveu nesta máquina");
+      const launcher = readFileSync(join(home, ".local", "share", "applications", "lumem.desktop"), "utf8");
+      console.log(`  ${launcher.split("\n").find((line) => line.startsWith("Exec=")) ?? "sem Exec="}`);
+
       const executable = join(prefix, "lib", "node_modules", "@vinihcrosa", `lumem-desktop-${key}`, "app", "lumem-desktop");
+      step("Q4: o app abre sem --no-sandbox?");
+      await measureSandbox(executable, env, asked, probeSandbox(host.read));
+
+      step("o app sob xvfb");
       // `--no-sandbox` só aqui: o runner não deixa o Chromium criar o sandbox de usuário, e o
       // que este passo prova é que o pacote abre e carrega a página — não a trava de janelas.
       app = spawn("xvfb-run", ["-a", executable, "--panel", "--no-sandbox"], {
