@@ -93,7 +93,7 @@ jobs:
       # O download do chromium é o custo fixo deste job, e ele não muda entre
       # runs enquanto a versão não mudar. `restore-keys` de propósito não existe:
       # cache de outra versão seria pior que baixar de novo.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ steps.playwright.outputs.version }}
