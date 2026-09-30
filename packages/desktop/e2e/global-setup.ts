@@ -7,7 +7,9 @@ import { fileURLToPath } from "node:url";
  * e uma mutação em `src/` passa por ele sem cair (medido, na primeira versão deste spec).
  */
 export default function globalSetup(): void {
-  execFileSync("pnpm", ["exec", "tsx", "build.ts"], {
+  // O `pnpm` é o do `PATH` de quem roda o e2e, de propósito: vem do corepack, do mise ou do
+  // nvm, e não tem caminho fixo. Quem roda o e2e já roda `pnpm` com esse mesmo `PATH`.
+  execFileSync("pnpm", ["exec", "tsx", "build.ts"], { // NOSONAR S4036: intencional, ver acima
     cwd: fileURLToPath(new URL("..", import.meta.url)),
     stdio: "ignore",
   });

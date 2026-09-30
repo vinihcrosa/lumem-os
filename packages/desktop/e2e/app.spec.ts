@@ -122,6 +122,18 @@ test("o painel com o daemon parado mostra a página local, e a página não vê 
   expect(seen).toEqual({ require: "undefined", process: "undefined", start: "function" });
 });
 
+test("o Iniciar da página local age sob o CSP: o script dela roda, sem `unsafe-inline`", async () => {
+  // `stopped.js` é um arquivo ao lado da página, e o CSP só o libera por `'self'`. Se ele
+  // fosse barrado, o botão não faria nada e a frase continuaria a mesma.
+  const stopped = await launch(NOBODY, ["--panel"]);
+  const panel = await stopped.firstWindow();
+
+  await panel.getByRole("button", { name: "Iniciar" }).click();
+
+  await expect(panel.locator("#hint")).toHaveText("Iniciando…");
+  await expect(panel.getByRole("button", { name: "Iniciar" })).toBeDisabled();
+});
+
 test("um segundo lançamento com --uninstall encerra o app que está rodando", async () => {
   // `lumem menubar uninstall` chama o binário com esta flag. O Electron entrega os argumentos
   // ao processo vivo (`second-instance`), e é ele — e não o recém-lançado — que tem de sair: um

@@ -18,24 +18,48 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
-import { desktopPlatformOf } from "@lumem/shared";
+import { desktopPlatformOf, type DesktopPlatform } from "@lumem/shared";
 
 import { platformManifest, tarballName } from "./src/packaging.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-const { values } = parseArgs({
-  options: { platform: { type: "string" }, arch: { type: "string" }, out: { type: "string" } },
-});
-const key = desktopPlatformOf(values.platform ?? "", values.arch ?? "");
-if (key === null) {
+interface Target {
+  key: DesktopPlatform;
+  platform: "darwin" | "linux";
+  arch: "arm64" | "x64";
+}
+
+/**
+ * O que o resto do arquivo usa em comando e em caminho sai **deste `switch`**, que devolve
+ * literais, e nunca do argumento: `--platform` e `--arch` só escolhem um caso, e uma
+ * combinação que não é uma das quatro não chega a lugar nenhum. Não há `--out`: a saída é
+ * sempre `release/`, porque um diretório vindo da linha de comando é o que o `rmSync` abaixo
+ * apagaria por inteiro.
+ */
+function targetOf(requested: DesktopPlatform): Target {
+  switch (requested) {
+    case "darwin-arm64":
+      return { key: "darwin-arm64", platform: "darwin", arch: "arm64" };
+    case "darwin-x64":
+      return { key: "darwin-x64", platform: "darwin", arch: "x64" };
+    case "linux-arm64":
+      return { key: "linux-arm64", platform: "linux", arch: "arm64" };
+    case "linux-x64":
+      return { key: "linux-x64", platform: "linux", arch: "x64" };
+  }
+}
+
+const { values } = parseArgs({ options: { platform: { type: "string" }, arch: { type: "string" } } });
+const requested = desktopPlatformOf(values.platform ?? "", values.arch ?? "");
+if (requested === null) {
   console.error("uso: pack --platform <darwin|linux> --arch <arm64|x64>   (as quatro combinações que o app tem)");
   process.exit(2);
 }
-const [platform, arch] = key.split("-") as [string, string];
+const { key, platform, arch } = targetOf(requested);
 const version = (JSON.parse(readFileSync(join(here, "package.json"), "utf8")) as { version: string }).version;
 
-const release = values.out ?? join(here, "release");
+const release = join(here, "release");
 const workdir = join(release, key);
 const builderOut = join(workdir, "builder");
 const packageDir = join(workdir, "package");

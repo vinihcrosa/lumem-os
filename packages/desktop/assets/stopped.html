@@ -3,42 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <title>Lumem parado</title>
-    <!-- A página vem com o app e não carrega nada de fora: o daemon não está lá para servi-la. -->
+    <!-- A página vem com o app e não carrega nada de fora: o daemon não está lá para servi-la.
+         Estilo e script são arquivos ao lado dela, e é por isso que o CSP dispensa `unsafe-inline`. -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'"
+      content="default-src 'none'; style-src 'self'; script-src 'self'"
     />
-    <style>
-      /* Cores do sistema, e nenhuma cor escrita: a página é clara ou escura como o resto do Mac. */
-      :root {
-        color-scheme: light dark;
-        font: 14px/1.4 system-ui, sans-serif;
-      }
-      body {
-        display: grid;
-        place-items: center;
-        min-height: 100vh;
-        margin: 0;
-        background: Canvas;
-        color: CanvasText;
-      }
-      main {
-        padding: 24px;
-        text-align: center;
-      }
-      h1 {
-        margin: 0 0 8px;
-        font-size: 18px;
-      }
-      p {
-        margin: 0 0 16px;
-        opacity: 0.7;
-      }
-      button {
-        padding: 6px 18px;
-        font: inherit;
-      }
-    </style>
+    <link rel="stylesheet" href="stopped.css" />
   </head>
   <body>
     <main>
@@ -46,18 +17,6 @@
       <p id="hint">O daemon não responde.</p>
       <button id="start" type="button">Iniciar</button>
     </main>
-    <script>
-      const button = document.getElementById("start");
-      const hint = document.getElementById("hint");
-      button.addEventListener("click", async () => {
-        button.disabled = true;
-        hint.textContent = "Iniciando…";
-        // Quando dá certo o app recarrega esta janela com o Lumem de verdade.
-        const started = await window.lumemDesktop.start();
-        if (started) return;
-        hint.textContent = "Não consegui iniciar. `lumem logs` mostra o que houve.";
-        button.disabled = false;
-      });
-    </script>
+    <script src="stopped.js"></script>
   </body>
 </html>
