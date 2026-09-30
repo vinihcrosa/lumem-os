@@ -80,7 +80,7 @@ jobs:
           echo "name=$name" >> "$GITHUB_OUTPUT"
           cp "$RUNNER_TEMP/$name" "$GITHUB_WORKSPACE/$name"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: tarball
           path: ${{ steps.pack.outputs.name }}
@@ -168,7 +168,7 @@ jobs:
         run: pnpm smoke:install --only desktop packages/desktop/release/${{ matrix.platform }}-${{ matrix.arch }}/vinihcrosa-lumem-desktop-${{ matrix.platform }}-${{ matrix.arch }}-${{ needs.package.outputs.version }}.tgz
 
       # O tarball vai para o `npm publish`, e os `.zip`, `.AppImage` e `.deb` para a release.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: desktop-${{ matrix.platform }}-${{ matrix.arch }}
           path: |
