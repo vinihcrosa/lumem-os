@@ -361,4 +361,4 @@ Tamanho, com a conta, escrito depois dos checks e antes de qualquer código:
 - Passa do orçamento de 150k de um construtor. **Corte proposto: um construtor por fatia**, na ordem
   S1 → S2 → S3 → S4 → S5, cada um abaixo do orçamento. S4 depende dos experimentos 4, 5 e 6 da fase 0; S1
   e S2 dependem do 1 e do 2.
-- Mechanism: handoff | one builder (compaction accepted) — **a escolher**
+- Mechanism: handoff — um `lumem-dev` por fatia, escolhido em 2026-09-29. As linhas de `Test policy` entraram na matriz de `testing.md` no mesmo dia
