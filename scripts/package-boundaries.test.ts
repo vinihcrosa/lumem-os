@@ -263,12 +263,14 @@ export const OVER_THE_CEILING: Readonly<Record<string, { lines: number; reason: 
   "packages/server/src/routers/worktree.ts": { lines: 897, reason: "linha de base 2026-09-28, mais uma exceção de lint na linha da T9" },
   "packages/server/src/tasks/conveyor.ts": { lines: 784, reason: "linha de base 2026-09-28" },
   "packages/server/src/bootstrap.ts": {
-    lines: 843,
+    lines: 868,
     reason:
       "linha de base 2026-09-28 (780), mais o import do log em arquivo da T11; " +
       "781 → 833 na `038`: a versão que sobe para o `openDatabase` copiar o banco, e a atualização do daemon — o serviço, " +
       "o desligamento por referência, o relógio e o `stop` —, que só o `bootstrap` alcança por ligar o `AcpManager`, o banco e o `createShutdownHandler`; " +
-      "833 → 843 na `038`: o amostrador de recursos do painel, ligado aos dois managers e ao banco, e desarmado no desligamento",
+      "833 → 843 na `038`: o amostrador de recursos do painel, ligado aos dois managers e ao banco, e desarmado no desligamento; " +
+      "843 → 868 na `038`, atualizar sozinho: o tique de 60 s ligado ao serviço de atualização, ao `AcpManager` e ao `ScriptRunner`, " +
+      "armado depois do `listen` e desarmado no desligamento, e o `paused` que a esteira lê de `installer.installing()`",
   },
   "packages/server/src/repositories/task.ts": { lines: 756, reason: "linha de base 2026-09-28" },
   "packages/shared/src/acp-protocol.ts": {

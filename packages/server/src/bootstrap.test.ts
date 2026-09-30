@@ -22,6 +22,7 @@ import { removeFixtureTree } from "./testing/git-fixtures.js";
 import { PtyManager } from "./pty/PtyManager.js";
 import { createAgentAccountRepository } from "./repositories/agentAccount.js";
 import { createAgentConfigRepository } from "./repositories/agentConfig.js";
+import { createDaemonSettingsRepository } from "./repositories/daemonSettings.js";
 import { createProjectRepository } from "./repositories/project.js";
 import * as sessionStoreModule from "./sessions/SessionStore.js";
 import { adaptersDir } from "./setup/adapter-command.js";
@@ -221,6 +222,34 @@ describe("bootstrap", () => {
 
     expect(closing).toHaveBeenCalledWith(true);
     expect(exit).not.toHaveBeenCalled();
+  });
+
+  it("installs by itself when idle, through the daemon's own clock and shutdown", async () => {
+    /*
+     * A fiação do tique de 60 s (`038`, Parte 5): o `auto.test.ts` prova o que um tique
+     * decide; esta é a linha que o arma depois do `listen` e o liga ao mesmo instalador e
+     * ao mesmo desligamento do `system.update`. Apagá-la deixaria os dois verdes com um
+     * `auto_update = 'idle'` que nunca atualiza nada.
+     */
+    const database = openTestDb();
+    databases.push(database);
+    createDaemonSettingsRepository(database.db).set({ autoUpdate: "idle" });
+    const install = vi.fn(async () => 0);
+    const { exit } = await boot({
+      database,
+      env: { LUMEM_SUPERVISOR: "launchd" },
+      update: {
+        current: "0.6.1",
+        request: (async () => Response.json({ version: "0.7.0" })) as typeof fetch,
+        install,
+        manager: "npm",
+        bootDelayMs: 0,
+        autoIntervalMs: 20,
+      },
+    });
+
+    await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0));
+    expect(install).toHaveBeenCalledTimes(1);
   });
 
   it("rebuilds a stale memory index before serving", async () => {

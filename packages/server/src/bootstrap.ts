@@ -59,6 +59,7 @@ import { createShutdownHandler } from "./shutdown.js";
 import { installSignalHandlers, type SignalSource } from "./signals.js";
 import { createDaemonSettingsRepository } from "./repositories/daemonSettings.js";
 import { createLiveResources } from "./resources/live.js";
+import { createAutoUpdate } from "./update/auto.js";
 import { createUpdateService, type UpdateServiceOptions } from "./update/service.js";
 
 export interface BootstrapOptions {
@@ -99,7 +100,10 @@ export interface BootstrapOptions {
    */
   update?: Partial<
     Pick<UpdateServiceOptions, "request" | "install" | "current" | "manager" | "bootDelayMs">
-  >;
+  > & {
+    /** De quanto em quanto o tique de atualizar sozinho pergunta. Só um teste muda. */
+    autoIntervalMs?: number;
+  };
 }
 
 /**
@@ -120,7 +124,7 @@ export async function bootstrap({
   transcripts,
   database,
   beforeClose,
-  update: updateOverrides = {},
+  update: { autoIntervalMs, ...updateOverrides } = {},
 }: BootstrapOptions): Promise<FastifyInstance> {
   // Antes do banco, porque o banco mora dentro do state dir e porque o
   // `.gitignore` que exclui o próprio banco do histórico é escrito aqui: abrir
@@ -557,11 +561,30 @@ export async function bootstrap({
   const stopConveyor = runConveyorLoop({
     db: openedDatabase.db,
     conveyor,
+    // Uma instalação em curso (a do botão ou a automática) fechou a porta de prompt.
+    paused: () => update.installer.installing(),
     log: {
       warn: (...args: Parameters<FastifyBaseLogger["warn"]>) => {
         bootedApp?.log.warn(...args);
       },
     },
+  });
+
+  // Atualizar sozinho quando ocioso (`038`, Parte 5): o relógio só arma depois do `listen`.
+  const autoUpdate = createAutoUpdate({
+    supervised: config.supervised,
+    update,
+    settings: createDaemonSettingsRepository(openedDatabase.db),
+    busy: { acpManager: acp, scripts },
+    log: {
+      warn: (...args: Parameters<FastifyBaseLogger["warn"]>) => {
+        bootedApp?.log.warn(...args);
+      },
+      info: (...args: Parameters<FastifyBaseLogger["info"]>) => {
+        bootedApp?.log.info(...args);
+      },
+    },
+    ...(autoIntervalMs === undefined ? {} : { intervalMs: autoIntervalMs }),
   });
 
 
@@ -603,6 +626,7 @@ export async function bootstrap({
       stopWarmup();
       stopCatalogEvents();
       update.check.stop();
+      autoUpdate.stop();
       resources.stop();
       await ptyManager.killAll();
       // Conversations too: an adapter left running is a subprocess with nothing
@@ -671,6 +695,7 @@ export async function bootstrap({
   // Depois do `listen`: a primeira pergunta ao registry é assunto de um daemon que já
   // atende, e o relógio não segura o processo (`unref`).
   update.check.start();
+  autoUpdate.start();
 
   /*
    * A terceira fonte do catálogo, e a única que não espera ninguém abrir nada.

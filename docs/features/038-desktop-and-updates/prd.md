@@ -109,8 +109,11 @@ rodando, as consultas de `usage/query.ts`, o roteamento escrito à mão de `web/
 
 **Parte 5 — atualizar sozinho quando ocioso**
 
-1. o relógio de 60 s em `update/check.ts` (new, no door - placement per conventions) — com `auto_update`
-   em `idle` no `daemon_settings` (door 3) e ocioso, dispara o mesmo caminho da Parte 2, passo 3 em diante
+1. o relógio de 60 s em `update/auto.ts` (new, no door - placement per conventions) — com `auto_update`
+   em `idle` no `daemon_settings` (door 3), supervisionado, com versão nova do mesmo major (depois da 1.0) e
+   ocioso (`busyNow`), dispara o mesmo caminho da Parte 2, passo 3 em diante: o `installer.start`
+2. `runConveyorLoop` pula a passada enquanto `installer.installing()` — a instalação do botão também: a porta
+   de prompt já está fechada, e uma tarefa despachada nela gastaria uma tentativa antes de o prompt ser recusado
 
 ## Impact
 
@@ -124,6 +127,7 @@ rodando, as consultas de `usage/query.ts`, o roteamento escrito à mão de `web/
 | domain | termo existente: `AcpManager.prompt` aceitava sempre; passa a recusar enquanto uma instalação roda. Quem chama: `acp/websocket.ts:135`, `sessions/pending-prompt.ts:169` e a esteira em `bootstrap.ts:386`, que já tratam erro de `prompt`; e a destilação e a pesquisa da memória (`memory/capture.ts:187`, `memory/auto-learn.ts:254`), que o propagam para quem as chamou |
 | domain | termo existente: para o painel, `AcpProcess` ganha `pid`, o `AcpManager` ganha `liveProcesses()` e `hasPendingPermission()` (e `rateLimits()` passa a dizer `reportedAt`, `accountId` e `adapterId`), o `PtyManager` ganha `livePids()`, e o `Context` do tRPC ganha `resources`; `PROTOCOL_VERSION` sobe para `@lumem/shared`, porque `health` e `system.status` o respondem |
 | domain | termo existente: `ScriptRunner` ganha `runningCount()` (a metade de *ocioso* que ele responde); implementam a interface o `createScriptRunner` e o fake de `worktree.start.test.ts`. E `DomainErrorCode` ganha `PRECONDITION_FAILED`, que o tRPC mapeia a `PRECONDITION_FAILED` e os dois sockets (`acp/websocket.ts`, `pty/websocket.ts`) a `INTERNAL` |
+| domain | termo existente: `runConveyorLoop` ganha `paused?: () => boolean`, que o `bootstrap` liga a `installer.installing()`; quem chama hoje é só o `bootstrap`, e o padrão (nunca pausa) é o comportamento de antes |
 | web | `Topbar` ganha o slot `update`, que o `App` preenche com o `UpdateBanner`: `layout/` não conhece `features/`. E o `test/setup.ts` marca toda aba de teste como *já recarregou*, porque os testes de tela respondem `health` com versões que não são a do bundle |
 | web | rota nova `/menubar` em `lib/route.ts`. A armadilha *"Uma tela nova derruba testes cujo mock não a conhece"* de `testing.md` se aplica |
 | web | o `MenubarScreen` também roda `useVersionReload`, com a versão que o `updateStatus` já traz (`current`): o app esconde o painel em vez de fechá-lo, então ele fica aberto por dias, e uma atualização do daemon o deixaria no bundle velho (AC 34). O painel não ganha pergunta nenhuma |
