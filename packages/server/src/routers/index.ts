@@ -1,4 +1,4 @@
-import { LUMEM_VERSION } from "@lumem/shared";
+import { LUMEM_VERSION, PROTOCOL_VERSION } from "@lumem/shared";
 
 import { publicProcedure, router } from "../trpc.js";
 import { adapterCatalogRouter } from "./adapterCatalog.js";
@@ -14,15 +14,18 @@ import { projectRouter } from "./project.js";
 import { scriptsRouter } from "./scripts.js";
 import { sessionRouter } from "./session.js";
 import { setupRouter } from "./setup.js";
+import { systemRouter } from "./system.js";
 import { taskRouter } from "./task.js";
 import { usageRouter } from "./usage.js";
 import { workspaceRouter } from "./workspace.js";
 import { worktreeRouter } from "./worktree.js";
 
 export const appRouter = router({
-  health: publicProcedure.query(() => ({
+  health: publicProcedure.query(({ ctx }) => ({
     ok: true as const,
     version: LUMEM_VERSION,
+    supervised: ctx.config.supervised,
+    protocolVersion: PROTOCOL_VERSION,
   })),
   adapterCatalog: adapterCatalogRouter,
   agentAccount: agentAccountRouter,
@@ -37,6 +40,7 @@ export const appRouter = router({
   scripts: scriptsRouter,
   session: sessionRouter,
   setup: setupRouter,
+  system: systemRouter,
   task: taskRouter,
   usage: usageRouter,
   workspace: workspaceRouter,

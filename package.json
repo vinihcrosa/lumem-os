@@ -29,6 +29,8 @@
     "feature:check": "tsx scripts/feature-flow/run.ts",
     "adapters:check": "tsx scripts/run-check-adapters.ts",
     "smoke:install": "tsx scripts/smoke-install.ts",
+    "smoke:service": "tsx scripts/smoke-service.ts",
+    "measure:resources": "pnpm --filter @lumem/server exec tsx src/testing/measure-resources.ts",
     "measure:thinking": "tsx scripts/measure-thinking.ts"
   },
   "devDependencies": {
@@ -43,7 +45,8 @@
     "tsx": "^4.23.12",
     "turbo": "^2.3.3",
     "typescript": "^5.7.2",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.11",
+    "yaml": "^2.9.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

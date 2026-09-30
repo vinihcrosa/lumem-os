@@ -248,6 +248,13 @@ export class PtyManager {
     return [...this.sessions.values()].map((session) => ({ ...session.info }));
   }
 
+  /** Os pids do sistema das sessões vivas, para o painel de recursos (`038`, Parte 3). */
+  livePids(): { sessionId: string; pid: number }[] {
+    return [...this.sessions.values()]
+      .filter((session) => session.info.state === "running")
+      .map((session) => ({ sessionId: session.info.id, pid: session.pty.pid }));
+  }
+
   /** Notified whenever any session ends. Returns an unsubscribe function. */
   watchExits(watcher: ExitWatcher): () => void {
     this.exitWatchers.add(watcher);

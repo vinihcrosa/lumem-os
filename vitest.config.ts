@@ -68,6 +68,11 @@ export default defineConfig({
         "scripts/q39/**",
         // A bancada da `036`, pelo mesmo motivo: roda à mão, contra token de verdade.
         "scripts/measure-thinking.ts",
+        // Os dois smokes da `038` sobem coisa de verdade — o pacote publicado instalado num
+        // prefixo, e o serviço launchd/`systemd --user` — e rodam à mão ou no release, não na
+        // suíte. O `sonar-project.properties` os exclui pelo mesmo motivo; as duas listas concordam.
+        "scripts/smoke-install.ts",
+        "scripts/smoke-service.ts",
         // A galeria do Storybook: é teste para o `sonar-project.properties`, e
         // nada entregue a importa. As duas listas concordam.
         "**/*.stories.tsx",

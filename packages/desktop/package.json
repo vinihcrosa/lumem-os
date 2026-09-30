@@ -1,0 +1,30 @@
+{
+  "name": "@lumem/desktop",
+  "productName": "Lumem",
+  "version": "0.6.1",
+  "private": true,
+  "type": "module",
+  "description": "O ícone do Lumem na barra do sistema: uma casca sobre a web do daemon",
+  "author": "Vinicius Rosa",
+  "license": "MIT",
+  "homepage": "https://github.com/vinihcrosa/lumem-os",
+  "main": "dist/index.cjs",
+  "scripts": {
+    "build": "tsx build.ts",
+    "pack": "tsx pack.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@lumem/shared": "workspace:*",
+    "@playwright/test": "^1.62.1",
+    "@types/node": "^22.10.2",
+    "electron": "44.5.0",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.25.12",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.11"
+  }
+}

@@ -1,0 +1,85 @@
+/*
+ * O painel do ícone da barra (`038`, Parte 3): 360 px de largura — a janela do app —, e
+ * uma coluna. Tudo é `var(--token)`; a marca não aparece, porque nada aqui é CTA além do
+ * botão de atualizar, e nenhum estado é dito em cor de marca.
+ */
+.menubar {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--size-panel-right);
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: var(--space-12);
+  display: grid;
+  align-content: start;
+  gap: var(--space-12);
+  background: var(--color-bg-panel);
+  color: var(--color-text-primary);
+  font: var(--text-body-md);
+}
+
+.menubar__block {
+  display: grid;
+  gap: var(--space-6);
+  padding-bottom: var(--space-12);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.menubar__title {
+  margin: 0;
+  font: var(--text-label-xs);
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+}
+
+.menubar__headline {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-8);
+}
+
+.menubar__big { font: var(--text-display-md); }
+.menubar__kind { font: var(--text-mono-sm); color: var(--color-text-secondary); }
+.menubar__note { font: var(--text-body-sm); color: var(--color-text-secondary); }
+.menubar__empty { margin: 0; color: var(--color-text-secondary); }
+
+.menubar__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--space-4);
+}
+
+.menubar__item {
+  margin: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-8);
+}
+
+.menubar__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menubar__groups { margin: 0; display: grid; gap: var(--space-4); }
+
+.menubar__group {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: var(--space-12);
+}
+
+.menubar__group dt { color: var(--color-text-secondary); }
+.menubar__group dd { margin: 0; }
+
+.menubar__num { font: var(--text-mono-sm); color: var(--color-text-secondary); text-align: right; }
+
+.menubar__row { display: flex; flex-wrap: wrap; gap: var(--space-8); }
+
+.menubar__warn { margin: 0; color: var(--color-text-warning); }
+.menubar__err { margin: 0; color: var(--color-text-danger); }

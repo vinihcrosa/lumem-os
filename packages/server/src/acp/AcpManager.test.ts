@@ -491,6 +491,44 @@ describe("a turn", () => {
   });
 });
 
+describe("an update in progress", () => {
+  it("refuses a prompt while the daemon updates", async () => {
+    /*
+     * `038`, Parte 2: instalar por cima termina com o daemon saindo, e um turno
+     * aberto nesse intervalo é um turno que o desligamento mata no meio. A porta
+     * fecha **antes** de o instalador rodar, e reabre se ele falhar.
+     */
+    const { manager, sessionId, promptBlocks } = await start();
+
+    manager.setUpdating(true);
+    await expect(manager.prompt(sessionId, "faz o deploy")).rejects.toMatchObject({
+      code: "BLOCKED",
+      message: expect.stringMatching(/o Lumem est[aá] se atualizando/),
+    });
+
+    // A recusa vem antes de qualquer trabalho: nada foi mandado ao agente, e a
+    // sessão não ficou dizendo que tem turno em voo (o `update` esperaria por ele).
+    expect(promptBlocks).toEqual([]);
+    expect(manager.liveTurns()).toEqual([]);
+
+    // Falhou a instalação, a porta reabre: é o mesmo `prompt`, e agora ele corre.
+    manager.setUpdating(false);
+    await manager.prompt(sessionId, "faz o deploy");
+    expect(promptBlocks).toHaveLength(1);
+  });
+
+  it("still says the session is missing before it says the Lumem is updating", async () => {
+    // Uma recusa não pode esconder a outra: um id que não existe é um defeito de
+    // quem chamou, e ele precisa vê-lo mesmo no meio de uma atualização.
+    const { manager } = await start();
+    manager.setUpdating(true);
+
+    await expect(manager.prompt("nao-existe", "oi")).rejects.toMatchObject({
+      code: "SESSION_NOT_FOUND",
+    });
+  });
+});
+
 describe("permission", () => {
   it("emits the request, waits, and lets the agent finish once answered", async () => {
     let outcome: unknown;
@@ -3266,5 +3304,41 @@ describe("o pedido de raciocínio da spec", () => {
 
     expect(created).not.toHaveProperty("_meta");
     expect(loaded).not.toHaveProperty("_meta");
+  });
+});
+
+describe("liveProcesses", () => {
+  it("names the system pid and the adapter of each live one, and skips one without a pid", async () => {
+    // O painel de recursos atribui um processo a um adaptador pelo pid que o manager
+    // guardou ao criá-lo (`038`, Parte 3): quem não tem pid — um agente de mentira —
+    // não tem como ser procurado na tabela de processos.
+    const withPid = fakeAgentProcess();
+    const without = fakeAgentProcess();
+    const processes = [{ ...withPid.process, pid: 4321 }, without.process];
+    const manager = new AcpManager({ spawner: () => processes.shift()!, isAvailable: () => true });
+
+    const first = await manager.spawn({ command: "claude-agent-acp", cwd: "/repos/lorebase", adapterId: "claude" });
+    await manager.spawn({ command: "claude-agent-acp", cwd: "/repos/lorebase", adapterId: "claude" });
+
+    expect(manager.liveProcesses()).toEqual([{ sessionId: first.id, pid: 4321, adapterId: "claude" }]);
+  });
+
+  it("does not list a process whose session has exited", async () => {
+    // O pid de uma sessão que saiu pode já ser de outro processo: listá-lo atribuiria o
+    // consumo dele a um adaptador que não existe mais.
+    const gone = fakeAgentProcess();
+    const manager = new AcpManager({
+      spawner: () => ({ ...gone.process, pid: 4321 }),
+      isAvailable: () => true,
+    });
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: "/repos/lorebase", adapterId: "claude" });
+    expect(manager.liveProcesses()).toHaveLength(1);
+
+    manager.kill(info.id);
+    await vi.waitFor(() => {
+      expect(manager.list().find((session) => session.id === info.id)?.state).toBe("exited");
+    });
+
+    expect(manager.liveProcesses()).toEqual([]);
   });
 });

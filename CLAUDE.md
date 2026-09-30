@@ -52,6 +52,7 @@ feature fecha, ela ganha a linha aqui e o parágrafo lá.
 | [035 plan-mode](docs/features/035-plan-mode/prd.md) | completa | a faixa do plan mode, e aprovar ou recusar o plano com ele inteiro na tela |
 | [036 reasoning](docs/features/036-reasoning/prd.md) | completa | o pensamento volta a chegar (`reasoningMeta` na spec), e diz quanto durou |
 | [037 conversation-liveness](docs/features/037-conversation-liveness/prd.md) | completa | sinal de vida: o tempo e o fazer do turno, o âmbar do silêncio, o turno que fecha quando o adaptador morre |
+| [038 desktop-and-updates](docs/features/038-desktop-and-updates/prd.md) | completa | o daemon sob launchd/systemd, o update num gesto (e sozinho quando ocioso), e o app Electron na barra |
 
 Comece pelo [índice da documentação](docs/README.md). Construção é incremental: uma parte por vez,
 bem feita, antes da próxima.
@@ -81,6 +82,7 @@ Monorepo pnpm + Turborepo: `packages/shared` (contratos), `packages/server` (dae
 | `pnpm feature:check <plan\|checks\|verification> <dir>` | os validadores do fluxo de feature |
 | `pnpm gate:mutation` | Stryker no núcleo do `server`; piso por arquivo em `scripts/mutation-floors.ts`. Semanal no CI — minutos, não segundos |
 | `pnpm adapters:check` · `smoke:install` | o pino dos adaptadores envelheceu? · o pacote publicado instala e sobe |
+| `pnpm smoke:service` | o serviço de verdade (launchd ou `systemd --user`) sobe, sobrevive ao chamador, para e volta depois de atualizar — local, não no CI |
 | `pnpm version:set <x.y.z>` | a versão nos três lugares; a release passa **por PR** e publica pela tag (runbook no Outline) |
 
 **Antes de dizer que está pronto, rode o gate que a task declara** — o `Stop` cobra, uma vez por turno.

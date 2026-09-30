@@ -1,7 +1,40 @@
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
+import {
+  compareVersions,
+  detectPackageManager,
+  installCommand,
+  fetchLatestVersion,
+  PACKAGE_NAME,
+  type InstallCommand,
+  type PackageManager,
+} from "@lumem/shared";
+
+import { takeDesktopAlong } from "./menubar.js";
 import { probePort } from "./port.js";
+import {
+  START_TIMEOUT_MS,
+  isLoaded,
+  restartService,
+  waitUntil,
+  type ServiceHost,
+  type ServiceIdentity,
+} from "./service.js";
+
+// O que os testes e o resto do CLI sempre importaram daqui; a definição subiu para
+// o `shared`, onde o daemon a lê também (`038`).
+export {
+  compareVersions,
+  detectPackageManager,
+  fetchLatestVersion,
+  installCommand,
+  PACKAGE_NAME,
+  REGISTRY_URL,
+  type FetchLatestOptions,
+  type InstallCommand,
+  type PackageManager,
+} from "@lumem/shared";
 
 /**
  * Updating the daemon in place.
@@ -21,96 +54,6 @@ import { probePort } from "./port.js";
  *    is restarted, which is the one way this command silently looks broken.
  */
 
-export const PACKAGE_NAME = "@vinihcrosa/lumem-os";
-
-/** The `latest` dist-tag, and nothing else — a few hundred bytes, not the full packument. */
-export const REGISTRY_URL = `https://registry.npmjs.org/${encodeURIComponent(PACKAGE_NAME)}/latest`;
-
-export type PackageManager = "npm" | "pnpm" | "yarn" | "bun";
-
-/**
- * Which package manager installed the copy that is running.
- *
- * Read from the path of this very file, because that is the only evidence that
- * survives: the environment of `npm i -g` is long gone by the time someone types
- * `lumem upgrade`, and every manager puts its global store somewhere it names.
- */
-export function detectPackageManager(installPath: string): PackageManager {
-  const path = installPath.replace(/\\/g, "/");
-  if (/\/\.?pnpm[/-]/.test(path)) return "pnpm";
-  if (path.includes("/.bun/")) return "bun";
-  if (/\/\.?yarn\//.test(path)) return "yarn";
-  return "npm";
-}
-
-export interface InstallCommand {
-  command: string;
-  args: string[];
-}
-
-export function installCommand(manager: PackageManager, spec: string): InstallCommand {
-  switch (manager) {
-    case "pnpm":
-      return { command: "pnpm", args: ["add", "--global", spec] };
-    case "yarn":
-      return { command: "yarn", args: ["global", "add", spec] };
-    case "bun":
-      return { command: "bun", args: ["add", "--global", spec] };
-    case "npm":
-      return { command: "npm", args: ["install", "--global", spec] };
-  }
-}
-
-/**
- * Orders two versions, with a prerelease sorting **before** its release.
- *
- * Enough semver for a dist-tag comparison and no more: the only two versions
- * ever compared here are what is installed and what `latest` points at.
- */
-export function compareVersions(a: string, b: string): -1 | 0 | 1 {
-  const split = (version: string) => {
-    const [core = "", pre = ""] = version.trim().replace(/^v/, "").split("-", 2);
-    return { parts: core.split(".").map((n) => Number.parseInt(n, 10) || 0), pre };
-  };
-  const left = split(a);
-  const right = split(b);
-
-  for (let i = 0; i < 3; i += 1) {
-    const l = left.parts[i] ?? 0;
-    const r = right.parts[i] ?? 0;
-    if (l !== r) return l < r ? -1 : 1;
-  }
-  if (left.pre === right.pre) return 0;
-  // `1.0.0-rc.1` is older than `1.0.0`, and an absent prerelease is the release.
-  if (left.pre === "") return 1;
-  if (right.pre === "") return -1;
-  return left.pre < right.pre ? -1 : 1;
-}
-
-export interface FetchLatestOptions {
-  /** Injected by tests; `fetch` in production. */
-  request?: typeof fetch;
-  timeoutMs?: number;
-}
-
-/** @throws when the registry is unreachable, refuses, or answers something else. */
-export async function fetchLatestVersion({
-  request = fetch,
-  timeoutMs = 10_000,
-}: FetchLatestOptions = {}): Promise<string> {
-  const response = await request(REGISTRY_URL, {
-    signal: AbortSignal.timeout(timeoutMs),
-    headers: { accept: "application/json" },
-  });
-  if (!response.ok) throw new Error(`o registry respondeu ${String(response.status)}`);
-
-  const body = (await response.json()) as { version?: unknown };
-  if (typeof body.version !== "string" || body.version === "") {
-    throw new Error("o registry respondeu sem versão");
-  }
-  return body.version;
-}
-
 export interface UpgradeDeps {
   out: (line: string) => void;
   err: (line: string) => void;
@@ -125,6 +68,17 @@ export interface UpgradeDeps {
   install?: (command: InstallCommand) => Promise<number>;
   manager?: PackageManager;
   probe?: typeof probePort;
+  /**
+   * O serviço do sistema (`038`, AC 36). Quando está **carregado**, o `upgrade` o
+   * reinicia depois de instalar e diz a versão que o daemon responde; sem ele — ou
+   * sem serviço carregado — vale a frase de sempre.
+   */
+  service?: { host: ServiceHost; identity: ServiceIdentity };
+  /**
+   * O app de desktop (`038`, AC 56). Instalado, ele vai para a mesma versão do daemon e,
+   * no macOS, é copiado de novo; sem o pacote do app, o `upgrade` não o traz — é opt-in.
+   */
+  desktop?: { host: ServiceHost; arch: string; env: NodeJS.ProcessEnv };
 }
 
 export async function upgrade(deps: UpgradeDeps): Promise<number> {
@@ -138,6 +92,8 @@ export async function upgrade(deps: UpgradeDeps): Promise<number> {
     install = runInstall,
     manager = detectPackageManager(fileURLToPath(import.meta.url)),
     probe = probePort,
+    service,
+    desktop,
   } = deps;
 
   let latest: string;
@@ -184,6 +140,35 @@ export async function upgrade(deps: UpgradeDeps): Promise<number> {
 
   out(`pronto: v${latest} instalado.`);
 
+  // Antes de reiniciar o serviço, e sem interromper o que vem depois: o daemon novo é o
+  // que a pessoa pediu, e um app que não atualizou não o desfaz — só muda o código de saída.
+  const app =
+    desktop === undefined
+      ? 0
+      : await takeDesktopAlong({ out, err, ...desktop, version: latest, manager, install });
+  const daemon = await reachTheNewDaemon({ service, probe, origin, latest, out, err });
+  return daemon !== 0 ? daemon : app;
+}
+
+async function reachTheNewDaemon({
+  service,
+  probe,
+  origin,
+  latest,
+  out,
+  err,
+}: {
+  service: UpgradeDeps["service"];
+  probe: typeof probePort;
+  origin: string;
+  latest: string;
+  out: (line: string) => void;
+  err: (line: string) => void;
+}): Promise<number> {
+  if (service !== undefined && (await isLoaded(service.host, service.identity))) {
+    return await restartLoadedService({ service, probe, origin, latest, out, err });
+  }
+
   const occupant = await probe({ origin });
   if (occupant.kind === "lumem") {
     // The daemon loaded its code at boot. The new files are on disk and the
@@ -193,12 +178,63 @@ export async function upgrade(deps: UpgradeDeps): Promise<number> {
   return 0;
 }
 
+/**
+ * Reinicia o serviço e só diz que deu certo quando o **daemon novo** responde.
+ *
+ * `kickstart -k` volta antes de o processo velho terminar de fechar, e nesse
+ * intervalo o `/trpc/health` ainda responde a versão de antes: dizer *"reiniciou"*
+ * na primeira resposta seria dizer a versão errada. Por isso se espera a versão que
+ * acabou de ser instalada, e a que sobrar no fim do prazo vai para a mensagem.
+ */
+async function restartLoadedService({
+  service,
+  probe,
+  origin,
+  latest,
+  out,
+  err,
+}: {
+  service: NonNullable<UpgradeDeps["service"]>;
+  probe: typeof probePort;
+  origin: string;
+  latest: string;
+  out: (line: string) => void;
+  err: (line: string) => void;
+}): Promise<number> {
+  const restarted = await restartService(service.host, service.identity);
+  if (!restarted.ok) {
+    err(`a versão nova está instalada, mas o serviço não reiniciou: ${restarted.reason}`);
+    err("rode `lumem stop` e `lumem start` para subir a versão nova.");
+    return 1;
+  }
+
+  let seen = "nenhuma";
+  const came = await waitUntil(
+    service.host,
+    async () => {
+      const occupant = await probe({ origin });
+      if (occupant.kind !== "lumem") return false;
+      seen = `v${occupant.version}`;
+      return occupant.version === latest;
+    },
+    START_TIMEOUT_MS,
+  );
+  if (!came) {
+    err(`o serviço reiniciou, mas o Lumem em ${origin} ainda responde ${seen} e não v${latest}.`);
+    err("`lumem logs` mostra o que o daemon escreveu.");
+    return 1;
+  }
+
+  out(`o serviço reiniciou: o Lumem em ${origin} agora responde v${latest}.`);
+  return 0;
+}
+
 function message(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
 /** Inherits stdio: the installer's own progress is the progress of this command. */
-async function runInstall({ command, args }: InstallCommand): Promise<number> {
+export async function runInstall({ command, args }: InstallCommand): Promise<number> {
   return await new Promise((resolve, reject) => {
     const child = spawn(command, args, { stdio: "inherit" });
     child.on("error", reject);

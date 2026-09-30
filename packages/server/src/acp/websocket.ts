@@ -44,6 +44,8 @@ const DOMAIN_TO_ACP_ERROR: Record<DomainErrorCode, AcpErrorCode> = {
   DUPLICATE: "INTERNAL",
   IN_USE: "INTERNAL",
   BLOCKED: "INTERNAL",
+  // Só o `system.update` a lança, e nenhum quadro deste socket chega lá.
+  PRECONDITION_FAILED: "INTERNAL",
   CONSTRAINT_VIOLATION: "INTERNAL",
   GIT_FAILED: "INTERNAL",
   // Mapeado para o `Record` ser exaustivo, e nunca enviado: a recusa já está na

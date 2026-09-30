@@ -485,6 +485,8 @@ interface Session {
    * sendo calculado dele na leitura.
    */
   lastRateLimit: AcpRateLimit | null;
+  /** Quando o `lastRateLimit` chegou (ms, do relógio do manager) — o painel escolhe o mais recente por conta. */
+  lastRateLimitAt: number;
   /**
    * This is a probe, not a session (onboarding D4).
    *
@@ -546,6 +548,8 @@ interface Session {
   reasoningMeta: Readonly<Record<string, unknown>> | null;
   /** O rótulo do agente, para a frase da recusa. */
   agentLabel: string;
+  /** Qual adaptador do catálogo é este (`AdapterSpec.id`), ou `null` fora dele. */
+  adapterId: string | null;
   /** A conta da sessão, quando quem a abriu disse. */
   account: { id: string; label: string } | null;
 }
@@ -712,6 +716,12 @@ export class AcpManager {
   private readonly budget: AcpBudgetSource | undefined;
   private readonly turnFailures: TurnFailureSink | undefined;
   private readonly runCli: AcpCliRunner;
+  /**
+   * O daemon está instalando uma versão nova e vai sair (`038`, Parte 2). Enquanto
+   * for `true`, `prompt` recusa: um turno aberto agora é um turno que o desligamento
+   * mata no meio.
+   */
+  private updating = false;
 
   constructor({
     spawner = spawnAcpProcess,
@@ -1259,6 +1269,7 @@ export class AcpManager {
       promptInFlight: false,
       turnStartedAt: null,
       lastRateLimit: null,
+      lastRateLimitAt: 0,
       probe,
       // One bridge per session, rooted at its own cwd. A shared one would need
       // the root passed on every call, and the call that forgot would read
@@ -1279,6 +1290,7 @@ export class AcpManager {
       // "agente" quando o catálogo não conhece: a frase continua sendo uma frase,
       // e o nome do binário não é o que alguém chama de agente.
       agentLabel: spec?.label ?? "agente",
+      adapterId: spec?.id ?? null,
       account: options.account ?? null,
     };
 
@@ -1315,6 +1327,11 @@ export class AcpManager {
     const session = this.require(id);
     if (session.info.state === "exited") {
       throw new DomainError("SESSION_EXITED", `session ${id} has exited`);
+    }
+    // Antes de qualquer marca de turno: recusar aqui não deixa nada para desfazer, e
+    // é a única saída de `prompt` que não passa pelo teto nem pela memória.
+    if (this.updating) {
+      throw new DomainError("BLOCKED", "o Lumem está se atualizando; tente de novo em instantes");
     }
     if (text.trim() === "") {
       throw new DomainError("INVALID_ARGUMENT", "prompt must not be empty");
@@ -1810,6 +1827,16 @@ export class AcpManager {
   }
 
   /**
+   * Fecha (`true`) ou reabre (`false`) a porta de prompt para o tempo de uma
+   * atualização. Quem fecha é o instalador do daemon, e é ele que reabre se a
+   * instalação falhar; o que já está em voo não é tocado — o `update` só fecha a
+   * porta com nenhum turno em voo.
+   */
+  setUpdating(updating: boolean): void {
+    this.updating = updating;
+  }
+
+  /**
    * Quais sessões têm turno **em voo**, e desde quando (`028` T7).
    *
    * Não é `list()` filtrado por estado: uma sessão viva e ociosa não é alguém
@@ -1830,10 +1857,51 @@ export class AcpManager {
    * trabalhando"* e esta é *"quem está esperando"*, e a Q32 diz que quem espera
    * cota **liberou a vaga** — não é um caso do primeiro.
    */
-  rateLimits(): { sessionId: string; rateLimit: AcpRateLimit }[] {
+  rateLimits(): {
+    sessionId: string;
+    rateLimit: AcpRateLimit;
+    /** Quando chegou, no relógio do manager: com duas sessões na conta, vale a mais recente. */
+    reportedAt: number;
+    accountId: string | null;
+    adapterId: string | null;
+  }[] {
     return [...this.sessions.values()]
       .filter((session) => session.lastRateLimit !== null)
-      .map((session) => ({ sessionId: session.info.id, rateLimit: session.lastRateLimit! }));
+      .map((session) => ({
+        sessionId: session.info.id,
+        rateLimit: session.lastRateLimit!,
+        reportedAt: session.lastRateLimitAt,
+        accountId: session.account?.id ?? null,
+        adapterId: session.adapterId,
+      }));
+  }
+
+  /**
+   * Os processos de adaptador vivos, pelo pid do sistema (`038`, Parte 3).
+   *
+   * É o que o painel de recursos precisa para dizer que um processo *desce de um
+   * adaptador*: os PIDs são do manager, que os criou, e não de quem os procura na
+   * tabela de processos. Sessão sem pid (um agente de mentira) não aparece.
+   */
+  liveProcesses(): { sessionId: string; pid: number; adapterId: string | null }[] {
+    return [...this.sessions.values()].flatMap((session) =>
+      session.info.state === "running" && session.process.pid !== undefined
+        ? [{ sessionId: session.info.id, pid: session.process.pid, adapterId: session.adapterId }]
+        : [],
+    );
+  }
+
+  /**
+   * Algum pedido de permissão está esperando uma pessoa (`038`, Parte 3).
+   *
+   * É a única leitura de *"o agente parou esperando alguém"*: um turno em voo trabalha,
+   * uma tarefa bloqueada tem o quadro, mas o pedido pendente só anda quando alguém
+   * responde.
+   */
+  hasPendingPermission(): boolean {
+    return [...this.sessions.values()].some(
+      (session) => session.info.state === "running" && session.pendingPermissions.size > 0,
+    );
   }
 
   kill(id: string): void {
@@ -2514,6 +2582,7 @@ export class AcpManager {
       // pergunta *"quem está esperando?"*. Guardar o último relato é o que liga
       // os dois (`028` Parte 3, T17).
       session.lastRateLimit = event.rateLimit;
+      session.lastRateLimitAt = this.now();
     }
 
     const entry: AcpTranscriptEntry = { at: this.now(), event };

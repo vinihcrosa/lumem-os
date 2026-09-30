@@ -1,0 +1,40 @@
+# O que o electron-builder empacota (`038` Parte 4). Quem o chama é o `pack.ts`, que também
+# monta o pacote npm de cada plataforma em volta do que ele produz.
+appId: tech.cazimi.lumem
+productName: Lumem
+# `dist/` é o bundle do `build.ts`; nada de `node_modules` — o app não tem dependência de execução.
+files:
+  - dist/**
+  - assets/**
+  - package.json
+  - "!**/*.map"
+asar: true
+npmRebuild: false
+# Os nomes que o GitHub release mostra, um por arquitetura.
+artifactName: Lumem-${version}-${os}-${arch}.${ext}
+
+mac:
+  category: public.app-category.developer-tools
+  icon: assets/icon.png
+  target:
+    - zip
+  # Assinatura ad-hoc (o ADR de 2026-09-29-2003): um app escrito pelo npm não passa pelo
+  # caminho de download do navegador, então o Gatekeeper não o põe em quarentena. No arm64
+  # o macOS recusa código sem assinatura nenhuma, e a ad-hoc é a que não custa uma conta.
+  identity: "-"
+  hardenedRuntime: false
+  notarize: false
+  extendInfo:
+    # App de barra de menus: sem ícone no Dock desde o primeiro quadro.
+    LSUIElement: true
+
+linux:
+  category: Development
+  icon: assets/icon.png
+  # O que o `.desktop` do CLI executa, dentro de `app/` no pacote do Linux.
+  executableName: lumem-desktop
+  synopsis: O painel do Lumem na bandeja do sistema
+  maintainer: Vinicius Rosa <vinihcrosa@users.noreply.github.com>
+  target:
+    - AppImage
+    - deb

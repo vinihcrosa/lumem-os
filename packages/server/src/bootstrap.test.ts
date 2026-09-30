@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { CLAUDE_ADAPTER } from "@lumem/shared";
+import { CLAUDE_ADAPTER, LUMEM_VERSION } from "@lumem/shared";
 import { sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -13,6 +13,7 @@ import type { AcpSpawnRequest } from "./acp/process.js";
 import { ADAPTER_CATALOG_FILE } from "./acp/adapter-catalog.js";
 import { bootstrap } from "./bootstrap.js";
 import { loadConfig } from "./config.js";
+import { openDatabase } from "./db/index.js";
 import { openTestDb, type TestDb } from "./db/testing.js";
 import * as eventsModule from "./events.js";
 import { MemoryService } from "./memory/MemoryService.js";
@@ -21,8 +22,10 @@ import { removeFixtureTree } from "./testing/git-fixtures.js";
 import { PtyManager } from "./pty/PtyManager.js";
 import { createAgentAccountRepository } from "./repositories/agentAccount.js";
 import { createAgentConfigRepository } from "./repositories/agentConfig.js";
+import { createDaemonSettingsRepository } from "./repositories/daemonSettings.js";
 import { createProjectRepository } from "./repositories/project.js";
 import * as sessionStoreModule from "./sessions/SessionStore.js";
+import * as conveyorModule from "./tasks/conveyor.js";
 import { adaptersDir } from "./setup/adapter-command.js";
 import { adapterBinaryPath } from "./setup/install-adapter.js";
 import * as reconcileModule from "./setup/reconcile-adapters.js";
@@ -45,6 +48,9 @@ async function boot(
     acpManager?: AcpManager;
     database?: TestDb;
     stateDir?: string;
+    env?: Record<string, string>;
+    update?: NonNullable<Parameters<typeof bootstrap>[0]["update"]>;
+    conveyorSetInterval?: typeof globalThis.setInterval;
   } = {},
 ) {
   const signalSource = new EventEmitter();
@@ -56,7 +62,11 @@ async function boot(
   const stateDir = overrides.stateDir ?? join(mkdtempSync(join(tmpdir(), "lumem-boot-")), ".lumem");
   if (!overrides.stateDir) stateDirs.push(stateDir);
   // Port 0 lets the OS pick a free one — no fixed port to collide with.
-  const config = loadConfig({ LUMEM_PORT: overrides.port ?? "0", LUMEM_STATE_DIR: stateDir });
+  const config = loadConfig({
+    LUMEM_PORT: overrides.port ?? "0",
+    LUMEM_STATE_DIR: stateDir,
+    ...overrides.env,
+  });
   // Never the real ~/.lumem/lumem.db: a test suite must not write to the
   // developer's own state.
   const database = overrides.database ?? openTestDb();
@@ -71,6 +81,8 @@ async function boot(
     ...(overrides.ptyManager ? { ptyManager: overrides.ptyManager } : {}),
     ...(overrides.acpManager ? { acpManager: overrides.acpManager } : {}),
     ...(overrides.beforeClose ? { beforeClose: overrides.beforeClose } : {}),
+    ...(overrides.update ? { update: overrides.update } : {}),
+    ...(overrides.conveyorSetInterval ? { conveyorSetInterval: overrides.conveyorSetInterval } : {}),
   });
   started.push(app);
 
@@ -116,6 +128,198 @@ describe("bootstrap", () => {
     expect(existsSync(join(stateDir, "memory"))).toBe(true);
     expect(existsSync(join(stateDir, ".git"))).toBe(true);
     expect(existsSync(join(stateDir, ".gitignore"))).toBe(true);
+  });
+
+  it("opens its own database with the running version, so it is copied before migrating", async () => {
+    /*
+     * A fiação, e não a cópia (`038`, door 7; a cópia tem prova em `db/backup.test.ts`).
+     *
+     * Todos os outros casos deste arquivo injetam o banco, e o `bootstrap` só passa a
+     * versão para o `openDatabase` que ele mesmo abre. Sem este caso, apagar a linha
+     * `release` deixaria a suíte verde e o daemon sem cópia nenhuma.
+     */
+    const stateDir = join(mkdtempSync(join(tmpdir(), "lumem-boot-")), ".lumem");
+    stateDirs.push(stateDir);
+    const config = loadConfig({ LUMEM_PORT: "0", LUMEM_STATE_DIR: stateDir });
+    openDatabase({ path: config.databasePath }).close();
+    writeFileSync(join(stateDir, "last-version"), "0.0.1\n");
+    const signalSource = new EventEmitter();
+    const exit = vi.fn();
+
+    const app = await bootstrap({ config, signalSource, exit, logger: false });
+    started.push(app);
+
+    expect(existsSync(`${config.databasePath}.bak-0.0.1`)).toBe(true);
+    expect(readFileSync(join(stateDir, "last-version"), "utf8").trim()).toBe(LUMEM_VERSION);
+    // O banco é do bootstrap, então é ele quem o fecha: sem isto o arquivo -wal fica.
+    signalSource.emit("SIGTERM");
+    await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0));
+  });
+
+  it("updates through the daemon's own shutdown, and exits 0", async () => {
+    /*
+     * A fiação do `system.update` (`038`, Parte 2), pela rede como a tela a usa: o
+     * instalador de mentira sai 0, e o que o teste espera é o `exit(0)` do
+     * `createShutdownHandler` do **daemon** — o mesmo que o SIGTERM chama. O
+     * instalador e o desligamento têm unidade própria; esta é a linha que os liga, e
+     * apagá-la deixaria as duas verdes com uma atualização que instala e não sai.
+     */
+    const install = vi.fn(async () => 0);
+    const { app, exit } = await boot({
+      env: { LUMEM_SUPERVISOR: "launchd" },
+      update: {
+        current: "0.6.1",
+        request: (async () => Response.json({ version: "0.7.0" })) as typeof fetch,
+        install,
+        manager: "npm",
+        bootDelayMs: 0,
+      },
+    });
+
+    // O relógio do boot é quem lê o registry: a versão nova aparece sozinha.
+    await vi.waitFor(async () => {
+      const status = await app.inject({ method: "GET", url: "/trpc/system.updateStatus" });
+      expect(status.json().result.data.updateAvailable).toBe(true);
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/trpc/system.update",
+      headers: { "content-type": "application/json" },
+      payload: "{}",
+    });
+    expect(response.json().result.data).toEqual({ started: true });
+
+    await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0));
+    expect(install).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes the prompt door of the daemon's own AcpManager while it installs", async () => {
+    // A outra linha que o `bootstrap` liga na atualização: a porta de prompt é a do
+    // `AcpManager` **do daemon**. Com a instalação parada no meio, a porta tem de
+    // estar fechada — e o `exit` não pode ter sido chamado.
+    const acpManager = new AcpManager();
+    const closing = vi.spyOn(acpManager, "setUpdating");
+    const { app, exit } = await boot({
+      acpManager,
+      env: { LUMEM_SUPERVISOR: "systemd" },
+      update: {
+        current: "0.6.1",
+        request: (async () => Response.json({ version: "0.7.0" })) as typeof fetch,
+        install: () => new Promise<number>(() => {}),
+        manager: "npm",
+        bootDelayMs: 0,
+      },
+    });
+    await vi.waitFor(async () => {
+      const status = await app.inject({ method: "GET", url: "/trpc/system.updateStatus" });
+      expect(status.json().result.data.updateAvailable).toBe(true);
+    });
+
+    await app.inject({
+      method: "POST",
+      url: "/trpc/system.update",
+      headers: { "content-type": "application/json" },
+      payload: "{}",
+    });
+
+    expect(closing).toHaveBeenCalledWith(true);
+    expect(exit).not.toHaveBeenCalled();
+  });
+
+  it("installs by itself when idle, through the daemon's own clock and shutdown", async () => {
+    /*
+     * A fiação do tique de 60 s (`038`, Parte 5): o `auto.test.ts` prova o que um tique
+     * decide; esta é a linha que o arma depois do `listen` e o liga ao mesmo instalador e
+     * ao mesmo desligamento do `system.update`. Apagá-la deixaria os dois verdes com um
+     * `auto_update = 'idle'` que nunca atualiza nada.
+     */
+    const database = openTestDb();
+    databases.push(database);
+    createDaemonSettingsRepository(database.db).set({ autoUpdate: "idle" });
+    const install = vi.fn(async () => 0);
+    const { exit } = await boot({
+      database,
+      env: { LUMEM_SUPERVISOR: "launchd" },
+      update: {
+        current: "0.6.1",
+        request: (async () => Response.json({ version: "0.7.0" })) as typeof fetch,
+        install,
+        manager: "npm",
+        bootDelayMs: 0,
+        autoIntervalMs: 20,
+      },
+    });
+
+    await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0));
+    expect(install).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not dispatch from the daemon's own conveyor while it installs by itself", async () => {
+    /*
+     * A fiação do `paused` (`038`, Parte 5; AC 75), na esteira que **o daemon monta**. O
+     * `auto.test.ts` prova o `paused` de um `runConveyorLoop` que o teste constrói, e
+     * trocar `paused: () => update.installer.installing()` por `() => false` no
+     * `bootstrap` deixava a suíte inteira verde: uma prova que monta a própria instância
+     * de uma opção ligada não vê a ligação de produção ser apagada.
+     *
+     * O relógio da esteira é o único gancho (`conveyorSetInterval`); a esteira, a
+     * instalação e o tique de atualizar sozinho são os do daemon.
+     */
+    let fire: () => void = () => undefined;
+    const conveyorClock = ((callback: () => void) => {
+      fire = callback;
+      return { unref: () => undefined };
+    }) as unknown as typeof globalThis.setInterval;
+    const dispatched: string[] = [];
+    const realCreateConveyor = conveyorModule.createConveyor;
+    vi.spyOn(conveyorModule, "createConveyor").mockImplementation((...args) => {
+      const conveyor = realCreateConveyor(...args);
+      vi.spyOn(conveyor, "tick").mockImplementation(async (workspaceId) => {
+        dispatched.push(workspaceId);
+        return 0;
+      });
+      return conveyor;
+    });
+    const database = openTestDb();
+    databases.push(database);
+    const workspace = await createWorkspaceRepository(database.db).create({ name: "pessoal" });
+    const install = vi.fn(() => new Promise<number>(() => {}));
+    const { app, signalSource, exit } = await boot({
+      database,
+      env: { LUMEM_SUPERVISOR: "launchd" },
+      conveyorSetInterval: conveyorClock,
+      update: {
+        current: "0.6.1",
+        request: (async () => Response.json({ version: "0.7.0" })) as typeof fetch,
+        install,
+        manager: "npm",
+        bootDelayMs: 0,
+        autoIntervalMs: 20,
+      },
+    });
+    await vi.waitFor(async () => {
+      const status = await app.inject({ method: "GET", url: "/trpc/system.updateStatus" });
+      expect(status.json().result.data.updateAvailable).toBe(true);
+    });
+
+    // Antes da instalação a passada anda: sem isto o resto não distinguiria "pausada" de "morta".
+    fire();
+    await vi.waitFor(() => expect(dispatched).toEqual([workspace.id]));
+
+    // Liga o interruptor: o tique de 60 s do daemon começa a instalar, e o npm não acaba.
+    createDaemonSettingsRepository(database.db).set({ autoUpdate: "idle" });
+    await vi.waitFor(() => expect(install).toHaveBeenCalledTimes(1));
+
+    fire();
+    fire();
+    fire();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(dispatched).toEqual([workspace.id]);
+
+    // O tique de atualizar sozinho só para pelo desligamento do daemon: sem ele, dispara depois de o banco fechar.
+    signalSource.emit("SIGTERM");
+    await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0));
   });
 
   it("rebuilds a stale memory index before serving", async () => {

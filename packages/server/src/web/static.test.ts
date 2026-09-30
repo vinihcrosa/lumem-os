@@ -78,6 +78,21 @@ describe("o web servido pelo daemon", () => {
     expect(response.body).toContain("<title>lumem</title>");
   });
 
+  it("serves the web shell for /menubar", async () => {
+    // A página do painel da barra (`038`): o app de desktop a carrega numa janela e
+    // qualquer aba a abre. Não é rota do daemon — a lista de prefixos nem a tem —, e
+    // o que esta prova guarda é que ninguém a acrescente lá por parecer "de sistema".
+    const response = await app.inject({
+      method: "GET",
+      url: "/menubar",
+      headers: { accept: "text/html" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["content-type"]).toContain("text/html");
+    expect(response.body).toContain("<title>lumem</title>");
+  });
+
   it("não engole as rotas do daemon", async () => {
     // The whole product breaks quietly if this fails: the client asks for JSON
     // and gets the app shell, then reports a parse error instead of the 404.

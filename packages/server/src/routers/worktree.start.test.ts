@@ -88,6 +88,7 @@ function fakeScripts(): FakeScripts {
     runToCompletion,
     trust: () => Promise.resolve(),
     stopAll: () => Promise.resolve(),
+    runningCount: () => Promise.resolve(0),
   };
   return {
     runner,

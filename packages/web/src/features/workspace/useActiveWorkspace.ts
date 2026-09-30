@@ -23,6 +23,17 @@ function write(id: string | null): void {
   }
 }
 
+/**
+ * Deixa o workspace escolhido para a **próxima** janela que abrir (`038`, Parte 3).
+ *
+ * O painel da barra escolhe um workspace recente e abre o Lumem noutra janela, que lê
+ * a mesma chave ao montar. Mora aqui porque a chave é deste arquivo: quem a escrevesse
+ * de fora teria uma segunda cópia do nome dela.
+ */
+export function rememberActiveWorkspace(id: string): void {
+  write(id);
+}
+
 export interface ActiveWorkspace {
   activeId: string | null;
   select(id: string): void;

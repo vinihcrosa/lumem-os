@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // nodenext, like the server and the CLI: the main process is node, and the
+    // `.js` in a relative import is what the resolver and esbuild both want.
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "types": ["node"]
+  },
+  "include": ["src/**/*", "e2e/**/*", "build.ts", "build-icons.ts", "pack.ts", "vitest.config.ts", "playwright.config.ts"]
+}

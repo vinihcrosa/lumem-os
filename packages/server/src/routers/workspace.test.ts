@@ -2,7 +2,7 @@ import { newId } from "@lumem/shared";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { createAgentCatalog } from "../agents/catalog.js";
-import { project } from "../db/schema.js";
+import { project, session, worktree } from "../db/schema.js";
 import { createAgentAccountRepository } from "../repositories/agentAccount.js";
 import { configForAdapter } from "../repositories/agentConfig.js";
 import { createTestCaller, type TestCaller } from "../testing/caller.js";
@@ -323,5 +323,87 @@ describe("workspace.slots e workspace.setSlot", () => {
       api.workspace.setSlot({ id: created.id, role: "revisor", adapter: "claude", accountId: conta.id, model: null, effort: null }),
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
     expect((await api.workspace.slots({ id: created.id }))[1]).toMatchObject({ from: "default" });
+  });
+});
+
+describe("workspace.recent", () => {
+  /** Uma sessão de shell já encerrada, aberta `minutesAgo` minutos atrás. */
+  function opened(
+    ctx: TestCaller,
+    scope: { scopeType: "project" | "worktree"; scopeId: string },
+    minutesAgo: number,
+  ): void {
+    const at = new Date(Date.now() - minutesAgo * 60_000);
+    ctx.db
+      .insert(session)
+      .values({
+        id: newId(),
+        kind: "shell",
+        ...scope,
+        cwd: "/tmp",
+        command: "sh",
+        state: "exited",
+        createdAt: at,
+        updatedAt: at,
+      })
+      .run();
+  }
+
+  function makeProject(ctx: TestCaller, workspaceId: string, name: string): string {
+    const id = newId();
+    ctx.db
+      .insert(project)
+      .values({ id, workspaceId, name, path: `/repos/${name}-${id}`, defaultBranch: "main" })
+      .run();
+    return id;
+  }
+
+  it("lists the three workspaces with the most recent session, newest first", async () => {
+    const ctx = caller();
+    const names = ["antigo", "meio", "novo", "recente", "sem-sessao"];
+    const created = [];
+    for (const name of names) created.push(await ctx.api.workspace.create({ name }));
+    const [antigo, meio, novo, recente, semSessao] = created as [
+      (typeof created)[number],
+      (typeof created)[number],
+      (typeof created)[number],
+      (typeof created)[number],
+      (typeof created)[number],
+    ];
+
+    // Um workspace com várias sessões vale pela mais nova: `antigo` abriu uma há
+    // 3 dias e outra há 5 min, e por isso ganha de `meio` (há 2 h).
+    const antigoProject = makeProject(ctx, antigo.id, "a");
+    opened(ctx, { scopeType: "project", scopeId: antigoProject }, 3 * 24 * 60);
+    opened(ctx, { scopeType: "project", scopeId: antigoProject }, 5);
+    opened(ctx, { scopeType: "project", scopeId: makeProject(ctx, meio.id, "m") }, 120);
+    opened(ctx, { scopeType: "project", scopeId: makeProject(ctx, novo.id, "n") }, 60 * 24);
+
+    // A sessão de uma worktree conta para o workspace do projeto dela.
+    const recenteProject = makeProject(ctx, recente.id, "r");
+    const tree = newId();
+    ctx.db
+      .insert(worktree)
+      .values({ id: tree, projectId: recenteProject, name: "bandung", branch: "b", path: `/wt/${tree}` })
+      .run();
+    opened(ctx, { scopeType: "worktree", scopeId: tree }, 1);
+
+    // Sem nenhuma sessão, o workspace não é "recente" de nada.
+    makeProject(ctx, semSessao.id, "s");
+
+    const result = await ctx.api.workspace.recent();
+
+    expect(result).toEqual([
+      { id: recente.id, name: "recente" },
+      { id: antigo.id, name: "antigo" },
+      { id: meio.id, name: "meio" },
+    ]);
+  });
+
+  it("is empty when no session was ever opened", async () => {
+    const ctx = caller();
+    await ctx.api.workspace.create({ name: "pessoal" });
+
+    await expect(ctx.api.workspace.recent()).resolves.toEqual([]);
   });
 });

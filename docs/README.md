@@ -53,6 +53,9 @@ O contrato está na [025-docs-contract](features/025-docs-contract/prd.md).
 | [Uma conta de agente é um diretório de configuração inteiro, e a primeira é a ausência dele](adr/2026-09-26-0148-an-account-is-a-whole-agent-config-dir.md) | 2026-09-26 | `security` |
 | [O Outline discute e opera, o repositório decide e executa](adr/2026-09-28-1726-outline-discusses-the-repo-decides.md) | 2026-09-28 | `docs` |
 | [Uma feature se prova por checks, e não se planeja em tasks](adr/2026-09-28-1952-a-feature-is-proven-by-checks-not-planned-in-tasks.md) | 2026-09-28 | `docs` |
+| [O daemon é o produto; todo cliente é uma casca sobre a web dele](adr/2026-09-29-2002-the-daemon-is-the-product-clients-are-shells.md) | 2026-09-29 | `architecture` |
+| [O Lumem entrega um cliente Electron ao lado do daemon, num pacote npm por plataforma](adr/2026-09-29-2003-lumem-ships-an-electron-client-next-to-the-daemon.md) | 2026-09-29 | `distribution` |
+| [O daemon se atualiza sozinho, sob um supervisor do sistema, e só avisa por padrão](adr/2026-09-29-2004-the-daemon-updates-itself-under-a-supervisor.md) | 2026-09-29 | `distribution` |
 
 **A cadeia foi exercitada em 2026-09-13**, e pela primeira vez: o ADR das credenciais do tracker foi
 **superado no mesmo dia** pelo do cofre, porque a decisão dele estava errada — o `gh` era solução
@@ -794,6 +797,22 @@ que fecha quando o adaptador morre e a queda do `/acp` que aparece e se conserta
 | [open-questions.md](features/037-conversation-liveness/open-questions.md) | 6 perguntas, **6 respondidas** em 2026-09-29 — o limiar do silêncio (90 s), a reconexão que não desiste, nenhum teto no turno interativo, a pergunta gravada quando o adaptador morre antes de recebê-la, dois `prompt` na mesma sessão **permitidos** (contra a proposta), e o prompt pendente do `setup` que não é reenviado |
 | [checks.md](features/037-conversation-liveness/checks.md) | **31 checks em 4 fatias**, perfil `ui`; C28–C31 e a reescrita do C25 nasceram das verificações |
 | [verification.md](features/037-conversation-liveness/verification.md) | o relatório do verificador independente, rodada a rodada — **PASS na quinta rodada**: as duas primeiras acharam defeitos reais — o `prompt` pendurado e a pergunta perdida —, a terceira e a quarta, comportamento certo sem prova |
+
+---
+
+### [desktop-and-updates/](features/038-desktop-and-updates/) — o Lumem fica de pé sozinho, se atualiza, e mora na barra do sistema · **completa**
+
+O daemon passa a rodar sob o launchd ou o `systemd --user`, se atualiza num gesto só (e, se você ligar,
+sozinho quando ocioso), e ganha um app Electron na barra do macOS e do Linux que mostra cota, gasto,
+sessões, CPU e memória. Da discovery *Menu bar app and auto-update* de 2026-09-29, no Outline, cujas
+decisões desceram para os três ADRs de 2026-09-29.
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](features/038-desktop-and-updates/prd.md) | o plano: 78 critérios em cinco fatias — o serviço, o update manual, os dados e a página `/menubar`, o app Electron, e o update quando ocioso — e nove portas de mão única (a nona, o `lumem-desktop.json`, nasceu na construção) |
+| [open-questions.md](features/038-desktop-and-updates/open-questions.md) | 4 perguntas, **4 respondidas**: `lumem` sobe o serviço, a preferência global mora numa tabela de uma linha, e o serviço grava o caminho estável do pacote (a Q3, medida sob pnpm), todas em 2026-09-29; e, em 2026-09-30, o `.desktop` só leva `--no-sandbox` onde o kernel nega o sandbox (a Q4, opção (c)) |
+| [checks.md](features/038-desktop-and-updates/checks.md) | **93 checks em cinco fatias**, perfil `standard`, com `Test policy` para as duas camadas novas — o processo principal do Electron e o escritor de serviço do CLI. Três provas rodam só na máquina de quem verifica: `pnpm smoke:service`, `pnpm measure:resources` e o passo `desktop` do `smoke:install` |
+| [verification.md](features/038-desktop-and-updates/verification.md) | o relatório do verificador independente, rodada a rodada. As rodadas 1 a 5 reprovaram, cada uma por uma lacuna diferente — quatro de prova, o Linux, e três mutantes em condições compostas; o `release.yml` em `dry_run` achou dois defeitos de CI. A **rodada 6 passou**, sob a regra de parada do dono de 2026-09-30 (só defeito de comportamento bloqueia): 93 checks, 12 mutantes, nenhum defeito, e dez itens de teste a reforçar que foram para o backlog |
 
 ## Convenções
 

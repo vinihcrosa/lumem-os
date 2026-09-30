@@ -60,6 +60,10 @@ Fonte de verdade da estratégia de teste. O campo `Tests`/`Gate` de toda task sa
 | **o teto do workspace** | e2e `budget.spec.ts`, **zero token**: o teto é conferido **antes** do `session/prompt`, então o agente falso nem precisa responder — o pedido de permissão aparecer **é** a prova de que o turno passou do portão. Teto de **zero turno** é o caminho mais curto até o aviso e não depende de nenhum consumo gravado; sem isso o caso testaria o contador em vez do portão | **Não** |
 | **o parecer do revisor** de ponta a ponta | e2e `conveyor-review.spec.ts`, **zero token** e daemon próprio: o agente falso lê **a porta do parecer no próprio prompt** — não uma URL passada por variável — e posta lá o que o spec mandou. Quatro perguntas: as quatro setas andam sem ninguém clicar; um `bloqueia` que o daemon **reproduz** devolve o cartão ao implementador; um que não reproduz **não** segura; e um `anota` avança o cartão e **aparece na PR**, contra o `gh` falso do `PATH`. Ele achou três defeitos de produção que nenhum teste de unidade pegaria | **Não** |
 | `web/` fluxo de usuário | e2e (Playwright) | **Não** — daemon único, porta única, estado compartilhado |
+| `desktop/` processo principal do Electron — estado do ícone, menu, trava de navegação, comandos | unit com `electron` dublado, **um caso por linha** da tabela de decisão (as 5 entradas do ícone, os 6 itens do menu). Da [038](../features/038-desktop-and-updates/checks.md) | Sim |
+| `desktop/` a casca inteira | e2e com o `_electron.launch` do Playwright: sobe, cria o ícone, e o painel carrega a página do daemon. Só o caminho feliz — o resto é da unidade | **Não** |
+| `cli/` escritor de serviço (launchd, `systemd --user`) | unit com `launchctl`, `systemctl` e o disco **dublados**: o conteúdo do arquivo por supervisor, a ordem dos comandos, e cada recusa. É o mesmo desenho da instalação do adaptador — nenhum supervisor de verdade na suíte | Sim |
+| `cli/` o serviço de verdade | `pnpm smoke:service`, **local**: subir, sobreviver ao processo que subiu, parar, e voltar depois de atualizar. Os runners do CI não têm sessão de usuário do launchd nem do systemd | **Não** |
 | **a própria documentação** | `scripts/check-docs.test.ts` — 21 testes sobre fixtures mais **um que roda o checador contra a árvore de verdade**, e é esse que é o gate. Link relativo resolve, âncora de heading resolve, e o `**Status:**` de cada feature está na gramática fechada e concorda com o `tasks.md` da mesma pasta | Sim |
 
 **Consequência dura:** task cujo `Tests` é `e2e` **não pode** receber `[P]`. O gargalo é a execução do teste, não o código.
@@ -76,6 +80,9 @@ Fonte de verdade da estratégia de teste. O campo `Tests`/`Gate` de toda task sa
 | `lint` | `pnpm lint` | `oxlint --type-aware`: a categoria `correctness` mais `no-floating-promises`, `no-misused-promises` e `await-thenable`, com `--max-warnings 0`. 2,7 s. Não vê estilo, e é de propósito. `unbound-method` desligado: 162 achados, todos `const { f } = useHook()` sobre interface com sintaxe de método, sem `this` em jogo. Exceção na linha, sempre com `-- motivo` |
 | `docs` | `pnpm docs:check` | Link, âncora, `**Status:**`, **caminho de código em crase que não existe** (fora de ADR, de `references/` e de feature não `completa`) e **linha duplicada numa tabela do índice**. Já roda dentro do `gate:full` pelo `check-docs.test.ts`, e o `gate:quick` o roda sozinho sempre que uma doc mudou — o `--changed` do vitest nunca selecionaria um teste que lê arquivo por caminho |
 | `smoke` | `pnpm smoke:install` | O pacote publicado instala num prefixo limpo e sobe. Não faz parte dos três gates de todo dia: roda no release, e à mão antes de publicar |
+| `smoke` (app de desktop) | `pnpm smoke:install --only desktop [tarball]` | O pacote do app da [`038`](../features/038-desktop-and-updates/checks.md), empacotado (ou o tarball dado), instalado num prefixo descartável e posto onde o `lumem menubar install` o poria — chamando **o código dele**, com a casa trocada por uma pasta. No macOS confere o `codesign --verify` e que **não há `com.apple.quarantine`** (o gatilho que reabre a decisão de assinar com Developer ID); no Linux sobe o binário sob `xvfb` contra um daemon de mentira e espera a janela pedir `/menubar`. Empacotar baixa o Electron (~100 MB) na primeira vez. O `e2e` do app é à parte: `pnpm --filter @lumem/desktop exec playwright test`, que sobe o daemon de teste na 4424 e o Electron de verdade |
+| `smoke` (serviço) | `pnpm smoke:service [--only <passo>]` | O serviço de verdade, da [`038`](../features/038-desktop-and-updates/checks.md): instala o tarball num prefixo descartável, roda `lumem start` contra o launchd ou o `systemd --user` **desta máquina** e desfaz tudo no fim. Usa rótulo, unit, porta (4398) e state dir próprios — `LUMEM_SERVICE_LABEL` e `LUMEM_SERVICE_UNIT` — e nunca toca um `tech.cazimi.lumem` de verdade. O passo `update-relaunches` é o único que prova o supervisor subindo o daemon depois de um `exit(0)`: troca por falsos o registry (um servidor HTTP na 4399, com a URL trocada no bundle instalado), a versão que roda e o `npm` (um executável na frente do `PATH` de quem chamou `lumem start`, que o arquivo de serviço copia) — e deixa de verdade o supervisor, o daemon e o `system.update`. Local, e só: os runners não têm sessão de usuário do launchd nem do systemd |
+| `measure` | `pnpm measure:resources [--only <passo>]` | O custo de medir a árvore de processos, da [`038`](../features/038-desktop-and-updates/checks.md): **10 sessões de verdade** (5 ACP falsos do e2e, um `node` cada, e 5 shells) e o amostrador de produção lendo o `ps` (macOS) ou o `/proc` (Linux), uma amostra a cada 3 s. Sai 0 só abaixo de 1% de um núcleo; sem ver as dez sessões, ou sem conseguir medir o `ps`, recusa (o `pnpm` mostra 1, e o script diz por quê na saída). **Mede amostra a amostra, e não o processo numa janela:** um `tsx` parado gasta 0,6% a 0,9% de CPU sozinho, ruído maior que o sinal — e a CPU do `ps`, que o Node não enxerga, sai do `time -p` do sistema. Medido em 2026-09-29 (macOS, ~650 processos): ~3 ms do daemon e ~11 ms do `ps` por amostra, **0,47%**. Local: o número é da máquina que mede |
 
 ### Os gates não tomam a máquina
 
@@ -660,6 +667,8 @@ macOS ocioso passa sempre; num runner de CI carregado ele parou na `line181`. A 
 ordem: `onData` e `onExit` são dois callbacks do node-pty, e o exit chega com o último pedaço ainda na
 fila. O arquivo já tinha o helper certo — `waitForOutput` — e todos os outros testes dele já esperavam
 pela saída; só este esperava pelo cadáver.
+
+*Corrigido depois:* esperar pela saída não bastou — no Linux ela pode nunca chegar; ver *"No Linux, o processo que sai leva a saída que o master ainda não leu"*, ao fim desta seção.
 
 A regra: **espere pela evidência que você vai asserir, não por um evento que costuma vir antes dela.**
 E o sinal de alerta barato: um teste que usa um helper de espera diferente do que todos os seus vizinhos
@@ -1818,9 +1827,164 @@ nova cobre o cenário do teste de uma antiga, cada uma precisa de um cenário em
 acrescentar uma condição a uma expressão já provada, releia as provas da expressão e pergunte qual delas
 ainda cai por causa da condição antiga.
 
+### Um e2e de "a página volta inteira" sem o controle que sabe quebrá-la
+
+**Sintoma:** nenhum na corrida, e é o problema: o C41 da [`038`](../features/038-desktop-and-updates/checks.md)
+afirma que, depois de instalar por cima com o daemon de pé, a página recarregada carrega os assets novos.
+Escrito só como *"o caminho feliz passa"*, ele fica verde em qualquer mundo em que a página nunca soube
+quebrar — por exemplo, uma instalação simulada que reescreve o texto de um arquivo sem mudar o **nome** do
+asset.
+
+**Causa provável:** o defeito que a feature existe para evitar só existe numa forma: `index.html` novo
+apontando para um asset de **outro hash**, que o daemon velho não registrou (o `@fastify/static` com
+`wildcard: false` cria uma rota por arquivo no boot), e o asset velho apagado. Sem essa troca de nome, não
+há 404 para o teste ver.
+
+**O que passou a avisar antes:** o `e2e/update.spec.ts` tem uma segunda metade, o **controle** — a mesma
+instalação **sem** o daemon sair: `/` responde 200 com o asset novo, o asset novo e o velho respondem 404 e o
+`#root` fica vazio. Se a fixture deixar de reproduzir a página em branco, é o controle que fica vermelho, e
+não o teste principal que passa em silêncio. A regra: **um e2e que afirma que um defeito não acontece prova o
+defeito acontecendo no mesmo mundo, sem a correção**.
+
+### O npm descarta symlink, e um `.app` vive deles
+
+**Sintoma:** nenhum, até alguém instalar: o pacote do app publicado com o `.app` solto instala, e o app não
+abre — e o `codesign --verify` acusa `a sealed resource is missing or invalid`.
+
+**Causa:** o `npm pack` e o `npm publish` não guardam symlink (medido: uma árvore com `Versions/Current -> A`
+sai do tarball sem o link), e o Electron Framework é feito deles (`Electron Framework`, `Versions/Current`,
+`Resources`). O `.app` de 14 symlinks chega ao usuário com zero.
+
+**O que passou a avisar antes:** o pacote do macOS leva o **zip** do `.app` (`Lumem.zip`), que o CLI abre com
+`ditto`, e o `pnpm smoke:install --only desktop` roda o `codesign --verify` no que instalou. A regra:
+**artefato com symlink viaja dentro de um arquivo, e a prova é a assinatura do que foi instalado, não a
+listagem do tarball**.
+
+### `setContextMenu` no macOS engole o clique do ícone
+
+**Sintoma:** o menu de contexto abre com o botão esquerdo e o painel nunca abre; ou o painel abre e o menu
+some.
+
+**Causa:** com `tray.setContextMenu`, o macOS trata **qualquer** clique no ícone como pedido do menu e não
+emite `click` (nem `mouse-up`). O `click` do StatusNotifierItem do Linux, ao contrário, não é confiável, e ali
+o menu é o caminho.
+
+**O que passou a avisar antes:** o `main.ts` usa `setContextMenu` só fora do macOS; no macOS o menu sai do
+`right-click` por `popUpContextMenu`, e o `main.test.ts` afirma as duas formas. Um segundo detalhe do mesmo gesto, **não medido aqui** (o Playwright não clica na barra de menus): o clique que tira o foco do
+painel chega **depois** do `blur`, como nos outros apps de barra, e a janela de 300 ms do `windows.ts` existe para o painel não
+esconder e reabrir no mesmo clique — o `windows.test.ts` prova a guarda, e só o uso diz se o tempo basta.
+
+### O `--uninstall` de um segundo processo tem de chegar ao que está rodando
+
+**Sintoma:** `lumem menubar uninstall` remove o app e o item de login, e o ícone continua na barra até o
+próximo logout.
+
+**Causa:** tratar a flag **antes** de pedir o `requestSingleInstanceLock` faz o segundo processo executar a
+remoção e sair sozinho — o primeiro nunca ouve. Medido com o `.app` de verdade: os três processos do Electron
+seguiam de pé.
+
+**O que passou a avisar antes:** o `startApp` pede a trava primeiro; quem a perde só encerra, e a instância viva
+trata o `--uninstall` no `second-instance`. O `main.test.ts` tem os dois lados. A regra: **um comando entregue a
+um app de instância única é do processo que está de pé, não do que foi lançado**.
+
+### Um app aberto pelo Finder não tem o `PATH` do terminal
+
+**Sintoma:** o daemon subido pelo `Iniciar` do ícone não acha `claude`, `git` nem `node`, e as sessões falham
+com *comando não encontrado* — enquanto o mesmo daemon subido por `lumem start` no terminal funciona.
+
+**Causa:** o `lumem start` grava no arquivo de serviço o `PATH` **de quem o chamou**, e o de um app aberto pelo
+launchd ou pelo autostart é `/usr/bin:/bin`.
+
+**O que passou a avisar antes:** o `lumem-desktop.json` guarda o `PATH` do terminal que rodou `lumem menubar
+install`, e o `commands.ts` o entrega ao `lumem start` (`commands.test.ts`). O teste que decide isso é o que
+olha o `env` da chamada, e não o argv.
+
+### Uma prova que monta a própria instância de uma opção ligada não vê a ligação de produção ser apagada
+
+**Sintoma:** a atualização automática pausa a esteira durante a instalação (`038`, C83), o teste dizia que sim, e
+trocar `paused: () => update.installer.installing()` por `paused: () => false` no `bootstrap.ts` deixava 276 de
+276 testes verdes. O daemon voltava a despachar tarefa contra a porta de prompt fechada, e ninguém veria.
+
+**Causa:** o teste montava o próprio `runConveyorLoop({ paused })`. O que ele provava era que **a opção funciona
+quando alguém a passa**; quem a passa em produção é o `bootstrap`, numa esteira de intervalo fixo de 15 s que
+nenhum teste alcançava. O mesmo desenho já tinha custado outras linhas do `bootstrap` (o `ptyManager`, a versão
+do `openDatabase`), e cada uma ganhou um teste de fiação depois.
+
+**O que passou a avisar antes:** opção ligada só por uma linha do `bootstrap` precisa de **um teste que suba o
+`bootstrap`** e observe o efeito na peça que ele montou — aqui, o `conveyorSetInterval` deixa o teste disparar a
+esteira do daemon, e um `tick` espionado diz se ela despachou. A verificação é a mutação: apague a linha e o teste
+tem de ficar vermelho. A regra: **a prova de uma opção tem de passar pela montagem que a liga**, e a de uma
+unidade sozinha só vale para a unidade.
+
+### "Em uma casa decimal", provado só com valores inteiros, não prova arredondamento
+
+**Sintoma:** o C46 dizia `cpuPercent` em uma casa decimal, e trocar `Math.round(value * 10) / 10` por
+`Math.round(value)` no `sample.ts` deixava a prova dele verde: todo valor esperado era `10`, `28` ou `10`, que
+os dois cálculos acertam.
+
+**Causa:** uma afirmação de **precisão** só é testada por um valor que cai entre dois valores da precisão
+anterior. Com taxas escolhidas para dar números redondos (o que é o natural ao escrever uma tabela de exemplo),
+o arredondamento nunca é exercitado, e a prova fica no nível do amostrador, abaixo do router que o check nomeia.
+
+**O que passou a avisar antes:** a prova ganhou taxas que dão `1,554%`, `0,468%` e `1,304%` (de soma de grupo), com
+`1.6`, `0.5` e `1.3` esperados, no amostrador e por `system.resources`. A regra: **todo check que nomeia uma
+casa decimal, um teto ou um mínimo precisa de um valor esperado que só o cálculo certo produz**, e a mutação
+que o remove (`Math.round(value)`, `<=` por `<`) tem de matar a prova.
+
+### Script feito para um runner sem `node_modules` que ganha um `import` do workspace passa em toda máquina local
+
+**Sintoma:** o primeiro `release.yml` de verdade (`dry_run`, 2026-09-30) caiu nos dois jobs `instalar de
+verdade` com `ERR_MODULE_NOT_FOUND: Cannot find package '@lumem/shared'`, antes de instalar qualquer coisa. O
+`scripts/smoke-install.ts` roda num runner nu (`npx tsx scripts/smoke-install.ts <tarball>`, sem `pnpm install`,
+de propósito), e a `038` lhe dera `import` estático de `packages/cli` e `packages/desktop`, que importam
+`@lumem/shared`.
+
+**Causa:** em toda máquina de quem desenvolve há `node_modules`, então o `import` resolve; o vitest, o
+`typecheck` e o `pnpm smoke:install` local passavam todos. A única condição em que ele quebra — um checkout sem
+instalação — é a do runner, que nenhum gate local reproduz.
+
+**O que passou a avisar antes:** o teste `the default path imports nothing from the workspace`
+(`scripts/smoke-install.test.ts`) lê o arquivo e falha se houver `import` estático de `@lumem/*` ou de
+`packages/`; o código do workspace entra por `import()` dentro do passo `--only desktop`, que roda depois do
+`pnpm install`. O teste é a rede, e a prova honesta é outra: rodar o script como o CI, num `git archive` do
+commit (sem `node_modules`) com `env -u NODE_PATH npx --yes tsx@4 scripts/smoke-install.ts <tarball>`. A regra:
+**script pensado para rodar sem instalação não importa código do repositório por `import` estático**, e quem
+precisa dele o carrega onde já há `node_modules`.
+
 ## Convenções
 
 - Teste de git usa **repositório temporário real**, nunca mock. `git worktree` tem caso de borda em nome com barra e branch existente que mock nenhum reproduz.
 - Cada teste de banco recebe um SQLite em arquivo temporário próprio — é o que sustenta o "parallel-safe" da matriz.
 - E2E de agente usa **configuração de fixture**, nunca o `claude` de verdade: senão o teste depende de autenticação, quota e rede.
 - Asserção fraca conta como teste faltando. Se dá pra mutar o código e o teste continua verde, o teste não existe.
+
+### Tabela de casos que testa cada botão sozinho deixa passar a combinação da máquina de verdade
+
+O C93 da [038](../features/038-desktop-and-updates/checks.md) testava `unprivileged_userns_clone=0` e `apparmor_restrict_unprivileged_userns=1` cada um com o outro **ausente**, e o Ubuntu 23.10 em diante tem os dois, com `userns_clone=1`. Uma detecção que deixava o botão do Debian decidir sozinho passava na tabela inteira, e o `release.yml`, que rodou num kernel desses, só **imprimia** o valor. A rodada 3 da verificação achou pelo mutante.
+
+**A regra:** uma tabela sobre botões independentes cobre **o produto inteiro** dos estados de cada botão (aqui, `0`, `1` ou ausente em cada um: 9 linhas), e não os exemplos. Acrescentar só a combinação medida não bastou: a rodada 4 achou o mutante espelho — o outro botão decidindo sozinho — vivo numa tabela de 6 linhas. Com as 9, sete mutantes de precedência e de ausência caem. E o run real afirma o que mede em vez de só imprimir.
+
+**A rodada 5 achou a mesma classe fora do kernel, e a regra vale para todo *ou* e todo *e* que um AC escreve.** O AC 27 diz que `system.update` recusa com *qualquer turno em voo **ou** qualquer script rodando*, e o C30 provava isso com um estado só: os dois ocupados. Nesse estado `||` e `&&` concordam, e um router que só recusava com os dois passou pela suíte inteira do `server` (o M14). O que a rodada 5 pediu, e o que vale daqui em diante:
+
+- **cada operando verdadeiro sozinho.** Um *ou* entre dois botões se prova com cada botão sozinho e com os dois; um *e* se prova com cada operando falhando sozinho. O estado em que tudo vale é o único que não distingue nada — e é o que o exemplo do AC costuma ser;
+- **a varredura não espera o verificador.** Antes de fechar a fatia, o construtor roda o Stryker nos arquivos que a fatia decide (um `stryker.config.json` descartável, com `mutate` nos arquivos, serve também para `packages/cli` e `packages/desktop`: o `vitest.config.ts` de cada pacote entra por `vitest.configFile`, e `ignorePatterns` tira da cópia o que não é código, `.context/` à frente — ele guarda um socket, e o `copyfile` do Stryker morre nele). Cada sobrevivente em **decisão** (guarda, comparação, precedência, fronteira) é um caso que faltava; cada sobrevivente em mensagem de log ou em valor que o tipo já garante é anotado como equivalente e não perseguido;
+- **ao fechar uma lacuna desta classe, varrer os outros *ou* da mesma feature.** A varredura da 038 achou, sem ninguém pedir, o `abrir` do painel (pacote **ou** app ausente), o `start` (porta **ou** ambiente), o tique automático (o que decide relido no instante da instalação, e o tique lento que não se deixa ultrapassar), a cópia do banco (sem `last-version` **com** banco) e a origem da janela (mesma origem **ou** a página local);
+- **a asserção tem de poder falhar pela metade que ela nomeia.** `toContain` sobre uma mensagem cujo dublê repete o comando na saída de erro passa com o rótulo do passo apagado; o que prova o rótulo é o texto inteiro, com o passo antes do que o sistema disse.
+
+### `time -p` trunca cada leitura, e medir o `ps` sozinho some com o custo dele
+
+O C61 da [038](../features/038-desktop-and-updates/checks.md) mediu o `ps` rodando uma vez por amostra sob `time -p`. No macOS o `time -p` trunca `user` e `sys` a 10 ms cada, e o `ps` gastava ~25 ms: cada leitura perdia cerca de 10 ms, e a medição dava 0,44% onde o custo real era ~0,9%. **A regra:** medir um custo pequeno em **lote** (50 execuções sob um `time -p` só) e dividir, nunca somar leituras truncadas.
+
+### No Linux, o processo que sai leva a saída que o master ainda não leu
+
+O teste de scrollback do `PtyManager` falhou no runner do Ubuntu da PR #107 com `expected 'line1\r\nline2\r\nline3\r\n' to contain 'line200'` — **depois** de já esperar pela saída, e não pelo exit, como a armadilha *"Esperar o processo morrer não é esperar a saída dele chegar"* mandava. O buffer parou na terceira linha e ficou ali os 10 s inteiros: a `line200` **não estava atrasada, nunca chegou**. A correção da `line181` tratava o sintoma (esperar o que se asserta) e deixava a causa: o `sh` imprime 200 linhas e **sai**, e no Linux o fechamento do slave do PTY descarta o que o master ainda não entregou. O node-pty ainda dá 200 ms ao socket para drenar (`DESTROY_SOCKET_TIMEOUT_MS`), e não adianta — o dado já não existe.
+
+Reproduzido num `node:22` em Docker (aarch64), com o node-pty 1.1.0 puro, 4 leitores em paralelo e 10 `yes > /dev/null` de carga: o shell que **sai** depois de 1000 linhas perdeu a última em **~290 de 600** rodadas (com as 200 linhas do teste, em 2 de 600; com um leitor só, em 1 de 1600 sob carga e 0 de 100 parado); o mesmo shell com um `sleep` no fim, lido até a última linha e só então morto, perdeu **0 de 600**. No macOS não reproduz nem com 14 `yes` e `--sequence.shuffle` em 40 rodadas, e é por isso que o teste passava em toda máquina local.
+
+**A regra:** quando o produtor de uma saída é um processo, **faça-o sobreviver à leitura** (`…; sleep 30`, e o `afterEach` mata). Esperar pela saída e esperar pelo exit são a mesma aposta se o exit puder levar a saída junto. `websocket.test.ts` já fazia isso (`…; sleep 30`); o de scrollback era o que saía sozinho. Fica registrado, sem mexer: `terminal-bridge.test.ts` imprime 10 linhas e sai — pouca saída, risco baixo, mas é o mesmo desenho.
+
+### Um e2e que afirma "nada rodando" num daemon que a suíte inteira divide
+
+O C60 da [038](../features/038-desktop-and-updates/checks.md) terminava pedindo que o painel da barra mostrasse *"nenhuma sessão rodando"* depois de o turno dele acabar. Numa suíte de um daemon só, a asserção era sobre **o daemon**, e não sobre o turno: lida no começo do spec, `system.live` listava **nove** turnos deixados pelos specs anteriores (onboarding, `agente-pela-tela`, `conversa-largura`, `teto-*`…). A lista nunca esvazia, e o teste só passava quando a suíte rodava sozinha. O reteste ainda falhou mais cedo, por outro motivo da mesma família: a worktree fixa `painel-barra` já existia, deixada pela tentativa que falhou.
+
+**A regra:** num e2e de daemon compartilhado, **afirme sobre o que o teste criou** — o rótulo dele some da lista (`toHaveCount(0)`), e não a lista esvazia — e dê **um nome por tentativa** (`Date.now().toString(36)`, a convenção dos outros specs) a tudo que ele cria. E encerre o que abriu pelo daemon (`session.close`, o gesto do `Fechar` da aba), sem esperar que o fake acabe o turno sozinho.

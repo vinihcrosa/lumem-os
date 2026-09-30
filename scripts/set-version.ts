@@ -1,14 +1,15 @@
 /**
- * The version, in the three places that have to agree. Pure and importable; the
+ * The version, in the four places that have to agree. Pure and importable; the
  * entry point is `run-set-version.ts`.
  *
  * `LUMEM_VERSION` is what the daemon reports to the client and what `lumem
  * version` prints. `packages/shared/package.json` is what a test already
  * compares it against. `packages/cli/package.json` is what npm publishes — and
  * it is the one nothing was guarding, because it did not exist until the
- * product started being installable.
+ * product started being installable. `packages/desktop/package.json` gives the
+ * four desktop packages their version.
  *
- * Three files edited by hand is three chances to publish a build that lies
+ * Four files edited by hand is four chances to publish a build that lies
  * about which build it is.
  */
 import { readFileSync, writeFileSync } from "node:fs";
@@ -53,6 +54,9 @@ export const VERSION_FILES: readonly VersionFile[] = [
   },
   manifest("packages/shared/package.json"),
   manifest("packages/cli/package.json"),
+  // O app de desktop sai em quatro pacotes na versão do daemon (`038`, AC 70), e é o
+  // `package.json` dele que o `pack.ts` lê para dar o número aos quatro.
+  manifest("packages/desktop/package.json"),
 ];
 
 export function assertVersion(version: string): void {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { probePort } from "./port.js";
+import { probePort, readHealth } from "./port.js";
 
 function respond(body: unknown, status = 200): typeof fetch {
   return (async () =>
@@ -30,6 +30,19 @@ describe("probePort", () => {
     });
   });
 
+  it("reads a health answer that carries more fields", async () => {
+    // `038`: o `health` ganhou `supervised` e `protocolVersion`. Quem sonda a
+    // porta lê só `ok` e `version`, e campo a mais não pode virar `other`.
+    const request = respond({
+      result: { data: { ok: true, version: "0.7.0", supervised: true, protocolVersion: 1 } },
+    });
+
+    expect(await probePort({ origin: "http://127.0.0.1:4317", request })).toEqual({
+      kind: "lumem",
+      version: "0.7.0",
+    });
+  });
+
   it("qualquer outra coisa na porta é outra coisa", async () => {
     // O caso que importa: um servidor que responde 200 com HTML na mesma URL.
     // Chamar isso de Lumem faria o CLI mandar a pessoa abrir o produto errado.
@@ -42,5 +55,24 @@ describe("probePort", () => {
     expect(
       await probePort({ origin: "http://127.0.0.1:3000", request: respond({}, 500) }),
     ).toEqual({ kind: "other" });
+  });
+});
+
+describe("readHealth", () => {
+  it("says whether the Lumem is supervised, and only true means true", async () => {
+    const answer = (supervised: unknown) =>
+      respond({ result: { data: { ok: true, version: "0.7.0", supervised } } });
+
+    expect(await readHealth({ origin: "http://x", request: answer(true) })).toEqual({
+      kind: "lumem",
+      version: "0.7.0",
+      supervised: true,
+    });
+    // Um daemon anterior à 038 não responde o campo, e não é supervisionado.
+    for (const supervised of [false, undefined, "true"]) {
+      expect(await readHealth({ origin: "http://x", request: answer(supervised) })).toMatchObject({
+        supervised: false,
+      });
+    }
   });
 });
