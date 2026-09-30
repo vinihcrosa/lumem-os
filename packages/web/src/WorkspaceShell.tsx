@@ -14,7 +14,16 @@ import { AppShell } from "./layout/AppShell.js";
 import { MainColumn } from "./MainColumn.js";
 import { RightColumn } from "./RightColumn.js";
 import { clear as clearSelection, select as selectScope, useNavigation } from "./lib/navigation.js";
-import { navigate, useRoute } from "./lib/route.js";
+import { navigate, useRoute, type Route } from "./lib/route.js";
+
+/**
+ * A linha da sidebar que a rota acende. `menubar` nunca chega aqui — o `App` atende o
+ * painel antes de montar o shell —, e o `home` é só o que o tipo pede.
+ */
+function sidebarPlaceOf(route: Route): "home" | "board" | "settings" {
+  if (route === "tasks") return "board";
+  return route === "menubar" ? "home" : route;
+}
 
 export interface WorkspaceShellProps {
   workspaceId: string;
@@ -87,7 +96,7 @@ export function WorkspaceShell({
                * (tarefas) e a tela diz a **forma** (quadro), que é a distinção
                * que a Q3a da `029` comprou. A tradução acontece aqui, uma vez.
                */
-              place={selection !== null ? "scope" : route === "tasks" ? "board" : route}
+              place={selection !== null ? "scope" : sidebarPlaceOf(route)}
               onHome={() => {
                 navigate("home");
                 clearSelection();

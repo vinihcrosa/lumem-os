@@ -12,14 +12,26 @@ import { useTreeExpansion } from "./features/workspace/index.js";
 import { useInvalidateWorkspaces, useWorkspaces } from "./features/workspace/index.js";
 import { Topbar } from "./layout/Topbar.js";
 import { SetupFlow } from "./features/setup/index.js";
+import { MenubarScreen } from "./features/menubar/index.js";
 import { UpdateBanner } from "./features/update/index.js";
 import { WorkspaceShell } from "./WorkspaceShell.js";
 import { arrive, select as selectScope } from "./lib/navigation.js";
+import { useRoute } from "./lib/route.js";
 import { Banner, Button, Skeleton } from "./ui/index.js";
 
 import "./layout/layout.css";
 
+/**
+ * O painel da barra (`038`, Parte 3) é uma página inteira, e não uma tela do shell:
+ * sem sidebar, sem primeiro acesso, sem a conexão viva do workspace. Decidido aqui, antes
+ * de qualquer hook do shell rodar — um painel de 360 px não abre socket nenhum.
+ */
 export function App() {
+  const route = useRoute();
+  return route === "menubar" ? <MenubarScreen /> : <WorkspaceApp />;
+}
+
+function WorkspaceApp() {
   const invalidateWorkspaces = useInvalidateWorkspaces();
   /**
    * Whether the first-access flow is on screen.

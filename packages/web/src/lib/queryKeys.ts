@@ -265,6 +265,20 @@ export const HEALTH_KEY = ["health"] as const;
 /** A versão nova que o daemon sabe que existe, e se ele pode instalá-la (`038`). */
 export const UPDATE_STATUS_KEY = ["system", "updateStatus"] as const;
 
+/**
+ * O painel da barra (`038`, Parte 3): cinco leituras, cada uma a sua chave, porque cada
+ * bloco da tela falha e se recarrega sozinho.
+ */
+export const AGENT_RATE_LIMITS_KEY = ["agentAccount", "rateLimits"] as const;
+export const SYSTEM_RESOURCES_KEY = ["system", "resources"] as const;
+export const SYSTEM_LIVE_KEY = ["system", "live"] as const;
+export const RECENT_WORKSPACES_KEY = ["workspace", "recent"] as const;
+
+/** O consumo de todo o daemon numa janela. A janela é a pergunta, e por isso entra na chave. */
+export function usageTotalKey(period: string) {
+  return ["usage", "total", period] as const;
+}
+
 /** As preferências da máquina que o daemon guarda: verificar versão, atualizar sozinho. */
 export const DAEMON_SETTINGS_KEY = ["system", "settings"] as const;
 

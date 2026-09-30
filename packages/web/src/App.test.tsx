@@ -23,6 +23,25 @@ beforeEach(() => {
   trpc.project.listByWorkspace.query.mockResolvedValue([]);
 });
 
+describe("App on /menubar", () => {
+  it("renders the panel alone, without the workspace shell", async () => {
+    window.history.replaceState(null, "", "/menubar");
+    trpc.health.query.mockResolvedValue({ ok: true, version: "1.2.3" });
+
+    try {
+      renderWithProviders(<App />);
+
+      expect(await screen.findByRole("main", { name: "Painel do Lumem" })).toBeInTheDocument();
+      // Nada do shell: nem a topbar, nem a pergunta que ele faz ao daemon.
+      expect(screen.queryByRole("heading", { name: "Lumem-OS", level: 1 })).not.toBeInTheDocument();
+      expect(trpc.workspace.list.query).not.toHaveBeenCalled();
+      expect(trpc.health.query).not.toHaveBeenCalled();
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
+  });
+});
+
 describe("App header", () => {
   it("renders the product name", () => {
     trpc.health.query.mockReturnValue(new Promise(() => {}));
