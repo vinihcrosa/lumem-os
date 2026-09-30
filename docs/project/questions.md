@@ -220,10 +220,10 @@ Agente precisa do repo em disco. Se o servidor é remoto, ou o repo tá lá (e s
 
 **R:**
 
-### [ ] Q027 — Qual o cliente principal?
+### [x] Q027 — Qual o cliente principal?
 (a) TUI/CLI; (b) app desktop; (c) web; (d) CLI primeiro, UI depois. E: um cliente ou vários falando com a mesma API?
 
-**R:**
+**R:** vários, falando com a mesma API (2026-09-29). O daemon é o produto; a web é a interface, servida por ele; o app de desktop é uma casca sobre ela; o celular, depois, fala com as mesmas rotas — [ADR de 2026-09-29](../adr/2026-09-29-2002-the-daemon-is-the-product-clients-are-shells.md).
 
 ### [ ] Q028 — Stack: qual linguagem pro servidor e por quê?
 Critérios que importam aqui: você mantém sozinho, precisa spawnar/supervisionar processos, precisa de streaming, e precisa que seja gostoso de mexer daqui a 6 meses.
@@ -661,11 +661,11 @@ Superset usa relay reverso; Conductor foi de local puro → local + cloud sandbo
 
 ### G.8 Cliente e UX
 
-#### [ ] Q093 — Qual o cliente: web, desktop, TUI, ou híbrido? `[ss][cd] [×2]`
+#### [x] Q093 — Qual o cliente: web, desktop, TUI, ou híbrido? `[ss][cd] [×2]`
 Conductor é **Tauri v2** (não Electron — mito do HN desmentido): binário arm64 único de 66 MB, WebKit do sistema, terminal nativo via `alacritty_terminal`. Superset é Electron e paga em memória.
 Web dá multi-plataforma de graça e cai naturalmente no multi-host, mas você perde terminal nativo, notificação do SO, "abrir no editor", deep link e acesso ao filesystem local. Híbrido (web pra acompanhar, desktop pra trabalhar) vale a manutenção dupla? *(refina Q027)*
 
-**R:**
+**R:** híbrido (2026-09-29): web para tudo, e um cliente **Electron** que é casca sobre a web do daemon — [ADR do produto](../adr/2026-09-29-2002-the-daemon-is-the-product-clients-are-shells.md) e [ADR do cliente](../adr/2026-09-29-2003-lumem-ships-an-electron-client-next-to-the-daemon.md). Não é Tauri: o cliente vai carregar a interface inteira, e o WebKitGTK no Linux pesou.
 
 #### [ ] Q094 — Adotar a fila "próximo que precisa de atenção"? E quanto do modelo de inbox? `[cd]`
 O `⌥L` do Conductor é a primitiva que faz paralelismo escalar: transforma supervisão de N agentes em **fila**, não em dashboard. Se você trouxer uma coisa só de UX das três referências, é essa.

@@ -193,11 +193,11 @@ Nomeado, para não virar escopo por acidente:
 | Fora | Por quê |
 |---|---|
 | Windows | o produto é worktree, PTY e shell de login. Vale uma feature, não um bullet |
-| Auto-update | `npm i -g @vinihcrosa/lumem-os@latest` é a atualização da v1. **Desde 2026-09-06** existe o `lumem upgrade`, que é essa mesma reinstalação com três coisas que a linha crua não faz: pergunta ao registry antes (não reinstalar quando já está na última), instala com o gerenciador que **é dono da cópia instalada** (um `npm i -g` por cima de um global do pnpm deixa dois `lumem` no PATH), e diz que o daemon de pé continua no código velho até reiniciar. Continua sendo manual: nada se atualiza sozinho |
+| Auto-update | `npm i -g @vinihcrosa/lumem-os@latest` é a atualização da v1. **Desde 2026-09-06** existe o `lumem upgrade`, que é essa mesma reinstalação com três coisas que a linha crua não faz: pergunta ao registry antes (não reinstalar quando já está na última), instala com o gerenciador que **é dono da cópia instalada** (um `npm i -g` por cima de um global do pnpm deixa dois `lumem` no PATH), e diz que o daemon de pé continua no código velho até reiniciar. Continua sendo manual: nada se atualiza sozinho. **Nota de 2026-09-29:** o [ADR de 2026-09-29](../../adr/2026-09-29-2004-the-daemon-updates-itself-under-a-supervisor.md) faz o daemon verificar e se instalar sob um supervisor, e a [038](../038-desktop-and-updates/prd.md) o constrói; o que sobra de pé desta linha é o padrão — por omissão ele só avisa |
 | Homebrew, Docker, AppImage, `.dmg` | canais adicionais só fazem sentido depois de o primeiro ter usuários |
-| Assinatura e notarização | não há binário nativo próprio para assinar |
+| Assinatura e notarização | não há binário nativo próprio para assinar. **Nota de 2026-09-29:** o [cliente Electron](../../adr/2026-09-29-2003-lumem-ships-an-electron-client-next-to-the-daemon.md) é o primeiro, e sai com assinatura **ad-hoc**; notarização e Developer ID continuam fora até um canal de download avulso entrar |
 | Daemon remoto, multiusuário, autenticação | o Lumem escuta em `127.0.0.1` por decisão de projeto. Mudar isso é outra feature, e é uma feature de segurança |
-| Telemetria | não vai ter. Está aqui escrito para que a ausência seja uma decisão e não um esquecimento |
+| Telemetria | não vai ter. Está aqui escrito para que a ausência seja uma decisão e não um esquecimento. **Nota de 2026-09-29:** a verificação de versão do [ADR de 2026-09-29](../../adr/2026-09-29-2004-the-daemon-updates-itself-under-a-supervisor.md) é um `GET` ao registry sem identificador, e desliga — não é telemetria, e esta linha fica de pé |
 
 ## 8. Riscos
 

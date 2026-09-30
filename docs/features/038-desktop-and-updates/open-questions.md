@@ -1,0 +1,62 @@
+# O Lumem fica de pé sozinho, se atualiza, e mora na barra — perguntas
+
+**PRD:** [prd.md](prd.md)
+
+**Estado:** 2 perguntas · **2 respondidas** em 2026-09-29, as duas pela recomendação.
+
+A discovery do Outline já respondeu 22 perguntas e 7 desdobramentos em 2026-09-29
+([as perguntas](https://wiki.cazimi.tech/doc/open-questions-menu-bar-and-auto-update-S8ijH9cb9K)), e o
+que elas decidiram está nos critérios e nos ADRs. As duas daqui apareceram escrevendo o plano: a
+discovery disse *que* existe `lumem start`, `stop`, `status` e `logs` e *que* existe uma preferência de
+atualizar sozinho, mas não o que acontece com o `lumem` de hoje nem onde a preferência mora.
+
+---
+
+- [x] **Q1 — O `lumem` sem verbo passa a subir o serviço, ou continua em primeiro plano?**
+
+  Hoje `lumem` e `lumem start` são a mesma coisa: o daemon em primeiro plano, preso ao terminal
+  (`packages/cli/src/args.ts`, o verbo padrão é `start`). O comentário do `Command` já previa esta hora:
+  *"the shape has to survive the answer to D2: the daemon runs in the foreground today and will run in
+  the background later"*.
+
+  **Opções:**
+  - **(a)** `lumem` = `lumem start` = **o serviço**; o primeiro plano vira `lumem run`, que é também o que
+    o launchd e o systemd executam.
+  - **(b)** `lumem` continua em **primeiro plano**; só `lumem start` sobe o serviço.
+  - **(c)** `lumem start --daemon` para o serviço, e tudo o mais como hoje.
+
+  **Recomendação: (a).** O modo normal passa a ser o serviço, e o comando mais curto deve fazer a coisa
+  normal. O arquivo de serviço precisa de um verbo que nunca mude de sentido, e `run` é esse verbo. O
+  preço é uma mudança que quem digita `lumem` sente: o terminal volta na hora. A nota da release diz, e
+  `lumem run` está a um verbo de distância.
+
+  **O que a resposta muda:** os critérios 7 e 8, a linha 1 do `Landing`, o `HELP` do CLI, e o
+  `scripts/smoke-install.ts`. Com (b), o critério 7 passa a dizer *primeiro plano* e o `lumem run` pode
+  nem existir; com (c), a porta 1 muda de forma.
+
+  **R:** (a) (2026-09-29). `lumem` = `lumem start` = o serviço; o primeiro plano é `lumem run`.
+
+- [x] **Q2 — Onde mora a preferência global do daemon (procurar atualização, atualizar sozinho)?**
+
+  Não existe lugar para configuração **da máquina** no banco: os tetos são colunas de `workspace`, e as
+  chaves de memória da `007` são variáveis de ambiente lidas no boot (`packages/server/src/config.ts`). A
+  B8 da discovery pediu um interruptor em `/settings`, e a B1 pediu a opção *atualizar sozinho*.
+
+  **Opções:**
+  - **(a)** uma tabela `daemon_settings` com **uma linha só** (`CHECK (id = 1)`) e colunas tipadas com
+    `CHECK`, como as de `workspace`.
+  - **(b)** uma tabela chave-valor (`key`, `value`), para caber a próxima preferência sem migração.
+  - **(c)** um `settings.json` no state dir.
+  - **(d)** só variável de ambiente, sem interruptor na tela.
+
+  **Recomendação: (a).** É o mesmo jeito que o banco já guarda configuração (colunas com `CHECK` em
+  `workspace`), e o `CHECK` é o que impede um `auto_update = 'sim'` de entrar. A (b) troca o `CHECK` por
+  validação na aplicação, que é o que a armadilha *"Uma restrição escrita em comentário não é uma
+  restrição"* de `testing.md` já cobrou. A (c) cria um segundo jeito de persistir ao lado do SQLite. A (d)
+  não atende a B8.
+
+  **O que a resposta muda:** a linha 3 do `Landing` e o `Relations`; os critérios 18, 20, 21 e 71 falam de
+  `daemon_settings`. Com (b), os critérios passam a dizer a chave; com (c), o critério 20 vira escrita de
+  arquivo, com a regra do `mode` da armadilha *"`mode` no `writeFileSync` só vale na criação"*.
+
+  **R:** (a) (2026-09-29). Uma tabela `daemon_settings` com uma linha só e colunas com `CHECK`.

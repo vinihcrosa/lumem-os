@@ -1,0 +1,364 @@
+# O Lumem fica de pé sozinho, se atualiza, e mora na barra — checks
+
+> **Status:** em execução
+
+Profile: standard
+Plan: `docs/features/038-desktop-and-updates/prd.md`
+
+84 checks in 5 slices · 8 one-way doors · 0 open
+
+## Checks
+
+Os comandos de prova rodam da raiz, escritos por extenso em cada `Proof:`. Os arquivos de teste que
+ainda não existem nascem com o nome que o `Proof:` dá, e o teste tem o nome que o `-t` ou o `-g` pede.
+`pnpm smoke:service` é um script novo desta feature: instala o tarball num prefixo descartável, roda
+`lumem start` de verdade contra o launchd ou o `systemd --user` da máquina, e desfaz tudo no fim; `--only
+<passo>` roda um passo só. Ele roda na máquina de quem verifica, não no CI, porque os runners não têm
+sessão de usuário do launchd nem do systemd. `pnpm measure:resources` também é novo, e o `--only desktop`
+do `pnpm smoke:install` é um passo novo do script que já existe.
+
+### S1 - o Lumem fica de pé sem terminal · 8 files · 120 KB · ~45k
+
+**C1** - No macOS, `lumem start` escreve `~/Library/LaunchAgents/tech.cazimi.lumem.plist` com `Label` `tech.cazimi.lumem`, `ProgramArguments` = `[<node absoluto>, <lumem absoluto>, "run"]`, `PATH` igual ao de quem chamou, `LUMEM_SUPERVISOR` = `launchd`, `KeepAlive` e `RunAtLoad` verdadeiros, e os dois `Standard*Path` = `<stateDir>/daemon.log` (AC 1)
+Proof: `pnpm --filter @vinihcrosa/lumem-os exec vitest run src/service.test.ts -t "writes the launchd plist with the caller's PATH"`
+
+**C2** - No Linux com `systemctl --user` respondendo, `lumem start` escreve `~/.config/systemd/user/lumem.service` com `ExecStart=<node> <lumem> run`, `Environment=PATH=…`, `Environment=LUMEM_SUPERVISOR=systemd`, `Restart=always`, `RestartSec=2` e `StandardOutput=append:<stateDir>/daemon.log`, e chama `daemon-reload` e `enable --now lumem.service`, nessa ordem (AC 2)
+Proof: `pnpm --filter @vinihcrosa/lumem-os exec vitest run src/service.test.ts -t "writes the systemd unit and enables it"`
+
+**C3** - Com o arquivo de serviço já existente e um `PATH` diferente, `lumem start` o reescreve com o `PATH`, o `node` e o `lumem` de agora antes de carregá-lo (AC 3)
+Proof: `pnpm --filter @vinihcrosa/lumem-os exec vitest run src/service.test.ts -t "rewrites an existing service file before loading it"`
+
+**C4** - Depois de carregar o serviço, `lumem start` sai 0 assim que `/trpc/health` responde `ok: true`, e sai 1 imprimindo as últimas 20 linhas de `<stateDir>/daemon.log` se isso não acontece em 15 s (AC 4)
+Proof: `pnpm --filter @vinihcrosa/lumem-os exec vitest run src/run.test.ts -t "start waits for health and prints the log when it never answers"`
+Proof: `pnpm smoke:service --only start-waits-for-health`
+
+**C5** - Sem `launchctl` no macOS, ou com `systemctl --user` falhando no Linux, `lumem start` sai 1, não escreve arquivo nenhum, e imprime uma linha com `lumem run` (AC 5)
+Proof: `pnpm --filter @vinihcrosa/lumem-os exec vitest run src/service.test.ts -t "refuses without a supervisor and names lumem run"`
+
+**C6** - Com um Lumem respondendo `/trpc/health` na porta e o serviço não carregado, `lumem start` sai 1 dizendo que há outro Lumem fora do serviço naquela origem (AC 6)
+Proof: `pnpm --filter @vinihcrosa/lumem-os exec vitest run src/run.test.ts -t "start refuses when another Lumem runs outside the service"`
+
+**C7** - `parseCommand([])` e `parseCommand(["start"])` devolvem o mesmo comando `start`, e `parseCommand(["run"])` devolve `run` com as opções `--port`, `--host`, `--state-dir` e `--open` de hoje (AC 7, AC 8)
+Proof: `pnpm --filter @vinihcrosa/lumem-os exec vitest run src/args.test.ts -t "no verb is start, and run takes the foreground options"`
+
+**C8** - `lumem run` faz o que `lumem` fazia antes desta feature: sonda a porta, diz `já tem um Lumem` quando há um, recusa porta de outro com saída 1, e sobe o daemon no mesmo processo (AC 8)
+Proof: `pnpm --filter @vinihcrosa/lumem-os exec vitest run src/run.test.ts -t "run keeps the foreground behaviour"`
+
+**C9** - `lumem stop` no macOS chama `launchctl bootout gui/<uid>/tech.cazimi.lumem` e apaga o plist; no Linux chama `systemctl --user disable --now lumem.service`; e sai 0 quando `/trpc/health` para de responder em até 10 s, ou 1 (AC 9)
+Proof: `pnpm --filter @vinihcrosa/lumem-os exec vitest run src/service.test.ts -t "stop unloads the service and leaves no login item"`
+Proof: `pnpm smoke:service --only stop-leaves-nothing`
+
+**C10** - `lumem status` imprime uma linha com `rodando`, a versão, a origem e `supervisionado` ou `em primeiro plano`, e sai 0; com o daemon parado imprime `parado` e sai 3 (AC 10)
+Proof: `pnpm --filter @vinihcrosa/lumem-os exec vitest run src/run.test.ts -t "status prints one line and exits 0 or 3"`
+
+**C11** - `lumem logs` imprime as últimas 200 de 250 linhas de `<stateDir>/daemon.log`, e com `-f` imprime uma linha acrescentada depois do início (AC 11)
+Proof: `pnpm --filter @vinihcrosa/lumem-os exec vitest run src/run.test.ts -t "logs prints the last 200 lines and follows with -f"`
+
+**C12** - Sem `<stateDir>/daemon.log`, `lumem logs` sai 1 com o caminho procurado na mensagem (AC 12)
+Proof: `pnpm --filter @vinihcrosa/lumem-os exec vitest run src/run.test.ts -t "logs names the missing file"`
+
+**C13** - `health` responde `supervised: true` com `LUMEM_SUPERVISOR` `launchd` ou `systemd`, e `supervised: false` sem ela ou com outro valor (AC 13)
+Proof: `pnpm --filter @lumem/server exec vitest run src/routers/health.test.ts -t "answers supervised from LUMEM_SUPERVISOR"`
+
+**C14** - `health` responde `protocolVersion: 1`, e o `probePort` do CLI continua lendo `ok` e `version` dessa resposta (AC 14)
+Proof: `pnpm --filter @lumem/server exec vitest run src/routers/health.test.ts -t "answers protocolVersion 1"`
+Proof: `pnpm --filter @vinihcrosa/lumem-os exec vitest run src/port.test.ts -t "reads a health answer that carries more fields"`
+
+**C15** - Um daemon subido por `lumem start` de verdade sobrevive ao fim do processo que o subiu, e responde `supervised: true` (AC 1, AC 2, AC 13)
+Proof: `pnpm smoke:service --only survives-the-caller`
+
+**C16** - O `scripts/smoke-install.ts` sobe o binário instalado com `lumem run`, e não com `lumem` sem verbo (AC 8)
+Proof: `pnpm exec vitest run scripts/smoke-install.test.ts -t "starts the installed binary with lumem run"`
+
+### S2 - atualizar é um clique, e a tela não quebra · 15 files · 210 KB · ~75k
+
+**C17** - Com a verificação ligada, o daemon pede `https://registry.npmjs.org/@vinihcrosa%2Flumem-os/latest` uma vez nos primeiros 60 s e de novo a cada 6 h (relógio falso), só com o cabeçalho `accept: application/json` além do `user-agent` (AC 15)
+Proof: `pnpm --filter @lumem/server exec vitest run src/update/check.test.ts -t "asks the registry at boot and every six hours"`
+
+**C18** - `system.updateStatus` devolve `current` = `LUMEM_VERSION`, `latest` e `checkedAt` `null` antes da primeira verificação, e `updateAvailable` verdadeiro para `0.6.1 → 0.7.0`, falso para `0.7.0 → 0.7.0` e para `0.8.0 → 0.7.0` (AC 16)
+Proof: `pnpm --filter @lumem/server exec vitest run src/routers/system.test.ts -t "updateStatus reports the last check"`
+
+**C19** - Timeout de 10 s, resposta 503 e corpo sem `version` string mantêm o `latest` e o `checkedAt` anteriores, escrevem uma linha `warn` cada, e a próxima tentativa é no tick seguinte de 6 h (AC 17)
+Proof: `pnpm --filter @lumem/server exec vitest run src/update/check.test.ts -t "keeps the last good answer when the registry fails"`
+
+**C20** - Com `LUMEM_NO_UPDATE_CHECK=1`, ou com `daemon_settings.update_check` = `0`, o daemon não faz requisição nenhuma e `system.updateStatus` devolve `checkEnabled: false` (AC 18)
+Proof: `pnpm --filter @lumem/server exec vitest run src/update/check.test.ts -t "makes no request when the check is off"`
+
+**C21** - Com `LUMEM_NO_UPDATE_CHECK=1`, `system.settings` devolve `updateCheckForcedOff: true`, e `/settings` mostra o interruptor de verificação desabilitado com `desligado por LUMEM_NO_UPDATE_CHECK` (AC 19)
+Proof: `pnpm --filter @lumem/server exec vitest run src/routers/system.test.ts -t "settings says when the environment forces the check off"`
+Proof: `pnpm --filter @lumem/web exec vitest run src/features/settings/UpdateSettings.test.tsx -t "disables the check toggle forced off by the environment"`
+
+**C22** - `system.setSettings({ updateCheck: false, autoUpdate: "idle" })` grava na única linha de `daemon_settings` e devolve os valores gravados; uma segunda chamada não cria outra linha (AC 20)
+Proof: `pnpm --filter @lumem/server exec vitest run src/routers/system.test.ts -t "setSettings writes the single row"`
+
+**C23** - `system.setSettings({ autoUpdate: "always" })` falha com `BAD_REQUEST` e não muda a linha (AC 21)
+Proof: `pnpm --filter @lumem/server exec vitest run src/routers/system.test.ts -t "setSettings refuses an unknown autoUpdate"`
+
+**C24** - A migração cria `daemon_settings` com uma linha `id = 1`, `update_check = 1`, `auto_update = 'off'`; um `INSERT` de `id = 2` e um `UPDATE` para `auto_update = 'sempre'` falham na restrição do banco (AC 20, AC 71)
+Proof: `pnpm --filter @lumem/server exec vitest run src/db/daemon-settings.test.ts -t "keeps one row and a closed set of values"`
+
+**C25** - Com `updateAvailable` verdadeiro e `supervised` verdadeiro, a topbar mostra `v0.6.1 → v0.7.0` e o botão `Atualizar`; sem versão nova, não mostra nada (AC 22)
+Proof: `pnpm --filter @lumem/web exec vitest run src/features/update/UpdateBanner.test.tsx -t "shows the version jump and the button"`
+
+**C26** - Com `updateAvailable` verdadeiro e `supervised` falso, a topbar mostra `lumem upgrade` no lugar do botão (AC 23)
+Proof: `pnpm --filter @lumem/web exec vitest run src/features/update/UpdateBanner.test.tsx -t "shows the command when not supervised"`
+
+**C27** - `system.update` supervisionado, com versão nova, sem turno em voo e sem script rodando, fecha a porta de prompt, roda o instalador do gerenciador dono da cópia com `@vinihcrosa/lumem-os@0.7.0`, e devolve `started: true` (AC 24)
+Proof: `pnpm --filter @lumem/server exec vitest run src/routers/system.test.ts -t "update installs with the owning package manager"`
+
+**C28** - Com o instalador saindo 0, o daemon passa pelo `createShutdownHandler` e chama `exit(0)` (AC 25)
+Proof: `pnpm --filter @lumem/server exec vitest run src/update/install.test.ts -t "exits 0 through the shutdown handler after a good install"`
+
+**C29** - Com o instalador saindo 1, ou falhando ao nascer (`ENOENT`), o daemon volta a aceitar prompt, não sai, e `system.updateStatus` devolve `lastError` com `1` ou com a mensagem do `ENOENT` (AC 26)
+Proof: `pnpm --filter @lumem/server exec vitest run src/update/install.test.ts -t "stays up and reports the error when the install fails"`
+
+**C30** - `system.update` com 2 turnos em voo e 1 script rodando falha com `CONFLICT` cuja mensagem contém `2` e `1`, e o instalador não é chamado (AC 27)
+Proof: `pnpm --filter @lumem/server exec vitest run src/routers/system.test.ts -t "update refuses while anything is live"`
+
+**C31** - Um segundo `system.update` enquanto o primeiro instala falha com `CONFLICT` (AC 28)
+Proof: `pnpm --filter @lumem/server exec vitest run src/routers/system.test.ts -t "update refuses a second install"`
+
+**C32** - `system.update` sem supervisor, ou com `updateAvailable` falso, falha com `PRECONDITION_FAILED` (AC 29)
+Proof: `pnpm --filter @lumem/server exec vitest run src/routers/system.test.ts -t "update needs a supervisor and a newer version"`
+
+**C33** - Enquanto a instalação roda, `AcpManager.prompt` rejeita com uma mensagem que diz que o Lumem está se atualizando, e o agente falso não recebe `session/prompt` (AC 30)
+Proof: `pnpm --filter @lumem/server exec vitest run src/acp/AcpManager.test.ts -t "refuses a prompt while the daemon updates"`
+
+**C34** - Com `last-version` = `0.6.1` e `LUMEM_VERSION` = `0.7.0`, o boot copia `lumem.db` para `lumem.db.bak-0.6.1` antes de qualquer migração rodar, e grava `0.7.0` em `last-version` só depois de as migrações passarem (AC 31)
+Proof: `pnpm --filter @lumem/server exec vitest run src/db/backup.test.ts -t "copies the database before migrating to a new version"`
+
+**C35** - Com três `lumem.db.bak-*` e uma quarta cópia, a de modificação mais antiga some e sobram 3 (AC 32)
+Proof: `pnpm --filter @lumem/server exec vitest run src/db/backup.test.ts -t "keeps the three newest backups"`
+
+**C36** - Sem `last-version`, o boot não copia nada e grava `LUMEM_VERSION` depois das migrações; com uma migração falhando, `last-version` não é gravado (AC 31, AC 33)
+Proof: `pnpm --filter @lumem/server exec vitest run src/db/backup.test.ts -t "records the version only after the migrations succeed"`
+
+**C37** - Com `health.version` diferente do `LUMEM_VERSION` do bundle, a web recarrega uma vez e, depois do recarregamento, mostra `Lumem atualizado para v0.7.0` (AC 34)
+Proof: `pnpm --filter @lumem/web exec vitest run src/hooks/useVersionReload.test.tsx -t "reloads once and then says what changed"`
+
+**C38** - Se depois do recarregamento as versões ainda diferem, a web não recarrega de novo naquela aba (AC 35)
+Proof: `pnpm --filter @lumem/web exec vitest run src/hooks/useVersionReload.test.tsx -t "never reloads twice in one tab"`
+
+**C39** - `lumem upgrade` com instalação saindo 0 e serviço carregado chama `launchctl kickstart -k gui/<uid>/tech.cazimi.lumem` (macOS) ou `systemctl --user restart lumem.service` (Linux), e imprime a versão que o `/trpc/health` responde depois; sem serviço, mantém a frase de hoje (AC 36)
+Proof: `pnpm --filter @vinihcrosa/lumem-os exec vitest run src/upgrade.test.ts -t "restarts the service after a good install"`
+
+**C40** - Um daemon real sob o supervisor, depois de `system.update` com um instalador de mentira que troca o `LUMEM_VERSION` do bundle, volta respondendo a versão nova sem ninguém rodar `lumem start` (AC 25)
+Proof: `pnpm smoke:service --only update-relaunches`
+
+**C41** - Depois de uma instalação por cima com o daemon de pé, a página recarregada carrega os assets novos, e não fica em branco (AC 25, AC 34)
+Proof: `pnpm exec playwright test e2e/update.spec.ts -g "a página volta inteira depois da atualização"`
+
+### S3 - o painel tem o que mostrar · 14 files · 180 KB · ~65k
+
+**C42** - `usage.total` com três workspaces soma `tokens` e `turns` de todas as linhas da janela; `cost` é a soma dos custos não nulos, e `null` quando todos são `null` (AC 37)
+Proof: `pnpm --filter @lumem/server exec vitest run src/routers/usage.test.ts -t "total sums every workspace in the window"`
+
+**C43** - `usage.total` com 1, 3 e 10 workspaces executa uma única instrução SQL (AC 38)
+Proof: `pnpm --filter @lumem/server exec vitest run src/routers/usage.test.ts -t "total runs one statement whatever the workspace count"`
+
+**C44** - `usage.total` com um `period` fora de `1d`, `7d`, `1m`, `6m`, `1y` falha com `BAD_REQUEST` (AC 37)
+Proof: `pnpm --filter @lumem/server exec vitest run src/routers/usage.test.ts -t "total refuses an unknown period"`
+
+**C45** - `agentAccount.rateLimits` devolve, para uma conta com duas sessões que relataram cota, o relato mais recente das duas, e não lista a conta sem relato (AC 39)
+Proof: `pnpm --filter @lumem/server exec vitest run src/routers/agentAccount.test.ts -t "rateLimits keeps the latest report per account"`
+
+**C46** - `system.resources` devolve os grupos `daemon`, `agents` e `terminals`, cada um com `cpuPercent` em uma casa decimal e `rssBytes`, e um `top` de no máximo 5, em `rssBytes` decrescente, a partir de uma tabela de processos de 9 linhas (AC 40)
+Proof: `pnpm --filter @lumem/server exec vitest run src/resources/sample.test.ts -t "groups the tree and keeps the five largest"`
+
+**C47** - Um neto de um adaptador ACP entra em `agents`, um neto de um PTY entra em `terminals`, e o próprio daemon entra em `daemon` (AC 41)
+Proof: `pnpm --filter @lumem/server exec vitest run src/resources/attribute.test.ts -t "attributes a process to its nearest tracked ancestor"`
+
+**C48** - Um processo com 1,0 s de CPU acumulada numa amostra e 1,5 s na seguinte, 5 s depois, tem `cpuPercent` `10.0`; na primeira amostra dele, `null` (AC 42)
+Proof: `pnpm --filter @lumem/server exec vitest run src/resources/sample.test.ts -t "computes cpu from the delta between samples"`
+
+**C49** - Sem `system.resources` por 15 s, o daemon não lê a tabela de processos; a próxima consulta volta a ler (AC 43)
+Proof: `pnpm --filter @lumem/server exec vitest run src/resources/sample.test.ts -t "stops sampling when nobody asks"`
+
+**C50** - No `top`, um adaptador aparece como `Claude · lumem-os/bandung`, um PTY com o nome da sessão e do checkout, e um processo sem sessão com o nome do comando (AC 44)
+Proof: `pnpm --filter @lumem/server exec vitest run src/resources/sample.test.ts -t "labels the top processes by session and checkout"`
+
+**C51** - A leitura da tabela de processos no macOS interpreta a saída de `ps -A -o pid=,ppid=,rss=,time=,comm=`, e no Linux lê `/proc/<pid>/stat` e `/proc/<pid>/status`, a partir de amostras gravadas das duas (AC 40, AC 42)
+Proof: `pnpm --filter @lumem/server exec vitest run src/resources/process-table.test.ts -t "reads ps on darwin and proc on linux"`
+
+**C52** - `system.status` devolve `version`, `protocolVersion`, `supervised`, `updateAvailable`, `liveTurns` = número de turnos em voo, e `attention` verdadeiro com um pedido de permissão pendente e falso sem nenhum (AC 45)
+Proof: `pnpm --filter @lumem/server exec vitest run src/routers/system.test.ts -t "status summarises what the shell needs"`
+
+**C53** - Com duas contas relatando cota de 0,42 e 0,87, a manchete de `/menubar` mostra `87%`, o `kind` e o tempo até o `resetsAt` dessa conta (AC 46)
+Proof: `pnpm --filter @lumem/web exec vitest run src/features/menubar/MenubarScreen.test.tsx -t "headlines the highest quota"`
+
+**C54** - Sem cota relatada, a manchete mostra o custo do dia (`usage.total` com `1d`); com `cost` `null`, mostra os tokens do dia (AC 47)
+Proof: `pnpm --filter @lumem/web exec vitest run src/features/menubar/MenubarScreen.test.tsx -t "headlines today's cost, or tokens without a cost"`
+
+**C55** - `/menubar` mostra, nessa ordem, os turnos em voo com sessão e checkout, os recursos, a linha `v<versão>` com `atualização disponível: v0.7.0` ou `em dia · verificado …`, e as ações `Abrir o Lumem`, `Atualizar` e os três workspaces mais recentes (AC 48)
+Proof: `pnpm --filter @lumem/web exec vitest run src/features/menubar/MenubarScreen.test.tsx -t "lays out sessions, resources, version and actions"`
+
+**C56** - Sem sessão viva, a lista diz `nenhuma sessão rodando` (AC 49)
+Proof: `pnpm --filter @lumem/web exec vitest run src/features/menubar/MenubarScreen.test.tsx -t "says when nothing is running"`
+
+**C57** - Com `system.resources` falhando, só o bloco de recursos diz `não consegui ler os recursos`, e a manchete e as sessões aparecem (AC 50)
+Proof: `pnpm --filter @lumem/web exec vitest run src/features/menubar/MenubarScreen.test.tsx -t "fails one block at a time"`
+
+**C58** - Com versão nova disponível e 2 shells PTY abertos, `/menubar` diz `2 terminais abertos fecham ao atualizar` (AC 51)
+Proof: `pnpm --filter @lumem/web exec vitest run src/features/menubar/MenubarScreen.test.tsx -t "warns which terminals an update closes"`
+
+**C59** - `routeOf("/menubar")` é `menubar`, e o daemon responde `GET /menubar` com `200` e o `index.html` da web (AC 52)
+Proof: `pnpm --filter @lumem/web exec vitest run src/lib/route.test.ts -t "routes /menubar to the menubar screen"`
+Proof: `pnpm --filter @lumem/server exec vitest run src/web/static.test.ts -t "serves the web shell for /menubar"`
+
+**C60** - `/menubar` aberto numa aba do daemon de teste mostra a manchete, a lista de sessões e o bloco de recursos com números (AC 46, AC 48)
+Proof: `pnpm exec playwright test e2e/menubar.spec.ts -g "o painel abre numa aba e mostra os três blocos"`
+
+**C61** - Medir a árvore de processos a cada 3 s com 10 sessões abertas custa menos de 1% de CPU do daemon (a meta da C1b da discovery, experimento 3 da fase 0) (AC 43)
+Proof: `pnpm measure:resources --only ten-sessions`
+
+### S4 - o ícone na barra · 20 files · 240 KB · ~90k
+
+**C62** - `lumem menubar install` em `darwin-arm64`, `darwin-x64`, `linux-x64` e `linux-arm64` instala `@vinihcrosa/lumem-desktop-<plataforma>-<arch>@<LUMEM_VERSION>` com o gerenciador dono da cópia, e grava `lumem-desktop.json` com `node`, `lumem`, o state dir e a origem (AC 53)
+Proof: `pnpm --filter @vinihcrosa/lumem-os exec vitest run src/menubar.test.ts -t "installs the package of each supported platform"`
+
+**C63** - No macOS a instalação copia o app para `~/Applications/Lumem.app`; no Linux escreve `~/.local/share/applications/lumem.desktop` e `~/.config/autostart/lumem.desktop` (AC 54)
+Proof: `pnpm --filter @vinihcrosa/lumem-os exec vitest run src/menubar.test.ts -t "puts the app where the desktop finds it"`
+
+**C64** - Em `win32-x64` ou `linux-ia32`, `lumem menubar install` sai 1 e lista as quatro plataformas (AC 55)
+Proof: `pnpm --filter @vinihcrosa/lumem-os exec vitest run src/menubar.test.ts -t "refuses an unsupported platform"`
+
+**C65** - `lumem upgrade` com o pacote do app instalado instala a mesma versão dele e, no macOS, copia o app de novo (AC 56)
+Proof: `pnpm --filter @vinihcrosa/lumem-os exec vitest run src/upgrade.test.ts -t "takes the desktop package along"`
+
+**C66** - `lumem menubar uninstall` remove o pacote, o app ou os dois `.desktop`, e o item de login (AC 57)
+Proof: `pnpm --filter @vinihcrosa/lumem-os exec vitest run src/menubar.test.ts -t "uninstall leaves nothing behind"`
+
+**C67** - No macOS o app chama `app.setLoginItemSettings({ openAtLogin: true })` e cria um só ícone (AC 58)
+Proof: `pnpm --filter @lumem/desktop exec vitest run src/main.test.ts -t "starts at login with one tray icon"`
+
+**C68** - O app consulta `/trpc/health` e `system.status` a cada 10 s (relógio falso) (AC 59)
+Proof: `pnpm --filter @lumem/desktop exec vitest run src/poll.test.ts -t "polls health and status every ten seconds"`
+
+**C69** - A imagem do ícone segue a tabela de 5 entradas: `health` sem resposta → `stopped` mesmo com versão nova; `attention` → `attention`; `protocolVersion` 2 → `attention`; só versão nova → `update`; nada → `running` (AC 60)
+Proof: `pnpm --filter @lumem/desktop exec vitest run src/tray-state.test.ts -t "picks the icon by precedence"`
+
+**C70** - No macOS, clicar no ícone abre uma janela sem moldura de 360×520 carregando `<origem>/menubar`, clicar de novo a esconde, e perder o foco a esconde (AC 61)
+Proof: `pnpm --filter @lumem/desktop exec vitest run src/windows.test.ts -t "toggles the panel under the icon"`
+
+**C71** - O menu de contexto tem, nessa ordem, `Abrir painel`, a linha desabilitada de estado com ` · atualização disponível` quando há, `Abrir o Lumem`, `Iniciar` ou `Parar`, `Atualizar` habilitado só com versão nova, e `Sair` (AC 62)
+Proof: `pnpm --filter @lumem/desktop exec vitest run src/menu.test.ts -t "builds the context menu in order"`
+
+**C72** - `Abrir o Lumem` abre uma janela em `<origem>/`, e escolher de novo foca a mesma em vez de abrir outra (AC 63)
+Proof: `pnpm --filter @lumem/desktop exec vitest run src/windows.test.ts -t "opens one main window and focuses it after"`
+
+**C73** - `Iniciar` e `Parar` rodam `<node> <lumem> start` e `<node> <lumem> stop` com os caminhos do `lumem-desktop.json` (AC 64)
+Proof: `pnpm --filter @lumem/desktop exec vitest run src/commands.test.ts -t "runs the recorded lumem to start and stop"`
+
+**C74** - Com `health` sem resposta, o painel carrega a página local `Lumem parado` com o botão `Iniciar` (AC 65)
+Proof: `pnpm --filter @lumem/desktop exec vitest run src/windows.test.ts -t "shows the local stopped page when the daemon is down"`
+
+**C75** - Com `protocolVersion` diferente de `1`, a linha de estado diz `app e Lumem em versões incompatíveis — rode lumem menubar install` (AC 66)
+Proof: `pnpm --filter @lumem/desktop exec vitest run src/menu.test.ts -t "says when app and daemon speak different protocols"`
+
+**C76** - Toda janela nasce com `contextIsolation: true`, `nodeIntegration: false` e `sandbox: true`; navegar para outra origem é cancelado; e um link externo abre com `shell.openExternal` (AC 67)
+Proof: `pnpm --filter @lumem/desktop exec vitest run src/windows.test.ts -t "locks every window to the daemon origin"`
+
+**C77** - O app de verdade, subido pelo `_electron.launch` do Playwright contra um daemon de teste, cria o ícone e o painel carrega `/menubar` (AC 58, AC 61)
+Proof: `pnpm --filter @lumem/desktop exec playwright test e2e/app.spec.ts -g "o app sobe e o painel carrega a página do daemon"`
+
+**C78** - O `release.yml` publica os quatro `@vinihcrosa/lumem-desktop-*` na versão da tag com `--provenance`, e anexa `.zip` (macOS) e `.AppImage` e `.deb` (Linux) de cada arquitetura ao GitHub release; o `smoke:install` no macOS instala o pacote `darwin` e roda `codesign --verify`, e no Linux sobe o app sob `xvfb` (AC 68, AC 69)
+Proof: `pnpm exec vitest run scripts/release-workflow.test.ts -t "publishes the four desktop packages and attaches their artifacts"`
+Proof: `pnpm smoke:install --only desktop`
+
+**C79** - `pnpm version:set 0.7.0` escreve a versão também em `packages/desktop/package.json`; e `packages/desktop` importa só de `@lumem/shared`, sem ninguém importar dele (AC 70)
+Proof: `pnpm exec vitest run scripts/set-version.test.ts -t "writes the desktop manifest too"`
+Proof: `pnpm exec vitest run scripts/package-boundaries.test.ts -t "desktop imports only from shared"`
+
+### S5 - atualizar sozinho quando ocioso · 5 files · 70 KB · ~25k
+
+**C80** - Com `auto_update` em `idle`, um tick de 60 s supervisionado, com versão nova, sem turno em voo e sem script rodando, dispara o mesmo instalador do `system.update`; com `auto_update` em `off` (o padrão), o mesmo tick não dispara nada (AC 71, AC 72)
+Proof: `pnpm --filter @lumem/server exec vitest run src/update/auto.test.ts -t "installs on an idle tick only when the setting is idle"`
+
+**C81** - Enquanto espera ocioso, o daemon aceita prompt e a esteira continua despachando; um turno em voo por três ticks não dispara nada, e o tick depois do `turn_end` dispara (AC 72, AC 73)
+Proof: `pnpm --filter @lumem/server exec vitest run src/update/auto.test.ts -t "waits for idle without draining"`
+
+**C82** - Com a versão atual `1.4.0` e o `latest` `2.0.0`, o tick não instala e `updateAvailable` continua verdadeiro; com `0.6.1 → 0.7.0`, instala (AC 74)
+Proof: `pnpm --filter @lumem/server exec vitest run src/update/auto.test.ts -t "never crosses a major after 1.0 on its own"`
+
+**C83** - Durante a instalação automática, a esteira não despacha tarefa nova (AC 75)
+Proof: `pnpm --filter @lumem/server exec vitest run src/update/auto.test.ts -t "the conveyor dispatches nothing while it installs"`
+
+**C84** - `/settings` mostra `Atualizar sozinho quando ocioso` ligado ao `auto_update`, e desabilitado com `precisa do Lumem rodando como serviço` quando `supervised` é falso (AC 76)
+Proof: `pnpm --filter @lumem/web exec vitest run src/features/settings/UpdateSettings.test.tsx -t "binds the auto-update toggle and needs a supervisor"`
+
+## Coverage
+
+| Set (size) | Member -> proof | Unproven |
+| --- | --- | --- |
+| `query health` statuses (1) | 200 C13 | - |
+| `query system.updateStatus` statuses (1) | 200 C18 | - |
+| `mutation system.update` statuses (3) | 200 C27 · 409 C30 · 412 C32 | - |
+| `query system.status` statuses (1) | 200 C52 | - |
+| `query system.resources` statuses (1) | 200 C46 | - |
+| `system.settings` / `system.setSettings` statuses (2) | 200 C22 · 400 C23 | - |
+| `query usage.total` statuses (2) | 200 C42 · 400 C44 | - |
+| `query agentAccount.rateLimits` statuses (1) | 200 C45 | - |
+| `GET /menubar` statuses (1) | 200 C59 | - |
+| verbos do CLI (9) | `start` C4 · `run` C8 · sem verbo C7 · `stop` C9 · `status` C10 · `logs` C11 · `upgrade` C39 · `menubar install` C62 · `menubar uninstall` C66 | - |
+| saídas do CLI que não são 0 (7) | `start` 1 sem supervisor C5 · `start` 1 outro Lumem C6 · `start` 1 sem health C4 · `stop` 1 C9 · `status` 3 C10 · `logs` 1 C12 · `menubar install` 1 C64 | - |
+| supervisores (2) | launchd C1 · systemd C2 | - |
+| plataformas do app (4) | `darwin-arm64` C62 · `darwin-x64` C62 · `linux-x64` C62 · `linux-arm64` C62 | - |
+| estados do ícone (4) | `stopped` C69 · `attention` C69 · `update` C69 · `running` C69 | - |
+| bloqueios do `system.update` (5) | turno em voo C30 · script rodando C30 · instalação já em curso C31 · sem supervisor C32 · sem versão nova C32 | - |
+| falhas do registry (3) | timeout C19 · não 2xx C19 · corpo sem `version` C19 | - |
+| desfechos da instalação (3) | saída 0 C28 · saída não zero C29 · falha ao nascer C29 | - |
+| grupos de recursos (3) | `daemon` C47 · `agents` C47 · `terminals` C47 | - |
+| manchete do painel (3) | cota C53 · custo C54 · tokens sem custo C54 | - |
+| valores de `auto_update` (3) | `off` C80 · `idle` C80 · inválido C23 | - |
+| portas de mão única (8) | 1 verbos C7 · 2 identidade do serviço C1 · 3 `daemon_settings` C24 · 4 contrato da casca C14 · 5 nomes publicados C62 · 6 dependências e fronteira C79 · 7 cópia do banco C34 · 8 o daemon se instala C27 | - |
+| startup config: `LUMEM_SUPERVISOR` (2 assemblies) | o serviço de verdade C15 · o harness de teste do router C13 | - |
+
+- Rotas que nomeiam status ou forma de resposta: C13, C14, C18, C22, C23, C27, C30, C32, C42, C44, C45, C46, C52, C59 — cada uma com prova que atravessa o router
+- Nenhum outro check afirma mais do que o caso único que a prova dele exercita
+
+## Test policy
+
+A [matriz de `testing.md`](../../project/testing.md) responde as camadas do `server` e da web que esta
+feature toca (router por caller, banco em arquivo temporário, rota por e2e). Duas camadas são novas e ela
+não as cobre: o **processo principal do Electron** e o **escritor de serviço do CLI**.
+
+| Code | Required proofs | Coverage expectation |
+| --- | --- | --- |
+| `packages/desktop`, decide (estado do ícone, menu, trava de navegação, comandos) | vitest com `electron` dublado | um caso por linha da tabela de decisão (as 5 do ícone, os 6 itens do menu) |
+| `packages/desktop`, a casca inteira | um e2e com `_electron.launch` | o caminho feliz: sobe, cria o ícone, o painel carrega a página do daemon |
+| `packages/cli`, escritor de serviço | vitest com `launchctl`, `systemctl` e o disco dublados | o conteúdo do arquivo por supervisor, a ordem dos comandos, e cada recusa |
+| `packages/cli`, o serviço de verdade | `pnpm smoke:service`, local | subir, sobreviver ao chamador, parar, e voltar depois de atualizar |
+
+Evidence:
+
+- `tray-state.ts`: 4 estados com precedência, 5 entradas na tabela → decide
+- `service.ts`: 2 supervisores × escrever, carregar, descarregar, mais a recusa sem supervisor → decide
+- análogo no repositório: a instalação do adaptador, provada por unit com `npm` dublado e nenhum
+  `npm install` de verdade (a linha *instalação do adaptador* da matriz)
+
+Cost: ~9 provas de unidade em 6 arquivos novos, um e2e de Electron e um script local. Sem estas linhas, a
+tabela de estado do ícone e os dois supervisores só seriam provados pelo caminho que o e2e e o
+`smoke:service` por acaso atravessam.
+
+## Swept
+
+- validation: C21, C23, C24, C44
+- failure modes: C4, C19, C29, C57
+- idempotency: C3, C22, C31, C38
+- authorization: existing - a mesma fronteira de todo o `/trpc`; a `019` a muda para todas as rotas de uma vez, e o `CONFLICT`/`PRECONDITION_FAILED` de C30 e C32 guardam o que é perigoso
+- concurrency: C31, C33, C83
+- data lifecycle: C34, C35, C36
+- dependency failure: C19, C29, C74
+- state transitions: C69, C80, C81
+- observability: C19, C10, C11
+
+## Handoff
+
+Tamanho, com a conta, escrito depois dos checks e antes de qualquer código:
+
+- S1 = ~45k, no CLI e um arquivo do servidor; S2 entra em `update/`, `db/`, `acp/` e na web e chega a
+  ~120k; S3 leva a ~185k; S4 abre `packages/desktop` e o release e leva a ~275k; S5 fecha em ~300k.
+- Passa do orçamento de 150k de um construtor. **Corte proposto: um construtor por fatia**, na ordem
+  S1 → S2 → S3 → S4 → S5, cada um abaixo do orçamento. S4 depende dos experimentos 4, 5 e 6 da fase 0; S1
+  e S2 dependem do 1 e do 2.
+- Mechanism: handoff | one builder (compaction accepted) — **a escolher**
