@@ -30,6 +30,7 @@
     "adapters:check": "tsx scripts/run-check-adapters.ts",
     "smoke:install": "tsx scripts/smoke-install.ts",
     "smoke:service": "tsx scripts/smoke-service.ts",
+    "measure:resources": "pnpm --filter @lumem/server exec tsx src/testing/measure-resources.ts",
     "measure:thinking": "tsx scripts/measure-thinking.ts"
   },
   "devDependencies": {
