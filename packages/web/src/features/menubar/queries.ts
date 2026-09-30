@@ -53,7 +53,9 @@ export function useResources() {
   return useQuery({
     queryKey: SYSTEM_RESOURCES_KEY,
     queryFn: () => trpc.system.resources.query(),
-    refetchInterval: EVERY.fast,
+    // O mesmo ritmo do `SAMPLE_INTERVAL_MS` do daemon (5 s): perguntar mais rápido que ele
+    // amostra só devolveria a mesma amostra.
+    refetchInterval: 5_000,
     retry: false,
   });
 }

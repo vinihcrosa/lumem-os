@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { ProcessRow } from "./process-table.js";
-import { createResourceSampler, type ResourceSamplerOptions } from "./sample.js";
+import { createResourceSampler, type ResourceSamplerOptions, SAMPLE_INTERVAL_MS } from "./sample.js";
 
 /**
  * O amostrador de recursos (`038`, C46 e C48–C50).
@@ -191,12 +191,13 @@ describe("resource sampler", () => {
     const { sampler, advance } = harness(tables);
 
     await sampler.resources();
-    await advance(3_000);
+    await advance(SAMPLE_INTERVAL_MS);
     const second = await sampler.resources();
 
     // O `git` já chegou com 50 s acumulados: sem amostra anterior, não há taxa.
     expect(second.top.find((entry) => entry.pid === 101)?.cpuPercent).toBeNull();
-    expect(second.top.find((entry) => entry.pid === 100)?.cpuPercent).toBeCloseTo(33.3, 1);
+    // O `node` cresceu 1 s de CPU num intervalo: 1 s / 5 s.
+    expect(second.top.find((entry) => entry.pid === 100)?.cpuPercent).toBeCloseTo(20.0, 1);
   });
 
   it("stops sampling when nobody asks", async () => {
@@ -398,9 +399,9 @@ describe("resource sampler", () => {
 
       await sampler.resources();
       expect(reads).toBe(1);
-      await vi.advanceTimersByTimeAsync(3_000);
+      await vi.advanceTimersByTimeAsync(SAMPLE_INTERVAL_MS);
       expect(reads).toBe(2);
-      await vi.advanceTimersByTimeAsync(3_000);
+      await vi.advanceTimersByTimeAsync(SAMPLE_INTERVAL_MS);
       expect(reads).toBe(3);
 
       sampler.stop();

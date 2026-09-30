@@ -15,7 +15,7 @@
  * `AcpManager` de verdade, com dez sessões abertas — cinco agentes (o ACP falso do e2e,
  * um `node` de verdade por sessão, sem gastar um token) e cinco shells —, e o amostrador
  * de recursos de produção lendo a tabela **de verdade** (`ps` no macOS, `/proc` no
- * Linux). Uma amostra por vez, a cada 3 s, exatamente o caminho que o relógio do
+ * Linux). Uma amostra por vez, a cada `SAMPLE_INTERVAL_MS` (5 s), exatamente o caminho que o relógio do
  * amostrador percorre — no macOS, as **duas** passadas do `ps`: os elos da máquina inteira
  * e depois só a árvore (ver `process-table.ts`).
  *

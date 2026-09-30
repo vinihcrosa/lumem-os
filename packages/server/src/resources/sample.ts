@@ -7,13 +7,18 @@ import type { ProcessRow, ProcessTableReader } from "./process-table.js";
  * O que os três grupos e os maiores processos estão gastando agora (`038`, Parte 3).
  *
  * **Só enquanto alguém olha** (AC 43): ler a tabela de processos de uma máquina cheia
- * a cada 3 s, para sempre, é custo de um painel que quase nunca está aberto. A pergunta
+ * a cada 5 s, para sempre, é custo de um painel que quase nunca está aberto. A pergunta
  * é o que arma o relógio, e 15 s sem pergunta o desarma — a próxima recomeça, e
  * recomeça **sem amostra anterior**, porque a taxa de CPU entre duas leituras
  * distantes de minutos é média de outra coisa.
  */
 
-export const SAMPLE_INTERVAL_MS = 3_000;
+/**
+ * 5 s, e não os 3 s do começo: com a medição honesta do `ps` (o C61), 3 s custava de 0,7% a
+ * 1,1% de um núcleo numa máquina com ~800 processos, colado no limite de 1%. A discovery já
+ * admitia de 3 a 5 s; o dono escolheu 5 em 2026-09-30.
+ */
+export const SAMPLE_INTERVAL_MS = 5_000;
 export const IDLE_AFTER_MS = 15_000;
 const TOP_SIZE = 5;
 
