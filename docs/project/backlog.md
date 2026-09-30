@@ -793,6 +793,20 @@ do Windows e a decisão de assinatura de lá.
 **De onde veio:** a A3 da discovery de 2026-09-29 · **Volta quando:** a
 [distribuição no Windows](../features/014-distribution/prd.md) deixar de estar fora.
 
+### O `systemd --user` de verdade no `smoke:service` — `P`
+
+O `pnpm smoke:service` só rodou contra o launchd. No Linux, o que existe é apoio: um systemd 252 num
+contêiner Docker, com linger ligado, onde o `daemon-reload`, o `enable --now` e o relançamento depois de
+um `exit 0` funcionaram — mas não é o pacote instalado nem o script, e não há sessão de login. Os
+runners do GitHub também não têm sessão de usuário, então o job de CI não o substitui (o script roda na
+máquina de quem verifica, por isso). O que fica sem prova: o `lumem start` de verdade sob `systemd
+--user`, o daemon sobrevivendo ao chamador numa sessão real, e o relançamento do daemon depois do
+`system.update`.
+
+**De onde veio:** a verificação da rodada 2 da [038](../features/038-desktop-and-updates/verification.md) ·
+**Volta quando:** houver uma máquina Linux com sessão de login à mão, ou antes da primeira release que
+anunciar suporte a Linux.
+
 ### O projeto todo em inglês — `M`
 
 Documentação e comunicação são em português por convenção do `CLAUDE.md`; código, commit e nome de
