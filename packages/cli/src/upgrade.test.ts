@@ -138,6 +138,7 @@ function fakeService(options: { platform: NodeJS.Platform; loaded: boolean; fail
       return { code: ok ? 0 : 1, stdout: "", stderr: ok ? "" : `falhou: ${line}` };
     },
     read: () => null,
+    exists: () => false,
     write: () => {},
     mkdir: () => {},
     remove: () => {},

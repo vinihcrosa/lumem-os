@@ -40,6 +40,7 @@ function fakeHost(options: { failing?: readonly string[]; files?: Record<string,
       return { code: failed ? 1 : 0, stdout: "", stderr: "" };
     },
     read: (path) => files.get(path) ?? null,
+    exists: (path) => files.has(path),
     write: (path, content) => {
       events.push(`write ${path}`);
       files.set(path, content);

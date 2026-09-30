@@ -31,6 +31,8 @@ interface FakeOptions {
   /** Os comandos (`"launchctl print gui/501"`) que saem com código diferente de 0. */
   failing?: readonly string[];
   files?: Record<string, string>;
+  /** Caminhos que existem no disco sem serem arquivo lido (um symlink de pacote, por exemplo). */
+  existing?: readonly string[];
   path?: string;
   nodePath?: string;
   lumemPath?: string;
@@ -54,6 +56,7 @@ function fake(options: FakeOptions = {}): Fake {
       return { code: failed ? 1 : 0, stdout: "", stderr: failed ? `falhou: ${line}` : "" };
     },
     read: (path) => files.get(path) ?? null,
+    exists: (path) => (options.existing ?? []).includes(path) || files.has(path),
     write: (path, content) => {
       events.push(`write ${path}`);
       files.set(path, content);
@@ -71,6 +74,10 @@ function fake(options: FakeOptions = {}): Fake {
     },
   };
   return { host, events, files };
+}
+
+function programArguments(xml: string): unknown {
+  return (parsePlist(xml) as { ProgramArguments: unknown }).ProgramArguments;
 }
 
 const IDENTITY = serviceIdentity({});
@@ -153,6 +160,44 @@ describe("installService", () => {
     expect(events.indexOf(`write ${PLIST}`)).toBeLessThan(
       events.indexOf(`launchctl bootstrap gui/501 ${PLIST}`),
     );
+  });
+
+  it("records the stable package path under a versioned store", async () => {
+    const global = "/Users/ana/Library/pnpm/global/5";
+    const versioned = `${global}/.pnpm/@vinihcrosa+lumem-os@0.6.1/node_modules/@vinihcrosa/lumem-os/bin/lumem.mjs`;
+    const stable = `${global}/node_modules/@vinihcrosa/lumem-os/bin/lumem.mjs`;
+    const stateDir = "/Users/ana/.lumem";
+    const unitPath = "/Users/ana/.config/systemd/user/lumem.service";
+
+    // pnpm, com o symlink do pacote no prefixo global: o caminho que não muda de versão.
+    const withLink = fake({ lumemPath: versioned, existing: [stable] });
+    await installService(withLink.host, spec());
+    expect(programArguments(withLink.files.get(PLIST)!)).toEqual([
+      "/opt/node/bin/node",
+      stable,
+      "run",
+    ]);
+    const linuxWithLink = fake({ platform: "linux", lumemPath: versioned, existing: [stable] });
+    await installService(linuxWithLink.host, spec({ stateDir }));
+    expect(linuxWithLink.files.get(unitPath)).toContain(`ExecStart=/opt/node/bin/node ${stable} run\n`);
+
+    // Sem o symlink, o único caminho que existe é o resolvido.
+    const withoutLink = fake({ lumemPath: versioned });
+    await installService(withoutLink.host, spec());
+    expect(programArguments(withoutLink.files.get(PLIST)!)).toEqual([
+      "/opt/node/bin/node",
+      versioned,
+      "run",
+    ]);
+
+    // npm: o `bin/lumem.mjs` resolvido já não muda de versão, e fica como está.
+    const npm = fake({ existing: [stable] });
+    await installService(npm.host, spec());
+    expect(programArguments(npm.files.get(PLIST)!)).toEqual([
+      "/opt/node/bin/node",
+      "/opt/node/lib/node_modules/@vinihcrosa/lumem-os/bin/lumem.mjs",
+      "run",
+    ]);
   });
 
   it("writes the systemd unit and enables it", async () => {

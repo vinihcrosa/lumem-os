@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -46,6 +46,8 @@ export interface ServiceHost {
   exec(command: string, args: readonly string[]): Promise<ExecResult>;
   /** `null` quando o arquivo não existe. */
   read(path: string): string | null;
+  /** Existe algo nesse caminho — arquivo, diretório ou symlink que resolve. */
+  exists(path: string): boolean;
   /** Escreve, criando o que faltar do diretório. */
   write(path: string, content: string): void;
   mkdir(path: string): void;
@@ -103,6 +105,22 @@ export function serviceFilePath(host: ServiceHost, spec: ServiceIdentity): strin
     : join(host.home, ".config", "systemd", "user", spec.unit);
 }
 
+/**
+ * O `lumem` que o arquivo de serviço grava (`038` critério 77).
+ *
+ * Sob o pnpm o `realpath` cai em `<global>/.pnpm/@vinihcrosa+lumem-os@<versão>/…`, com a
+ * versão no caminho; depois de um `pnpm add -g` o supervisor subiria o código velho. O
+ * symlink `<global>/node_modules/@vinihcrosa/lumem-os` é o que o pnpm reaponta para a
+ * versão nova, então é ele que fica gravado — quando existe. Sob o npm o caminho resolvido
+ * já não muda de versão, e nada disto o alcança.
+ */
+function recordedLumemPath(host: ServiceHost): string {
+  const versioned = /^(.*)\/\.pnpm\/[^/]+\/node_modules\/(@vinihcrosa\/lumem-os\/bin\/lumem\.mjs)$/.exec(host.lumemPath);
+  if (versioned === null) return host.lumemPath;
+  const stable = `${versioned[1] ?? ""}/node_modules/${versioned[2] ?? ""}`;
+  return host.exists(stable) ? stable : host.lumemPath;
+}
+
 function xml(text: string): string {
   return text
     .replace(/&/g, "&amp;")
@@ -124,7 +142,7 @@ function renderPlist(host: ServiceHost, spec: ServiceSpec): string {
   <key>ProgramArguments</key>
   <array>
     <string>${xml(host.nodePath)}</string>
-    <string>${xml(host.lumemPath)}</string>
+    <string>${xml(recordedLumemPath(host))}</string>
     <string>run</string>
   </array>
   <key>EnvironmentVariables</key>
@@ -173,7 +191,7 @@ function renderUnit(host: ServiceHost, spec: ServiceSpec): string {
 Description=Lumem
 
 [Service]
-ExecStart=${unitWord(host.nodePath)} ${unitWord(host.lumemPath)} run
+ExecStart=${unitWord(host.nodePath)} ${unitWord(recordedLumemPath(host))} run
 ${Object.entries(environment)
   .map(([key, value]) => unitEnvironment(key, value))
   .join("\n")}
@@ -372,6 +390,7 @@ export function nodeServiceHost(env: NodeJS.ProcessEnv, lumemPath: string): Serv
         return null;
       }
     },
+    exists: (path) => existsSync(path),
     write: (path, content) => {
       mkdirSync(dirname(path), { recursive: true });
       writeFileSync(path, content);
