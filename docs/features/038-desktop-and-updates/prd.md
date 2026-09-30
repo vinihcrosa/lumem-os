@@ -66,10 +66,15 @@ rodando, as consultas de `usage/query.ts`, o roteamento escrito à mão de `web/
 3. `AcpManager.prompt` (exists) — recusa turno novo enquanto a instalação roda
 4. `update/install.ts` (new, no door - placement per conventions) — roda o gerenciador dono da cópia; com
    saída 0, o `createShutdownHandler` (exists) fecha tudo e sai com 0, e o supervisor sobe a versão nova
-5. boot → `openDatabase` em `packages/server/src/db/index.ts` (exists) — antes de migrar, copia o
-   `lumem.db` quando `<stateDir>/last-version` diz outra versão (door 7)
-6. out: `useHealth` em `packages/web/src/hooks/useHealth.ts` (exists) — vê `health.version` diferente do
-   `LUMEM_VERSION` do bundle e recarrega a página uma vez
+5. boot → `openDatabase` em `packages/server/src/db/index.ts` (exists) → `db/backup.ts` (new, no door -
+   placement per conventions) — antes de migrar, copia o `lumem.db` quando `<stateDir>/last-version` diz
+   outra versão (door 7), e só grava a versão nova depois de as migrações passarem
+6. out: `features/update/` (new, no door - placement per conventions) — o `UpdateBanner` da topbar, com o
+   hook de `system.updateStatus` e o botão que chama `system.update`
+7. out: `useVersionReload` em `packages/web/src/hooks/useVersionReload.ts` (new, no door - placement per
+   conventions) — o `App` lhe passa o `health.version` que o `useHealth` (exists) já lê; com versão
+   diferente do `LUMEM_VERSION` do bundle, recarrega a página uma vez, e uma guarda no `sessionStorage`
+   impede o segundo
 
 **Parte 3 — os dados e a página `/menubar`**
 
@@ -107,6 +112,8 @@ rodando, as consultas de `usage/query.ts`, o roteamento escrito à mão de `web/
 | domain | termo novo: **ocioso** — `AcpManager.liveTurns()` vazio e nenhum script de projeto rodando; mora em `update/`; ninguém ramifica nele hoje |
 | domain | termo existente: `health` respondia `{ ok, version }` e passa a responder também `supervised` e `protocolVersion`. Quem lê hoje: `probePort` no CLI (`packages/cli/src/port.ts`) e a topbar pelo `useHealth` — os dois leem só `ok` e `version`, e seguem funcionando |
 | domain | termo existente: `AcpManager.prompt` aceitava sempre; passa a recusar enquanto uma instalação roda. Quem chama: `acp/websocket.ts:135`, `sessions/pending-prompt.ts:169` e a esteira em `bootstrap.ts:386`, que já tratam erro de `prompt`; e a destilação e a pesquisa da memória (`memory/capture.ts:187`, `memory/auto-learn.ts:254`), que o propagam para quem as chamou |
+| domain | termo existente: `ScriptRunner` ganha `runningCount()` (a metade de *ocioso* que ele responde); implementam a interface o `createScriptRunner` e o fake de `worktree.start.test.ts`. E `DomainErrorCode` ganha `PRECONDITION_FAILED`, que o tRPC mapeia a `PRECONDITION_FAILED` e os dois sockets (`acp/websocket.ts`, `pty/websocket.ts`) a `INTERNAL` |
+| web | `Topbar` ganha o slot `update`, que o `App` preenche com o `UpdateBanner`: `layout/` não conhece `features/`. E o `test/setup.ts` marca toda aba de teste como *já recarregou*, porque os testes de tela respondem `health` com versões que não são a do bundle |
 | web | rota nova `/menubar` em `lib/route.ts`. A armadilha *"Uma tela nova derruba testes cujo mock não a conhece"* de `testing.md` se aplica |
 | stored data | tabela nova `daemon_settings` com uma linha, criada pela migração com os padrões; nada existente muda |
 | stored data | `<stateDir>/last-version` (arquivo novo) e `lumem.db.bak-<versão>` (até 3); na primeira subida com esta feature não há versão anterior registrada, então não há cópia |

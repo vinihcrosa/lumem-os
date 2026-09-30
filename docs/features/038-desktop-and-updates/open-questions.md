@@ -2,7 +2,7 @@
 
 **PRD:** [prd.md](prd.md)
 
-**Estado:** 2 perguntas · **2 respondidas** em 2026-09-29, as duas pela recomendação.
+**Estado:** 3 perguntas · **2 respondidas** em 2026-09-29, as duas pela recomendação · **1 aberta**, achada construindo a Parte 2.
 
 A discovery do Outline já respondeu 22 perguntas e 7 desdobramentos em 2026-09-29
 ([as perguntas](https://wiki.cazimi.tech/doc/open-questions-menu-bar-and-auto-update-S8ijH9cb9K)), e o
@@ -60,3 +60,32 @@ atualizar sozinho, mas não o que acontece com o `lumem` de hoje nem onde a pref
   arquivo, com a regra do `mode` da armadilha *"`mode` no `writeFileSync` só vale na criação"*.
 
   **R:** (a) (2026-09-29). Uma tabela `daemon_settings` com uma linha só e colunas com `CHECK`.
+
+- [ ] **Q3 — O caminho do `lumem` gravado no arquivo de serviço sobrevive a uma atualização feita pelo pnpm ou pelo bun?**
+
+  Achada na Parte 2, lendo o diff da Parte 1. `lumem start` grava no plist e na unit o `lumem` **absoluto**,
+  e `ownPath()` (`packages/cli/src/run.ts`) o resolve com `realpathSync` — o que é certo para o npm, onde
+  `bin/lumem` é um symlink para `lib/node_modules/@vinihcrosa/lumem-os/bin/lumem.mjs`, que **não muda** de
+  versão em versão. No pnpm o destino real fica dentro de `.pnpm/@vinihcrosa+lumem-os@<versão>/…`, que **tem
+  a versão no caminho**. Depois de `pnpm add --global …@<nova>` (do `lumem upgrade` ou do botão), o
+  supervisor relança `node <caminho da versão velha> run`, e esse diretório pode ter sido removido pelo
+  próprio pnpm: o serviço entra em laço de reinício, com o daemon morto. O mesmo vale para o `bun`, que
+  também guarda por versão. **Nada disto foi medido nesta máquina** — só o npm foi exercitado pelo
+  `smoke:service`.
+
+  **Opções:**
+  - **(a)** gravar o caminho **sem** resolver o symlink do pacote (o `node_modules/@vinihcrosa/lumem-os` do
+    prefixo global), e só resolver o symlink de `bin/`.
+  - **(b)** depois de instalar com sucesso, o `lumem upgrade` e o daemon **reescrevem o arquivo de serviço**
+    com o caminho do `lumem` novo (o daemon sabe o dele por `import.meta.url`).
+  - **(c)** o botão de atualizar só existir sob o npm; pnpm e bun ficam com `lumem upgrade` e reinício à mão.
+
+  **Recomendação: (a).** É a que mantém o arquivo de serviço imutável entre versões, que é o que a porta 2
+  prometeu (*"o verbo que o arquivo chama nunca muda de sentido"*). A (b) acrescenta um caminho de
+  escrita ao daemon, e a (c) tira o gesto de quem mais atualiza. Antes de escolher: medir o pnpm de verdade,
+  com `pnpm add -g` de um tarball, e ver se o diretório velho some.
+
+  **O que a resposta muda:** `ownPath()` e o C1 (o conteúdo do plist), e o `smoke:service`, que hoje só roda
+  sob o npm.
+
+  **R:**
