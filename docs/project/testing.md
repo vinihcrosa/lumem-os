@@ -668,6 +668,8 @@ ordem: `onData` e `onExit` são dois callbacks do node-pty, e o exit chega com o
 fila. O arquivo já tinha o helper certo — `waitForOutput` — e todos os outros testes dele já esperavam
 pela saída; só este esperava pelo cadáver.
 
+*Corrigido depois:* esperar pela saída não bastou — no Linux ela pode nunca chegar; ver *"No Linux, o processo que sai leva a saída que o master ainda não leu"*, ao fim desta seção.
+
 A regra: **espere pela evidência que você vai asserir, não por um evento que costuma vir antes dela.**
 E o sinal de alerta barato: um teste que usa um helper de espera diferente do que todos os seus vizinhos
 usam para a mesma classe de asserção.
@@ -1972,3 +1974,17 @@ O C93 da [038](../features/038-desktop-and-updates/checks.md) testava `unprivile
 ### `time -p` trunca cada leitura, e medir o `ps` sozinho some com o custo dele
 
 O C61 da [038](../features/038-desktop-and-updates/checks.md) mediu o `ps` rodando uma vez por amostra sob `time -p`. No macOS o `time -p` trunca `user` e `sys` a 10 ms cada, e o `ps` gastava ~25 ms: cada leitura perdia cerca de 10 ms, e a medição dava 0,44% onde o custo real era ~0,9%. **A regra:** medir um custo pequeno em **lote** (50 execuções sob um `time -p` só) e dividir, nunca somar leituras truncadas.
+
+### No Linux, o processo que sai leva a saída que o master ainda não leu
+
+O teste de scrollback do `PtyManager` falhou no runner do Ubuntu da PR #107 com `expected 'line1\r\nline2\r\nline3\r\n' to contain 'line200'` — **depois** de já esperar pela saída, e não pelo exit, como a armadilha *"Esperar o processo morrer não é esperar a saída dele chegar"* mandava. O buffer parou na terceira linha e ficou ali os 10 s inteiros: a `line200` **não estava atrasada, nunca chegou**. A correção da `line181` tratava o sintoma (esperar o que se asserta) e deixava a causa: o `sh` imprime 200 linhas e **sai**, e no Linux o fechamento do slave do PTY descarta o que o master ainda não entregou. O node-pty ainda dá 200 ms ao socket para drenar (`DESTROY_SOCKET_TIMEOUT_MS`), e não adianta — o dado já não existe.
+
+Reproduzido num `node:22` em Docker (aarch64), com o node-pty 1.1.0 puro, 4 leitores em paralelo e 10 `yes > /dev/null` de carga: o shell que **sai** depois de 1000 linhas perdeu a última em **~290 de 600** rodadas (com as 200 linhas do teste, em 2 de 600; com um leitor só, em 1 de 1600 sob carga e 0 de 100 parado); o mesmo shell com um `sleep` no fim, lido até a última linha e só então morto, perdeu **0 de 600**. No macOS não reproduz nem com 14 `yes` e `--sequence.shuffle` em 40 rodadas, e é por isso que o teste passava em toda máquina local.
+
+**A regra:** quando o produtor de uma saída é um processo, **faça-o sobreviver à leitura** (`…; sleep 30`, e o `afterEach` mata). Esperar pela saída e esperar pelo exit são a mesma aposta se o exit puder levar a saída junto. `websocket.test.ts` já fazia isso (`…; sleep 30`); o de scrollback era o que saía sozinho. Fica registrado, sem mexer: `terminal-bridge.test.ts` imprime 10 linhas e sai — pouca saída, risco baixo, mas é o mesmo desenho.
+
+### Um e2e que afirma "nada rodando" num daemon que a suíte inteira divide
+
+O C60 da [038](../features/038-desktop-and-updates/checks.md) terminava pedindo que o painel da barra mostrasse *"nenhuma sessão rodando"* depois de o turno dele acabar. Numa suíte de um daemon só, a asserção era sobre **o daemon**, e não sobre o turno: lida no começo do spec, `system.live` listava **nove** turnos deixados pelos specs anteriores (onboarding, `agente-pela-tela`, `conversa-largura`, `teto-*`…). A lista nunca esvazia, e o teste só passava quando a suíte rodava sozinha. O reteste ainda falhou mais cedo, por outro motivo da mesma família: a worktree fixa `painel-barra` já existia, deixada pela tentativa que falhou.
+
+**A regra:** num e2e de daemon compartilhado, **afirme sobre o que o teste criou** — o rótulo dele some da lista (`toHaveCount(0)`), e não a lista esvazia — e dê **um nome por tentativa** (`Date.now().toString(36)`, a convenção dos outros specs) a tudo que ele cria. E encerre o que abriu pelo daemon (`session.close`, o gesto do `Fechar` da aba), sem esperar que o fake acabe o turno sozinho.
