@@ -19,10 +19,9 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
-import { desktopPlatformOf } from "../packages/shared/src/desktop.js";
-import { menubar, probeSandbox } from "../packages/cli/src/menubar.js";
-import { nodeServiceHost } from "../packages/cli/src/service.js";
-import { tarballName } from "../packages/desktop/src/packaging.js";
+// Só o tipo: apagado na compilação, então não é um `import` que o runner sem `node_modules` execute.
+// O código do workspace (que importa `@lumem/shared`) entra por `import()` dentro do passo que o usa.
+import type { probeSandbox } from "../packages/cli/src/menubar.js";
 
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
 const packageRoot = join(repoRoot, "packages", "cli");
@@ -232,6 +231,14 @@ async function measureSandbox(
  * código que o usuário roda — e não uma segunda cópia dele aqui.
  */
 async function smokeDesktop(tarballArg: string | undefined): Promise<void> {
+  // Dinâmico de propósito: o caminho padrão (`main`) roda num runner sem `pnpm install`, e um
+  // `import` estático disto aqui o derruba com `Cannot find package '@lumem/shared'` antes de
+  // instalar qualquer coisa. Este passo roda no job `desktop`, depois do `pnpm install`.
+  const { desktopPlatformOf } = await import("../packages/shared/src/desktop.js");
+  const { menubar, probeSandbox } = await import("../packages/cli/src/menubar.js");
+  const { nodeServiceHost } = await import("../packages/cli/src/service.js");
+  const { tarballName } = await import("../packages/desktop/src/packaging.js");
+
   const key = desktopPlatformOf(process.platform, process.arch);
   if (key === null) throw new Error(`não há app de desktop para ${process.platform}-${process.arch}`);
 

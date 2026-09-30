@@ -1929,6 +1929,26 @@ o arredondamento nunca é exercitado, e a prova fica no nível do amostrador, ab
 casa decimal, um teto ou um mínimo precisa de um valor esperado que só o cálculo certo produz**, e a mutação
 que o remove (`Math.round(value)`, `<=` por `<`) tem de matar a prova.
 
+### Script feito para um runner sem `node_modules` que ganha um `import` do workspace passa em toda máquina local
+
+**Sintoma:** o primeiro `release.yml` de verdade (`dry_run`, 2026-09-30) caiu nos dois jobs `instalar de
+verdade` com `ERR_MODULE_NOT_FOUND: Cannot find package '@lumem/shared'`, antes de instalar qualquer coisa. O
+`scripts/smoke-install.ts` roda num runner nu (`npx tsx scripts/smoke-install.ts <tarball>`, sem `pnpm install`,
+de propósito), e a `038` lhe dera `import` estático de `packages/cli` e `packages/desktop`, que importam
+`@lumem/shared`.
+
+**Causa:** em toda máquina de quem desenvolve há `node_modules`, então o `import` resolve; o vitest, o
+`typecheck` e o `pnpm smoke:install` local passavam todos. A única condição em que ele quebra — um checkout sem
+instalação — é a do runner, que nenhum gate local reproduz.
+
+**O que passou a avisar antes:** o teste `the default path imports nothing from the workspace`
+(`scripts/smoke-install.test.ts`) lê o arquivo e falha se houver `import` estático de `@lumem/*` ou de
+`packages/`; o código do workspace entra por `import()` dentro do passo `--only desktop`, que roda depois do
+`pnpm install`. O teste é a rede, e a prova honesta é outra: rodar o script como o CI, num `git archive` do
+commit (sem `node_modules`) com `env -u NODE_PATH npx --yes tsx@4 scripts/smoke-install.ts <tarball>`. A regra:
+**script pensado para rodar sem instalação não importa código do repositório por `import` estático**, e quem
+precisa dele o carrega onde já há `node_modules`.
+
 ## Convenções
 
 - Teste de git usa **repositório temporário real**, nunca mock. `git worktree` tem caso de borda em nome com barra e branch existente que mock nenhum reproduz.
