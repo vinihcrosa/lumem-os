@@ -114,6 +114,7 @@ Proof: `pnpm --filter @lumem/server exec vitest run src/update/install.test.ts -
 
 **C29** - Com o instalador saindo 1, ou falhando ao nascer (`ENOENT`), o daemon volta a aceitar prompt, não sai, e `system.updateStatus` devolve `lastError` com `1` ou com a mensagem do `ENOENT` (AC 26)
 Proof: `pnpm --filter @lumem/server exec vitest run src/update/install.test.ts -t "stays up and reports the error when the install fails"`
+Proof: `pnpm --filter @lumem/server exec vitest run src/routers/system.test.ts -t "reports a failed install in updateStatus, and lets the next one start"`
 
 **C30** - `system.update` com 2 turnos em voo e 1 script rodando falha com `CONFLICT` cuja mensagem contém `2` e `1`, e o instalador não é chamado (AC 27)
 Proof: `pnpm --filter @lumem/server exec vitest run src/routers/system.test.ts -t "update refuses while anything is live"`
@@ -138,6 +139,7 @@ Proof: `pnpm --filter @lumem/server exec vitest run src/db/backup.test.ts -t "re
 
 **C37** - Com `health.version` diferente do `LUMEM_VERSION` do bundle, a web recarrega uma vez e, depois do recarregamento, mostra `Lumem atualizado para v0.7.0` (AC 34)
 Proof: `pnpm --filter @lumem/web exec vitest run src/hooks/useVersionReload.test.tsx -t "reloads once and then says what changed"`
+Proof: `pnpm exec playwright test e2e/update.spec.ts -g "a página volta inteira depois da atualização"`
 
 **C38** - Se depois do recarregamento as versões ainda diferem, a web não recarrega de novo naquela aba (AC 35)
 Proof: `pnpm --filter @lumem/web exec vitest run src/hooks/useVersionReload.test.tsx -t "never reloads twice in one tab"`
@@ -155,6 +157,7 @@ Proof: `pnpm exec playwright test e2e/update.spec.ts -g "a página volta inteira
 
 **C42** - `usage.total` com três workspaces soma `tokens` e `turns` de todas as linhas da janela; `cost` é a soma dos custos não nulos, e `null` quando todos são `null` (AC 37)
 Proof: `pnpm --filter @lumem/server exec vitest run src/routers/usage.test.ts -t "total sums every workspace in the window"`
+Proof: `pnpm --filter @lumem/server exec vitest run src/routers/usage.test.ts -t "total answers null cost only when every row's cost is null"`
 
 **C43** - `usage.total` com 1, 3 e 10 workspaces executa uma única instrução SQL (AC 38)
 Proof: `pnpm --filter @lumem/server exec vitest run src/routers/usage.test.ts -t "total runs one statement whatever the workspace count"`
@@ -195,6 +198,7 @@ Proof: `pnpm --filter @lumem/web exec vitest run src/features/menubar/MenubarScr
 
 **C55** - `/menubar` mostra, nessa ordem, os turnos em voo com sessão e checkout, os recursos, a linha `v<versão>` com `atualização disponível: v0.7.0` ou `em dia · verificado …`, e as ações `Abrir o Lumem`, `Atualizar` e os três workspaces mais recentes (AC 48)
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/menubar/MenubarScreen.test.tsx -t "lays out sessions, resources, version and actions"`
+Proof: `pnpm --filter @lumem/web exec vitest run src/features/menubar/MenubarScreen.test.tsx -t "says the version is up to date, and when it was checked"`
 
 **C56** - Sem sessão viva, a lista diz `nenhuma sessão rodando` (AC 49)
 Proof: `pnpm --filter @lumem/web exec vitest run src/features/menubar/MenubarScreen.test.tsx -t "says when nothing is running"`
@@ -338,7 +342,7 @@ Proof: `pnpm --filter @lumem/web exec vitest run src/features/settings/UpdateSet
 | `query workspace.recent` statuses (1) | 200 C88 | - |
 | `GET /menubar` statuses (1) | 200 C59 | - |
 | verbos do CLI (10) | `start` C4 · `run` C8 · sem verbo C7 · `stop` C9 · `status` C10 · `logs` C11 · `upgrade` C39 · `menubar install` C62 · `menubar open` C89 · `menubar uninstall` C66 | - |
-| saídas do CLI que não são 0 (9) | `start` 1 sem supervisor C5 · `start` 1 outro Lumem C6 · `start` 1 sem health C4 · `stop` 1 C9 · `status` 3 C10 · `logs` 1 C12 · `menubar install` 1 C64 · `menubar install` com o código do gerenciador C92 · `menubar open` 1 sem app C89 | - |
+| saídas do CLI que não são 0 (12) | `start` 1 sem supervisor C5 · `start` 1 outro Lumem C6 · `start` 1 sem health C4 · `stop` 1 C9 · `status` 3 C10 · `logs` 1 C12 · `menubar install` 1 C64 · `menubar install` com o código do gerenciador C92 · `menubar open` 1 sem app C89 · `upgrade` 1 C39 (`upgrade.test.ts`, `com o registry fora do ar, falha sem tocar na instalação` e `says so when the supervisor refuses to restart…`) · `upgrade` com o código do gerenciador C39 (`upgrade.test.ts`, `instalador que falha devolve o código dele…`) · `menubar uninstall` com o código do gerenciador C66 (`menubar.test.ts`, `keeps the app when the manager refuses to remove the package`). `open` e `uninstall` fora das quatro plataformas passam pela recusa única que `menubar()` faz antes do despacho (C64), sem caso próprio | - |
 | supervisores (2) | launchd C1 · systemd C2 | - |
 | layout do gerenciador global (3) | npm C85 · pnpm com symlink estável C85 · sem symlink C85 | - |
 | plataformas do app (4) | `darwin-arm64` C62 · `darwin-x64` C62 · `linux-x64` C62 · `linux-arm64` C62 | - |

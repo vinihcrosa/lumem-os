@@ -112,7 +112,7 @@ rodando, as consultas de `usage/query.ts`, o roteamento escrito à mão de `web/
 1. o relógio de 60 s em `update/auto.ts` (new, no door - placement per conventions) — com `auto_update`
    em `idle` no `daemon_settings` (door 3), supervisionado, com versão nova do mesmo major (depois da 1.0) e
    ocioso (`busyNow`), dispara o mesmo caminho da Parte 2, passo 3 em diante: o `installer.start`
-2. `runConveyorLoop` pula a passada enquanto `installer.installing()` — a instalação do botão também: a porta
+2. `runConveyorLoop` em `packages/server/src/tasks/conveyor-loop.ts` (exists) pula a passada enquanto `installer.installing()` — a instalação do botão também: a porta
    de prompt já está fechada, e uma tarefa despachada nela gastaria uma tentativa antes de o prompt ser recusado
 
 ## Impact
