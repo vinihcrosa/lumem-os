@@ -2,7 +2,7 @@
 
 **PRD:** [prd.md](prd.md)
 
-**Estado:** 4 perguntas · **3 respondidas** (Q1 e Q2 em 2026-09-29, pela recomendação; Q3 medida) · **1 aberta**, a Q4, achada construindo a Parte 4.
+**Estado:** 4 perguntas · **4 respondidas** — Q1 e Q2 em 2026-09-29, pela recomendação; a Q3 medida; a Q4 em 2026-09-30, pela recomendação.
 
 A discovery do Outline já respondeu 22 perguntas e 7 desdobramentos em 2026-09-29
 ([as perguntas](https://wiki.cazimi.tech/doc/open-questions-menu-bar-and-auto-update-S8ijH9cb9K)), e o
@@ -97,7 +97,7 @@ atualizar sozinho, mas não o que acontece com o `lumem` de hoje nem onde a pref
   (`<global>/node_modules/@vinihcrosa/lumem-os/bin/lumem.mjs`) sempre que ele existe, e o resolvido só
   quando não há outro — virou o critério 77 e o C85. O `bun` não foi medido.
 
-- [ ] **Q4 — O app abre no Linux sem `--no-sandbox`, em uma distribuição que restringe user namespaces?**
+- [x] **Q4 — O app abre no Linux sem `--no-sandbox`, em uma distribuição que restringe user namespaces?**
 
   Achada na Parte 4, escrevendo o pacote do Linux. As janelas do app são `sandbox: true` (AC 67), e o
   Chromium só sobe o sandbox de processo de duas formas: o helper `chrome-sandbox` **setuid root**, ou
@@ -124,3 +124,7 @@ atualizar sozinho, mas não o que acontece com o `lumem` de hoje nem onde a pref
 
   **O que a resposta muda:** o `desktopEntry` de `packages/cli/src/menubar.ts` e o C63 (o conteúdo do
   `.desktop`); com (b), o AC 67 ganha uma ressalva no Linux.
+
+  **R:** (c) (2026-09-30). `lumem menubar install` só grava `--no-sandbox` no `.desktop` onde o sandbox não
+  sobe, e diz isso na saída; a medição no Ubuntu do runner vem do `release.yml` em `dry_run` — virou o
+  critério 78 e o C93.

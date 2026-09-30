@@ -278,6 +278,7 @@ O app Electron mora na barra do macOS e do Linux e abre o painel e o Lumem.
 
 53. WHEN `lumem menubar install` runs on `darwin-arm64`, `darwin-x64`, `linux-x64` or `linux-arm64` THEN the CLI SHALL install `@vinihcrosa/lumem-desktop-<platform>-<arch>@<LUMEM_VERSION>` with the package manager that owns the running copy, and write `lumem-desktop.json` in the app's data directory with the absolute `node` path, the absolute `lumem` path, the state dir and the origin
 54. WHEN that install succeeds on macOS THEN the CLI SHALL copy the app to `~/Applications/Lumem.app`; on Linux it SHALL write `~/.local/share/applications/lumem.desktop` and `~/.config/autostart/lumem.desktop`
+78. WHEN `lumem menubar install` runs on Linux and the kernel would refuse the Chromium sandbox (`/proc/sys/kernel/unprivileged_userns_clone` is `0`, or `/proc/sys/kernel/apparmor_restrict_unprivileged_userns` is `1`) THEN the CLI SHALL write `--no-sandbox` into the `Exec=` of both `.desktop` files and print a line saying why, and SHALL write no `--no-sandbox` otherwise ([Q4](open-questions.md))
 55. IF the platform is none of the four THEN `lumem menubar install` SHALL exit 1 and list the four supported
 56. WHEN `lumem upgrade` succeeds and a `lumem-desktop` package is installed THEN it SHALL install the same version of it and, on macOS, copy the app to `~/Applications/Lumem.app` again
 57. WHEN `lumem menubar uninstall` runs THEN it SHALL remove the package, `~/Applications/Lumem.app` or the two `.desktop` files, and the login item
@@ -343,7 +344,7 @@ Quem liga a opção recebe a versão nova sem clicar, e nunca no meio de um turn
 | de onde vêm a lista de turnos e os terminais abertos do painel | `system.live`, à parte do `system.status` | a casca consulta o `status` a cada 10 s, e a lista custa uma leitura de banco por turno em voo para nomear sessão e checkout; o painel a consulta só enquanto está aberto. A consulta nasceu ao construir a Parte 3: o AC 48 pede a lista e o AC 51 pede a contagem, e nenhuma rota do Surface as respondia | n |
 | a medição de processos no Linux | `/proc/<pid>/stat` e `/proc/<pid>/status`; no macOS, `ps -A -o pid=,ppid=,rss=,time=,comm=` | sem dependência nativa nova (ADR de 2026-08-30); o `%cpu` do `ps` no Linux é a média desde o início do processo | n |
 
-**Open questions:** none - Q1 e Q2 de [open-questions.md](open-questions.md) foram respondidas em 2026-09-29, as duas pela recomendação: `lumem` = `lumem start` = o serviço, e a preferência global mora numa tabela `daemon_settings` de uma linha.
+**Open questions:** none - Q1 a Q4 de [open-questions.md](open-questions.md) estão respondidas: Q1 e Q2 em 2026-09-29, pela recomendação; a Q3 medida sob pnpm (critério 77); a Q4 em 2026-09-30, pela opção (c) (critério 78).
 
 ## Observable
 

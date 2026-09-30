@@ -5,7 +5,7 @@
 Profile: standard
 Plan: `docs/features/038-desktop-and-updates/prd.md`
 
-92 checks in 5 slices · 9 one-way doors · 0 open
+93 checks in 5 slices · 9 one-way doors · 0 open
 
 ## Checks
 
@@ -300,6 +300,9 @@ Proof: `pnpm --filter @lumem/web exec vitest run src/features/menubar/MenubarScr
 
 **C92** - `lumem menubar install` com o gerenciador saindo diferente de zero devolve esse código, não grava arquivo nenhum e não abre o app (AC 53)
 Proof: `pnpm --filter @vinihcrosa/lumem-os exec vitest run src/menubar.test.ts -t "returns the manager's code and writes nothing when the install fails"`
+
+**C93** - No Linux, com `unprivileged_userns_clone` = `0` ou `apparmor_restrict_unprivileged_userns` = `1`, os dois `.desktop` levam `--no-sandbox` no `Exec=` e a saída diz por quê; com os dois liberados (ou ausentes), nenhum leva (AC 78)
+Proof: `pnpm --filter @vinihcrosa/lumem-os exec vitest run src/menubar.test.ts -t "adds no-sandbox only where the kernel refuses the sandbox"`
 
 ### S5 - atualizar sozinho quando ocioso · 5 files · 70 KB · ~25k
 
