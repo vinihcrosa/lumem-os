@@ -39,6 +39,9 @@ function fakeElectron() {
 
   class FakeTray {
     image: unknown;
+    /** Toda imagem que o ícone já teve, na ordem: redesenhar é `setImage` de novo. */
+    images: unknown[] = [];
+    menus = 0;
     menu: MenuEntry[] | undefined;
     popped: MenuEntry[][] = [];
     toolTip = "";
@@ -49,12 +52,14 @@ function fakeElectron() {
     }
     setImage(image: unknown) {
       this.image = image;
+      this.images.push(image);
     }
     setToolTip(value: string) {
       this.toolTip = value;
     }
     setContextMenu(menu: { template: MenuEntry[] }) {
       this.menu = menu.template;
+      this.menus += 1;
     }
     popUpContextMenu(menu: { template: MenuEntry[] }) {
       this.popped.push(menu.template);
@@ -182,6 +187,8 @@ interface Options {
   config?: DesktopConfig | null;
   status?: unknown;
   health?: unknown;
+  /** O conteúdo cru do `lumem-desktop-json`, quando o teste quer um que não é JSON do app. */
+  raw?: string;
 }
 
 async function boot(options: Options = {}) {
@@ -205,7 +212,11 @@ async function boot(options: Options = {}) {
     argv: options.argv ?? ["/Applications/Lumem.app/Contents/MacOS/Lumem"],
     home: "/Users/ana",
     env: {},
-    readFile: (path) => (config !== null && path.endsWith("lumem-desktop.json") ? JSON.stringify(config) : null),
+    readFile: (path) => {
+      if (!path.endsWith("lumem-desktop.json")) return null;
+      if (options.raw !== undefined) return options.raw;
+      return config === null ? null : JSON.stringify(config);
+    },
     request,
     exec,
     now: () => 1_000,
@@ -321,8 +332,18 @@ describe("o app sobe", () => {
 
     expect(handle).toBeNull();
     expect(fake.errors.join("\n")).toContain("lumem menubar install");
+    expect(fake.errors).toEqual(["Lumem: Não achei o lumem-desktop.json. Rode `lumem menubar install`."]);
     expect(fake.trays).toHaveLength(0);
     expect(fake.quits()).toBe(1);
+
+    // Um arquivo que existe e não se lê — JSON quebrado, ou de outra forma — diz o mesmo, e não sobe.
+    for (const raw of ["{isto não é json", "{}", '{"node": 1}']) {
+      const broken = await boot({ raw });
+      expect(broken.handle, raw).toBeNull();
+      expect(broken.fake.errors, raw).toHaveLength(1);
+      expect(broken.fake.trays, raw).toHaveLength(0);
+      expect(broken.fake.quits(), raw).toBe(1);
+    }
   });
 
   it("removes the login item and quits on --uninstall", async () => {
@@ -449,6 +470,84 @@ describe("o ícone e o menu seguem o daemon", () => {
       (listener as (event: unknown, argv: string[]) => void)({}, ["Lumem", "--panel"]);
     }
     await vi.waitFor(() => expect(later.fake.windows).toHaveLength(1));
+  });
+});
+
+describe("o ícone e o menu, decisão por decisão", () => {
+  it("redraws the icon, the tooltip and the menu when what shows changed, and only then", async () => {
+    const options: Options = { platform: "linux" };
+    const { fake, handle } = await boot(options);
+    const tray = fake.trays[0]!;
+    expect(tray.toolTip).toBe("Lumem — rodando · v0.6.1");
+    const drawn = tray.images.length;
+    const menus = tray.menus;
+
+    // A rodada de dez em dez segundos acha o mesmo daemon: nada é redesenhado.
+    await handle!.poller.refresh();
+    await handle!.poller.refresh();
+    expect(tray.images).toHaveLength(drawn);
+    expect(tray.menus).toBe(menus);
+
+    // O daemon parou: o ícone, a dica e o menu seguem.
+    options.health = null;
+    await handle!.poller.refresh();
+    expect(tray.images).toHaveLength(drawn + 1);
+    expect(tray.image).toMatchObject({ path: "/app/assets/tray-stopped-linux.png" });
+    expect(tray.toolTip).toBe("Lumem — parado");
+    expect(tray.menus).toBe(menus + 1);
+    expect(tray.menu?.map((item) => item.label)).toContain("Iniciar");
+  });
+
+  it("registers the click handlers on macOS and none on Linux", async () => {
+    const mac = await boot({ platform: "darwin" });
+    expect([...mac.fake.trays[0]!.listeners.keys()].sort()).toEqual(["click", "right-click"]);
+    expect(mac.fake.trays[0]!.menus).toBe(0);
+
+    const linux = await boot({ platform: "linux" });
+    expect([...linux.fake.trays[0]!.listeners.keys()]).toEqual([]);
+    expect(linux.fake.trays[0]!.menus).toBe(1);
+  });
+
+  it("shows the local page in a panel opened while the daemon is down", async () => {
+    // O `isUp` do app é a leitura do `health`, e não uma resposta fixa: com o daemon parado o painel
+    // não carrega uma página que ninguém serve.
+    const { fake } = await boot({ platform: "darwin", health: null });
+
+    fake.trays[0]!.emit("click", {}, { x: 1000, y: 0, width: 22, height: 24 });
+
+    await vi.waitFor(() => expect(fake.windows[0]?.loaded).toEqual(["file:/app/assets/stopped.html"]));
+  });
+
+  it("does not ask the daemon a second time at boot", async () => {
+    // O ícone já nasceu da primeira rodada, e o relógio arma sem outra: um `health` e um `status`.
+    const { asked } = await boot();
+
+    expect(asked).toEqual(["http://127.0.0.1:4317/trpc/health", "http://127.0.0.1:4317/trpc/system.status"]);
+  });
+
+  it("wires every menu item to what it says", async () => {
+    // Com versão nova: `Atualizar` liga e abre o painel (é lá que a tela diz que terminais fecham).
+    const running = await boot({ platform: "linux", status: { updateAvailable: true, attention: false } });
+    const menu = running.fake.trays[0]!.menu!;
+
+    menu[2]?.click?.(); // Abrir o Lumem
+    await vi.waitFor(() => expect(running.fake.windows[0]?.loaded).toEqual(["http://127.0.0.1:4317/"]));
+    // Toda janela leva o preload empacotado: é o único ponto de contato com a página.
+    expect(running.fake.windows[0]?.options.webPreferences).toMatchObject({ preload: "/app/dist/preload.cjs" });
+
+    expect(menu[4]).toMatchObject({ label: "Atualizar", enabled: true });
+    menu[4]?.click?.();
+    await vi.waitFor(() => expect(running.fake.windows[1]?.loaded).toEqual(["http://127.0.0.1:4317/menubar"]));
+
+    expect(running.fake.quits()).toBe(0);
+    menu[5]?.click?.(); // Sair
+    expect(running.fake.quits()).toBe(1);
+
+    // Parado: `Iniciar` roda o `lumem start` gravado.
+    const stopped = await boot({ platform: "linux", health: null });
+    stopped.fake.trays[0]!.menu![3]?.click?.();
+    await vi.waitFor(() => expect(stopped.exec).toHaveBeenCalledTimes(1));
+    expect(stopped.exec.mock.calls[0]?.slice(0, 2)).toEqual([CONFIG.node, [CONFIG.lumem, "start"]]);
   });
 });
 

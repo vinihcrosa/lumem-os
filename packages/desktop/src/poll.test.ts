@@ -124,6 +124,79 @@ describe("a leitura do daemon", () => {
     expect((await poller.refresh()).reachable).toBe(false);
   });
 
+  it("reads every answer that is not a healthy Lumem as stopped, each one alone", async () => {
+    // "Responde **e** diz que é um Lumem **e** diz a versão": cada metade sozinha faltando é parado.
+    const stopped = { reachable: false, version: null, protocolVersion: null, attention: false, updateAvailable: false };
+    const answers: [string, () => Response][] = [
+      ["HTTP 500 com um corpo de Lumem", () => new Response(JSON.stringify({ result: { data: HEALTH } }), { status: 500 })],
+      ["ok falso", () => trpc({ ...HEALTH, ok: false })],
+      ["sem ok", () => trpc({ version: "0.6.1", protocolVersion: 1 })],
+      ["versão que não é texto", () => trpc({ ...HEALTH, version: 7 })],
+      ["sem versão", () => trpc({ ok: true, protocolVersion: 1 })],
+      ["dado nulo", () => trpc(null)],
+      ["dado que não é objeto", () => trpc("Lumem")],
+      ["sem result", () => new Response("{}", { status: 200 })],
+    ];
+
+    for (const [name, answer] of answers) {
+      const poller = createPoller({
+        origin: ORIGIN,
+        request: (async () => answer()) as unknown as typeof fetch,
+        onSnapshot: () => {},
+      });
+
+      expect(await poller.refresh(), name).toEqual(stopped);
+    }
+  });
+
+  it("reads a health answer with no protocol as a Lumem it cannot read, and asks nothing more", async () => {
+    const { request, asked } = daemon({ health: { ok: true, version: "0.6.1" }, status: STATUS });
+    const poller = createPoller({ origin: ORIGIN, request, onSnapshot: () => {} });
+
+    expect(await poller.refresh()).toEqual({
+      reachable: true,
+      version: "0.6.1",
+      protocolVersion: null,
+      attention: false,
+      updateAvailable: false,
+    });
+    expect(asked).toEqual(["/trpc/health"]);
+  });
+
+  it("gives each question a timeout signal", async () => {
+    const signals: (AbortSignal | null | undefined)[] = [];
+    const request = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      signals.push(init?.signal);
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      return trpc(url.endsWith("/trpc/health") ? HEALTH : STATUS);
+    }) as unknown as typeof fetch;
+    const poller = createPoller({ origin: ORIGIN, request, onSnapshot: () => {} });
+
+    await poller.refresh();
+
+    expect(signals).toHaveLength(2);
+    for (const signal of signals) {
+      expect(signal).toBeInstanceOf(AbortSignal);
+      expect(signal?.aborted).toBe(false);
+    }
+  });
+
+  it("arms one clock however many times it is started, and can start without a round", async () => {
+    const { request, asked } = daemon();
+    const poller = createPoller({ origin: ORIGIN, request, onSnapshot: () => {} });
+
+    // `start(false)`: a primeira rodada já foi feita por quem chamou, e não se repete.
+    poller.start(false);
+    poller.start(false);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(asked).toEqual([]);
+
+    // Duas chamadas, um relógio: uma rodada por período.
+    await vi.advanceTimersByTimeAsync(POLL_EVERY_MS);
+    expect(asked).toEqual(["/trpc/health", "/trpc/system.status"]);
+    poller.stop();
+  });
+
   it("never runs two rounds at once", async () => {
     // Um daemon lento não acumula fila de perguntas atrás de si.
     let release: () => void = () => {};

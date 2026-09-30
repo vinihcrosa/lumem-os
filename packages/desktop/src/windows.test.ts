@@ -104,7 +104,7 @@ interface Setup {
   up: { value: boolean };
 }
 
-function setup(): Setup {
+function setup(origin = ORIGIN): Setup {
   const opened: string[] = [];
   const external: string[] = [];
   const now = { value: 10_000 };
@@ -116,7 +116,7 @@ function setup(): Setup {
         external.push(url);
       },
     },
-    origin: ORIGIN,
+    origin,
     stoppedPage: STOPPED_PAGE,
     preload: PRELOAD,
     isUp: async () => up.value,
@@ -140,11 +140,22 @@ describe("o painel sob o ícone", () => {
     expect(FakeWindow.all).toHaveLength(1);
     const panel = FakeWindow.all[0]!;
     expect(panel.options).toMatchObject({ width: 360, height: 520, frame: false });
+    // Um painel de barra: não nasce visível, não muda de tamanho nem vira tela cheia, não ocupa o
+    // Dock nem a barra de tarefas, e fica por cima.
+    expect(panel.options).toMatchObject({
+      show: false,
+      resizable: false,
+      fullscreenable: false,
+      skipTaskbar: true,
+      alwaysOnTop: true,
+    });
     expect(PANEL_SIZE).toEqual({ width: 360, height: 520 });
     expect(panel.loaded).toEqual([`${ORIGIN}/menubar`]);
     // Centrada no ícone (1000 + 11 − 180) e logo abaixo da barra (0 + 24 + 4).
     expect(panel.position).toEqual([831, 28]);
     expect(panel.visible).toBe(true);
+    // Mostrado **e** em foco: sem o foco o `blur` nunca chega e o painel não esconde sozinho.
+    expect(panel.calls).toEqual(["show", "focus"]);
 
     // Clicar de novo a esconde.
     await windows.togglePanel(ICON);
@@ -181,6 +192,38 @@ describe("o painel sob o ícone", () => {
     expect(panel.visible).toBe(true);
   });
 
+  it("reopens exactly when the click window has passed, and not before", async () => {
+    const { windows, now } = setup();
+    await windows.togglePanel(ICON);
+    const panel = FakeWindow.all[0]!;
+
+    panel.emit("blur");
+    now.value += 299;
+    await windows.togglePanel(ICON);
+    expect(panel.visible).toBe(false);
+
+    // 300 ms depois da perda de foco: já é outro clique.
+    now.value += 1;
+    await windows.togglePanel(ICON);
+    expect(panel.visible).toBe(true);
+  });
+
+  it("does not count a blur of a panel that was already hidden", async () => {
+    // Esconder pelo clique (`hide`) pode ainda disparar `blur`: o painel já estava escondido, e o
+    // clique seguinte não é o que o escondeu.
+    const { windows, now } = setup();
+    await windows.togglePanel(ICON);
+    const panel = FakeWindow.all[0]!;
+    await windows.togglePanel(ICON);
+    expect(panel.visible).toBe(false);
+
+    panel.emit("blur");
+    now.value += 40;
+    await windows.togglePanel(ICON);
+
+    expect(panel.visible).toBe(true);
+  });
+
   it("keeps the panel inside the screen", async () => {
     const { windows } = setup();
 
@@ -203,12 +246,15 @@ describe("o painel sob o ícone", () => {
     const { windows } = setup();
 
     await windows.openPanelWindow();
+    // A primeira vez já mostra e foca: a janela nasce escondida e só o pedido a traz.
+    expect(FakeWindow.all[0]?.calls).toEqual(["show", "focus"]);
     await windows.openPanelWindow();
 
     expect(FakeWindow.all).toHaveLength(1);
     const window = FakeWindow.all[0]!;
     expect(window.options).toMatchObject({ width: 360, height: 520 });
     expect(window.options.frame).not.toBe(false);
+    expect(window.options).toMatchObject({ show: false, title: "Lumem" });
     expect(window.loaded).toEqual([`${ORIGIN}/menubar`]);
     window.emit("blur");
     expect(window.visible).toBe(true);
@@ -225,14 +271,23 @@ describe("a janela principal", () => {
     const main = FakeWindow.all[0]!;
     expect(main.loaded).toEqual([`${ORIGIN}/`]);
     expect(main.visible).toBe(true);
+    expect(main.options).toMatchObject({ show: false, title: "Lumem" });
+    expect(main.calls).toEqual(["show", "focus"]);
 
-    // Escolher de novo foca a mesma, sem abrir outra nem recarregar.
+    // Escolher de novo foca a mesma, sem abrir outra nem recarregar. Só restaura quem está
+    // minimizado: restaurar uma janela que não está encolhe-a à toa.
+    main.calls.length = 0;
+    main.visible = false;
+    await windows.openMain();
+    expect(main.calls).toEqual(["show", "focus"]);
+    expect(main.visible).toBe(true);
+
+    main.calls.length = 0;
     main.minimized = true;
     await windows.openMain();
     expect(FakeWindow.all).toHaveLength(1);
     expect(main.loaded).toEqual([`${ORIGIN}/`]);
-    expect(main.calls).toContain("restore");
-    expect(main.calls.at(-1)).toBe("focus");
+    expect(main.calls).toEqual(["restore", "show", "focus"]);
 
     // Fechada, a próxima escolha abre outra.
     main.destroyed = true;
@@ -309,6 +364,17 @@ describe("a trava das janelas", () => {
       expect(window.navigate("will-navigate", "http://127.0.0.1:9999/")).toBe(true);
     }
 
+    // A página local é a única que não é do daemon: navegar **para** ela (o app a carrega) não é
+    // cancelado, e nem a mesma origem nem ela abrem o navegador.
+    external.length = 0;
+    const stopped = `file://${STOPPED_PAGE}`;
+    for (const window of FakeWindow.all) {
+      expect(window.navigate("will-navigate", stopped)).toBe(false);
+      expect(window.navigate("will-redirect", stopped)).toBe(false);
+      expect(window.navigate("will-navigate", `${ORIGIN}/settings`)).toBe(false);
+    }
+    expect(external).toEqual([]);
+
     // Um link externo abre no navegador do sistema, e a janela nunca vira ele. (A navegação
     // cancelada acima também abriu o navegador — o que interessa daqui em diante é o `open`.)
     external.length = 0;
@@ -319,6 +385,35 @@ describe("a trava das janelas", () => {
     // Navegação cancelada de um link comum também vai para o navegador, e não some.
     panel.navigate("will-navigate", "https://example.com/docs");
     expect(external.at(-1)).toBe("https://example.com/docs");
+  });
+
+  it("opens http and https links outside, and nothing else", async () => {
+    const { windows, external } = setup();
+    await windows.togglePanel(ICON);
+    const panel = FakeWindow.all[0]!;
+
+    // Cada esquema da web sozinho: `http:` não é `https:`, e os dois valem.
+    panel.openHandler?.({ url: "http://example.com/a" });
+    panel.openHandler?.({ url: "https://example.com/b" });
+    expect(external).toEqual(["http://example.com/a", "https://example.com/b"]);
+
+    // O mesmo vale para a navegação que sairia da origem.
+    panel.navigate("will-navigate", "http://example.com/c");
+    expect(external.at(-1)).toBe("http://example.com/c");
+    external.length = 0;
+    panel.navigate("will-navigate", "ftp://example.com/d");
+    panel.navigate("will-navigate", "mailto:ana@example.com");
+    expect(external).toEqual([]);
+  });
+
+  it("trusts nothing when the recorded origin is not a URL", async () => {
+    // Sem origem não há mesma origem: nem uma URL que também não se lê passa por ela.
+    const { windows } = setup("isto não é uma origem");
+    await windows.openMain();
+    const window = FakeWindow.all[0]!;
+
+    expect(window.navigate("will-navigate", "também não é uma url")).toBe(true);
+    expect(window.navigate("will-navigate", `${ORIGIN}/`)).toBe(true);
   });
 
   it("opens only web links outside", async () => {

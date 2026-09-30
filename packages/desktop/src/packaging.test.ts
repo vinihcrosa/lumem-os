@@ -29,6 +29,22 @@ describe("o pacote npm de cada plataforma", () => {
     for (const manifest of manifests) expect(manifest["dependencies"]).toBeUndefined();
   });
 
+  it("carries what a scoped, provenance-signed publish needs", () => {
+    // `--provenance` confere o `repository` contra o repositório que publica, um pacote com escopo
+    // só é público com `publishConfig.access`, e o npm pede licença e página.
+    for (const platform of DESKTOP_PLATFORMS) {
+      const manifest = platformManifest({ platform, version: "0.7.0" });
+
+      expect(manifest["license"], platform).toBe("MIT");
+      expect(manifest["repository"], platform).toEqual({ type: "git", url: "git+https://github.com/vinihcrosa/lumem-os.git" });
+      expect(manifest["homepage"], platform).toBe("https://github.com/vinihcrosa/lumem-os");
+      expect(manifest["publishConfig"], platform).toEqual({ access: "public" });
+      expect(manifest["description"], platform).toBe(
+        `O app de barra do Lumem para ${platform}. Instale com \`lumem menubar install\`.`,
+      );
+    }
+  });
+
   it("carries the .app as a zip on macOS, because npm drops symlinks, and the folder on Linux", () => {
     expect(platformManifest({ platform: "darwin-arm64", version: "0.7.0" })["files"]).toEqual(["Lumem.zip"]);
     expect(platformManifest({ platform: "linux-x64", version: "0.7.0" })["files"]).toEqual(["app", "icon.png"]);

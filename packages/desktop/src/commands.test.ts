@@ -41,6 +41,17 @@ describe("os comandos do menu", () => {
     expect(exec.mock.calls[0]?.[2]["PATH"]).toBe("/opt/homebrew/bin:/usr/bin");
   });
 
+  it("leaves the PATH it was opened with when the config recorded none", async () => {
+    // Sem `path` no arquivo não há o que sobrescrever: o ambiente do app segue como está, e
+    // `PATH: undefined` o apagaria para o `lumem start`.
+    const { path: _recorded, ...withoutPath } = CONFIG;
+    const { exec, commands } = setup(withoutPath);
+
+    await commands.start();
+
+    expect(exec.mock.calls[0]?.[2]["PATH"]).toBe(process.env["PATH"]);
+  });
+
   it("tells the CLI where the daemon is only when it is not the default", async () => {
     // Dizer o padrão explicitamente mudaria o arquivo de serviço, e o próximo `lumem`
     // sem verbo o veria como diferente e reiniciaria o daemon — derrubando as sessões.
