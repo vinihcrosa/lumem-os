@@ -128,6 +128,7 @@ trava a autonomia — mais do que qualquer lacuna de teste.
 > com código 1, e `npm publish --dry-run` avisa *"This command requires you to be logged in"*. O
 > `smoke:install` continua verde. O token foi **revogado no npmjs.com** pelo dono em 2026-09-29 — apagar do
 > arquivo não bastava, porque não invalida a credencial em backup ou snapshot de disco.
+> A primeira release por tag depois disso — a `v0.7.0`, em 2026-09-30 — publicou normalmente, por OIDC.
 
 ## 7. Scorecard
 
