@@ -269,7 +269,7 @@ gh api -X POST repos/:owner/:repo/environments/npm/deployment-branch-policies \
   estiver lá, o comando apaga o repositório.
 
 **Gate**: os quatro acima
-**Status**: 🟡 **parcial** em 2026-09-28. Feito: o environment `npm` exige o reviewer `vinihcrosa` e só
+**Status**: ✅ entregue em 2026-09-30; a parte do GitHub em 2026-09-28. Feito: o environment `npm` exige o reviewer `vinihcrosa` e só
 aceita deploy de **tag `v*`** (política `custom_branch_policies`). Aceites:
 - `gh workflow run release.yml -f dry_run=false` a partir da branch `docs-repo-vs-outline` passou pelo
   empacote e pelos dois `smoke` e teve o job `npm` **recusado**: *"Branch "docs-repo-vs-outline" is not
@@ -277,11 +277,22 @@ aceita deploy de **tag `v*`** (política `custom_branch_policies`). Aceites:
 - a tag de ensaio (`v0.0.0-probe.1`) **não chegou** ao `publish`: parou antes, na conferência *"a tag não
   bate com a versão do pacote (0.6.0)"* — e chegar lá exige uma tag igual a uma versão nova, ou seja,
   uma release de verdade. O `Review pending` fica para ser observado na próxima release. Tag apagada.
+- **observado na `v0.7.0`, em 2026-09-30**: o push da tag disparou o `release.yml`, os gates, o tarball
+  e os `smoke` terminaram às 23:24 UTC, e o job `npm` só começou às 23:49, depois da aprovação do
+  `vinihcrosa` no environment `npm` (`gh api repos/:owner/:repo/actions/runs/36790255395/approvals` →
+  `approved`). Fecha o segundo aceite.
 
-**Falta, e é do dono da conta:** revogar o scope `delete_repo` do token do `gh` (GitHub → Settings →
-Applications → Authorized OAuth Apps → GitHub CLI → Revoke, e `gh auth login -h github.com -s
-repo,workflow,read:org,gist`). O aceite `gh api -X DELETE repos/:owner/:repo` → `403` só se roda
-**depois**, e o guarda da T18 o recusa numa sessão de agente de qualquer jeito.
+**A parte do dono da conta, feita em 2026-09-30:** a autorização do GitHub CLI foi revogada em
+GitHub → Settings → Applications → Authorized OAuth Apps, e o `gh` foi logado de novo com
+`-s repo,workflow,read:org,gist`. Aceites:
+- `gh auth status` lista `'gist', 'read:org', 'repo', 'workflow'` — sem `delete_repo` (e sem os `user` e
+  `project` que tinham vindo junto); o header `X-Oauth-Scopes` da API diz o mesmo, e nenhum `GH_TOKEN`
+  ou `GITHUB_TOKEN` no ambiente passa por cima do token do keyring;
+- `gh api -X DELETE repos/<owner>/<repo>`, rodado pelo dono fora da sessão de agente (o guarda da T18 o
+  recusa dentro dela) e, por cautela, contra outro repositório que não este, respondeu `403`: *"Must
+  have admin rights to Repository."* O que faz disso o aceite é a linha que o `gh` acrescenta: *"This
+  API operation needs the "delete_repo" scope"* — o servidor diz que a operação pede o scope e que o
+  token não o tem, o que vale para qualquer repositório, este incluído.
 
 ---
 
