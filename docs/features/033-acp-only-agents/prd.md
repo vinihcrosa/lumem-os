@@ -121,6 +121,8 @@ lugar, numa sessão que você ainda tem que abrir.
 - **F5.5** Fechar o rascunho descarta.
 - **F5.6** O menu de sessão tem dois verbos: `＋ novo agente` e `terminal`.
 
+> **Nota, 2026-10-01 —** o `terminal` saiu do menu (LUM-62): terminal se abre só no rodapé de execução, onde `setup`, `run` e `test` já moram, e um menu de um verbo só virou o botão `＋ novo agente`. O `＋ novo agente` fica de pé; o que caiu foi o segundo verbo e o menu que o abrigava. Nenhum shell é mais aba da coluna do meio.
+
 ### F6 — O modelo sobrevive à retomada
 
 - **F6.1** Retomar uma sessão reaplica o modelo gravado nela (Q7).

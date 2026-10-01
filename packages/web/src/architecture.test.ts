@@ -480,7 +480,7 @@ const LARGE_FILE_CEILING: Readonly<Record<string, { lines: number; reason: strin
   "features/checkout/FileTree.tsx": { lines: 640, reason: "linha de base da T25 da `032`" },
   "features/checkout/FileViewer.tsx": { lines: 461, reason: "linha de base da T25 da `032`" },
   "features/checkout/LocalPanel.tsx": { lines: 442, reason: "fora das listas da T25 e da Q8 da `032`; 444 → 442 na T9 da `024`" },
-  "features/checkout/RunDock.tsx": { lines: 587, reason: "linha de base da T25 da `032`" },
+  "features/checkout/RunDock.tsx": { lines: 542, reason: "linha de base da T25 da `032`" },
   "features/checkout/useFileBuffer.ts": { lines: 605, reason: "linha de base da T25 da `032`" },
   "features/conversation/conversation-model.ts": {
     lines: 779,

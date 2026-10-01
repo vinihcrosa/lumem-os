@@ -1,7 +1,18 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { E2E_FIXTURE_REPO_FILES } from "./support/fixtures.js";
-import { createWorktree, ensureProject, ensureWorkspace, openProject } from "./support/app.js";
+import { E2E_FAKE_ACP_AGENT, E2E_FIXTURE_REPO_FILES } from "./support/fixtures.js";
+import {
+  createAgentConfig,
+  createWorktree,
+  dockTerminal,
+  ensureProject,
+  ensureWorkspace,
+  openConfiguredAgent,
+  openProject,
+  openTerminal,
+  showTerminalTab,
+} from "./support/app.js";
+import { E2E_SERVER_PORT } from "../ports.js";
 
 /**
  * A coluna do meio, de ponta a ponta: caminho → abas → conteúdo.
@@ -16,13 +27,13 @@ import { createWorktree, ensureProject, ensureWorkspace, openProject } from "./s
 
 const PROJECT = "repo-files";
 const WORKTREE = "primeira-aba";
-
-function visiblePanel(page: Page) {
-  return page.locator("[role=tabpanel]:not([hidden])");
-}
+// Sem o nome da worktree dentro: `getByRole("tab", { name: WORKTREE })` casa por substring.
+const AGENT = "eco-checkout";
+const DAEMON = `http://127.0.0.1:${E2E_SERVER_PORT}`;
 
 async function typeLine(page: Page, line: string): Promise<void> {
-  await visiblePanel(page).locator("textarea.xterm-helper-textarea").focus();
+  // O terminal é o do rodapé (LUM-62): shell não é mais aba da faixa do meio.
+  await dockTerminal(page).locator("textarea.xterm-helper-textarea").focus();
   await page.keyboard.type(line);
   await page.keyboard.press("Enter");
 }
@@ -77,24 +88,25 @@ async function openOwnWorktree(page: Page): Promise<void> {
 }
 
 /**
- * Abre uma shell **e traz a aba dela para a frente**.
+ * Abre uma conversa de agente **e traz a aba dela para a frente**.
  *
- * O clique na aba não é redundante. `NewSessionMenu` já espera a lista de
- * sessões antes de selecionar a nova, mas o daemon também **empurra** estado, e
- * um payload que chega em seguida sem a sessão nova muda a identidade de `tabs`
- * — e o efeito que devolve a seleção para a aba do checkout quando a aba
- * escolhida não está na lista desfaz a seleção. É uma corrida que existia antes
- * desta feature; ela está no backlog. Aqui ela não é o assunto: o assunto é o
- * que acontece quando a última sessão **fecha**.
+ * Era uma shell até a LUM-62; a shell agora mora no rodapé e não é aba, e o que
+ * este spec precisa é de uma aba de sessão para fechar. O `openConfiguredAgent`
+ * cria a sessão pela API e só devolve com a aba na frente e a conversa montada —
+ * o clique na aba que a shell exigia aqui (uma corrida entre a seleção e o estado
+ * que o daemon empurra, no backlog) é feito por ele.
  */
-async function openShell(page: Page): Promise<void> {
-  await page.getByRole("button", { name: /nova sessão/ }).click();
-  await page.getByRole("menuitem", { name: "terminal" }).click();
-  await page.getByRole("tab", { name: /^shell/ }).first().click();
-  await expect(visiblePanel(page).locator(".xterm-rows")).toBeVisible({ timeout: 20_000 });
+async function openAgentTab(page: Page): Promise<void> {
+  await openConfiguredAgent(page, DAEMON, AGENT, WORKTREE);
 }
 
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async ({ page, request }) => {
+  await createAgentConfig(request, DAEMON, {
+    name: AGENT,
+    command: process.execPath,
+    args: [E2E_FAKE_ACP_AGENT],
+    adapterVersion: "0.0.0-fake",
+  });
   // `git worktree add` num repositório de verdade, mais o primeiro acesso: os
   // 30s padrão são o orçamento da asserção, não o da criação.
   test.setTimeout(90_000);
@@ -127,13 +139,13 @@ test("entra no checkout e cai na aba dele, com o que era cabeçalho dentro", asy
 
 test("a seleção volta para a aba do checkout quando a última sessão fecha", async ({ page }) => {
   await openOwnWorktree(page);
-  await openShell(page);
+  await openAgentTab(page);
   await expect(page.getByRole("tab", { name: WORKTREE })).toHaveAttribute(
     "aria-selected",
     "false",
   );
 
-  await page.getByRole("button", { name: "fechar shell" }).click();
+  await page.getByRole("button", { name: `fechar ${AGENT}` }).click();
 
   await expect(page.getByRole("tab", { name: WORKTREE })).toHaveAttribute(
     "aria-selected",
@@ -144,13 +156,16 @@ test("a seleção volta para a aba do checkout quando a última sessão fecha", 
 
 test("o interruptor da faixa abre e fecha a coluna, e o terminal remede", async ({ page }) => {
   await openOwnWorktree(page);
-  await openShell(page);
-  const rows = visiblePanel(page).locator(".xterm-rows");
 
   // O botão vive na faixa de abas do checkout, e não na topbar.
   const strip = page.getByRole("tablist", { name: /sessões/ });
   await strip.getByRole("button", { name: "abrir a coluna de arquivos" }).click();
   await expect(page.getByLabel("arquivos do checkout")).toBeVisible({ timeout: 15_000 });
+
+  // O terminal mora no rodapé da coluna (LUM-62), então é a coluna aberta que o
+  // monta — já com a caixa que ela tem.
+  const terminal = await openTerminal(page);
+  const rows = terminal.locator(".xterm-rows");
 
   // A caixa mudou com a janela parada. A prova é uma linha que o *shell*
   // imprimiu na largura nova; o eco do que foi digitado voltaria de qualquer
@@ -159,11 +174,16 @@ test("o interruptor da faixa abre e fecha a coluna, e o terminal remede", async 
   await expect(rows).toContainText("ABERTA", { timeout: 20_000 });
 
   // E fechando: com a coluna fora da tela o `✕` dela também saiu, então este
-  // botão é o único caminho de volta — e ele continua aqui.
+  // botão é o único caminho de volta — e ele continua aqui. O terminal sai da
+  // tela junto com a coluna; a shell continua de pé.
   await strip.getByRole("button", { name: "fechar a coluna de arquivos" }).click();
   await expect(page.getByLabel("arquivos do checkout")).toHaveCount(0);
   await expect(strip.getByRole("button", { name: "abrir a coluna de arquivos" })).toBeVisible();
 
-  await typeLine(page, announcing("true", "FECHADA"));
-  await expect(rows).toContainText("FECHADA", { timeout: 20_000 });
+  // Reabrir monta a mesma sessão numa caixa medida de novo.
+  await strip.getByRole("button", { name: "abrir a coluna de arquivos" }).click();
+  await showTerminalTab(page);
+  await expect(rows).toContainText("ABERTA", { timeout: 20_000 });
+  await typeLine(page, announcing("true", "REABERTA"));
+  await expect(rows).toContainText("REABERTA", { timeout: 20_000 });
 });

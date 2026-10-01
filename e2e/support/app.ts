@@ -1,4 +1,4 @@
-import { expect, type APIRequestContext, type Page } from "@playwright/test";
+import { expect, type APIRequestContext, type Locator, type Page } from "@playwright/test";
 
 import { call, query } from "./daemon.js";
 
@@ -146,15 +146,111 @@ export async function createWorktree(
 }
 
 /**
- * Abre um rascunho de agente pelo `＋ nova sessão` da faixa de abas (`033` F5).
+ * Abre um rascunho de agente pelo `＋ novo agente` da faixa de abas (`033` F5).
+ *
+ * Desde a LUM-62 é um botão direto: o menu `＋ nova sessão` tinha só esse item
+ * e o `terminal`, que foi para o rodapé de execução (`openTerminal`).
  *
  * Não cria processo nenhum no daemon — a aba rascunho só vira sessão no
  * primeiro envio (Q4). Quem precisa de uma sessão de verdade escreve e manda,
  * depois de chamar isto.
  */
 export async function openNewAgent(page: Page): Promise<void> {
-  await page.getByRole("button", { name: /nova sessão/ }).click();
-  await page.getByRole("menuitem", { name: "novo agente" }).click();
+  await page.getByRole("button", { name: /^novo agente$/ }).click();
+}
+
+/**
+ * The terminal the run dock draws.
+ *
+ * Scoped to the dock because that is the only place a terminal lives (LUM-62):
+ * a shell is no tab of the middle strip, and the `Run` tab draws a terminal in
+ * the same `.dock__out` — which is why the caller has to be on the `Terminal`
+ * tab (`showTerminalTab`) for this to mean a shell.
+ */
+export function dockTerminal(page: Page): Locator {
+  return page.getByTestId("run-dock").locator(".dock__out").getByTestId("terminal");
+}
+
+/** The `terminal 1`, `terminal 2`… switches of the dock — one per live shell. */
+function terminalSwitches(page: Page): Locator {
+  return page
+    .getByTestId("run-dock")
+    .getByRole("group", { name: "terminais do checkout" })
+    .getByRole("button");
+}
+
+/**
+ * Brings the dock's `Terminal` tab to the front, opening whatever hides it.
+ *
+ * The dock is the bottom of the files column, and the column starts closed, so
+ * "the terminal" is two toggles away on a fresh page. Idempotent on each: the
+ * specs that already opened the column or the dock keep their state.
+ */
+export async function showTerminalTab(page: Page): Promise<void> {
+  const column = page.getByLabel("arquivos do checkout");
+  if ((await column.count()) === 0) {
+    await page.getByRole("button", { name: "abrir a coluna de arquivos" }).click();
+  }
+  await expect(column).toBeVisible({ timeout: 15_000 });
+
+  const dock = page.getByTestId("run-dock");
+  const bar = dock.getByRole("tablist", { name: "execução do checkout" });
+  const folded = page.getByRole("button", { name: "abrir o rodapé" });
+  await expect(bar.or(folded).first()).toBeVisible({ timeout: 15_000 });
+  if ((await folded.count()) > 0) await folded.click();
+
+  await bar.getByRole("tab", { name: "Terminal", exact: true }).click();
+}
+
+/**
+ * Opens one more shell in the dock and returns its terminal (LUM-62).
+ *
+ * `＋ abrir terminal` when the checkout has none, `＋ outro terminal` once it has
+ * one. It does not return before the **new** terminal is the one on screen: the
+ * dock keeps showing the previous shell until the session list brings the new
+ * one in, and a spec that typed in that window would type into the wrong shell.
+ */
+export async function openTerminal(page: Page): Promise<Locator> {
+  await showTerminalTab(page);
+  const dock = page.getByTestId("run-dock");
+  const first = dock.getByRole("button", { name: /abrir terminal/ });
+  const another = dock.getByRole("button", { name: /outro terminal/ });
+  await expect(first.or(another).first()).toBeVisible({ timeout: 15_000 });
+
+  const switches = terminalSwitches(page);
+  const before = await switches.count();
+  await first.or(another).first().click();
+
+  await expect(switches).toHaveCount(before + 1, { timeout: 20_000 });
+  await expect(switches.last()).toHaveAttribute("aria-pressed", "true");
+  const terminal = dockTerminal(page);
+  await expect(terminal).toBeVisible({ timeout: 20_000 });
+  return terminal;
+}
+
+/**
+ * Ends every shell of the checkout on screen, by typing `exit` into it.
+ *
+ * The middle tab's `✕` used to do this. A dock terminal has no close button, so
+ * the shell's own `exit` is the only gesture that ends the process — and the
+ * switch going away is the proof that it did. What a spec needs this for is the
+ * daemon's refusal to remove a worktree that still has a live session (F4.9).
+ */
+export async function endEveryTerminal(page: Page): Promise<void> {
+  await showTerminalTab(page);
+  const switches = terminalSwitches(page);
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const before = await switches.count();
+    if (before === 0) return;
+
+    await expect(dockTerminal(page)).toBeVisible({ timeout: 20_000 });
+    await dockTerminal(page).locator("textarea.xterm-helper-textarea").focus();
+    await page.keyboard.type("exit");
+    await page.keyboard.press("Enter");
+    await expect.poll(() => switches.count(), { timeout: 30_000 }).toBeLessThan(before);
+  }
+
+  throw new Error("os terminais não pararam de aparecer");
 }
 
 /**

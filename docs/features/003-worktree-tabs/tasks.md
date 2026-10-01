@@ -211,6 +211,8 @@ A troca de somente leitura acontece **no lugar**, sem remontar: sessão que morr
 
 #### W8: O registro de uma sessão encerrada
 
+> **Nota, 2026-10-01 —** a LUM-62 tirou o shell da faixa de abas (o terminal mora no rodapé de execução), então `ver registro`, o terminal somente leitura e `nova sessão igual` deixam de existir **para shell**. Ficam de pé para o que ainda é aba PTY: a sessão de script.
+
 **What**: A aba de sessão morta para de se passar por terminal (D5, issue #14).
 **Where**: `packages/web/src/components/{Terminal,SessionTab,ScopePanel}.tsx`, `hooks/useWorktreeTabs.ts`, `ui/{Tab,Styleguide}.tsx`, `ui.css`, `terminal.css`, os testes de `Terminal`, `session-ui` e `ui`, e `e2e/session-record.spec.ts`
 **Depends on**: W6

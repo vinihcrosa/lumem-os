@@ -5,7 +5,8 @@ import { useAgentConfigs } from "../agent/index.js";
 import type { RunDockState } from "./useRunDock.js";
 import { useScriptActions, useScripts, type ScriptStatus } from "./useScripts.js";
 import type { Scope } from "./useSessionsByScope.js";
-import { useSessionMutations, useSessionsByScope } from "./useSessionsByScope.js";
+import { TerminalTab } from "./TerminalTab.js";
+import { useSessionMutations } from "./useSessionsByScope.js";
 import { relativeAge } from "../../lib/relative-time.js";
 import { Button, Chip, Glyph } from "../../ui/index.js";
 import { Terminal } from "../conversation/index.js";
@@ -503,52 +504,6 @@ function TrustGate({
         </span>
       </div>
     </div>
-  );
-}
-
-/** A aba `Terminal`: a sessão de shell que o daemon já sabe abrir, no checkout. */
-function TerminalTab({ scope }: { scope: Scope }) {
-  const sessions = useSessionsByScope(scope);
-  const { createShell } = useSessionMutations(scope);
-  const [current, setCurrent] = useState<string | null>(null);
-
-  const shells = (sessions.data ?? []).filter(
-    (session) => session.kind === "shell" && session.state === "running",
-  );
-  const active = shells.find((shell) => shell.id === current) ?? shells[0] ?? null;
-
-  async function open(): Promise<void> {
-    const created = await createShell.mutateAsync();
-    setCurrent(created.id);
-  }
-
-  if (active === undefined || active === null) {
-    return (
-      <div className="dock__idle">
-        <span>Nenhum terminal aberto neste checkout.</span>
-        <Button size="sm" onClick={() => void open()}>
-          ＋ abrir terminal
-        </Button>
-      </div>
-    );
-  }
-
-  return (
-    <>
-      <div className="dock__state">
-        <Chip tone="clean" dot>
-          {shells.length} viva{shells.length > 1 ? "s" : ""}
-        </Chip>
-        <span className="dock__cmd dock__cmd--dim">cwd {active.cwd}</span>
-        <span className="dock__spacer" />
-        <button type="button" className="dock__new" onClick={() => void open()}>
-          ＋ outro terminal
-        </button>
-      </div>
-      <div className="dock__out">
-        <Terminal key={active.id} sessionId={active.id} />
-      </div>
-    </>
   );
 }
 

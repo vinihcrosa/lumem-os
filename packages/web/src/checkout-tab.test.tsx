@@ -63,9 +63,10 @@ function detail(overrides: Record<string, unknown> = {}) {
 function session(overrides: Record<string, unknown> = {}) {
   return {
     id: "s1",
-    kind: "shell" as const,
+    // A shell is no tab (LUM-62), and these tests need a tab to stand in front of.
+    kind: "agent" as const,
     agentConfigId: null,
-    agentName: null,
+    agentName: "claude-code",
     scopeType: "worktree" as const,
     scopeId: "wt1",
     cwd: WORKTREE.path,
@@ -185,7 +186,7 @@ describe("o interruptor da coluna de arquivos", () => {
     );
 
     await selectWorktree(user);
-    await user.click(await screen.findByRole("tab", { name: /shell/ }));
+    await user.click(await screen.findByRole("tab", { name: /claude-code/ }));
     const terminal = await screen.findByTestId("terminal-mock");
 
     await user.click(screen.getByRole("button", { name: "abrir a coluna de arquivos" }));
@@ -230,7 +231,7 @@ describe("a worktree como primeira aba", () => {
 
     await selectWorktree(user);
 
-    expect(await screen.findByRole("button", { name: "fechar shell" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "fechar claude-code" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "fechar teste" })).not.toBeInTheDocument();
   });
 
@@ -244,22 +245,26 @@ describe("a worktree como primeira aba", () => {
 
     const tab = await screen.findByRole("tab", { name: "teste" });
     expect(tab).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("tab", { name: /shell/ })).toHaveAttribute("aria-selected", "false");
+    expect(screen.getByRole("tab", { name: /claude-code/ })).toHaveAttribute("aria-selected", "false");
   });
 
   it("recebe a seleção de volta quando a última aba de sessão fecha", async () => {
     // Sem isto, fechar a última sessão deixaria a coluna sem nada em foco.
     const user = userEvent.setup();
+    let live = true;
     trpc.session.listByScope.query.mockImplementation(async ({ scopeType }) =>
-      scopeType === "worktree" ? [session({ state: "exited", exitCode: 0 })] : [],
+      scopeType === "worktree" && live ? [session()] : [],
     );
+    trpc.session.close.mutate.mockImplementation(async () => {
+      live = false;
+      return { ok: true as const };
+    });
 
     await selectWorktree(user);
-    await user.click(await screen.findByRole("button", { name: /ver registro/ }));
-    await user.click(await screen.findByRole("tab", { name: /shell/ }));
+    await user.click(await screen.findByRole("tab", { name: /claude-code/ }));
     expect(screen.getByRole("tab", { name: "teste" })).toHaveAttribute("aria-selected", "false");
 
-    await user.click(screen.getByRole("button", { name: "fechar shell" }));
+    await user.click(screen.getByRole("button", { name: "fechar claude-code" }));
 
     await waitFor(() =>
       expect(screen.getByRole("tab", { name: "teste" })).toHaveAttribute("aria-selected", "true"),

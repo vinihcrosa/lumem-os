@@ -154,8 +154,11 @@ export function useWorktreeTabs(scope: Scope): WorktreeTabs {
   const list = useMemo(() => sessions.data ?? [], [sessions.data]);
 
   const tabs = useMemo<SessionTab[]>(() => {
+    // A shell is never a tab: terminals live in the run dock (LUM-62). Drawing
+    // one here too put the same session on two surfaces.
     const visible = list.filter(
       (session) =>
+        session.kind !== "shell" &&
         !dismissed.has(session.id) &&
         (session.state === "running" || reopened.has(session.id)),
     );

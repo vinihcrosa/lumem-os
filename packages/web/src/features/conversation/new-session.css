@@ -1,4 +1,4 @@
-/* O menu de nova sessão: gatilho e painel ancorado nele. */
+/* O painel ancorado num gatilho (`ContinueInMenu`). */
 
 .new-session {
   position: relative;
@@ -21,12 +21,6 @@
   padding: var(--space-8);
   font: var(--text-body-sm);
   color: var(--color-text-tertiary);
-}
-
-/* O erro é do escopo, não do botão: ocupa a linha inteira abaixo das ações. */
-.new-session__error {
-  flex-basis: 100%;
-  margin-top: var(--space-4);
 }
 
 /* ============================================================================

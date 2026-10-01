@@ -465,4 +465,73 @@ describe("a aba Terminal", () => {
 
     expect(await screen.findByTestId("terminal")).toHaveAttribute("data-session", "se_shell");
   });
+
+  it("mostra a recusa do daemon ao abrir um terminal (LUM-62)", async () => {
+    trpcMock.session.createShell.mutate.mockRejectedValue(
+      new Error('a worktree "teste" não está no disco'),
+    );
+
+    renderWithProviders(<RunDock scope={scope} dock={dock} />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Terminal" }));
+    await userEvent.click(await screen.findByRole("button", { name: /abrir terminal/ }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("não está no disco");
+  });
+
+  it("mostra a recusa também ao abrir outro terminal", async () => {
+    trpcMock.session.listByScope.query.mockResolvedValue([
+      { id: "se_a", kind: "shell", state: "running", cwd: "/repo/wt", command: "/bin/zsh" },
+    ]);
+    trpcMock.session.createShell.mutate.mockRejectedValue(new Error("o daemon recusou"));
+
+    renderWithProviders(<RunDock scope={scope} dock={dock} />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Terminal" }));
+    await userEvent.click(await screen.findByRole("button", { name: /outro terminal/ }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("o daemon recusou");
+    expect(screen.getByTestId("terminal")).toHaveAttribute("data-session", "se_a");
+  });
+
+  it("troca entre dois terminais sem fechar nenhum (LUM-62)", async () => {
+    trpcMock.session.listByScope.query.mockResolvedValue([
+      { id: "se_a", kind: "shell", state: "running", cwd: "/repo/wt", command: "/bin/zsh" },
+      { id: "se_b", kind: "shell", state: "running", cwd: "/repo/wt", command: "/bin/zsh" },
+    ]);
+
+    renderWithProviders(<RunDock scope={scope} dock={dock} />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Terminal" }));
+
+    expect(await screen.findByTestId("terminal")).toHaveAttribute("data-session", "se_a");
+
+    await userEvent.click(screen.getByRole("button", { name: "terminal 2" }));
+
+    expect(screen.getByTestId("terminal")).toHaveAttribute("data-session", "se_b");
+    expect(screen.getByRole("button", { name: "terminal 2" })).toHaveAttribute("aria-pressed", "true");
+
+    await userEvent.click(screen.getByRole("button", { name: "terminal 1" }));
+
+    expect(screen.getByTestId("terminal")).toHaveAttribute("data-session", "se_a");
+    expect(trpcMock.session.close.mutate).not.toHaveBeenCalled();
+  });
+
+  it("o terminal novo vira o da frente", async () => {
+    trpcMock.session.listByScope.query.mockResolvedValue([
+      { id: "se_a", kind: "shell", state: "running", cwd: "/repo/wt", command: "/bin/zsh" },
+    ]);
+    trpcMock.session.createShell.mutate.mockImplementation(async () => {
+      trpcMock.session.listByScope.query.mockResolvedValue([
+        { id: "se_a", kind: "shell", state: "running", cwd: "/repo/wt", command: "/bin/zsh" },
+        { id: "se_b", kind: "shell", state: "running", cwd: "/repo/wt", command: "/bin/zsh" },
+      ]);
+      return { id: "se_b", kind: "shell" };
+    });
+
+    renderWithProviders(<RunDock scope={scope} dock={dock} />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Terminal" }));
+    await userEvent.click(await screen.findByRole("button", { name: /outro terminal/ }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("terminal")).toHaveAttribute("data-session", "se_b");
+    });
+  });
 });

@@ -490,15 +490,32 @@ Todos vindos de [right-panel §8](../features/004-right-panel/prd.md) e [file-ed
 O desenho da [run-dock-open](../features/015-run-dock-open/prd.md) mediu a faixa do rodapé em **494px** contra
 uma coluna de 360, e propôs três coisas juntas: descer `Abrir :porta` e `parar` para a linha de
 estado, apertar a faixa (`.dock__bar--tight`) e criar um `⋯` para onde o `＋` iria. Foi recusado
-inteiro, porque o `＋ nova aba de terminal` **não existe no produto** — o `.dock__new` está no CSS
-portado e o `RunDock.tsx` nunca o renderiza. O `⋯` nasceria com zero item, e a faixa apertaria para
-caber nele.
+inteiro em 2026-09-06, porque o `＋ nova aba de terminal` **não existia no produto**: o `.dock__new`
+estava no CSS portado e o `RunDock.tsx` nunca o renderizava.
 
-A ordem certa é a inversa: primeiro o `＋` existir, depois o menu que o guarda.
+**Atualização, 2026-10-01 (LUM-62):** o gatilho disparou — o `＋ outro terminal` existe, é o
+`.dock__new`, e agora todo terminal mora ali (o item `terminal` saiu do menu `＋ nova sessão`). Mas ele
+não mora **na faixa**: mora na linha de estado da aba `Terminal`, junto do novo seletor
+(`terminal 1`, `terminal 2`…). A faixa não ganhou nada, então a conta dos 494px não mudou e o `⋯` e a
+`--tight` continuam sem item que os justifique. O que sobra desta entrada é só o aperto de um `run`
+vivo numa coluna de 360px, e ele não depende mais do `＋`.
 
 **De onde veio:** [run-dock-open Q6 e Q6a](../features/015-run-dock-open/open-questions.md), revertida em
-2026-09-06 · **Volta quando:** alguém quiser uma segunda aba de terminal no rodapé, ou quando a faixa
-com um `run` vivo em 360px incomodar de verdade.
+2026-09-06; gatilho disparado e relido em LUM-62 · **Volta quando:** a faixa com um `run` vivo em 360px
+incomodar de verdade, ou quando o rodapé ganhar um segundo gesto que caiba na faixa e não na linha de estado.
+
+### O ramo de shell em `SessionTab` — `P`
+
+Desde a LUM-62 nenhum **shell** é aba da coluna do meio (`useWorktreeTabs` o filtra; o terminal mora no
+rodapé), e agente é sempre ACP desde a [`033`](../features/033-acp-only-agents/prd.md). Mas o ramo PTY de
+`SessionTab` **não está morto**: uma sessão de **script** (`kind: "script"`, `transport: "pty"`) ainda vira
+aba enquanto roda, ainda ganha `ver registro` depois de encerrar, e reabri-la cai no `RecordNotice`. Lá,
+`nova sessão igual` abre uma **shell** — que agora nasce no rodapé e não é aba, então a seleção não tem
+para onde ir. O que sobra a limpar é esse botão para script (ele promete "a mesma sessão" e entrega outra
+coisa), não o ramo inteiro.
+
+**De onde veio:** LUM-62, revisão da PR · **Volta quando:** alguém mexer em `SessionTab` por outro motivo,
+ou o script ganhar uma superfície própria de registro.
 
 ### A saída que nunca rodou diz o que o daemon já sabe — `P`
 

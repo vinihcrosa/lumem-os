@@ -220,7 +220,7 @@ T6, T7 e T9 são independentes entre si depois da T2 — podem ir em paralelo. T
 #### T8: Menu de nova sessão
 
 **What**: A fileira de botões vira um menu suspenso.
-**Where**: `packages/web/src/features/conversation/NewSessionMenu.tsx`
+**Where**: packages/web/src/features/conversation/NewSessionMenu.tsx (histórico: virou `NewAgentButton.tsx` na LUM-62)
 **Depends on**: T2, T6
 **Reuses**: `Menu`, `MenuItem`, `Button` da T2
 **Requirement**: walking-skeleton F5.1, F5.2, F6.5
