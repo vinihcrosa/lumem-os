@@ -142,6 +142,21 @@ describe("a tela de configurações", () => {
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
   });
 
+  it("asking for the same agent twice scrolls twice", async () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    window.history.replaceState(null, "", "/settings#agent-codex");
+    renderWithProviders(<App />);
+    const codex = await screen.findByRole("group", { name: /agente Codex/ });
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalledTimes(1));
+    (document.activeElement as HTMLElement).blur();
+
+    act(() => openAgentSettings("codex"));
+
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalledTimes(2));
+    expect(codex.firstElementChild).toHaveFocus();
+  });
+
   it("without a hash nothing is scrolled or focused", async () => {
     const scrollIntoView = vi.fn();
     Element.prototype.scrollIntoView = scrollIntoView;

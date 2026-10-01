@@ -103,11 +103,12 @@ export function AccountsSection({
  * própria, e o Chromium não foca — nem rola — um elemento sem caixa. A linha ganha
  * `tabIndex={-1}`: alvo de foco por código, fora da ordem do Tab. Depende do
  * fragmento, e não só da montagem, porque o `entrar ↓` também pode vir com
- * `/settings` já aberta, e então só o fragmento muda.
+ * `/settings` já aberta — e então só o fragmento muda, ou nem ele, se o pedido for
+ * para o mesmo agente de novo (`request` conta os pedidos).
  */
 function useAnchoredSection(anchor: string) {
   const [node, setNode] = useState<HTMLElement | null>(null);
-  const hash = useRouteHash();
+  const { hash, request } = useRouteHash();
   useEffect(() => {
     if (node === null || hash !== `#${anchor}`) return;
     const row = node.firstElementChild;
@@ -115,7 +116,7 @@ function useAnchoredSection(anchor: string) {
     row.tabIndex = -1;
     row.focus({ preventScroll: true });
     row.scrollIntoView?.({ block: "start" });
-  }, [node, anchor, hash]);
+  }, [node, anchor, hash, request]);
   return [setNode] as const;
 }
 

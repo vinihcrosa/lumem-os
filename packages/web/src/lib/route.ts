@@ -91,10 +91,19 @@ export interface NavigateOptions {
   hash?: string;
 }
 
+/** Quantas vezes alguém pediu um fragmento — o que muda quando o fragmento não muda. */
+let anchorRequests = 0;
+
 export function navigate(route: Route, { replace = false, hash }: NavigateOptions = {}): void {
   const path = ROUTE_PATH[route];
   const fragment = hash === undefined ? "" : `#${hash}`;
-  if (normalize(window.location.pathname) === path && window.location.hash === fragment) return;
+  // Cada pedido com fragmento conta, mesmo para o endereço em que já se está:
+  // `entrar ↓` duas vezes para o mesmo agente precisa rolar e focar duas vezes.
+  if (hash !== undefined) anchorRequests += 1;
+  if (normalize(window.location.pathname) === path && window.location.hash === fragment) {
+    if (hash !== undefined) window.dispatchEvent(new Event(ROUTE_EVENT));
+    return;
+  }
   const target = `${path}${fragment}`;
 
   if (replace) window.history.replaceState(null, "", target);
@@ -131,8 +140,16 @@ export function useRoute(): Route {
  * entrada e dispara `ROUTE_EVENT` — e é isso que faz `entrar ↓` agir também
  * quando `/settings` já está na tela, onde o caminho não muda e só o fragmento.
  */
-export function useRouteHash(): string {
-  return useSyncExternalStore(subscribe, currentHash, currentHash);
+export function useRouteHash(): { hash: string; request: number } {
+  const hash = useSyncExternalStore(subscribe, currentHash, currentHash);
+  // `request` muda a cada `navigate` com fragmento, inclusive para o mesmo: sem ele
+  // o segundo pedido ao mesmo agente deixa o efeito de quem lê com as mesmas dependências.
+  const request = useSyncExternalStore(subscribe, currentRequest, currentRequest);
+  return { hash, request };
+}
+
+function currentRequest(): number {
+  return anchorRequests;
 }
 
 function currentHash(): string {
