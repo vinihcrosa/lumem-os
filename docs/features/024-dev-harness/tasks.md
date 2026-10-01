@@ -125,7 +125,9 @@ de 72h e o número da versão não volta nunca). Hoje custa um comando e não pa
 **Status**: ✅ entregue em 2026-09-28; o passo 3 em 2026-09-29. `~/.npmrc` sem `_authToken` (o arquivo
 deixou de existir), `npm whoami` sai 1, `npm publish --dry-run` avisa *"requires you to be logged in"* —
 em `--dry-run` o npm avisa em vez de recusar, e o aviso é o sinal —, `smoke:install` verde. O passo 3 —
-revogar o token no npmjs.com — **feito pelo dono em 2026-09-29**.
+revogar o token no npmjs.com — **feito pelo dono em 2026-09-29**. O último aceite, *a próxima release por
+tag publica normalmente*, chegou em 2026-09-30: a `v0.7.0` saiu pelo `release.yml`, por OIDC, sem token
+nenhum na máquina nem no ambiente.
 
 ---
 
