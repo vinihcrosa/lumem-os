@@ -194,7 +194,7 @@ coluna nova, nenhuma flag.
 #### C3: O e2e ✅
 
 **What**: O painel contra um handshake de verdade.
-**Where**: `e2e/agent-login.spec.ts`, `e2e/acp-agent-config.spec.ts`, `docs/project/testing.md`
+**Where**: e2e/agent-login.spec.ts (apagado na 039), `e2e/acp-agent-config.spec.ts`, `docs/project/testing.md`
 
 **Done when**:
 - [x] Versão lida do handshake, ausência de `sair`, gaveta como fato, e o caminho para um segundo agente

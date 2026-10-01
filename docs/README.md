@@ -814,6 +814,19 @@ decisões desceram para os três ADRs de 2026-09-29.
 | [checks.md](features/038-desktop-and-updates/checks.md) | **93 checks em cinco fatias**, perfil `standard`, com `Test policy` para as duas camadas novas — o processo principal do Electron e o escritor de serviço do CLI. Três provas rodam só na máquina de quem verifica: `pnpm smoke:service`, `pnpm measure:resources` e o passo `desktop` do `smoke:install` |
 | [verification.md](features/038-desktop-and-updates/verification.md) | o relatório do verificador independente, rodada a rodada. As rodadas 1 a 5 reprovaram, cada uma por uma lacuna diferente — quatro de prova, o Linux, e três mutantes em condições compostas; o `release.yml` em `dry_run` achou dois defeitos de CI. A **rodada 6 passou**, sob a regra de parada do dono de 2026-09-30 (só defeito de comportamento bloqueia): 93 checks, 12 mutantes, nenhum defeito, e dez itens de teste a reforçar que foram para o backlog |
 
+---
+
+### [agents-in-settings/](features/039-agents-in-settings/) — os agentes saem da sidebar e moram em `/settings` · **em execução**
+
+O rodapé da sidebar perde o agente: conectar, reconectar e cadastrar um ACP de fora do catálogo
+acontecem em `/settings`, que diz que a configuração é da máquina, e o `entrar ↓` da pílula de agente e
+modelo deixa de não levar a lugar nenhum. Da
+[LUM-57](https://linear.app/lumem-os/issue/LUM-57/settings-o-rodape-de-agentes-sai-da-sidebar-o-login-ja-mora-em).
+
+| Arquivo | O quê |
+|---|---|
+| [checks.md](features/039-agents-in-settings/checks.md) | mudança pequena, sem `prd.md`: **10 checks em três fatias**, perfil `light` — o rodapé sem agente, a gaveta *outro agente ACP* em `/settings`, e o `entrar ↓` que abre `/settings#agent-<adaptador>` |
+
 ## Convenções
 
 > **`adr/` decide · `project/` sustenta · `features/` executa · o código está em vigor.**
