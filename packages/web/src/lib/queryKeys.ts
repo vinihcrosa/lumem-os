@@ -320,24 +320,14 @@ export function setupAgentsKey() {
 
 /**
  * O probe do primeiro acesso (um agente, um handshake) — e o prefixo que
- * `agentProbeKey` mora sob, para uma invalidação alcançar todas as
- * configurações de uma vez.
+ * `agentAccountProbeKey` mora sob, para uma invalidação alcançar todos de uma vez.
  */
 export const SETUP_PROBE_KEY = ["setup", "probe"] as const;
 
 /**
- * O probe por configuração do rodapé. A chave precisa do par comando+argumentos
- * para dois agentes não dividirem a resposta de um só — duas funções em vez de
- * um argumento opcional no fim, que é a armadilha que o `testing.md` já registra.
- */
-export function agentProbeKey(command: string, args: readonly string[]) {
-  return ["setup", "probe", command, args.join(" ")] as const;
-}
-
-/**
  * O probe de **uma conta** (`034`): o que o login dela pergunta ao adaptador.
  *
- * Sob `SETUP_PROBE_KEY` pelo mesmo motivo do `agentProbeKey`: o "verificar de
+ * Sob `SETUP_PROBE_KEY` pelo mesmo motivo: o "verificar de
  * novo" do painel de login invalida o prefixo, e é esse reprobe que confere o
  * login e vira a conta `connected` no daemon.
  */

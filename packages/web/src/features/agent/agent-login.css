@@ -1,8 +1,9 @@
 /*
- * Conectar agente — portado de `lumem-os-design/lumem-agent-login.css`.
+ * Entrar num agente — portado de `lumem-os-design/lumem-agent-login.css`.
  *
- * A restrição que manda no desenho é 264px: tudo aqui cabe na sidebar, sem modal
- * e sem formulário que exija digitar comando. As classes vêm do protótipo com o
+ * Nasceu como o painel do rodapé da sidebar (264px). O painel saiu na `039`: o
+ * login mora em `/settings` (`AccountLogin`, `ConnectAccountPanel`), que lê esta
+ * folha, e o rodapé guarda só as credenciais (`foot-head`, `foot-row`). As classes vêm do protótipo com o
  * mesmo nome; `agent-login-css.test.ts` reprova nas duas direções.
  *
  * O que este arquivo **não** traz, de propósito: `.sbframe`/`.stepcap`/`.flowgrid`,
@@ -51,7 +52,6 @@
 }
 .foot-row--on .foot-row__st { color: var(--color-daemon-online); }
 .foot-row--off .foot-row__st { color: var(--color-text-tertiary); }
-.foot-row--err .foot-row__st { color: var(--color-text-danger); }
 .pip {
   flex: none;
   width: var(--space-6);
@@ -156,33 +156,6 @@
 .prep__r--done .prep__m { color: var(--color-plan-done); }
 .prep__r--now { color: var(--color-text-primary); }
 .prep__r--now .prep__m { color: var(--color-tool-running); }
-.prep__r--wait { color: var(--color-text-disabled); }
-.prep__r--wait .prep__m { color: var(--color-tool-pending); }
-
-/* ------------------------------------------------------ conta conectada */
-.acct {
-  display: grid;
-  gap: var(--space-6);
-  padding: var(--space-8) var(--space-10);
-  background: var(--color-bg-inset);
-  border-radius: var(--radius-md);
-}
-.acct__r { display: flex; align-items: baseline; gap: var(--space-8); min-width: 0; }
-.acct__k {
-  flex: none;
-  width: calc(var(--space-48) + var(--space-4));
-  font: var(--text-label-xs);
-  letter-spacing: var(--tracking-label-xs);
-  text-transform: uppercase;
-  color: var(--color-text-tertiary);
-}
-.acct__v {
-  min-width: 0;
-  font: var(--text-mono-sm);
-  color: var(--color-text-code);
-  overflow-wrap: anywhere;
-}
-.acct__v b { color: var(--color-text-primary); font-weight: 500; }
 
 /* ------------------------------------- o cabeçalho da lista de agentes */
 /*
@@ -213,44 +186,14 @@
   color: var(--color-text-tertiary);
 }
 
-/* Nenhum agente: uma linha que relata, e não um segundo botão para a mesma ação. */
-.foot-empty {
-  padding: var(--space-4) var(--space-8) var(--space-6);
-  font: var(--text-caption);
-  color: var(--color-text-tertiary);
-}
-
-/* -------------------------------- os estados que faltavam numa linha */
+/* ------------------------------------------- o ponto diz o estado */
 /*
- * Âmbar: instalado, e ainda não utilizável.
- *
- * O `--off` cinza é "não existe" e o `--err` vermelho é "quebrou". Um adaptador
- * instalado sem credencial não é nenhum dos dois — é uma pendência com saída, e a
- * saída é clicar na linha. Mesma leitura de três estados da barra da PR.
- */
-.foot-row--warn .foot-row__st { color: var(--color-text-warning); }
-
-/*
- * O ponto passa a dizer o estado — ele nascia cinza nos três.
- *
  * `background: currentColor` pega a cor da LINHA (`text/secondary`), e não a do
- * estado, que vive no `.foot-row__st`. Com uma linha isso passava: a palavra ao
- * lado dizia tudo e o ponto era enfeite. Com duas, o ponto é o que o olho varre
- * primeiro, e um enfeite na posição de um sinal é pior que sinal nenhum.
- *
- * Os três pares entraram na lista de contraste no mesmo commit — verde 9,85:1,
- * âmbar 9,10:1, vermelho 8,76:1 sobre o painel —, e nenhum deles estava lá antes,
- * nem o verde que já era pintado aqui.
+ * estado, que vive no `.foot-row__st`: o ponto de uma credencial guardada tem a
+ * cor própria, e o da ausente fica no cinza da linha. O par verde (9,85:1 sobre o
+ * painel) está na lista de contraste.
  */
 .foot-row--on .pip { background: var(--color-daemon-online); }
-.foot-row--warn .pip { background: var(--color-text-warning); }
-.foot-row--err .pip { background: var(--color-text-danger); }
-
-/* A linha que abriu o painel fica marcada enquanto ele está aberto. */
-.foot-row.is-open {
-  background: var(--color-bg-active);
-  color: var(--color-text-primary);
-}
 
 /* ------------------------------------------------ chave colada, nunca digitada */
 .key-in { display: flex; align-items: center; gap: var(--space-6); }

@@ -1,14 +1,17 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { ADAPTERS, type AdapterCatalogView, type AdapterSpec } from "@lumem/shared";
 
 import {
+  AgentConfigDialog,
   useAdapterCatalog,
   useAdoptMachineLogin,
   useAgentAccounts,
   useSetupAgentsReport,
   type AgentAccountView,
 } from "../agent/index.js";
+import { agentAnchor } from "../../lib/navigation.js";
+import { useRouteHash } from "../../lib/route.js";
 import { Button } from "../../ui/index.js";
 import { AccountLogin } from "./AccountLogin.js";
 import { AccountRow } from "./AccountRow.js";
@@ -28,8 +31,9 @@ const NO_CATALOG: readonly AdapterCatalogView[] = [];
  * Embaixo dela, uma sub-linha por conta. Com uma conta só, a seção é a de antes
  * mais uma linha — que é o que o §6 promete a quem não tem duas.
  *
- * O login saiu do rodapé para cá (a Q6 da `030-settings`); o rodapé fica até a
- * LUM-57, falando da conta padrão.
+ * O login saiu do rodapé para cá (a Q6 da `030-settings`), e o rodapé acabou com
+ * o agente na `039` (LUM-57): `agent_config` é da máquina, e esta tela diz isso.
+ * O `entrar ↓` da pílula abre aqui, em `#agent-<adaptador>`.
  */
 export function AccountsSection({
   defaultConnecting,
@@ -44,6 +48,7 @@ export function AccountsSection({
   const agents = useSetupAgentsReport();
   const accounts = useAgentAccounts().data ?? NO_ACCOUNTS;
   const catalog = useAdapterCatalog(null).data ?? NO_CATALOG;
+  const [other, setOther] = useState(false);
 
   return (
     <SettingSection
@@ -51,8 +56,8 @@ export function AccountsSection({
       description={
         <>
           O adaptador é a cópia que o daemon instalou, e o <code>PATH</code> não decide. Cada agente pode
-          ter mais de uma conta, e cada uma vale para <b>todo workspace desta máquina</b>. A conversa nova
-          nasce na conta <b>padrão</b> — é dela que o rodapé da coluna fala.
+          ter mais de uma conta, e a configuração de agente é <b>da máquina</b>: vale para todo workspace,
+          não para este. A conversa nova nasce na conta <b>padrão</b>.
         </>
       }
     >
@@ -69,8 +74,50 @@ export function AccountsSection({
           />
         ))}
       </div>
+
+      {/*
+        A gaveta de quem o catálogo não cobre: um adaptador ACP que o daemon nem
+        instala nem sabe nomear. Era o único caminho que só o rodapé tinha; sem
+        ela, quem usa um ACP de fora perderia a porta. A versão do adaptador é
+        obrigatória aqui como em qualquer configuração (A12, `027`).
+      */}
+      {other ? (
+        <div className="set__other" role="group" aria-label="outro agente ACP">
+          <span className="set__lbl">Outro agente ACP</span>
+          <AgentConfigDialog onClose={() => setOther(false)} />
+        </div>
+      ) : (
+        <button type="button" className="set__add focus-ring" onClick={() => setOther(true)}>
+          ＋ outro agente ACP…
+        </button>
+      )}
     </SettingSection>
   );
+}
+
+/**
+ * O destino do `entrar ↓` (`039`): `/settings#agent-<adaptador>` rola até o grupo
+ * daquele agente e põe o foco na primeira linha dele.
+ *
+ * O foco vai na **linha** e não no grupo: o grupo é `display: contents`, sem caixa
+ * própria, e o Chromium não foca — nem rola — um elemento sem caixa. A linha ganha
+ * `tabIndex={-1}`: alvo de foco por código, fora da ordem do Tab. Depende do
+ * fragmento, e não só da montagem, porque o `entrar ↓` também pode vir com
+ * `/settings` já aberta — e então só o fragmento muda, ou nem ele, se o pedido for
+ * para o mesmo agente de novo (`request` conta os pedidos).
+ */
+function useAnchoredSection(anchor: string) {
+  const [node, setNode] = useState<HTMLElement | null>(null);
+  const { hash, request } = useRouteHash();
+  useEffect(() => {
+    if (node === null || hash !== `#${anchor}`) return;
+    const row = node.firstElementChild;
+    if (!(row instanceof HTMLElement)) return;
+    row.tabIndex = -1;
+    row.focus({ preventScroll: true });
+    row.scrollIntoView?.({ block: "start" });
+  }, [node, anchor, hash, request]);
+  return [setNode] as const;
 }
 
 function AgentAccounts({
@@ -90,6 +137,8 @@ function AgentAccounts({
 }) {
   const [loginFor, setLoginFor] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(defaultConnecting);
+  const anchor = agentAnchor(spec.id);
+  const [section] = useAnchoredSection(anchor);
   const loginAccount = accounts.find((account) => account.id === loginFor) ?? null;
 
   /*
@@ -99,7 +148,13 @@ function AgentAccounts({
    * agente dela.
    */
   return (
-    <div className="set__agent" role="group" aria-label={`agente ${spec.label}`}>
+    <div
+      className="set__agent"
+      role="group"
+      aria-label={`agente ${spec.label}`}
+      id={anchor}
+      ref={section}
+    >
       <SettingRow
         label={spec.label}
         description={

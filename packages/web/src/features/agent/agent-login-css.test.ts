@@ -26,10 +26,6 @@ const stylesheet = readFileSync(join(HERE, "agent-login.css"), "utf8");
  * `fail` entre outras.
  */
 const component = [
-  readFileSync(join(HERE, "AgentLogin.tsx"), "utf8"),
-  readFileSync(join(HERE, "AgentRow.tsx"), "utf8"),
-  readFileSync(join(HERE, "ConnectPanel.tsx"), "utf8"),
-  readFileSync(join(HERE, "AgentPanel.tsx"), "utf8"),
   readFileSync(join(HERE, "LoginOptions.tsx"), "utf8"),
   readFileSync(join(HERE, "Credentials.tsx"), "utf8"),
 ].join("\n");
@@ -61,14 +57,8 @@ function requested(source: string): Set<string> {
 const INTERPOLATED = [
   "foot-row--on",
   "foot-row--off",
-  "foot-row--warn",
-  "foot-row--err",
-  // A marca da linha que abriu o painel entra por interpolação, no mesmo
-  // `className` do estado (`second-agent`, T12).
-  "is-open",
   "prep__r--done",
   "prep__r--now",
-  "prep__r--wait",
   /*
    * O par da opção de login sai de um ternário, não de um template.
    *
@@ -100,6 +90,9 @@ const BORROWED = new Set([
   "glyph",
   "btn",
   "act",
+  // O painel `setup` é pintado aqui e desenhado por `AccountLogin` e
+  // `ConnectAccountPanel`, em `/settings` (`039`): o markup que o pede saiu desta pasta.
+  "setup",
   // The custom-adapter drawer is the old dialog, with its own rules in sidebar.css.
   "agents",
   // O campo de texto é o `Input` do design system, e ele pinta o `.input`. O que

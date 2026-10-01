@@ -21,10 +21,10 @@ import { E2E_SERVER_PORT } from "../ports.js";
  * So this one touches the API for nothing. Workspace, project, agent, session: all of
  * it through the screen.
  *
- * The way in changed with the login panel: the footer's action is now "conectar um
- * agente", and this five-field form is the drawer behind "outro agente ACP…" — the
- * one path that still needs it, for an adapter the daemon neither installs nor can
- * name. Which is exactly what this spec's agent is.
+ * The way in is `/settings` (`039`): the footer lost the agent, and this five-field
+ * form is the drawer behind "outro agente ACP…" — the one path that still needs it,
+ * for an adapter the daemon neither installs nor can name. Which is exactly what this
+ * spec's agent is.
  */
 
 const AGENT = "acp-pela-tela";
@@ -36,7 +36,7 @@ function conversation(page: Page) {
 }
 
 /**
- * The agents panel in the sidebar footer.
+ * The "outro agente ACP" drawer in the settings screen.
  *
  * Everything about the panel is scoped through it: its submit button says
  * "adicionar", the tree heading's action says "adicionar projeto", and an unscoped
@@ -53,8 +53,8 @@ test("creates the ACP agent from the screen, then talks to it", async ({ page })
   await ensureProject(page, E2E_FIXTURE_REPO_ACP, "repo-acp");
   await openProject(page, "repo-acp");
 
-  // The agent, from the sidebar footer. This is the whole point of the spec.
-  await page.getByRole("button", { name: /conectar um agente|^claude/ }).first().click();
+  // The agent, from the settings screen. This is the whole point of the spec.
+  await page.getByRole("button", { name: /^Configurações/ }).click();
   await page.getByRole("button", { name: /outro agente ACP/ }).click();
   await agents(page).getByLabel("Nome").fill(AGENT);
   await agents(page).getByLabel("Comando").fill(process.execPath);

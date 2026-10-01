@@ -3,7 +3,7 @@ import { useState } from "react";
 import type { AdapterCatalogView } from "@lumem/shared";
 
 import type { AgentAccountView } from "../agent/index.js";
-import { arrive } from "../../lib/navigation.js";
+import { arrive, openAgentSettings } from "../../lib/navigation.js";
 import { useSessionMutations, type Scope } from "../checkout/index.js";
 import { Banner, Button, Glyph } from "../../ui/index.js";
 import type { AgentModelChoice } from "./agent-model.js";
@@ -216,6 +216,8 @@ export function DraftAgentTab({
         onSend={send}
         opening={createAgent.isPending}
         error={createAgent.error?.message ?? null}
+        // O `entrar ↓` da pílula (F3.4 da `033`): a conta mora em `/settings` (`039`).
+        onLogin={openAgentSettings}
       />
     </div>
   );

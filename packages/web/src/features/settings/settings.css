@@ -406,3 +406,13 @@
 .set__inherit code { font: var(--text-mono-sm); color: var(--color-text-code); }
 .set__inherit b { font-weight: 500; color: var(--color-text-secondary); }
 .set__terms { color: var(--color-text-warning); }
+
+/* A gaveta do ACP de fora do catálogo: o formulário da `agents`, solto na seção. */
+.set__other {
+  display: grid;
+  gap: var(--space-6);
+  margin-left: var(--space-24);
+  padding: var(--space-12) var(--space-10);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}

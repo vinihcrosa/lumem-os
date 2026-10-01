@@ -2,7 +2,7 @@ import { LoginOptions, useAccountProbe, useReprobeAgents, type AgentAccountView 
 import { Button } from "../../ui/index.js";
 
 /**
- * Entrar numa conta — o login do rodapé, apontado para **esta** conta.
+ * Entrar numa conta — o login da `009`, apontado para **esta** conta.
  *
  * Não é um segundo fluxo: é o `LoginOptions` da `009`, com a conta como alvo. O
  * daemon abre o terminal do login com a variável da conta, e é no diretório

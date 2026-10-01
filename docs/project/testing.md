@@ -1988,3 +1988,15 @@ Reproduzido num `node:22` em Docker (aarch64), com o node-pty 1.1.0 puro, 4 leit
 O C60 da [038](../features/038-desktop-and-updates/checks.md) terminava pedindo que o painel da barra mostrasse *"nenhuma sessão rodando"* depois de o turno dele acabar. Numa suíte de um daemon só, a asserção era sobre **o daemon**, e não sobre o turno: lida no começo do spec, `system.live` listava **nove** turnos deixados pelos specs anteriores (onboarding, `agente-pela-tela`, `conversa-largura`, `teto-*`…). A lista nunca esvazia, e o teste só passava quando a suíte rodava sozinha. O reteste ainda falhou mais cedo, por outro motivo da mesma família: a worktree fixa `painel-barra` já existia, deixada pela tentativa que falhou.
 
 **A regra:** num e2e de daemon compartilhado, **afirme sobre o que o teste criou** — o rótulo dele some da lista (`toHaveCount(0)`), e não a lista esvazia — e dê **um nome por tentativa** (`Date.now().toString(36)`, a convenção dos outros specs) a tudo que ele cria. E encerre o que abriu pelo daemon (`session.close`, o gesto do `Fechar` da aba), sem esperar que o fake acabe o turno sozinho.
+
+### Foco em um grupo `display: contents` passa no jsdom e não acontece no Chromium
+
+O C9 da [039](../features/039-agents-in-settings/checks.md) pedia que `/settings#agent-codex` pusesse o foco no grupo do agente. O grupo é `display: contents` — sem caixa própria, para a grade da seção não mudar —, e o jsdom, que não tem layout, aceitou o `focus()`: o teste de componente ficou verde. No Chromium um elemento sem caixa **não é focável nem rolável**, e o foco ficou no `body`; quem achou foi o verificador, rodando o app.
+
+**A regra:** foco e rolagem vão num elemento **com caixa** (aqui, a primeira linha do grupo, com `tabIndex={-1}`), e a prova de que o foco chegou é um e2e que pergunta `toBeFocused()` — o jsdom não tem como ver esta classe de defeito.
+
+### Locator sem âncora casa com o grupo que já está na tela, e o e2e passa sem fazer o que diz
+
+O e2e da 039 que conecta o Codex em `/settings` esperava `getByRole("group", { name: /conta/ })`. O grupo *"nenhuma conta do Codex"* — o estado de **antes** do clique — também contém "conta", então a asserção ficava verde sem clique nenhum; e um `if (await botão.isVisible())` sem espera ainda deixava o clique não acontecer.
+
+**A regra:** o locator de um **depois** é ancorado no que só o depois tem (`/^conta /`), e quando o teste ramifica por um estado que chega assíncrono, espera primeiro por *qualquer um dos dois* (`botão.or(linha)`) e só então decide.
