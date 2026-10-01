@@ -148,7 +148,13 @@ test("conecta o segundo agente em /settings, ao lado do primeiro", async ({ page
   const connect = codex.getByRole("button", { name: "conectar Codex" });
   const account = codex.getByRole("group", { name: /^conta / });
   await expect(connect.or(account.first())).toBeVisible({ timeout: 30_000 });
-  if (await connect.isVisible()) await connect.click();
+  /*
+   * O clique é o caminho, mas não a prova: numa suíte que divide um daemon, a conta
+   * `principal` do Codex pode aparecer por outra via entre o `isVisible` e o clique
+   * (foi o que o CI mostrou), e o botão desanexa. Nesse caso não há o que clicar, e a
+   * asserção abaixo — a conta na tela — continua sendo o que decide.
+   */
+  if (await connect.isVisible()) await connect.click({ timeout: 5_000 }).catch(() => undefined);
 
   await expect(account.first()).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole("group", { name: "agente Claude Code" })).toBeVisible();
