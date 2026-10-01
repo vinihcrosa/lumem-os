@@ -124,6 +124,21 @@ export function useRoute(): Route {
   return useSyncExternalStore(subscribe, currentRoute, currentRoute);
 }
 
+/**
+ * O fragmento do endereço, com o `#` (`039`): `/settings#agent-codex`.
+ *
+ * Lido pelo mesmo `subscribe` da rota, porque `navigate` com `hash` empilha uma
+ * entrada e dispara `ROUTE_EVENT` — e é isso que faz `entrar ↓` agir também
+ * quando `/settings` já está na tela, onde o caminho não muda e só o fragmento.
+ */
+export function useRouteHash(): string {
+  return useSyncExternalStore(subscribe, currentHash, currentHash);
+}
+
+function currentHash(): string {
+  return window.location.hash;
+}
+
 function currentRoute(): Route {
   return routeOf(window.location.pathname);
 }

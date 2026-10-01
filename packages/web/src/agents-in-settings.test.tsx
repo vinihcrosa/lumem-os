@@ -1,11 +1,11 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App.js";
 import { DraftAgentTab } from "./features/conversation/index.js";
 import { NewWorktreeComposerModal } from "./features/workspace/index.js";
-import { clear as clearSelection, select as selectScope, useNavigation } from "./lib/navigation.js";
+import { clear as clearSelection, openAgentSettings, select as selectScope, useNavigation } from "./lib/navigation.js";
 import { CLAUDE_VIEW, CODEX_NO_LOGIN_VIEW } from "./test/adapter-catalog-fixtures.js";
 import { renderWithProviders } from "./test/render.js";
 import { installTrpcDefaults, NO_HOST_ORIGINS, trpcMock as trpc } from "./test/trpc-mock.js";
@@ -121,9 +121,25 @@ describe("a tela de configurações", () => {
 
     const codex = await screen.findByRole("group", { name: /agente Codex/ });
 
-    await waitFor(() => expect(codex).toHaveFocus());
+    // O grupo é `display: contents`: quem recebe foco e rolagem é a linha dele.
+    await waitFor(() => expect(codex.firstElementChild).toHaveFocus());
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
     expect(scrollIntoView.mock.contexts[0]).toBe(codex.firstElementChild);
+  });
+
+  it("the hash scrolls when settings is already open", async () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    window.history.replaceState(null, "", "/settings");
+    renderWithProviders(<App />);
+    await screen.findByRole("group", { name: /agente Codex/ });
+    expect(scrollIntoView).not.toHaveBeenCalled();
+
+    act(() => openAgentSettings("codex"));
+
+    const codex = screen.getByRole("group", { name: /agente Codex/ });
+    await waitFor(() => expect(codex.firstElementChild).toHaveFocus());
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
   });
 
   it("without a hash nothing is scrolled or focused", async () => {
@@ -135,7 +151,7 @@ describe("a tela de configurações", () => {
     await screen.findByRole("group", { name: /agente Codex/ });
 
     expect(scrollIntoView).not.toHaveBeenCalled();
-    expect(screen.getByRole("group", { name: /agente Codex/ })).not.toHaveFocus();
+    expect(screen.getByRole("group", { name: /agente Codex/ }).firstElementChild).not.toHaveFocus();
   });
 });
 

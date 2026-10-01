@@ -57,11 +57,6 @@ function requested(source: string): Set<string> {
 const INTERPOLATED = [
   "foot-row--on",
   "foot-row--off",
-  "foot-row--warn",
-  "foot-row--err",
-  // A marca da linha que abriu o painel entra por interpolação, no mesmo
-  // `className` do estado (`second-agent`, T12).
-  "is-open",
   "prep__r--done",
   "prep__r--now",
   "prep__r--wait",
@@ -96,8 +91,8 @@ const BORROWED = new Set([
   "glyph",
   "btn",
   "act",
-  // O painel `setup` é pedido por `AccountLogin` e `ConnectAccountPanel`, em
-  // `/settings` (`039`): a folha é desta pasta, o markup que a lê saiu dela.
+  // O painel `setup` é pintado aqui e desenhado por `AccountLogin` e
+  // `ConnectAccountPanel`, em `/settings` (`039`): o markup que o pede saiu desta pasta.
   "setup",
   // The custom-adapter drawer is the old dialog, with its own rules in sidebar.css.
   "agents",

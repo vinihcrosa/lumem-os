@@ -11,6 +11,7 @@ import {
   type AgentAccountView,
 } from "../agent/index.js";
 import { agentAnchor } from "../../lib/navigation.js";
+import { useRouteHash } from "../../lib/route.js";
 import { Button } from "../../ui/index.js";
 import { AccountLogin } from "./AccountLogin.js";
 import { AccountRow } from "./AccountRow.js";
@@ -96,22 +97,26 @@ export function AccountsSection({
 
 /**
  * O destino do `entrar ↓` (`039`): `/settings#agent-<adaptador>` rola até o grupo
- * daquele agente e põe o foco nele.
+ * daquele agente e põe o foco na primeira linha dele.
  *
- * `display: contents` faz o grupo não ter caixa própria, então `scrollIntoView`
- * nele não rola nada; o alvo é a primeira linha do grupo. O foco fica no grupo —
- * que existe para a árvore de acessibilidade — e o leitor de tela lê `agente
- * Claude Code`.
+ * O foco vai na **linha** e não no grupo: o grupo é `display: contents`, sem caixa
+ * própria, e o Chromium não foca — nem rola — um elemento sem caixa. A linha ganha
+ * `tabIndex={-1}`: alvo de foco por código, fora da ordem do Tab. Depende do
+ * fragmento, e não só da montagem, porque o `entrar ↓` também pode vir com
+ * `/settings` já aberta, e então só o fragmento muda.
  */
 function useAnchoredSection(anchor: string) {
   const [node, setNode] = useState<HTMLElement | null>(null);
+  const hash = useRouteHash();
   useEffect(() => {
-    if (node === null || window.location.hash !== `#${anchor}`) return;
-    node.focus({ preventScroll: true });
-    // Sem caixa própria (`display: contents`), a primeira linha é quem rola.
-    (node.firstElementChild ?? node).scrollIntoView?.({ block: "start" });
-  }, [node, anchor]);
-  return [setNode, node] as const;
+    if (node === null || hash !== `#${anchor}`) return;
+    const row = node.firstElementChild;
+    if (!(row instanceof HTMLElement)) return;
+    row.tabIndex = -1;
+    row.focus({ preventScroll: true });
+    row.scrollIntoView?.({ block: "start" });
+  }, [node, anchor, hash]);
+  return [setNode] as const;
 }
 
 function AgentAccounts({
@@ -147,7 +152,6 @@ function AgentAccounts({
       role="group"
       aria-label={`agente ${spec.label}`}
       id={anchor}
-      tabIndex={-1}
       ref={section}
     >
       <SettingRow

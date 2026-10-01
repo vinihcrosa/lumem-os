@@ -28,7 +28,7 @@ export function LoginOptions({
   methods,
   onDone,
 }: {
-  /** Uma configuração (o rodapé) ou uma conta (`/settings`, `034`). */
+  /** A conta em que o login entra (`/settings`, `034`). */
   target: LoginTarget;
   methods: readonly AuthMethodView[];
   onDone: () => void;

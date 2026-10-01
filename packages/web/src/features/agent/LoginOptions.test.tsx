@@ -44,7 +44,7 @@ beforeEach(() => {
 async function openAgent() {
   const user = userEvent.setup();
   renderWithProviders(
-    <LoginOptions target={{ command: "claude-agent-acp", args: [] }} methods={methods} onDone={() => undefined} />,
+    <LoginOptions target={{ adapterId: "claude", accountId: "acc1" }} methods={methods} onDone={() => undefined} />,
   );
   return user;
 }

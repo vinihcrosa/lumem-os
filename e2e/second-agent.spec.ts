@@ -143,10 +143,14 @@ test("conecta o segundo agente em /settings, ao lado do primeiro", async ({ page
 
   // Specs share one daemon. On a full run the adapter may already have been
   // connected by onboarding; then there is an account row instead of the button.
+  // `^conta `, ancorado: o grupo "nenhuma conta do Codex" também contém "conta" e
+  // já está na tela antes de qualquer clique.
   const connect = codex.getByRole("button", { name: "conectar Codex" });
-  if (await connect.isVisible().catch(() => false)) await connect.click();
+  const account = codex.getByRole("group", { name: /^conta / });
+  await expect(connect.or(account.first())).toBeVisible({ timeout: 30_000 });
+  if (await connect.isVisible()) await connect.click();
 
-  await expect(codex.getByRole("group", { name: /conta/ }).first()).toBeVisible({ timeout: 30_000 });
+  await expect(account.first()).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole("group", { name: "agente Claude Code" })).toBeVisible();
 });
 

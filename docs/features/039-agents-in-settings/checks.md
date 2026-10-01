@@ -53,10 +53,13 @@ Proof: `pnpm --filter @lumem/web exec vitest run src/agents-in-settings.test.tsx
 **C8** - No modal de nova worktree, o mesmo `entrar ↓` leva a `/settings#agent-<adapterId>` e fecha o modal
 Proof: `pnpm --filter @lumem/web exec vitest run src/agents-in-settings.test.tsx -t "entrar from the new-worktree composer opens settings and closes it"`
 
-**C9** - Abrir `/settings#agent-<adapterId>` rola até o grupo `agente <label>` e põe o foco nele; sem hash, nada é rolado
+**C9** - Abrir `/settings#agent-<adapterId>` rola até a primeira linha do grupo `agente <label>` e põe o foco nela — também quando `/settings` já está aberta e só o fragmento muda; sem hash, nada é rolado nem focado. (O grupo é `display: contents`, sem caixa: o foco vai na linha.)
 Proof: `pnpm --filter @lumem/web exec vitest run src/agents-in-settings.test.tsx -t "the hash scrolls to that agent's section"`
+Proof: `pnpm --filter @lumem/web exec vitest run src/agents-in-settings.test.tsx -t "the hash scrolls when settings is already open"`
+Proof: `pnpm --filter @lumem/web exec vitest run src/agents-in-settings.test.tsx -t "without a hash nothing is scrolled or focused"`
+Proof: `pnpm exec playwright test e2e/settings.spec.ts -g "põe o foco na linha daquele agente"`
 
-**C10** - De ponta a ponta: cadastrar um ACP de fora do catálogo em `/settings` e conversar com ele
+**C10** - De ponta a ponta, num navegador: cadastrar um ACP de fora do catálogo em `/settings` e conversar com ele; e conectar o Codex em `/settings`, que ganha uma linha `conta …` ao lado do grupo do Claude Code
 Proof: `pnpm exec playwright test e2e/second-agent.spec.ts -g "conecta o segundo agente em /settings"`
 Proof: `pnpm exec playwright test e2e/acp-agent-config.spec.ts -g "creates the ACP agent from the screen, then talks to it"`
 

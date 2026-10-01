@@ -108,7 +108,7 @@ export function useInstallAdapter() {
 }
 
 /** Uma entrada do relatório de pré-voo, do jeito que a tela a lê. */
-export interface AdapterEntry {
+interface AdapterEntry {
   id: string;
   label: string;
   adapter: { path: string | null; version: string | null };
@@ -116,7 +116,7 @@ export interface AdapterEntry {
   apiKeyEnv: string | null;
 }
 
-export function entryOf(
+function entryOf(
   report: { adapters: readonly AdapterEntry[] } | undefined,
   id: string | undefined,
 ): AdapterEntry | undefined {
@@ -230,20 +230,17 @@ export interface AgentAuthAttempt {
 }
 
 /**
- * Em quem o login entra: uma configuração (o comando e os argumentos dela, o
- * rodapé), ou **uma conta** de um agente do catálogo (`034`, `/settings`).
+ * Em quem o login entra: **uma conta** de um agente do catálogo (`034`,
+ * `/settings`). Era também uma configuração, pelo comando dela, quando o rodapé
+ * da sidebar tinha o login (`039`).
  *
  * A conta não leva comando: o daemon resolve a cópia gerenciada da spec e o
  * diretório da conta, e é nele que o login grava.
  */
-export type LoginTarget =
-  | { command: string; args: readonly string[] }
-  | { adapterId: string; accountId: string };
+export type LoginTarget = { adapterId: string; accountId: string };
 
 function loginInput(target: LoginTarget) {
-  return "command" in target
-    ? { command: target.command, args: [...target.args] }
-    : { adapterId: target.adapterId, accountId: target.accountId };
+  return { adapterId: target.adapterId, accountId: target.accountId };
 }
 
 export function useAgentLoginByCommand() {
