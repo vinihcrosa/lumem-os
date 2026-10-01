@@ -816,7 +816,7 @@ decisões desceram para os três ADRs de 2026-09-29.
 
 ---
 
-### [agents-in-settings/](features/039-agents-in-settings/) — os agentes saem da sidebar e moram em `/settings` · **em execução**
+### [agents-in-settings/](features/039-agents-in-settings/) — os agentes saem da sidebar e moram em `/settings` · **completa**
 
 O rodapé da sidebar perde o agente: conectar, reconectar e cadastrar um ACP de fora do catálogo
 acontecem em `/settings`, que diz que a configuração é da máquina, e o `entrar ↓` da pílula de agente e
@@ -826,6 +826,7 @@ modelo deixa de não levar a lugar nenhum. Da
 | Arquivo | O quê |
 |---|---|
 | [checks.md](features/039-agents-in-settings/checks.md) | mudança pequena, sem `prd.md`: **10 checks em três fatias**, perfil `light` — o rodapé sem agente, a gaveta *outro agente ACP* em `/settings`, e o `entrar ↓` que abre `/settings#agent-<adaptador>` |
+| [verification.md](features/039-agents-in-settings/verification.md) | o relatório do verificador independente — **PASS na segunda rodada**. A primeira reprovou duas coisas reais: o foco do hash não existia no Chromium (grupo `display: contents`; o jsdom deixou passar) e um e2e passava sem clicar em nada |
 
 ## Convenções
 

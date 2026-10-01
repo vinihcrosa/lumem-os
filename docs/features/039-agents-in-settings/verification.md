@@ -1,20 +1,24 @@
 # Os agentes saem da sidebar e moram em /settings — verification
 
-**Verdict**: FAIL
+**Verdict**: PASS
 **Profile**: light
-**Diff range**: 6b7add63..bb5aaf33
-**Round**: 1 - full (verified at bb5aaf33)
+**Diff range**: 6b7add63..4c297ecc
+**Round**: 2 - full (verified at 4c297ecc; a rodada 1, verificada em bb5aaf33, reprovou)
 **Verifier**: independent sub-agent (author != verifier)
 
-Nove dos dez checks estão provados no `HEAD`. O **C9 reprova**: a afirmação *"põe o foco nele"* é falsa
-num navegador de verdade. O grupo `agente <label>` tem `display: contents` (`settings.css:261`), e o
-Chromium ignora `focus()` num elemento sem caixa. O teste passa porque o jsdom não tem layout. Confirmei
-isso no próprio app: abri `/settings#agent-codex` num navegador e o `document.activeElement` continuou
-sendo o `BODY`.
+Os dez checks estão provados no `HEAD` (`4c297ecc`), cada um com a asserção localizada. Rodei de novo
+todas as provas, inclusive as três novas do C9, e não só as que a correção tocou.
 
-O C10 passa pela prova do `acp-agent-config`. A outra prova dele, o e2e `second-agent`, **passa sem
-testar nada**: a asserção dela já é satisfeita antes de qualquer clique, pelo grupo `nenhuma conta do
-Codex`. Confirmei isso com o mesmo tipo de sonda, fora da árvore.
+A rodada 1 reprovou por dois defeitos, e os dois estão corrigidos. Conferi cada um num navegador:
+
+- **O foco do hash** agora vai para a primeira linha do grupo (`AccountsSection.tsx:115-116`). Essa
+  linha tem caixa, ao contrário do grupo `display: contents`. Um e2e novo verifica o foco no Chromium
+  (`e2e/settings.spec.ts:77`). Para saber se ele pega o defeito antigo, uma sonda fora da árvore repetiu
+  o alvo da rodada 1 no app real (focar o grupo): o foco voltou ao `BODY` e a linha ficou sem foco. A
+  asserção nova, portanto, reprovaria o código antigo.
+- **O e2e do Codex** agora usa um nome com âncora (`/^conta /`). Antes de conectar, a sonda contou
+  `ANCHORED = 0` e `UNANCHORED = 1`: o nome com âncora não casa com o grupo `nenhuma conta do Codex`,
+  como acontecia na rodada 1.
 
 ## Binding sources
 
@@ -24,108 +28,63 @@ Codex`. Confirmei isso com o mesmo tipo de sonda, fora da árvore.
 
 ## Checks
 
-Verified at `bb5aaf33`. As provas vitest rodaram numa invocação só, com `--reporter=verbose` e `-t`
-com alternação dos nove nomes:
+Verified at `4c297ecc`. As provas vitest rodaram numa invocação só, com `--reporter=verbose` e `-t` com
+alternação dos onze nomes:
 
-`pnpm --filter @lumem/web exec vitest run src/agents-in-settings.test.tsx src/agent-config.test.tsx -t "<C1|C2|C4|C5a|C5b|C6|C7|C8|C9>"`
-→ `Test Files 2 passed (2)`, `Tests 9 passed | 11 skipped (20)`, exit 0. Cada nome aparece com `✓`.
+`pnpm --filter @lumem/web exec vitest run src/agents-in-settings.test.tsx src/agent-config.test.tsx -t "<C1|C2|C4|C5a|C5b|C6|C7|C8|C9a|C9b|C9c>"`
+→ `Test Files 2 passed (2)`, `Tests 11 passed | 10 skipped (21)`, exit 0. Cada nome aparece com `✓`.
 
-Os dois e2e rodaram numa invocação só:
+Os três e2e rodaram numa invocação só:
 
-`pnpm exec playwright test e2e/second-agent.spec.ts e2e/acp-agent-config.spec.ts -g "conecta o segundo agente em /settings|creates the ACP agent from the screen, then talks to it"`
-→ `2 passed (11.6s)`, exit 0. O `second-agent` levou 418 ms.
+`pnpm exec playwright test e2e/settings.spec.ts e2e/second-agent.spec.ts e2e/acp-agent-config.spec.ts -g "põe o foco na linha daquele agente|conecta o segundo agente em /settings|creates the ACP agent from the screen, then talks to it"`
+→ `3 passed (13.0s)`, exit 0. O spec do `second-agent` começou num estado limpo, clicou de fato em
+`conectar Codex` e levou 902 ms (418 ms na rodada 1, quando não clicava).
 
 O C3 rodou como está escrito: `git grep` saiu 1 (nenhuma ocorrência), então `!` dá 0.
 
-Os nomes foram localizados com `rg -n`. Em `agents-in-settings.test.tsx` (arquivo novo no diff):
-`:61`, `:76`, `:93`, `:106`, `:116`, `:129`, `:148`, `:174`. Em `agent-config.test.tsx` (mudou no
-diff, e a gaveta agora abre por `/settings`): `:75`, `:107`. Nos e2e (mudaram no diff):
-`acp-agent-config.spec.ts:50` e `second-agent.spec.ts:126`.
+Os nomes foram localizados com `rg -n`:
+- `agents-in-settings.test.tsx`: `:61`, `:76`, `:93`, `:106`, `:116`, `:130`, `:145`, `:164`, `:190`;
+- `agent-config.test.tsx`: `:75`, `:107`;
+- e2e: `settings.spec.ts:63`, `second-agent.spec.ts:126`, `acp-agent-config.spec.ts:50`.
+
+Todos nascem ou mudam no diff.
 
 | Check | Claim | Proof run | Evidence | Result |
 | --- | --- | --- | --- | --- |
 | C1 | rodapé sem `conectar um agente`, sem `Agentes`, sem `nenhum agente conectado`, com `agent_config` listada | vitest, `✓ the sidebar footer has no agent in it` | `packages/web/src/agents-in-settings.test.tsx:70-72` — `queryByRole("button", { name: /conectar um agente/ })).toBeNull()`, `queryByText("Agentes")).toBeNull()`, `queryByText(/nenhum agente conectado/)).toBeNull()`; `:65` — espera o `agentConfig.list` ter sido chamado | PASS |
 | C2 | o cabeçalho `Credenciais` segue no rodapé | vitest, `✓ the sidebar footer keeps the credentials` | `packages/web/src/agents-in-settings.test.tsx:88` — `expect(await within(foot).findByText("Credenciais")).toBeInTheDocument()` | PASS |
 | C3 | `AgentRow`, `ConnectPanel`, `AgentPanel`, `AgentLogin` não existem em `packages/web/src` | `! git grep -nE ...` → git grep exit 1, prova exit 0 | o próprio comando; os quatro arquivos aparecem como apagados em `git diff --stat 6b7add63..HEAD` | PASS |
-| C4 | `/settings` tem `outro agente ACP…`, e a gaveta tem Nome, Comando, Argumentos e Versão do adaptador | vitest, `✓ settings offers the other-ACP drawer` | `packages/web/src/agents-in-settings.test.tsx:101-102` — `for (const field of ["Nome", "Comando", "Argumentos (opcional)", "Versão do adaptador"]) expect(within(drawer).getByLabelText(field)).toBeInTheDocument()` | PASS |
+| C4 | `/settings` tem `outro agente ACP…`; a gaveta tem Nome, Comando, Argumentos e Versão do adaptador | vitest, `✓ settings offers the other-ACP drawer` | `packages/web/src/agents-in-settings.test.tsx:101-102` — `for (const field of ["Nome", "Comando", "Argumentos (opcional)", "Versão do adaptador"]) expect(within(drawer).getByLabelText(field)).toBeInTheDocument()` | PASS |
 | C5 | `agentConfig.create` com `{ name, command, args, adapterVersion }`; `adicionar` desabilitado sem versão | vitest, `✓ sends the pinned version…` e `✓ will not submit an ACP agent without a version` | `packages/web/src/agent-config.test.tsx:89-94` — `toHaveBeenCalledWith({ name: "claude-acp", command: "claude-agent-acp", args: [], adapterVersion: "0.40.0" })`; `:117` — `getByRole("button", { name: "adicionar" })).toBeDisabled()` | PASS |
 | C6 | a seção diz que é da máquina e não fala de *rodapé* | vitest, `✓ settings says the agent configuration is the machine's` | `packages/web/src/agents-in-settings.test.tsx:112` — `toHaveTextContent(/da máquina: vale para todo workspace, não para este/)`; `:113` — `not.toHaveTextContent(/rodapé/)` | PASS |
-| C7 | `entrar ↓` do rascunho leva a `/settings#agent-<id>` e tira a seleção | vitest, `✓ entrar from the draft pill opens settings at that agent` | `packages/web/src/agents-in-settings.test.tsx:169-171` — `window.location.pathname).toBe("/settings")`, `window.location.hash).toBe("#agent-codex")`, `getByTestId("selection")).toHaveTextContent("none")`, depois de `:164` ler `wt1` | PASS |
-| C8 | o mesmo no modal de nova worktree, e o modal fecha | vitest, `✓ entrar from the new-worktree composer opens settings and closes it` | `packages/web/src/agents-in-settings.test.tsx:207-209` — `pathname).toBe("/settings")`, `hash).toBe("#agent-codex")`, `onClose).toHaveBeenCalledTimes(1)` | PASS |
-| C9 | `/settings#agent-<id>` rola até o grupo e **põe o foco nele**; sem hash, nada é rolado | vitest, `✓ the hash scrolls to that agent's section` (jsdom) | `packages/web/src/agents-in-settings.test.tsx:124` — `await waitFor(() => expect(codex).toHaveFocus())`. É verde no jsdom e falso no Chromium: `packages/web/src/features/settings/settings.css:261` — `.set__agent { display: contents; }`, e `AccountsSection.tsx:110` — `node.focus({ preventScroll: true })` não faz nada. Uma sonda no app real, fora da árvore, abriu `/settings#agent-codex` e leu `{"active":"BODY","display":"contents","hash":"#agent-codex"}`. Além disso, a `Proof:` não roda a metade *sem hash*: `-t "the hash scrolls…"` não casa com `without a hash nothing is scrolled or focused` (`:129`, que eu rodei à parte: `1 passed`) | FAIL |
-| C10 | cadastrar um ACP de fora do catálogo em `/settings` e conversar com ele | playwright, `✓ creates the ACP agent from the screen, then talks to it` e `✓ conecta o segundo agente em /settings` | `e2e/acp-agent-config.spec.ts:73` — `await expect(row).toContainText("0.0.0-fake")`; `:86` — `await expect(conversation(page)).toContainText("Vou separar", …)`. A segunda prova, `e2e/second-agent.spec.ts:149`, não testa nada (achado 2): a afirmação fica provada só pela primeira | PASS |
+| C7 | `entrar ↓` do rascunho leva a `/settings#agent-<id>` e tira a seleção | vitest, `✓ entrar from the draft pill opens settings at that agent` | `packages/web/src/agents-in-settings.test.tsx:185-187` — `window.location.pathname).toBe("/settings")`, `window.location.hash).toBe("#agent-codex")`, `getByTestId("selection")).toHaveTextContent("none")`, depois de `:180` ler `wt1` | PASS |
+| C8 | o mesmo no modal de nova worktree, e o modal fecha | vitest, `✓ entrar from the new-worktree composer opens settings and closes it` | `packages/web/src/agents-in-settings.test.tsx:223-225` — `pathname).toBe("/settings")`, `hash).toBe("#agent-codex")`, `onClose).toHaveBeenCalledTimes(1)` | PASS |
+| C9 | hash rola até a primeira linha do grupo e põe o foco nela, também com `/settings` já aberta; sem hash, nada é rolado nem focado | vitest, `✓ the hash scrolls to that agent's section`, `✓ the hash scrolls when settings is already open`, `✓ without a hash nothing is scrolled or focused`; playwright, `✓ /settings#agent-<adaptador> põe o foco na linha daquele agente` | `e2e/settings.spec.ts:77` — `await expect(linha).toBeFocused()`, com `linha = page.locator("#agent-codex > .set__row").first()` (`:75`), no Chromium; `packages/web/src/agents-in-settings.test.tsx:125-126` — `expect(codex.firstElementChild).toHaveFocus()`, `scrollIntoView).toHaveBeenCalledTimes(1)`; `:136` → `:138` `act(() => openAgentSettings("codex"))` → `:141-142` o mesmo par, com a tela já montada; `:153-154` — `scrollIntoView).not.toHaveBeenCalled()`, `firstElementChild).not.toHaveFocus()` | PASS |
+| C10 | ACP de fora do catálogo cadastrado em `/settings` e conversando; Codex conectado em `/settings` ganha uma linha `conta …` ao lado do Claude Code | playwright, `✓ creates the ACP agent from the screen, then talks to it` e `✓ conecta o segundo agente em /settings, ao lado do primeiro` | `e2e/acp-agent-config.spec.ts:73` — `await expect(row).toContainText("0.0.0-fake")`; `:86` — `toContainText("Vou separar", …)`; `e2e/second-agent.spec.ts:149` — `account = codex.getByRole("group", { name: /^conta / })`, `:150` — `expect(connect.or(account.first())).toBeVisible(…)` antes de decidir pelo clique, `:153` — `expect(account.first()).toBeVisible(…)`, `:154` — `getByRole("group", { name: "agente Claude Code" })).toBeVisible()` | PASS |
 
-## Achados
+## Achados da rodada 1, reabertos
 
-Classificação: **blocker / warning / nit**. Os achados 1 e 2 foram confirmados num navegador.
+| # | Achado (rodada 1) | Estado em `4c297ecc` | Evidência |
+| --- | --- | --- | --- |
+| 1 | foco num grupo `display: contents` não acontece no Chromium | resolvido | `AccountsSection.tsx:113-117` — `row = node.firstElementChild`, `row.tabIndex = -1`, `row.focus(…)`, `row.scrollIntoView(…)`; o `tabIndex` saiu do grupo; e2e `settings.spec.ts:77` verde. A sonda mostrou que focar o grupo (o alvo antigo) deixa `BODY` ativo e a linha sem foco |
+| 2 | e2e `second-agent` passava sem testar nada | resolvido | nome com âncora `/^conta /` (`:149`) e espera por `connect.or(account)` (`:150`) em vez de `isVisible()` sem espera. Sonda antes do clique: `ANCHORED = 0`, `UNANCHORED = 1` |
+| 3 | hash não agia com `/settings` já aberta | resolvido | `useRouteHash` (`lib/route.ts:134`) entra nas dependências do efeito (`AccountsSection.tsx:110`, `:118`); vitest `:130` e uma sonda no Chromium (`pushState` + `popstate` com a tela aberta) deixaram a linha do Claude com foco |
+| 4 | variante `{ command, args }` de `LoginTarget` sem chamador | resolvido | `queries.ts:240` — `export type LoginTarget = { adapterId: string; accountId: string }`; `LoginOptions.test.tsx:47` passa a usar o alvo de conta; `entryOf` e `AdapterEntry` deixaram de ser exportados |
+| 5 | CSS morto mantido vivo pelo `INTERPOLATED` | parcial (nit) | saíram `foot-row--err`, `foot-row--warn` e `.foot-row.is-open`. Continua `prep__r--wait`, em `agent-login.css:159-160` e `agent-login-css.test.ts:62`, sem markup que o gere (o `LoginOptions` só usa `done` e `now`) |
+| 6 | comentários que ainda falavam do rodapé | resolvido nos três citados (nit residual) | `LoginOptions.tsx:31`, `queries.ts:233-235` e `AccountLogin.tsx:5` corrigidos. Sobraram dois comentários que a feature tornou falsos: `Credentials.tsx:13-16` ("é lá que os adaptadores moram"; "a diferença para o bloco de cima") e `queries-accounts.ts:127` ("O caminho do rodapé") |
 
-1. **Blocker — o foco do hash não acontece no navegador** (C9). `packages/web/src/features/settings/AccountsSection.tsx:106-113`
-   dá foco ao grupo `.set__agent`, mas `settings.css:261` tira a caixa dele (`display: contents`), e o
-   Chromium 151 recusa `focus()` num elemento assim. Testei de dois jeitos: com uma página mínima, que
-   reproduz o mesmo CSS e a mesma chamada, e com o app real em `/settings#agent-codex`. Nos dois casos o
-   `activeElement` continuou sendo o `BODY`. O comentário em `AccountsSection.tsx:101-104` ("O foco fica
-   no grupo… o leitor de tela lê `agente Claude Code`") diz o contrário do que acontece.
-
-   Para quem usa teclado ou leitor de tela, o `entrar ↓` tira o foco do botão (o modal ou a aba
-   desmontam) e o deixa no `body`.
-
-   **Correção mínima:** focar um elemento que tenha caixa — por exemplo, a primeira linha do grupo, com
-   `tabIndex={-1}` — ou dar caixa ao grupo. E mudar o nível da prova: só um teste com navegador
-   (Playwright) consegue ver isso. Também precisa somar à `Proof:` do C9 o nome
-   `without a hash nothing is scrolled or focused`.
-2. **Blocker — o e2e `second-agent` foi enfraquecido até passar sem testar nada** (C10, segunda prova).
-   - `e2e/second-agent.spec.ts:149` procura `codex.getByRole("group", { name: /conta/ }).first()`. O
-     regex não tem âncora, então ele casa com o grupo `nenhuma conta do Codex`
-     (`AccountsSection.tsx:222`), que já está na tela **antes** de conectar.
-   - `:147` usa `isVisible()`, que não espera nada: se o botão ainda não apareceu, o clique simplesmente
-     não acontece.
-   - A sonda, sem clicar em nada, leu `MATCHED aria-label = nenhuma conta do Codex`, com a asserção
-     verde. Se conectar quebrar, o teste continua verde.
-   - O diff também apagou as asserções que existiam: a versão do handshake (`1.10.0`) e as duas linhas
-     lado a lado.
-
-   **Correção mínima:** usar um nome com âncora (`/^conta /`, ou `"conta principal"`) e esperar pelo
-   `conectar Codex` *ou* por uma conta já existente com `expect(...).toBeVisible()`, em vez de
-   `isVisible()`.
-3. **Warning — o hash não age quando `/settings` já está montada.** O efeito em
-   `AccountsSection.tsx:107-113` só depende de `[node, anchor]` e não escuta o `ROUTE_EVENT` nem o
-   `hashchange`. Dá para chegar nesse caso pela interface: o modal de nova worktree é montado pelo
-   `WorkspaceShell` (`WorkspaceShell.tsx:165`), então ele abre pela sidebar mesmo com `/settings` na
-   tela. Clicando em `entrar ↓` nele, o endereço vira `#agent-codex`, mas nada rola e nada recebe foco.
-   Confirmei lendo o código; não rodei esse caminho.
-4. **Nit — o alvo de login por comando ficou sem chamador.** A variante `{ command, args }` de
-   `LoginTarget` e o ramo dela em `loginInput` (`packages/web/src/features/agent/queries.ts:239-247`) só
-   eram usados pelo rodapé. O único chamador que restou é `AccountLogin.tsx:13`, que passa
-   `{ adapterId, accountId }`. Mesmo assim, `LoginOptions.test.tsx:47` exercita justamente o ramo morto. O
-   ramo vivo continua coberto por `AccountsSection.test.tsx:225`. `entryOf` e `AdapterEntry` também
-   perderam o último chamador fora de `queries.ts` (eram do `ConnectPanel`).
-5. **Nit — CSS morto que a guarda não acusa.** As regras em
-   `packages/web/src/features/agent/agent-login.css:55`, `:160-161`, `:200`, `:215-216` e `:219`
-   (`foot-row--err`, `prep__r--wait`, `foot-row--warn`, `.foot-row.is-open`) não têm mais markup: o
-   `Credentials` só gera `on`/`off`, e o `LoginOptions` só gera `done`/`now`. Elas continuam no
-   `INTERPOLATED` de `agent-login-css.test.ts:57-67`, e é isso que deixa cega a direção "defines nothing
-   the panel does not use". Além disso, `setup` entrou em `BORROWED` (`:101`), a lista do que é "pintado
-   em outro lugar", embora seja definido nesta mesma folha. É a família de
-   `testing.md` § *Um teste de CSS por lista de arquivo escrita à mão fica cego…*.
-6. **Nit — comentários que ainda falam do rodapé:** `LoginOptions.tsx:31` ("Uma configuração (o
-   rodapé)"), `queries.ts:232-233` e `AccountLogin.tsx:5` ("o login do rodapé").
-
-Verifiquei também, sem achar defeito:
-- o *early return* de `navigate` com hash (`route.ts:97`): numa mesma rota com hash velho, ele agora
-  empurra uma entrada de histórico e limpa o hash. Hoje isso só acontece pelo item `Configurações` da
-  `SidebarNav`, e o resultado é o correto;
-- `openAgentSettings` faz `navigate` e depois `clear()`, que não mexe na rota (`navigation.ts:121`);
-- a cobertura do `useConnectAgent` (instalar, reinstalar fora do pino, versão ilegível), que saiu junto
-  com o `AgentLogin.test.tsx`, continua de pé em `features/agent/queries.test.tsx:115-171`.
+Na correção, conferi também se ela não tinha criado o defeito inverso do que consertou:
+- o efeito só age no grupo cujo `id` é o hash, e não em todos;
+- `useRouteHash` assina o mesmo `subscribe` da rota (`popstate` + `ROUTE_EVENT`, `route.ts:106-113`), sem listener novo para remover;
+- `connect.or(account.first())` não esbarra no modo estrito: o botão só existe sem conta, e a linha
+  `conta …` só existe com conta.
 
 ## Gate
 
-- `pnpm gate:build`: 9/9, só com cache. `pnpm exec turbo typecheck --force --filter=@lumem/web`: 3/3,
-  sem cache. `pnpm lint`: limpo.
-- `LUMEM_GATE_BASE=6b7add63 pnpm gate:quick`: a primeira corrida deu `Tests 2 failed | 5237 passed`, com
-  a máquina carregada por um e2e completo de outra worktree. A segunda deu
-  `Test Files 326 passed (326)`, `Tests 5239 passed | 6 skipped (5245)`. Não consegui identificar as duas
-  falhas da primeira corrida; trato como intermitência ainda sem nome, e não como defeito da feature.
+- `pnpm exec turbo typecheck --force`: `5 successful`, `0 cached`. `pnpm lint`: exit 0.
+- `LUMEM_GATE_BASE=6b7add63 pnpm gate:quick`: `Test Files 326 passed (326)`,
+  `Tests 5240 passed | 6 skipped (5246)`, exit 0. A intermitência de uma das corridas da rodada 1 não
+  voltou.
 - `pnpm -s docs:check`: `docs ok`.
 
 As sondas rodaram com um `playwright.config` e um spec em `/tmp/lumem-verify-039/`, contra os
@@ -133,8 +92,9 @@ servidores do e2e. Antes e depois, o `git status --porcelain` da árvore real fo
 
 ## Documentação
 
-- `docs/README.md` ainda não lista este `verification.md` na seção da `039` (o índice é obrigatório).
-- `docs/project/testing.md` § *Armadilhas já corrigidas* ganha duas entradas quando os achados fecharem:
-  - foco em elemento `display: contents` é verde no jsdom e não acontece no navegador;
-  - um locator por nome sem âncora (`/conta/`) casa com o estado vazio (`nenhuma conta…`).
-- `CLAUDE.md` ganha a linha da `039` quando a feature fechar.
+- `docs/project/testing.md` ganhou as duas armadilhas que a rodada 1 pediu: foco em `display: contents`
+  e locator sem âncora.
+- Ficam para depois, sem bloquear:
+  - a linha deste `verification.md` no índice (`docs/README.md`, seção da `039`);
+  - a linha da `039` no `CLAUDE.md`, quando a feature fechar;
+  - o resíduo dos achados 5 e 6.

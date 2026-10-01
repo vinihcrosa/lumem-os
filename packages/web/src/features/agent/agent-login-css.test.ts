@@ -59,7 +59,6 @@ const INTERPOLATED = [
   "foot-row--off",
   "prep__r--done",
   "prep__r--now",
-  "prep__r--wait",
   /*
    * O par da opção de login sai de um ternário, não de um template.
    *

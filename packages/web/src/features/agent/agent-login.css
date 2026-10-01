@@ -156,8 +156,6 @@
 .prep__r--done .prep__m { color: var(--color-plan-done); }
 .prep__r--now { color: var(--color-text-primary); }
 .prep__r--now .prep__m { color: var(--color-tool-running); }
-.prep__r--wait { color: var(--color-text-disabled); }
-.prep__r--wait .prep__m { color: var(--color-tool-pending); }
 
 /* ------------------------------------- o cabeçalho da lista de agentes */
 /*

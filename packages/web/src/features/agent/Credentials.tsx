@@ -10,8 +10,8 @@ import { CredentialDialog } from "./CredentialDialog.js";
  * **Uma credencial é da máquina, e não do workspace.** O cofre mora no
  * `~/.lumem`, que é um por instalação: guardar a chave do Linear dentro da tela
  * de um workspace prometeria que existe outra no workspace seguinte, e não
- * existe. O rodapé já é o lugar do que é da máquina — é lá que os adaptadores
- * moram, pelo mesmo motivo.
+ * existe. O rodapé guardava o que é da máquina; os adaptadores saíram dele para
+ * `/settings` (`039`), e as credenciais seguem até a LUM-58 levá-las para lá.
  *
  * **Sem `＋`**, e é a diferença para o bloco de cima: o catálogo é **fechado**.
  * Os serviços que o Lumem sabe guardar são os que ele sabe usar, e um `＋`

@@ -1,6 +1,6 @@
 # Os agentes saem da sidebar e moram em /settings — checks
 
-> **Status:** em execução
+> **Status:** completa
 
 Profile: light
 Plan: nenhum — mudança pequena, sem porta de mão única (Linear LUM-57)
