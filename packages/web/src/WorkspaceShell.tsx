@@ -8,7 +8,7 @@ import {
   type TreeExpansion,
   type WorkspaceOption,
 } from "./features/workspace/index.js";
-import { AgentLogin } from "./features/agent/index.js";
+import { Credentials } from "./features/agent/index.js";
 import { useRightPanel } from "./features/checkout/index.js";
 import { AppShell } from "./layout/AppShell.js";
 import { MainColumn } from "./MainColumn.js";
@@ -123,19 +123,15 @@ export function WorkspaceShell({
             />
             <div className="sidebar__foot">
               {/*
-                Conectar um agente: one line, one verb, and the connection's state
-                where it can be read.
+                O agente saiu daqui (`039`): `agent_config` é da máquina, e este
+                rodapé é do workspace. Conectar, reconectar e cadastrar um ACP de
+                fora do catálogo moram em `/settings`, e é para lá que o `entrar ↓`
+                da pílula leva.
 
-                Here because it is where the user is standing when they notice the
-                agent is missing — they open "＋ novo agente" and it is not in the list.
-                The placement still tells the small lie A16 named: `agent_config` is
-                global and this footer is the workspace's.
-
-                And it is all that is left down here (F1.6): the agent belongs to
-                the workspace, not to the list of projects, so it is the one thing
-                that did not move up into the tree.
+                Sobram as credenciais dos serviços, até a LUM-58 levá-las para a
+                seção *integrações* — depois dela este rodapé some.
               */}
-              <AgentLogin />
+              <Credentials />
             </div>
           </>
         }

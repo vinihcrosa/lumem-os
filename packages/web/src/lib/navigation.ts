@@ -124,6 +124,23 @@ export function clear(): void {
   commit({ selection: null, arrival: null, pendingDraft: null });
 }
 
+/**
+ * Abre `/settings` na seção de um agente (`039`): o destino do `entrar ↓` da
+ * pílula, que não tinha para onde ir desde a `033`.
+ *
+ * Sai da seleção junto, porque `MainColumn` só mostra a tela de configurações
+ * sem checkout selecionado — a mesma dupla que o item da `SidebarNav` faz.
+ */
+export function openAgentSettings(adapterId: string): void {
+  navigate("settings", { hash: agentAnchor(adapterId) });
+  clear();
+}
+
+/** O `id` do grupo de um agente em `/settings`, e o fragmento que leva a ele. */
+export function agentAnchor(adapterId: string): string {
+  return `agent-${adapterId}`;
+}
+
 /** Uma sessão pede para entrar na tela — ver `Arrival`. */
 export function arrive(next: Arrival): void {
   commit({ ...state, arrival: next });

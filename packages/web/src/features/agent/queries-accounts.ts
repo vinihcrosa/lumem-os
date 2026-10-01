@@ -124,7 +124,7 @@ export function useAgentAccountMutations() {
  * Adota o login que **já existe** nesta máquina, para um agente sem conta
  * nenhuma (`034` T18).
  *
- * O caminho do rodapé — instala se precisar, faz o handshake, cria a
+ * O caminho de `/settings` — instala se precisar, faz o handshake, cria a
  * configuração —, e criar a configuração é o que cria a conta sem diretório,
  * `principal`. Depois, a conferência **dela** (o probe sem `accountId` é o da
  * padrão), que grava o e-mail. O `＋ conectar conta` não serve aqui: ele cria

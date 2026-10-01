@@ -9,7 +9,6 @@ import {
   openProject,
 } from "./support/app.js";
 import { E2E_FAKE_ACP_AGENT, E2E_FIXTURE_REPO_ACP } from "./support/fixtures.js";
-import { query } from "./support/daemon.js";
 import { E2E_SERVER_PORT } from "../ports.js";
 
 /**
@@ -124,47 +123,41 @@ test("o agente que não informa limite não desenha número de limite", async ({
   await expect(conv.locator(".usage")).toContainText("—");
 });
 
-test("conecta o segundo agente pelo `＋`, e o rodapé passa a ter duas linhas", async ({ page }) => {
+test("conecta o segundo agente em /settings, ao lado do primeiro", async ({ page }) => {
   /*
-   * O caminho da T13, de ponta a ponta e **sem rede**.
+   * O caminho da T13, de ponta a ponta e **sem rede**, agora na tela de
+   * configurações (`039`): o rodapé da sidebar perdeu o agente.
    *
    * O painel só instala quando o pré-voo não acha o binário, e o `codex-acp` do
    * `E2E_FIXTURE_BIN` está no PATH do daemon — então este teste percorre
-   * catálogo → handshake → configuração criada sem que um `npm install` de 300 MB
-   * aconteça. O que ele prova é o que só o navegador responde: que o `＋` é o
-   * caminho, que a versão gravada é a que o **handshake** reportou, e que a
-   * segunda linha aparece ao lado da primeira em vez de substituí-la.
+   * conectar → handshake → configuração criada sem que um `npm install` de 300 MB
+   * aconteça. O que ele prova é o que só o navegador responde: que `/settings` é o
+   * caminho, e que o Codex ganha uma conta ao lado do Claude em vez de substituí-lo.
    */
   await page.goto("/");
   await ensureWorkspace(page);
+  await page.getByRole("button", { name: /^Configurações/ }).click();
 
-  const configs = (await query(DAEMON, "agentConfig.list", undefined)) as { name: string }[];
-  const existingCodex = page.getByRole("button", { name: /^codex: / });
-  if (configs.some((config) => config.name === "codex")) {
-    // Specs share one daemon. On a full run the adapter may already have been
-    // connected by onboarding; open its row instead of trying to create the
-    // unique `codex` config a second time.
-    await expect(existingCodex).toBeVisible({ timeout: 20_000 });
-    await existingCodex.click();
-  } else {
-    await page.getByRole("button", { name: "conectar um agente" }).click();
-    const connect = page.getByRole("group", { name: "conectar agente" });
-    const codex = connect.getByRole("button", { name: /^Codex/ });
-    await expect(codex).toBeEnabled({ timeout: 20_000 });
-    // A linha do catálogo diz o que a pessoa não resolve clicando: este adaptador
-    // traz o próprio agente dentro (§4.8).
-    await expect(codex).toContainText(/traz o próprio agente dentro|instalado/);
-    await codex.click();
-  }
+  const codex = page.getByRole("group", { name: "agente Codex" });
+  await expect(codex).toBeVisible({ timeout: 20_000 });
 
-  // O painel do agente recém-conectado abre, com o que o handshake respondeu.
-  const panel = page.getByRole("group", { name: /agente codex/ });
-  await expect(panel).toBeVisible({ timeout: 30_000 });
-  await expect(panel).toContainText("1.10.0", { timeout: 20_000 });
+  // Specs share one daemon. On a full run the adapter may already have been
+  // connected by onboarding; then there is an account row instead of the button.
+  // `^conta `, ancorado: o grupo "nenhuma conta do Codex" também contém "conta" e
+  // já está na tela antes de qualquer clique.
+  const connect = codex.getByRole("button", { name: "conectar Codex" });
+  const account = codex.getByRole("group", { name: /^conta / });
+  await expect(connect.or(account.first())).toBeVisible({ timeout: 30_000 });
+  /*
+   * O clique é o caminho, mas não a prova: numa suíte que divide um daemon, a conta
+   * `principal` do Codex pode aparecer por outra via entre o `isVisible` e o clique
+   * (foi o que o CI mostrou), e o botão desanexa. Nesse caso não há o que clicar, e a
+   * asserção abaixo — a conta na tela — continua sendo o que decide.
+   */
+  if (await connect.isVisible()) await connect.click({ timeout: 5_000 }).catch(() => undefined);
 
-  // E o rodapé tem as duas linhas: a nova **ao lado** da que já estava lá.
-  await expect(page.getByRole("button", { name: /^codex: / })).toBeVisible();
-  await expect(page.getByRole("button", { name: new RegExp(`^${CLAUDE}: `) })).toBeVisible();
+  await expect(account.first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("group", { name: "agente Claude Code" })).toBeVisible();
 });
 
 test("o consumo do workspace abre por agente quando há dois", async ({ page }) => {

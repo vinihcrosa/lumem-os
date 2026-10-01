@@ -60,6 +60,23 @@ test("/settings aberto direto abre a tela, sem piscar o Home", async ({ page }) 
   await expect(page.getByRole("heading", { name: "Quadro de tarefas" })).toHaveCount(0);
 });
 
+test("/settings#agent-<adaptador> põe o foco na linha daquele agente", async ({ page }) => {
+  await page.goto("/");
+  await ensureWorkspace(page);
+
+  /*
+   * O destino do `entrar ↓` da pílula (`039`). O grupo do agente é `display:
+   * contents`, e o Chromium não foca um elemento sem caixa — o jsdom foca, e
+   * por isso o teste de componente sozinho deixou passar um foco que ficava no
+   * `body`. Só um navegador de verdade responde.
+   */
+  await page.goto("/settings#agent-codex");
+
+  const linha = page.locator("#agent-codex > .set__row").first();
+  await expect(linha).toBeVisible({ timeout: 15_000 });
+  await expect(linha).toBeFocused();
+});
+
 test("F5 em /settings volta em /settings", async ({ page }) => {
   await page.goto("/");
   await ensureWorkspace(page);

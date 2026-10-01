@@ -16,30 +16,17 @@ import { Banner, Button, Card, Chip, Field, Glyph, Input } from "../../ui/index.
  * configuration is an ACP adapter, so the field is gone rather than disabled — a
  * greyed-out choice would still say there is one.
  *
- * In the sidebar footer, reusing the shape of a form that used to sit beside it —
- * `sidebar-actions` moved `adicionar projeto` up into the tree, and this is what
- * the footer was left with. The lie in the placement is named in A16:
- * `agent_config` has no workspace, and the footer does; a preferences screen would
- * be the honest home, and it does not exist.
+ * In `/settings`, behind "outro agente ACP…" (`039`). It lived in the sidebar footer
+ * until then, and the lie in that placement was named in A16: `agent_config` has no
+ * workspace, and the footer does. The screen says the configuration is the machine's.
  */
 export interface AgentConfigDialogProps {
-  /**
-   * Rendered already open, without its own trigger.
-   *
-   * True when it is embedded in the login panel, which is the only way in now:
-   * the footer's action is "conectar um agente", and this form is the drawer
-   * behind "outro agente ACP…" — a trigger of its own there would be a second
-   * button that opens what is already open.
-   */
-  embedded?: boolean;
-  /** Called when the embedded form is done with the panel. */
-  onClose?: () => void;
+  /** Called when the form is done with the drawer. */
+  onClose(): void;
 }
 
-export function AgentConfigDialog({ embedded = false, onClose }: AgentConfigDialogProps = {}) {
-  const [open, setOpen] = useState(embedded);
-
-  const configs = useAgentConfigs({ enabled: open });
+export function AgentConfigDialog({ onClose }: AgentConfigDialogProps) {
+  const configs = useAgentConfigs();
   const { create, remove } = useAgentConfigMutations();
 
   const [name, setName] = useState("");
@@ -82,15 +69,6 @@ export function AgentConfigDialog({ embedded = false, onClose }: AgentConfigDial
       },
     );
   };
-
-  if (!open) {
-    return (
-      <button type="button" className="sidebar__add" onClick={() => setOpen(true)}>
-        <Glyph tone="agent">◆</Glyph>
-        agentes
-      </button>
-    );
-  }
 
   const list = configs.data ?? [];
 
@@ -192,13 +170,7 @@ export function AgentConfigDialog({ embedded = false, onClose }: AgentConfigDial
             <Button type="submit" variant="primary" disabled={create.isPending || !complete}>
               {create.isPending ? "criando…" : "adicionar"}
             </Button>
-            <Button
-              variant="ghost"
-              onClick={() => {
-                if (embedded) onClose?.();
-                else setOpen(false);
-              }}
-            >
+            <Button variant="ghost" onClick={onClose}>
               fechar
             </Button>
           </div>
