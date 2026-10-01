@@ -216,7 +216,10 @@ qualquer jeito) e `required_status_checks` estrito com `typecheck, build e teste
   branch apagada depois. O `gh pr merge` não foi tentado: o guarda da T18 o recusa, e o estado
   `BLOCKED` é a resposta do servidor.
 O runbook *Publishing a release* do Outline passou a dizer a release por PR e a tag no commit mesclado,
-e o `CLAUDE.md` também. A primeira release pelo caminho novo ainda não aconteceu.
+e o `CLAUDE.md` também. A primeira release pelo caminho novo saiu em 2026-09-30: a `v0.7.0` entrou pela
+PR [#108](https://github.com/vinihcrosa/lumem-os/pull/108), a tag foi posta no commit mesclado
+(`b04c83b0`), e o `release.yml` [disparou por ela](https://github.com/vinihcrosa/lumem-os/actions/runs/36790255395)
+e passou — o terceiro aceite está cumprido.
 
 ---
 
