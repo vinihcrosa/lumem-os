@@ -84,14 +84,21 @@ export interface NavigateOptions {
    * normal de trabalho encheria o histórico de entradas que ninguém pediu.
    */
   replace?: boolean;
+  /**
+   * O fragmento, sem o `#`: *onde dentro da tela*. Quem chega lê
+   * `window.location.hash` — hoje só `/settings#agent-<adaptador>` (`039`).
+   */
+  hash?: string;
 }
 
-export function navigate(route: Route, { replace = false }: NavigateOptions = {}): void {
+export function navigate(route: Route, { replace = false, hash }: NavigateOptions = {}): void {
   const path = ROUTE_PATH[route];
-  if (normalize(window.location.pathname) === path) return;
+  const fragment = hash === undefined ? "" : `#${hash}`;
+  if (normalize(window.location.pathname) === path && window.location.hash === fragment) return;
+  const target = `${path}${fragment}`;
 
-  if (replace) window.history.replaceState(null, "", path);
-  else window.history.pushState(null, "", path);
+  if (replace) window.history.replaceState(null, "", target);
+  else window.history.pushState(null, "", target);
 
   window.dispatchEvent(new Event(ROUTE_EVENT));
 }

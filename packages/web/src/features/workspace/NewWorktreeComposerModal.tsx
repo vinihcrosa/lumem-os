@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 
-import { arrive, arriveDraft, select as selectScope } from "../../lib/navigation.js";
+import { arrive, arriveDraft, openAgentSettings, select as selectScope } from "../../lib/navigation.js";
 import { useAgentModelChoice } from "../conversation/index.js";
 import { draftFor, setDraftFor } from "./composer-drafts.js";
 import { NewWorktreeComposer, type ComposerOrigin, type ComposerProject } from "./NewWorktreeComposer.js";
@@ -208,6 +208,12 @@ function NewWorktreeComposerBody({
       accounts={accounts}
       choice={choice}
       onChoiceChange={choose}
+      // Entrar é em `/settings` (`039`). O modal fecha — ele cobre a janela — e o
+      // texto fica: o rascunho já é guardado por projeto a cada tecla.
+      onLogin={(adapterId) => {
+        onClose();
+        openAgentSettings(adapterId);
+      }}
       heldBy={heldBranch?.worktreeName ?? null}
       creating={start.isPending}
       error={start.error?.message ?? unbornMessage}

@@ -1,8 +1,9 @@
 /*
- * Conectar agente — portado de `lumem-os-design/lumem-agent-login.css`.
+ * Entrar num agente — portado de `lumem-os-design/lumem-agent-login.css`.
  *
- * A restrição que manda no desenho é 264px: tudo aqui cabe na sidebar, sem modal
- * e sem formulário que exija digitar comando. As classes vêm do protótipo com o
+ * Nasceu como o painel do rodapé da sidebar (264px). O painel saiu na `039`: o
+ * login mora em `/settings` (`AccountLogin`, `ConnectAccountPanel`), que lê esta
+ * folha, e o rodapé guarda só as credenciais (`foot-head`, `foot-row`). As classes vêm do protótipo com o
  * mesmo nome; `agent-login-css.test.ts` reprova nas duas direções.
  *
  * O que este arquivo **não** traz, de propósito: `.sbframe`/`.stepcap`/`.flowgrid`,
@@ -159,31 +160,6 @@
 .prep__r--wait { color: var(--color-text-disabled); }
 .prep__r--wait .prep__m { color: var(--color-tool-pending); }
 
-/* ------------------------------------------------------ conta conectada */
-.acct {
-  display: grid;
-  gap: var(--space-6);
-  padding: var(--space-8) var(--space-10);
-  background: var(--color-bg-inset);
-  border-radius: var(--radius-md);
-}
-.acct__r { display: flex; align-items: baseline; gap: var(--space-8); min-width: 0; }
-.acct__k {
-  flex: none;
-  width: calc(var(--space-48) + var(--space-4));
-  font: var(--text-label-xs);
-  letter-spacing: var(--tracking-label-xs);
-  text-transform: uppercase;
-  color: var(--color-text-tertiary);
-}
-.acct__v {
-  min-width: 0;
-  font: var(--text-mono-sm);
-  color: var(--color-text-code);
-  overflow-wrap: anywhere;
-}
-.acct__v b { color: var(--color-text-primary); font-weight: 500; }
-
 /* ------------------------------------- o cabeçalho da lista de agentes */
 /*
  * A lista do rodapé passou de UMA coisa para N (`second-agent`, C8).
@@ -210,13 +186,6 @@
   font: var(--text-label-xs);
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
-  color: var(--color-text-tertiary);
-}
-
-/* Nenhum agente: uma linha que relata, e não um segundo botão para a mesma ação. */
-.foot-empty {
-  padding: var(--space-4) var(--space-8) var(--space-6);
-  font: var(--text-caption);
   color: var(--color-text-tertiary);
 }
 

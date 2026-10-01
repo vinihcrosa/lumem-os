@@ -44,6 +44,7 @@ beforeEach(() => {
   // aparece como um `role="alert"` a mais num teste que não fala de erro.
   installTrpcDefaults();
   window.localStorage.clear();
+  window.history.replaceState(null, "", "/");
   trpc.health.query.mockResolvedValue({ ok: true, version: "0.0.0" });
   trpc.workspace.list.query.mockResolvedValue([
     { id: "w1", name: "pessoal", createdAt: new Date(), updatedAt: new Date() },
@@ -56,16 +57,16 @@ beforeEach(() => {
 });
 
 /**
- * Opens the footer panel and returns it.
+ * Opens the drawer on `/settings` and returns it.
  *
- * Two clicks now, and the second one is the point: the footer's action became
- * "conectar um agente", and this form is the drawer behind "outro agente ACP…" —
- * the one path that still needs five fields, because it is for an adapter the
+ * The footer lost the agent in `039` (LUM-57): `agent_config` is the machine's, so the
+ * way in is the settings screen, and this form is the drawer behind "outro agente
+ * ACP…" — the one path that still needs five fields, because it is for an adapter the
  * daemon neither installs nor can name.
  */
 async function panel() {
+  window.history.replaceState(null, "", "/settings");
   renderWithProviders(<App />);
-  await userEvent.click(await screen.findByRole("button", { name: /conectar um agente/ }));
   await userEvent.click(await screen.findByRole("button", { name: /outro agente ACP/ }));
   return screen.getByRole("button", { name: "adicionar" }).closest(".agents") as HTMLElement;
 }

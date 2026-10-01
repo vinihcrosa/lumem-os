@@ -26,10 +26,6 @@ const stylesheet = readFileSync(join(HERE, "agent-login.css"), "utf8");
  * `fail` entre outras.
  */
 const component = [
-  readFileSync(join(HERE, "AgentLogin.tsx"), "utf8"),
-  readFileSync(join(HERE, "AgentRow.tsx"), "utf8"),
-  readFileSync(join(HERE, "ConnectPanel.tsx"), "utf8"),
-  readFileSync(join(HERE, "AgentPanel.tsx"), "utf8"),
   readFileSync(join(HERE, "LoginOptions.tsx"), "utf8"),
   readFileSync(join(HERE, "Credentials.tsx"), "utf8"),
 ].join("\n");
@@ -100,6 +96,9 @@ const BORROWED = new Set([
   "glyph",
   "btn",
   "act",
+  // O painel `setup` é pedido por `AccountLogin` e `ConnectAccountPanel`, em
+  // `/settings` (`039`): a folha é desta pasta, o markup que a lê saiu dela.
+  "setup",
   // The custom-adapter drawer is the old dialog, with its own rules in sidebar.css.
   "agents",
   // O campo de texto é o `Input` do design system, e ele pinta o `.input`. O que

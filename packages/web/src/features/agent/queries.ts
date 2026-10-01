@@ -5,7 +5,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   adapterCatalogKey,
   agentConfigsKey,
-  agentProbeKey,
   authStateKey,
   setupAgentsKey,
   SETUP_PROBE_KEY,
@@ -62,28 +61,6 @@ export function useAgentConfigMutations() {
   return { create, remove };
 }
 
-/**
- * O handshake de **uma** configuração.
- *
- * Uma consulta por agente, e a chave é o comando mais os argumentos — que é o
- * que faz a linha e o painel do mesmo agente dividirem uma resposta em vez de
- * subirem dois processos. Mandar só o comando já foi um defeito de verdade: uma
- * configuração cujo comando é `node` e o argumento é um script sobe, sem o
- * argumento, um REPL que não responde handshake nenhum e pendura até o limite.
- */
-export function useAgentProbe(config: { command: string; args: readonly string[] }) {
-  return useQuery({
-    queryKey: agentProbeKey(config.command, config.args),
-    queryFn: () => trpc.setup.probe.query({ command: config.command, args: [...config.args] }),
-    retry: false,
-    refetchOnWindowFocus: false,
-    // Não é perguntado de novo a cada montagem: um probe é um processo (sobe o
-    // adaptador, aperta a mão, mata), e a resposta muda com a frequência com que
-    // uma credencial expira. "Verificar de novo" é o botão para quando muda.
-    staleTime: 5 * 60_000,
-  });
-}
-
 /** O probe do primeiro acesso: um agente, um handshake, sem argumento — `SETUP_PROBE_KEY`. */
 export function useSetupHandshakeProbe() {
   return useQuery({
@@ -97,9 +74,9 @@ export function useSetupHandshakeProbe() {
 /**
  * "Verificar de novo": invalida o prefixo inteiro de probes, não só um.
  *
- * `SETUP_PROBE_KEY` é o prefixo de `agentProbeKey`, então um reprobe aqui
- * alcança a linha do rodapé, o painel do agente e o passo de handshake do
- * primeiro acesso — os três leem o mesmo processo, de chaves diferentes.
+ * `SETUP_PROBE_KEY` é o prefixo do probe de conta e do passo de handshake do
+ * primeiro acesso, então um reprobe aqui alcança os dois — leem o mesmo
+ * processo, de chaves diferentes.
  */
 export function useReprobeAgents() {
   const queryClient = useQueryClient();
@@ -130,7 +107,7 @@ export function useInstallAdapter() {
   });
 }
 
-/** Uma entrada do relatório de pré-voo, do jeito que o rodapé a lê. */
+/** Uma entrada do relatório de pré-voo, do jeito que a tela a lê. */
 export interface AdapterEntry {
   id: string;
   label: string;
