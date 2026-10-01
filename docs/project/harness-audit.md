@@ -133,8 +133,12 @@ trava a autonomia — mais do que qualquer lacuna de teste.
 > **Item #3 fechado em 2026-09-28** pela [T3](../features/024-dev-harness/tasks.md): o environment `npm`
 > exige o reviewer `vinihcrosa` e só aceita deploy de tag `v*`. Um `workflow_dispatch` de branch com
 > `dry_run=false` foi recusado pela política, e a `v0.7.0` (2026-09-30) esperou a aprovação antes do
-> `npm publish`. **O item #4 segue aberto:** o token do `gh` ainda tem `delete_repo`, e revogar é do dono
-> da conta.
+> `npm publish`.
+>
+> **Item #4 fechado em 2026-09-30** pela T3: o dono revogou a autorização do GitHub CLI e logou de novo
+> sem `delete_repo`; `gh api -X DELETE` num repositório responde `403`, e o `gh` diz *"This API
+> operation needs the "delete_repo" scope"*. Com isso, os quatro itens irreversíveis desta seção estão
+> fechados.
 
 ## 7. Scorecard
 

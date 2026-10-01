@@ -269,7 +269,7 @@ gh api -X POST repos/:owner/:repo/environments/npm/deployment-branch-policies \
   estiver lá, o comando apaga o repositório.
 
 **Gate**: os quatro acima
-**Status**: 🟡 **parcial** em 2026-09-28. Feito: o environment `npm` exige o reviewer `vinihcrosa` e só
+**Status**: ✅ entregue em 2026-09-30; a parte do GitHub em 2026-09-28. Feito: o environment `npm` exige o reviewer `vinihcrosa` e só
 aceita deploy de **tag `v*`** (política `custom_branch_policies`). Aceites:
 - `gh workflow run release.yml -f dry_run=false` a partir da branch `docs-repo-vs-outline` passou pelo
   empacote e pelos dois `smoke` e teve o job `npm` **recusado**: *"Branch "docs-repo-vs-outline" is not
@@ -282,10 +282,17 @@ aceita deploy de **tag `v*`** (política `custom_branch_policies`). Aceites:
   `vinihcrosa` no environment `npm` (`gh api repos/:owner/:repo/actions/runs/36790255395/approvals` →
   `approved`). Fecha o segundo aceite.
 
-**Falta, e é do dono da conta:** em 2026-09-30, `gh auth status` ainda lista `delete_repo`. Revogar o
-scope do token do `gh` (GitHub → Settings → Applications → Authorized OAuth Apps → GitHub CLI → Revoke,
-e `gh auth login -h github.com -s repo,workflow,read:org,gist`). O aceite `gh api -X DELETE repos/:owner/:repo` → `403` só se roda
-**depois**, e o guarda da T18 o recusa numa sessão de agente de qualquer jeito.
+**A parte do dono da conta, feita em 2026-09-30:** a autorização do GitHub CLI foi revogada em
+GitHub → Settings → Applications → Authorized OAuth Apps, e o `gh` foi logado de novo com
+`-s repo,workflow,read:org,gist`. Aceites:
+- `gh auth status` lista `'gist', 'read:org', 'repo', 'workflow'` — sem `delete_repo` (e sem os `user` e
+  `project` que tinham vindo junto); o header `X-Oauth-Scopes` da API diz o mesmo, e nenhum `GH_TOKEN`
+  ou `GITHUB_TOKEN` no ambiente passa por cima do token do keyring;
+- `gh api -X DELETE repos/<owner>/<repo>`, rodado pelo dono fora da sessão de agente (o guarda da T18 o
+  recusa dentro dela) e, por cautela, contra outro repositório que não este, respondeu `403`: *"Must
+  have admin rights to Repository."* O que faz disso o aceite é a linha que o `gh` acrescenta: *"This
+  API operation needs the "delete_repo" scope"* — o servidor diz que a operação pede o scope e que o
+  token não o tem, o que vale para qualquer repositório, este incluído.
 
 ---
 
