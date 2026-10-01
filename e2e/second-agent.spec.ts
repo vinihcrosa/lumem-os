@@ -15,9 +15,9 @@ import { E2E_SERVER_PORT } from "../ports.js";
 /**
  * Duas conversas, dois agentes, uma worktree.
  *
- * A F4 da `second-agent` é **conferência**: o `NewSessionMenu` já lista toda
- * `agent_config` e a aba já se chama pelo nome dela, então a pergunta é se a tela
- * continua dizendo quem está falando quando há dois. Ela não continuava — o
+ * A F4 da `second-agent` é **conferência**: o catálogo de adaptadores já lista
+ * todo agente e a aba já se chama pelo nome da configuração, então a pergunta é
+ * se a tela continua dizendo quem está falando quando há dois. Ela não continuava — o
  * cabeçalho da conversa dizia `claude`, escrito à mão. Com um agente ninguém
  * notava. Este spec é o que fez notar.
  *

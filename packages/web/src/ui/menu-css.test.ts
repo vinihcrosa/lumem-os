@@ -16,8 +16,8 @@ import { describe, expect, it } from "vitest";
  * 2026-09-08](../../../../docs/adr/2026-09-08-0507-adapter-is-the-copy-the-daemon-owns.md))
  * esse caminho ficou bem mais longo que o do PATH. Numa linha de altura fixa, uma
  * palavra única e comprida vira um `<span>` que sai da caixa e passa a interceptar
- * o clique do item vizinho: o e2e que escolhe um agente em `nova sessão` começou a
- * falhar em `intercepts pointer events` — e **passava rodando sozinho**, porque aí
+ * o clique do item vizinho: o e2e que escolhia um agente no menu que precedeu o
+ * `＋ novo agente` começou a falhar em `intercepts pointer events` — e **passava rodando sozinho**, porque aí
  * o menu tinha um item só.
  *
  * Esse é o formato de defeito que só a suíte inteira pega, e a razão de a asserção

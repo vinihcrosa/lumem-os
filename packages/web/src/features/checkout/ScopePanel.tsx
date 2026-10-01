@@ -19,7 +19,7 @@ import {
   type TabState,
 } from "../../ui/index.js";
 import { FileViewer } from "./FileViewer.js";
-import { DraftAgentTab, NewSessionMenu } from "../conversation/index.js";
+import { DraftAgentTab, NewAgentButton } from "../conversation/index.js";
 import { PatchViewer } from "./PatchViewer.js";
 import { SessionTabPanel } from "../conversation/index.js";
 import { TabSplit } from "./TabSplit.js";
@@ -185,12 +185,7 @@ export function ScopePanel({
           />
         }
         action={
-          <NewSessionMenu
-            scopeType={scope.scopeType}
-            scopeId={scope.scopeId}
-            onCreated={(sessionId) => select(sessionId)}
-            onNewAgent={addDraft}
-          />
+          <NewAgentButton onNewAgent={addDraft} />
         }
         end={
           // The files column belongs to a checkout, so its switch lives in the
@@ -293,6 +288,9 @@ export function ScopePanel({
               // history — named, with its state and age, and no verb that would
               // bring it back, because the daemon no longer runs agents that way.
               const legacy = session.kind === "agent" && session.transport !== "acp";
+              // LUM-62: a shell is not a tab anymore — its terminal lives in the run
+              // dock — so there is no tab for "ver registro" to bring back.
+              const noTab = legacy || session.kind === "shell";
 
               return (
                 <Item
@@ -318,7 +316,7 @@ export function ScopePanel({
                   age={relativeAge(session.createdAt)}
                   onSelect={listed ? () => select(session.id) : undefined}
                   action={
-                    listed || legacy ? undefined : (
+                    listed || noTab ? undefined : (
                       // The record outlives the tab, and so does the daemon's
                       // ring buffer — this is how the output of something that
                       // crashed gets read after its tab went away.

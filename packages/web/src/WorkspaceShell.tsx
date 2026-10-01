@@ -127,7 +127,7 @@ export function WorkspaceShell({
                 where it can be read.
 
                 Here because it is where the user is standing when they notice the
-                agent is missing — they open "nova sessão" and it is not in the list.
+                agent is missing — they open "＋ novo agente" and it is not in the list.
                 The placement still tells the small lie A16 named: `agent_config` is
                 global and this footer is the workspace's.
 

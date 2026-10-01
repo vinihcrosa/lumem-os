@@ -63,6 +63,11 @@ function session(overrides: Record<string, unknown> = {}) {
   };
 }
 
+/** A live PTY tab to stand in front of: a shell is not a tab (LUM-62). */
+function tabSession(overrides: Record<string, unknown> = {}) {
+  return session({ kind: "agent", agentName: "claude-code", ...overrides });
+}
+
 function agentConfig(overrides: Record<string, unknown> = {}) {
   return {
     id: "ac1",
@@ -114,9 +119,11 @@ async function openTabs(user: ReturnType<typeof userEvent.setup>): Promise<void>
 }
 
 describe("sessões como abas", () => {
-  it("puts each live session in a tab and tells shell from agent", async () => {
+  it("puts each live agent in a tab, and a live shell in none", async () => {
     // F3.4 asks for a glance. The glyph is the mark; the tab is where it lives
-    // now that the tree stops at the worktree.
+    // now that the tree stops at the worktree. A shell lives in the run dock
+    // (LUM-62), so it is never drawn here — the same terminal on two surfaces
+    // was the defect.
     const user = userEvent.setup();
     trpc.session.listByScope.query.mockImplementation(async ({ scopeType }) =>
       scopeType === "worktree"
@@ -126,8 +133,10 @@ describe("sessões como abas", () => {
 
     await openTabs(user);
 
-    expect(screen.getByRole("tab", { name: /shell/ })).toHaveTextContent("●");
     expect(screen.getByRole("tab", { name: /claude-code/ })).toHaveTextContent("◆");
+    expect(screen.queryByRole("tab", { name: /shell/ })).not.toBeInTheDocument();
+    // Only the agent's terminal is mounted; the shell's is the dock's to draw.
+    expect(screen.getAllByTestId("terminal-mock").map((node) => node.textContent)).toEqual(["s2"]);
   });
 
   it("leaves the sidebar with no session rows at all", async () => {
@@ -163,79 +172,27 @@ describe("sessões como abas", () => {
     // accumulate.
     const user = userEvent.setup();
     trpc.session.listByScope.query.mockImplementation(async ({ scopeType }) =>
-      scopeType === "worktree" ? [session({ state: "exited", exitCode: 0 })] : [],
+      scopeType === "worktree" ? [tabSession({ state: "exited", exitCode: 0 })] : [],
     );
 
     await openTabs(user);
 
+    expect(screen.queryByRole("tab", { name: /claude-code/ })).not.toBeInTheDocument();
+  });
+
+  it("lists a dead shell as history, with no way back to a tab it no longer has", async () => {
+    // LUM-62: the record is still listed — it happened —, but "ver registro"
+    // would reopen a tab that is never drawn, so the verb is gone.
+    const user = userEvent.setup();
+    trpc.session.listByScope.query.mockImplementation(async ({ scopeType }) =>
+      scopeType === "worktree" ? [session({ state: "exited", exitCode: 1 })] : [],
+    );
+
+    await openTabs(user);
+
+    expect(screen.getByText("exited (1)")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /ver registro/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: /shell/ })).not.toBeInTheDocument();
-    // The record survives the tab, which is the whole reason dropping it is
-    // safe — and the verb says what comes back is a record (issue #14).
-    expect(screen.getByRole("button", { name: /ver registro/ })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /reabrir/ })).not.toBeInTheDocument();
-  });
-
-  it("brings an exited session back as a tab on request", async () => {
-    const user = userEvent.setup();
-    trpc.session.listByScope.query.mockImplementation(async ({ scopeType }) =>
-      scopeType === "worktree" ? [session({ state: "exited", exitCode: 1 })] : [],
-    );
-
-    await openTabs(user);
-    await user.click(screen.getByRole("button", { name: /ver registro/ }));
-
-    // Where the output of something that crashed gets read after the fact.
-    expect(screen.getByRole("tab", { name: /shell/ })).toBeInTheDocument();
-  });
-
-  it("presents the tab of a dead session as a record, not as a terminal", async () => {
-    // Issue #14: the reopened tab looked exactly like a live one — same head,
-    // same blinking cursor — and typing into it failed in silence.
-    const user = userEvent.setup();
-    trpc.session.listByScope.query.mockImplementation(async ({ scopeType }) =>
-      scopeType === "worktree" ? [session({ state: "exited", exitCode: 1 })] : [],
-    );
-
-    await openTabs(user);
-    await user.click(screen.getByRole("button", { name: /ver registro/ }));
-
-    expect(screen.getByRole("tab", { name: /registro/ })).toBeInTheDocument();
-    const panel = screen.getByRole("tabpanel", { name: /registro de shell/ });
-    expect(within(panel).getByText(/somente leitura/)).toBeInTheDocument();
-    expect(within(panel).getByTestId("terminal-mock")).toHaveAttribute("data-readonly", "true");
-  });
-
-  it("offers the same session again as the way back to working", async () => {
-    // The dead process cannot be resumed, so the record says what it is and
-    // points at the only thing the daemon can actually do.
-    const user = userEvent.setup();
-    trpc.session.listByScope.query.mockImplementation(async ({ scopeType }) =>
-      scopeType === "worktree" ? [session({ state: "exited", exitCode: 1 })] : [],
-    );
-    trpc.session.createShell.mutate.mockImplementation(async () => {
-      const created = session({ id: "s2" });
-      trpc.session.listByScope.query.mockImplementation(async ({ scopeType }) =>
-        scopeType === "worktree"
-          ? [session({ state: "exited", exitCode: 1 }), created]
-          : [],
-      );
-      return created;
-    });
-
-    await openTabs(user);
-    await user.click(screen.getByRole("button", { name: /ver registro/ }));
-    await user.click(screen.getByRole("button", { name: /nova sessão igual/ }));
-
-    await waitFor(() =>
-      expect(trpc.session.createShell.mutate).toHaveBeenCalledWith({
-        scopeType: "worktree",
-        scopeId: "wt1",
-      }),
-    );
-    // The new tab is the one in front, and it is a live terminal.
-    const live = await screen.findByRole("tabpanel", { name: "sessão shell" });
-    expect(within(live).getByTestId("terminal-mock")).toHaveTextContent("s2");
-    expect(within(live).getByTestId("terminal-mock")).not.toHaveAttribute("data-readonly");
   });
 
   it("lists a legacy terminal agent as history, with nothing to press", async () => {
@@ -316,108 +273,35 @@ describe("sessões como abas", () => {
   });
 });
 
-describe("new session menu", () => {
-  it("opens a shell in the worktree and shows its terminal", async () => {
+describe("novo agente", () => {
+  it("is a button, not a menu — and nothing here opens a shell", async () => {
+    // LUM-62. The menu had two verbs, `novo agente` and `terminal` (`033` F5.6);
+    // the terminal moved to the run dock, and a menu of one item is a click for
+    // nothing. The adapter and the model are chosen in the pill, not here.
     const user = userEvent.setup();
-    trpc.session.createShell.mutate.mockImplementation(async () => {
-      const created = session();
-      trpc.session.listByScope.query.mockResolvedValue([created]);
-      trpc.session.getDetail.query.mockResolvedValue(created);
-      return created;
-    });
+    trpc.adapterCatalog.list.query.mockResolvedValue([CLAUDE_VIEW, CODEX_VIEW]);
 
     await selectWorktree(user);
-    await user.click(await screen.findByRole("button", { name: /nova sessão/ }));
-    await user.click(await screen.findByRole("menuitem", { name: /^terminal/ }));
+    await user.click(await screen.findByRole("button", { name: /^novo agente$/ }));
 
-    await waitFor(() =>
-      expect(trpc.session.createShell.mutate).toHaveBeenCalledWith({
-        scopeType: "worktree",
-        scopeId: "wt1",
-      }),
-    );
-    expect(await screen.findByTestId("terminal-mock")).toHaveTextContent("s1");
-  });
-
-  it("has exactly two verbs: a new agent and a terminal", async () => {
-    // `033` F5.6. The menu used to list one line per configuration, which is how
-    // the transport leaked into the gesture: choosing an agent was choosing a
-    // row of `agent_config`. The adapter and the model are chosen in the pill now.
-    const user = userEvent.setup();
-    trpc.agentConfig.list.query.mockResolvedValue([
-      agentConfig(),
-      agentConfig({ id: "ac2", name: "codex", command: "codex-acp" }),
-    ]);
-
-    await selectWorktree(user);
-    await user.click(await screen.findByRole("button", { name: /nova sessão/ }));
-
-    const items = within(await screen.findByRole("menu")).getAllByRole("menuitem");
-    expect(items).toHaveLength(2);
-    expect(items[0]).toHaveTextContent(/novo agente/);
-    expect(items[1]).toHaveTextContent(/terminal/);
-    expect(screen.queryByRole("menuitem", { name: /codex/ })).not.toBeInTheDocument();
-  });
-
-  it("closes the menu with Escape and gives focus back to the trigger", async () => {
-    const user = userEvent.setup();
-
-    await selectWorktree(user);
-    const trigger = await screen.findByRole("button", { name: /nova sessão/ });
-    await user.click(trigger);
-    expect(await screen.findByRole("menu")).toBeInTheDocument();
-
-    await user.keyboard("{Escape}");
-
+    expect(screen.queryByRole("button", { name: /nova sessão$/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
-    // Leaving focus on a button that no longer exists sends the next Tab to
-    // the top of the document.
-    expect(trigger).toHaveFocus();
+    expect(screen.queryByRole("menuitem", { name: /terminal/ })).not.toBeInTheDocument();
+    expect(await screen.findByRole("tab", { name: "rascunho" })).toBeInTheDocument();
+    expect(trpc.session.createShell.mutate).not.toHaveBeenCalled();
   });
 
-  it("closes the menu on a click outside it", async () => {
-    const user = userEvent.setup();
-
-    await selectWorktree(user);
-    await user.click(await screen.findByRole("button", { name: /nova sessão/ }));
-    expect(await screen.findByRole("menu")).toBeInTheDocument();
-
-    await user.click(screen.getByRole("heading", { name: "Lumem-OS" }));
-
-    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
-  });
-
-  it("can open a session in the project itself, with no worktree", async () => {
+  it("can open a draft in the project itself, with no worktree", async () => {
     // F5.2 and decision WS-Q15.
     const user = userEvent.setup();
-    trpc.session.createShell.mutate.mockResolvedValue(
-      session({ scopeType: "project", scopeId: "p1" }),
-    );
+    trpc.adapterCatalog.list.query.mockResolvedValue([CLAUDE_VIEW, CODEX_VIEW]);
 
     renderWithProviders(<App />);
     await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
-    await user.click(await screen.findByRole("button", { name: /nova sessão/ }));
-    await user.click(await screen.findByRole("menuitem", { name: /^terminal/ }));
+    await user.click(await screen.findByRole("button", { name: /^novo agente$/ }));
 
-    await waitFor(() =>
-      expect(trpc.session.createShell.mutate).toHaveBeenCalledWith({
-        scopeType: "project",
-        scopeId: "p1",
-      }),
-    );
-  });
-
-  it("shows the daemon's refusal when a session cannot start", async () => {
-    const user = userEvent.setup();
-    trpc.session.createShell.mutate.mockRejectedValue(
-      new Error('a worktree "teste" não está no disco'),
-    );
-
-    await selectWorktree(user);
-    await user.click(await screen.findByRole("button", { name: /nova sessão/ }));
-    await user.click(await screen.findByRole("menuitem", { name: /^terminal/ }));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent("não está no disco");
+    expect(await screen.findByRole("tab", { name: "rascunho" })).toBeInTheDocument();
+    expect(trpc.session.createShell.mutate).not.toHaveBeenCalled();
   });
 });
 
@@ -432,8 +316,7 @@ describe("aba rascunho", () => {
     const user = userEvent.setup();
 
     await selectWorktree(user);
-    await user.click(await screen.findByRole("button", { name: /nova sessão/ }));
-    await user.click(await screen.findByRole("menuitem", { name: /novo agente/ }));
+    await user.click(await screen.findByRole("button", { name: /^novo agente$/ }));
 
     const tab = await screen.findByRole("tab", { name: "rascunho" });
     expect(tab).toHaveAttribute("aria-selected", "true");
@@ -465,8 +348,7 @@ describe("aba rascunho", () => {
     const arriveSpy = vi.spyOn(navigation, "arrive");
 
     await selectWorktree(user);
-    await user.click(await screen.findByRole("button", { name: /nova sessão/ }));
-    await user.click(await screen.findByRole("menuitem", { name: /novo agente/ }));
+    await user.click(await screen.findByRole("button", { name: /^novo agente$/ }));
     await user.type(
       screen.getByPlaceholderText("escreva, ou / para comandos"),
       "corrige o login no Safari",
@@ -511,8 +393,7 @@ describe("aba rascunho", () => {
     );
 
     await selectWorktree(user);
-    await user.click(await screen.findByRole("button", { name: /nova sessão/ }));
-    await user.click(await screen.findByRole("menuitem", { name: /novo agente/ }));
+    await user.click(await screen.findByRole("button", { name: /^novo agente$/ }));
     await user.click(await screen.findByRole("button", { name: /^agente e modelo:.*pessoal/ }));
     await user.click(screen.getByRole("menuitemradio", { name: "trabalho" }));
     await user.type(screen.getByPlaceholderText("escreva, ou / para comandos"), "oi");
@@ -536,8 +417,7 @@ describe("aba rascunho", () => {
     );
 
     await selectWorktree(user);
-    await user.click(await screen.findByRole("button", { name: /nova sessão/ }));
-    await user.click(await screen.findByRole("menuitem", { name: /novo agente/ }));
+    await user.click(await screen.findByRole("button", { name: /^novo agente$/ }));
     const textarea = screen.getByPlaceholderText("escreva, ou / para comandos");
     await user.type(textarea, "não perca isto");
     await user.click(screen.getByRole("button", { name: /enviar/ }));
@@ -550,8 +430,7 @@ describe("aba rascunho", () => {
     const user = userEvent.setup();
 
     await selectWorktree(user);
-    await user.click(await screen.findByRole("button", { name: /nova sessão/ }));
-    await user.click(await screen.findByRole("menuitem", { name: /novo agente/ }));
+    await user.click(await screen.findByRole("button", { name: /^novo agente$/ }));
     await user.type(screen.getByPlaceholderText("escreva, ou / para comandos"), "rascunho descartável");
 
     await user.click(screen.getByRole("button", { name: "fechar rascunho" }));
@@ -567,13 +446,13 @@ describe("aba de sessão", () => {
     // F5.10, now inside the tab rather than on a screen of its own.
     const user = userEvent.setup();
     trpc.session.listByScope.query.mockImplementation(async ({ scopeType }) =>
-      scopeType === "worktree" ? [session()] : [],
+      scopeType === "worktree" ? [tabSession()] : [],
     );
 
     await selectWorktree(user);
-    await user.click(await screen.findByRole("tab", { name: /shell/ }));
+    await user.click(await screen.findByRole("tab", { name: /^claude-code/ }));
 
-    const painel = await screen.findByRole("tabpanel", { name: "sessão shell" });
+    const painel = await screen.findByRole("tabpanel", { name: "sessão claude-code" });
     expect(within(painel).getByText(/\/bin\/zsh/)).toBeInTheDocument();
     expect(within(painel).getByTestId("terminal-mock")).toHaveTextContent("s1");
   });
@@ -581,12 +460,12 @@ describe("aba de sessão", () => {
   it("ends a running session from its own tab", async () => {
     const user = userEvent.setup();
     trpc.session.listByScope.query.mockImplementation(async ({ scopeType }) =>
-      scopeType === "worktree" ? [session()] : [],
+      scopeType === "worktree" ? [tabSession()] : [],
     );
     trpc.session.close.mutate.mockResolvedValue({ ok: true as const });
 
     await selectWorktree(user);
-    await user.click(await screen.findByRole("button", { name: "fechar shell" }));
+    await user.click(await screen.findByRole("button", { name: "fechar claude-code" }));
 
     await waitFor(() => expect(trpc.session.close.mutate).toHaveBeenCalledWith({ id: "s1" }));
   });
@@ -596,15 +475,15 @@ describe("aba de sessão", () => {
     // nothing on screen pointing at it.
     const user = userEvent.setup();
     trpc.session.listByScope.query.mockImplementation(async ({ scopeType }) =>
-      scopeType === "worktree" ? [session()] : [],
+      scopeType === "worktree" ? [tabSession()] : [],
     );
     trpc.session.close.mutate.mockRejectedValue(new Error("o daemon recusou"));
 
     await selectWorktree(user);
-    await user.click(await screen.findByRole("button", { name: "fechar shell" }));
+    await user.click(await screen.findByRole("button", { name: "fechar claude-code" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("o daemon recusou");
-    expect(screen.getByRole("tab", { name: /shell/ })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /^claude-code/ })).toBeInTheDocument();
   });
 
   it("shows the daemon's reason when a resume is refused, instead of nothing", async () => {
@@ -654,14 +533,14 @@ describe("aba de sessão", () => {
     // for bugs, and the daemon's ordinary "no" stays out of it.
     const user = userEvent.setup();
     trpc.session.listByScope.query.mockImplementation(async ({ scopeType }) =>
-      scopeType === "worktree" ? [session()] : [],
+      scopeType === "worktree" ? [tabSession()] : [],
     );
     trpc.session.close.mutate.mockRejectedValue(
       Object.assign(new Error("o daemon caiu ao fechar"), { data: { code: "INTERNAL_SERVER_ERROR" } }),
     );
 
     await selectWorktree(user);
-    await user.click(await screen.findByRole("button", { name: "fechar shell" }));
+    await user.click(await screen.findByRole("button", { name: "fechar claude-code" }));
 
     const trigger = await screen.findByRole("button", { name: /registro de erros/ });
     await user.click(trigger);
@@ -675,13 +554,13 @@ describe("aba de sessão", () => {
     const user = userEvent.setup();
     trpc.session.listByScope.query.mockImplementation(async ({ scopeType }) =>
       scopeType === "worktree"
-        ? [session(), session({ id: "s2", kind: "agent", agentName: "claude-code" })]
+        ? [tabSession(), tabSession({ id: "s2", agentName: "codex" })]
         : [],
     );
 
     await selectWorktree(user);
-    await user.click(await screen.findByRole("tab", { name: /shell/ }));
-    await user.click(screen.getByRole("tab", { name: /claude-code/ }));
+    await user.click(await screen.findByRole("tab", { name: /^claude-code/ }));
+    await user.click(screen.getByRole("tab", { name: /codex/ }));
 
     const mounted = screen.getAllByTestId("terminal-mock").map((node) => node.textContent);
     expect(mounted).toContain("s1");

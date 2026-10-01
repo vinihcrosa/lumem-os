@@ -21,7 +21,7 @@ import { StepShell } from "./StepShell.js";
  *
  * Short, because it becomes the label on the session tab. `claude-code` is taken
  * by the seeded PTY configuration, and the two have to be told apart in the
- * "nova sessão" menu.
+ * "＋ novo agente" draft.
  */
 export const SETUP_AGENT_NAME = "claude";
 

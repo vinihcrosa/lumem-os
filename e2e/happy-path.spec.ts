@@ -8,10 +8,13 @@ import { E2E_FAKE_ACP_AGENT, E2E_FIXTURE_REPO } from "./support/fixtures.js";
 import {
   createAgentConfig,
   createWorktree,
+  dockTerminal,
+  endEveryTerminal,
   ensureProject,
   ensureWorkspace,
   openConfiguredAgent,
   openProject,
+  openTerminal,
 } from "./support/app.js";
 import { E2E_SERVER_PORT } from "../ports.js";
 
@@ -29,14 +32,15 @@ const WORKTREE = "teste-prd";
 const AGENT = "eco-happy-path";
 
 /**
- * The buffer of the tab that is open.
+ * The buffer of the terminal in the run dock.
  *
- * Every tab's terminal stays mounted so switching does not cost a reconnect and
- * a repaint — which means `.xterm-rows` matches one per open session, and only
- * the visible panel is the one being asked about.
+ * A shell lives only in the dock since LUM-62 — not as a tab of the middle strip
+ * — and the dock draws one terminal at a time, the one picked by its
+ * `terminal N` switches. The agent tabs keep their own terminals mounted, so an
+ * unscoped `.xterm-rows` would match those too.
  */
 function terminalText(page: Page) {
-  return page.locator("[role=tabpanel]:not([hidden]) .xterm-rows");
+  return dockTerminal(page).locator(".xterm-rows");
 }
 
 function conversation(page: Page) {
@@ -53,7 +57,7 @@ async function sendAgentPrompt(page: Page, prompt: string): Promise<void> {
 }
 
 async function typeLine(page: Page, line: string): Promise<void> {
-  await page.locator("[role=tabpanel]:not([hidden]) textarea.xterm-helper-textarea").focus();
+  await dockTerminal(page).locator("textarea.xterm-helper-textarea").focus();
   await page.keyboard.type(line);
   await page.keyboard.press("Enter");
 }
@@ -74,26 +78,25 @@ function announcing(command: string, word: string): string {
   return `${command} && printf '${head}%s\\n' ${tail}`;
 }
 
-/** Opens a session through the strip's own menu, where both kinds now live. */
-async function newSession(page: Page, name: string): Promise<void> {
-  if (name !== "shell") {
-    await openConfiguredAgent(page, DAEMON, name);
-    return;
-  }
-  await page.getByRole("button", { name: /nova sessão/ }).click();
-  await page.getByRole("menuitem", { name: "terminal" }).click();
+/** Opens an agent session in the tab strip; shells are opened by `openTerminal`. */
+async function newAgent(page: Page, name: string): Promise<void> {
+  await openConfiguredAgent(page, DAEMON, name);
 }
 
 /**
- * Ends every session open in the current worktree, through its tab.
+ * Ends every agent session open in the current worktree, through its tab.
  *
  * F4.9 blocks removal until they are gone, which is the point — this is the
  * user doing what the daemon told them to. A tab going away is the proof the
- * process actually stopped: the client refuses to merely hide a live one.
+ * process actually stopped: the client refuses to merely hide a live one. The
+ * shells have no tab (LUM-62) and are ended by `endEveryTerminal`.
+ *
+ * `fechar a coluna de arquivos` is the files column's own switch and starts
+ * with the same word; the lookahead keeps it from being counted as a tab.
  */
 async function closeEveryTab(page: Page): Promise<void> {
   for (let attempt = 0; attempt < 20; attempt += 1) {
-    const closers = page.getByRole("button", { name: /^fechar / });
+    const closers = page.getByRole("button", { name: /^fechar (?!a coluna)/ });
     const before = await closers.count();
     if (before === 0) return;
 
@@ -144,16 +147,15 @@ test("the whole flow, from an empty install to a removed worktree", async ({ pag
   expect(gitIn(E2E_FIXTURE_REPO, "worktree", "list")).toContain(WORKTREE);
 
   // --- shell in the worktree -----------------------------------------------
-  await newSession(page, "shell");
-  await expect(page.locator("[role=tabpanel]:not([hidden])").getByTestId("terminal")).toBeVisible();
+  // In the run dock, the only place a terminal opens (LUM-62).
+  await openTerminal(page);
   await typeLine(page, "git status");
   // The branch is the proof that the cwd really is the worktree.
   await expect(terminalText(page)).toContainText(WORKTREE, { timeout: 20_000 });
 
   // --- a second shell, in the project this time ----------------------------
   await openProject(page);
-  await newSession(page, "shell");
-  await expect(page.locator("[role=tabpanel]:not([hidden])").getByTestId("terminal")).toBeVisible();
+  await openTerminal(page);
   // Announced rather than echoed: waiting for "shell-do-projeto" was satisfied
   // by the keystrokes that typed the command, so the shell in the project was
   // never proved to have run anything.
@@ -170,13 +172,13 @@ test("the whole flow, from an empty install to a removed worktree", async ({ pag
 
   // --- an agent in the worktree --------------------------------------------
   await page.getByRole("button", { name: new RegExp(`^${WORKTREE}`) }).first().click();
-  await newSession(page, AGENT);
+  await newAgent(page, AGENT);
   await sendAgentPrompt(page, WORKTREE);
   await expect(conversation(page)).toContainText(WORKTREE);
 
   // --- an agent in the project itself, with no worktree (WS-Q15) -----------
   await openProject(page);
-  await newSession(page, AGENT);
+  await newAgent(page, AGENT);
   await expect(conversation(page)).toBeVisible();
 
   // --- navigate away and back ----------------------------------------------
@@ -198,6 +200,9 @@ test("the whole flow, from an empty install to a removed worktree", async ({ pag
   await page.getByRole("button", { name: new RegExp(`^${WORKTREE}`) }).first().click();
   await expect(page.getByRole("heading", { name: WORKTREE })).toBeVisible();
   await closeEveryTab(page);
+  // The worktree's shell has no tab to close: it ends where it lives, in the
+  // dock, which follows the checkout that was just selected.
+  await endEveryTerminal(page);
 
   await page.getByRole("button", { name: "remover worktree" }).click();
 

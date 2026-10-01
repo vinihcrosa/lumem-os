@@ -125,3 +125,8 @@ Q6a é onde a conversa volta.
 Antes disso o menu nasceria com zero item e a `--tight` apertaria a faixa para caber nele. Foi para o
 [backlog](../../project/backlog.md), junto com a saída vazia informativa do quadro 1, que é certa e é
 de outra feature.
+
+> **Nota, 2026-10-01 —** o gatilho disparou na LUM-62: o `＋ outro terminal` existe e todo terminal mora
+> no rodapé. Ele vive na linha de estado da aba `Terminal`, com o seletor `terminal 1`, `terminal 2`…, e
+> não na faixa — então a conta dos 494px não mudou, e o `⋯` e a `--tight` seguem sem item que os
+> justifique. A entrada do [backlog](../../project/backlog.md) diz o que sobrou.

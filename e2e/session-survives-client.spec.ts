@@ -1,7 +1,15 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { E2E_FIXTURE_REPO } from "./support/fixtures.js";
-import { createWorktree, ensureProject, ensureWorkspace, openProject } from "./support/app.js";
+import {
+  createWorktree,
+  dockTerminal,
+  ensureProject,
+  ensureWorkspace,
+  openProject,
+  openTerminal,
+  showTerminalTab,
+} from "./support/app.js";
 
 /**
  * The criterion the whole architecture exists for: close the browser with an
@@ -20,8 +28,9 @@ const TICKS = 40;
 const WORKTREE = "sobrevivencia";
 
 function terminalText(page: Page) {
-  // xterm renders rows into the DOM; this is what the user actually sees.
-  return page.locator(".xterm-rows");
+  // xterm renders rows into the DOM; this is what the user actually sees. The
+  // dock's terminal, since a shell is drawn nowhere else (LUM-62).
+  return dockTerminal(page).locator(".xterm-rows");
 }
 
 /** The largest tick already printed, or 0 if none is on screen. */
@@ -33,7 +42,7 @@ function highestTick(text: string): number {
 async function typeLine(page: Page, line: string): Promise<void> {
   // xterm reads the keyboard through a hidden textarea; clicking the rows hits
   // the screen overlay instead and never focuses anything.
-  await page.locator("[role=tabpanel]:not([hidden]) textarea.xterm-helper-textarea").focus();
+  await dockTerminal(page).locator("textarea.xterm-helper-textarea").focus();
   await page.keyboard.type(line);
   await page.keyboard.press("Enter");
 }
@@ -49,9 +58,7 @@ test("a session outlives the client that started it", async ({ browser }) => {
   await createWorktree(page, WORKTREE);
   await expect(page.getByRole("heading", { name: WORKTREE })).toBeVisible({ timeout: 30_000 });
 
-  await page.getByRole("button", { name: /nova sessão/ }).click();
-  await page.getByRole("menuitem", { name: "terminal" }).click();
-  await expect(page.locator("[role=tabpanel]:not([hidden])").getByTestId("terminal")).toBeVisible();
+  await openTerminal(page);
 
   // A command that keeps writing on its own, so the test can prove output was
   // produced with nobody watching — not merely that the buffer survived.
@@ -90,10 +97,11 @@ test("a session outlives the client that started it", async ({ browser }) => {
     .click();
   await expect(reopened.getByRole("heading", { name: WORKTREE })).toBeVisible();
 
-  // Its tab is there because the session never stopped: the strip only ever
-  // shows live work.
-  await reopened.getByRole("tab", { name: /^shell/ }).first().click();
-  await expect(reopened.locator("[role=tabpanel]:not([hidden])").getByTestId("terminal")).toBeVisible();
+  // Its terminal is in the dock because the session never stopped: the dock only
+  // ever lists live shells, and it is the one place a shell is drawn (LUM-62).
+  // The reopened client never opened this terminal — it only asks for the dock.
+  await showTerminalTab(reopened);
+  await expect(dockTerminal(reopened)).toBeVisible();
 
   // The heart of it: a tick that could only have been printed while no browser
   // was attached is in the buffer the daemon replayed.

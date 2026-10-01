@@ -104,6 +104,21 @@
 }
 .dock__new:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
 
+/* O seletor de terminais: um botão por shell vivo, o ativo com o sublinhado da aba. */
+.dock__terms { display: flex; align-items: center; gap: var(--space-2); flex: none; }
+.dock__term {
+  display: inline-flex;
+  align-items: center;
+  height: var(--size-control-sm);
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font: var(--text-label-sm);
+  white-space: nowrap;
+}
+.dock__term:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.dock__term--active { background: var(--color-bg-hover); color: var(--color-text-primary); }
+
 .dock__acts { display: flex; align-items: center; gap: var(--space-6); align-self: center; }
 .dock__spacer { flex: 1; }
 

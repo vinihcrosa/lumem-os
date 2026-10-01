@@ -5,7 +5,14 @@ import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 
 import { E2E_FIXTURE_REPO, E2E_FIXTURE_REPO_ALT } from "./support/fixtures.js";
-import { createWorktree, ensureProject, ensureWorkspace, openProject } from "./support/app.js";
+import {
+  createWorktree,
+  endEveryTerminal,
+  ensureProject,
+  ensureWorkspace,
+  openProject,
+  openTerminal,
+} from "./support/app.js";
 import { call, query, startDaemon } from "./support/daemon.js";
 import { E2E_RESTART_PORT } from "../ports.js";
 
@@ -57,27 +64,21 @@ test("a worktree with a live session cannot be removed", async ({ page }) => {
   await createWorktree(page, name);
   await expect(page.getByRole("heading", { name })).toBeVisible({ timeout: 30_000 });
 
-  await page.getByRole("button", { name: /nova sessão/ }).click();
-  await page.getByRole("menuitem", { name: "terminal" }).click();
-  await expect(page.locator("[role=tabpanel]:not([hidden])").getByTestId("terminal")).toBeVisible();
+  // A sessão viva é um terminal no rodapé (LUM-62): shell não é mais aba.
+  await openTerminal(page);
 
-  // A ação destrutiva mora na aba do checkout, e a sessão está na frente:
-  // voltar para a aba dela é parte do gesto agora.
-  await page.getByRole("tab", { name }).click();
+  // A ação destrutiva mora na aba do checkout, que continua na frente: o
+  // terminal vive na coluna, e não na faixa de abas.
   await page.getByRole("button", { name: "remover worktree" }).click();
 
   // F4.9, and PRD §5: the message names the session, not the dirt.
   await expect(page.getByRole("alert")).toContainText("sessão(ões) rodando");
   await expect(page.getByRole("heading", { name })).toBeVisible();
 
-  // Closing them is what unblocks it, which is the whole point of the refusal.
-  // The tab is where a session lives now, and closing it is what ends the
-  // process — the tab going away is the proof that it did.
-  const closeTab = page.getByRole("button", { name: /^fechar / }).first();
-  await closeTab.click();
-  await expect(page.getByRole("button", { name: /^fechar / })).toHaveCount(0, {
-    timeout: 20_000,
-  });
+  // Ending them is what unblocks it, which is the whole point of the refusal.
+  // The dock's terminal has no ✕, so the shell ends the way a shell ends — and
+  // the terminal going away from the dock is the proof that the process did.
+  await endEveryTerminal(page);
 
   await page.getByRole("button", { name: "remover worktree" }).click();
   await expect(page.getByRole("heading", { name })).toBeHidden({ timeout: 20_000 });
@@ -110,16 +111,28 @@ test("a dirty worktree is refused, and forcing it works", async ({ page }) => {
   await expect(page.getByRole("heading", { name })).toBeHidden({ timeout: 20_000 });
 });
 
-test("the new-session menu offers only a new agent draft and a terminal", async ({ page }) => {
+test("a new agent is a direct button, and the tab strip offers no terminal", async ({ page }) => {
   await openFixtureProject(page);
 
-  // Configurations no longer appear as session-launch rows. The user chooses
-  // an adapter and model inside the draft, while shell remains available.
-  await page.getByRole("button", { name: /nova sessão/ }).click();
-  const menu = page.getByRole("menu", { name: "nova sessão" });
-  await expect(menu.getByRole("menuitem")).toHaveCount(2);
-  await expect(menu.getByRole("menuitem", { name: "novo agente" })).toBeEnabled();
-  await expect(menu.getByRole("menuitem", { name: "terminal" })).toBeEnabled();
+  // LUM-62: the `＋ nova sessão` menu had two items, a new agent and a terminal.
+  // The terminal lives only in the run dock now, and a menu of one item is a
+  // click for nothing — so `novo agente` is the button itself. Configurations
+  // still do not appear as session-launch rows: the adapter and the model are
+  // chosen inside the draft.
+  const strip = page.locator(".tabs-bar");
+  await expect(strip.getByRole("button", { name: /^novo agente$/ })).toBeEnabled();
+  await expect(page.getByRole("button", { name: /nova sessão/ })).toHaveCount(0);
+  await expect(page.getByRole("menu")).toHaveCount(0);
+
+  // Pressing it opens the draft directly, with no menu in between.
+  await strip.getByRole("button", { name: /^novo agente$/ }).click();
+  await expect(page.getByRole("menu")).toHaveCount(0);
+  await expect(page.getByRole("menuitem", { name: "terminal" })).toHaveCount(0);
+  await expect(page.getByRole("tab", { name: "rascunho" })).toBeVisible();
+
+  // And no terminal is offered by the strip — neither as an item nor as a tab.
+  await expect(strip.getByRole("button", { name: /^terminal$/ })).toHaveCount(0);
+  await expect(strip.getByRole("tab", { name: /^(terminal|shell)/ })).toHaveCount(0);
 });
 
 test("a worktree deleted from outside becomes missing after a restart", async () => {

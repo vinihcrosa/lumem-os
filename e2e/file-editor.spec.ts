@@ -7,10 +7,12 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { E2E_FAKE_ACP_AGENT, E2E_FIXTURE_REPO_EDITOR } from "./support/fixtures.js";
 import {
   createAgentConfig,
+  dockTerminal,
   ensureProject,
   ensureWorkspace,
   openConfiguredAgent,
   openProject,
+  openTerminal,
 } from "./support/app.js";
 import { E2E_SERVER_PORT } from "../ports.js";
 
@@ -66,18 +68,14 @@ function git(...args: string[]): void {
 }
 
 async function typeLine(page: Page, line: string): Promise<void> {
-  await visiblePanel(page).locator("textarea.xterm-helper-textarea").focus();
+  // The terminal is the run dock's (LUM-62), not a tab of the middle strip.
+  await dockTerminal(page).locator("textarea.xterm-helper-textarea").focus();
   await page.keyboard.type(line);
   await page.keyboard.press("Enter");
 }
 
-async function newSession(page: Page, name: string): Promise<void> {
-  if (name !== "shell") {
-    await openConfiguredAgent(page, `http://127.0.0.1:${E2E_SERVER_PORT}`, name);
-    return;
-  }
-  await page.getByRole("button", { name: /nova sessão/ }).click();
-  await page.getByRole("menuitem", { name: "terminal" }).click();
+async function newAgent(page: Page, name: string): Promise<void> {
+  await openConfiguredAgent(page, `http://127.0.0.1:${E2E_SERVER_PORT}`, name);
 }
 
 async function openColumn(page: Page): Promise<void> {
@@ -150,7 +148,7 @@ test.beforeEach(async ({ page, request }) => {
 });
 
 test("fixes a line while the agent runs beside it, and the diff notices", async ({ page }) => {
-  await newSession(page, AGENT);
+  await newAgent(page, AGENT);
   // The shared helper may reload to reconcile an API-created session after a
   // missed live event; that resets the column's open state.
   await openColumn(page);
@@ -190,8 +188,8 @@ test("the terminal writes the open file, and overwriting leaves the editor's tex
 }) => {
   const mine = 'export const AUTOR = "eu, no editor";';
 
-  await newSession(page, "shell");
-  await expect(visiblePanel(page).locator(".xterm-rows")).toBeVisible({ timeout: 20_000 });
+  const terminal = await openTerminal(page);
+  await expect(terminal.locator(".xterm-rows")).toBeVisible({ timeout: 20_000 });
 
   await openFile(page, NOTES);
   await expect(editor(page)).toContainText(WRONG, { timeout: 20_000 });
