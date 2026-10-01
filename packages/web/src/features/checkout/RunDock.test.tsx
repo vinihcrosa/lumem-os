@@ -466,6 +466,32 @@ describe("a aba Terminal", () => {
     expect(await screen.findByTestId("terminal")).toHaveAttribute("data-session", "se_shell");
   });
 
+  it("mostra a recusa do daemon ao abrir um terminal (LUM-62)", async () => {
+    trpcMock.session.createShell.mutate.mockRejectedValue(
+      new Error('a worktree "teste" não está no disco'),
+    );
+
+    renderWithProviders(<RunDock scope={scope} dock={dock} />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Terminal" }));
+    await userEvent.click(await screen.findByRole("button", { name: /abrir terminal/ }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("não está no disco");
+  });
+
+  it("mostra a recusa também ao abrir outro terminal", async () => {
+    trpcMock.session.listByScope.query.mockResolvedValue([
+      { id: "se_a", kind: "shell", state: "running", cwd: "/repo/wt", command: "/bin/zsh" },
+    ]);
+    trpcMock.session.createShell.mutate.mockRejectedValue(new Error("o daemon recusou"));
+
+    renderWithProviders(<RunDock scope={scope} dock={dock} />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Terminal" }));
+    await userEvent.click(await screen.findByRole("button", { name: /outro terminal/ }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("o daemon recusou");
+    expect(screen.getByTestId("terminal")).toHaveAttribute("data-session", "se_a");
+  });
+
   it("troca entre dois terminais sem fechar nenhum (LUM-62)", async () => {
     trpcMock.session.listByScope.query.mockResolvedValue([
       { id: "se_a", kind: "shell", state: "running", cwd: "/repo/wt", command: "/bin/zsh" },

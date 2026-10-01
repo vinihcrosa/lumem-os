@@ -504,16 +504,18 @@ vivo numa coluna de 360px, e ele não depende mais do `＋`.
 2026-09-06; gatilho disparado e relido em LUM-62 · **Volta quando:** a faixa com um `run` vivo em 360px
 incomodar de verdade, ou quando o rodapé ganhar um segundo gesto que caiba na faixa e não na linha de estado.
 
-### O caminho de shell morto em `SessionTab` — `P`
+### O ramo de shell em `SessionTab` — `P`
 
-Desde a LUM-62 nenhum shell é aba da coluna do meio (`useWorktreeTabs` o filtra; o terminal mora no rodapé),
-e agente é sempre ACP desde a [`033`](../features/033-acp-only-agents/prd.md). O ramo PTY de `SessionTab`
-— o `RecordNotice` com `nova sessão igual` e o `Terminal` somente leitura — ficou sem quem o alcance, e o
-`ver registro` de um agente legado já não é oferecido. Removê-lo é uma limpeza própria, com os testes de
-registro que o cobrem.
+Desde a LUM-62 nenhum **shell** é aba da coluna do meio (`useWorktreeTabs` o filtra; o terminal mora no
+rodapé), e agente é sempre ACP desde a [`033`](../features/033-acp-only-agents/prd.md). Mas o ramo PTY de
+`SessionTab` **não está morto**: uma sessão de **script** (`kind: "script"`, `transport: "pty"`) ainda vira
+aba enquanto roda, ainda ganha `ver registro` depois de encerrar, e reabri-la cai no `RecordNotice`. Lá,
+`nova sessão igual` abre uma **shell** — que agora nasce no rodapé e não é aba, então a seleção não tem
+para onde ir. O que sobra a limpar é esse botão para script (ele promete "a mesma sessão" e entrega outra
+coisa), não o ramo inteiro.
 
-**De onde veio:** LUM-62 · **Volta quando:** alguém mexer em `SessionTab` por outro motivo, ou o
-`transport: "pty"` sair do contrato de sessão.
+**De onde veio:** LUM-62, revisão da PR · **Volta quando:** alguém mexer em `SessionTab` por outro motivo,
+ou o script ganhar uma superfície própria de registro.
 
 ### A saída que nunca rodou diz o que o daemon já sabe — `P`
 

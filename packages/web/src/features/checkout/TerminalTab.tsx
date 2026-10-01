@@ -22,18 +22,28 @@ export function TerminalTab({ scope }: { scope: Scope }) {
   );
   const active = shells.find((shell) => shell.id === current) ?? shells[0] ?? null;
 
-  async function open(): Promise<void> {
-    const created = await createShell.mutateAsync();
-    setCurrent(created.id);
+  // `mutate`, not `mutateAsync`: a refusal ends up in `createShell.error`, drawn
+  // below, instead of a rejected promise nobody awaits.
+  function open(): void {
+    createShell.mutate(undefined, { onSuccess: (created) => setCurrent(created.id) });
   }
+
+  // The dock is the only way to open a terminal (LUM-62), so the daemon's reason
+  // for a refusal — `a worktree "x" não está no disco` — has nowhere else to go.
+  const refusal = createShell.isError ? (
+    <span className="trust__note" role="alert">
+      {createShell.error.message}
+    </span>
+  ) : null;
 
   if (active === undefined || active === null) {
     return (
       <div className="dock__idle">
         <span>Nenhum terminal aberto neste checkout.</span>
-        <Button size="sm" onClick={() => void open()}>
+        <Button size="sm" disabled={createShell.isPending} onClick={open}>
           ＋ abrir terminal
         </Button>
+        {refusal}
       </div>
     );
   }
@@ -55,8 +65,14 @@ export function TerminalTab({ scope }: { scope: Scope }) {
           ))}
         </div>
         <span className="dock__cmd dock__cmd--dim">cwd {active.cwd}</span>
+        {refusal}
         <span className="dock__spacer" />
-        <button type="button" className="dock__new" onClick={() => void open()}>
+        <button
+          type="button"
+          className="dock__new"
+          disabled={createShell.isPending}
+          onClick={open}
+        >
           ＋ outro terminal
         </button>
       </div>

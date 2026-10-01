@@ -119,6 +119,8 @@ Não há clone. O repo já tem que estar no disco.
 **F5.7** Voltar pra sessão restaura o conteúdo anterior.
 **F5.8** Fechar sessão explicitamente encerra o processo.
 **F5.9** Processo que morre sozinho marca a sessão como encerrada; o buffer continua legível até você fechar.
+
+> **Nota, 2026-10-01 —** a LUM-62 tirou o shell da coluna do meio: o terminal mora só no rodapé de execução ([`033`](../033-acp-only-agents/prd.md), F5.6), que lista apenas shell vivo. Marcar a sessão como encerrada continua valendo; o buffer legível "até você fechar" sobrevive para agente e script, não para shell — o de um shell encerrado não tem mais superfície que o leia.
 **F5.10** O detalhe da sessão mostra tipo, escopo, comando lançado e estado.
 
 ### F6 — Configurações de agente
