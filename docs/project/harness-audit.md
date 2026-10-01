@@ -129,6 +129,12 @@ trava a autonomia — mais do que qualquer lacuna de teste.
 > `smoke:install` continua verde. O token foi **revogado no npmjs.com** pelo dono em 2026-09-29 — apagar do
 > arquivo não bastava, porque não invalida a credencial em backup ou snapshot de disco.
 > A primeira release por tag depois disso — a `v0.7.0`, em 2026-09-30 — publicou normalmente, por OIDC.
+>
+> **Item #3 fechado em 2026-09-28** pela [T3](../features/024-dev-harness/tasks.md): o environment `npm`
+> exige o reviewer `vinihcrosa` e só aceita deploy de tag `v*`. Um `workflow_dispatch` de branch com
+> `dry_run=false` foi recusado pela política, e a `v0.7.0` (2026-09-30) esperou a aprovação antes do
+> `npm publish`. **O item #4 segue aberto:** o token do `gh` ainda tem `delete_repo`, e revogar é do dono
+> da conta.
 
 ## 7. Scorecard
 
