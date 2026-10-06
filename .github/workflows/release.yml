@@ -109,7 +109,7 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: tarball
 
@@ -212,13 +212,13 @@ jobs:
       # npm@11.20.0 supports it and satisfies OIDC's npm >= 11.5.1 requirement.
       - run: npm install -g npm@11.20.0
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: tarball
 
       # Os quatro pacotes do app, com o que a release anexa. `merge-multiple` junta os quatro
       # artefatos numa pasta só: `desktop/<plataforma>-<arch>/*.tgz` e `desktop/assets/*`.
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: desktop-*
           path: desktop
