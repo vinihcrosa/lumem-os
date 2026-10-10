@@ -55,7 +55,8 @@ function installer(result?: Partial<AdapterInstall>) {
 
 it("upgrades a managed copy that is not on the pin", async () => {
   /*
-   * O caso exato de 2026-09-08: o disco no `0.40.0`, o pino no `0.75.1`. O
+   * O caso exato de 2026-09-08: o disco no `0.40.0`, o pino no `0.75.1` (hoje,
+   * o pino é o que o catálogo disser — o caso é o disco atrás dele). O
    * `0.40.0` embute o Claude Code `2.1.160`, que não conhece Opus 5 nem Fable 5.1
    * e relatou uma janela de 200K num rótulo que dizia "1M context".
    */
@@ -65,7 +66,7 @@ it("upgrades a managed copy that is not on the pin", async () => {
 
   const [claude] = await reconcileAdapters({ dir, specs: [CLAUDE_ADAPTER], install });
 
-  expect(claude).toMatchObject({ id: "claude", outcome: "upgraded", version: "0.75.1" });
+  expect(claude).toMatchObject({ id: "claude", outcome: "upgraded", version: CLAUDE_ADAPTER.pinnedVersion });
   expect(install).toHaveBeenCalledOnce();
 });
 

@@ -204,8 +204,13 @@ export const CLAUDE_ADAPTER: AdapterSpec = {
    *
    * `0.75.1` traz o SDK `0.3.257`. O estudo, com as duas versões lado a lado,
    * está em `docs/project/claude-agent-acp-0.75.md`.
+   *
+   * Remedido em 2026-10-10, quando o `adapters:check` reprovou o `0.75.1` (SDK
+   * 36 releases atrás): `0.89.1` traz o SDK `0.3.293`, e o mesmo procedimento —
+   * leitura, escrita, plan mode, pensamento e `session/load` — fechou sem `warn`
+   * nem `unknown`. Está em `docs/project/claude-agent-acp-0.89.md`.
    */
-  pinnedVersion: "0.75.1",
+  pinnedVersion: "0.89.1",
   /*
    * `null` desde 2026-09-08, e isto **reverte** o que estava escrito no §
    * `cli` opcional acima: *"o `claude-agent-acp`, ao contrário, é um adaptador que
@@ -226,8 +231,8 @@ export const CLAUDE_ADAPTER: AdapterSpec = {
    * distinção está na [Q3](../../../docs/features/027-adapter-provenance/open-questions.md).
    */
   cli: null,
-  // Medido: `0.40.0` embutia o `0.3.160` e `0.75.1` embute o `0.3.257`, e o
-  // número depois do `0.3.` é o do Claude Code que a API cobra na recusa.
+  // Medido: `0.40.0` embutia o `0.3.160`, `0.75.1` o `0.3.257` e `0.89.1` o
+  // `0.3.293`, e o número depois do `0.3.` é o do Claude Code que a API cobra na recusa.
   runtime: "@anthropic-ai/claude-agent-sdk",
   apiKeyEnv: ["ANTHROPIC_API_KEY"],
   // Medido na Q43, e é o único dos cinco que fecha o laço: `default`, `plan`,

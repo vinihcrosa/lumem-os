@@ -127,7 +127,7 @@ describe("the claude spec", () => {
     expect(CLAUDE_ADAPTER).toMatchObject({
       command: "claude-agent-acp",
       package: "@agentclientprotocol/claude-agent-acp",
-      pinnedVersion: "0.75.1",
+      pinnedVersion: "0.89.1",
       cli: null,
       apiKeyEnv: ["ANTHROPIC_API_KEY"],
     });
